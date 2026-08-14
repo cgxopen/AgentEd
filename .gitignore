@@ -1,0 +1,13 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+
+# Ephemeral development artefacts
+.claude/
+docs/prompts/
