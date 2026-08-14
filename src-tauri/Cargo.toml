@@ -1,0 +1,26 @@
+[package]
+name = "agented"
+version = "0.2.0"
+description = "WYSIWYG Markdown editor for AI agent knowledge bases"
+authors = ["Cătălin Vasile"]
+license = "MIT"
+repository = "https://github.com/catge/agented"
+default-run = "agented"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-shell = "2"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"

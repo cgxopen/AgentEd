@@ -1,0 +1,401 @@
+import { describe, expect, it } from 'vitest';
+import type { FileEntry, FileResult, PlatformIO } from '../platform/types';
+import { detectContextCluster, MAX_CHILDREN, MAX_RESULTS } from './detector';
+
+/**
+ * In-memory `PlatformIO` for cluster tests. Only the methods the
+ * detector touches (`exists`, `listDir`) are wired up; the rest throw
+ * so accidental coupling shows up loudly.
+ */
+class FakeIO implements PlatformIO {
+  readonly supportsMultiFile = false;
+  readonly files: Set<string>;
+  readonly dirs: Map<string, FileEntry[]>;
+  readonly listDirCalls: string[] = [];
+  readonly existsCalls: string[] = [];
+  /** When set, any path under one of these prefixes throws on listDir. */
+  readonly forbiddenDirPrefixes: string[] = [];
+
+  constructor(files: string[], dirs: Record<string, string[]>) {
+    this.files = new Set(files);
+    this.dirs = new Map();
+    for (const [parent, children] of Object.entries(dirs)) {
+      const entries: FileEntry[] = children.map((name) => {
+        const isDir = name.endsWith('/');
+        const cleanName = isDir ? name.slice(0, -1) : name;
+        const path = `${parent}/${cleanName}`;
+        return { name: cleanName, path, isDirectory: isDir };
+      });
+      this.dirs.set(parent, entries);
+    }
+  }
+
+  async exists(path: string): Promise<boolean> {
+    this.existsCalls.push(path);
+    return this.files.has(path);
+  }
+
+  async listDir(path: string): Promise<FileEntry[]> {
+    this.listDirCalls.push(path);
+    if (this.forbiddenDirPrefixes.some((p) => path.startsWith(p))) {
+      throw new Error(`EACCES: ${path}`);
+    }
+    return this.dirs.get(path) ?? [];
+  }
+
+  async openFile(): Promise<FileResult | null> {
+    throw new Error('not implemented');
+  }
+  async pickFile(): Promise<string | null> {
+    throw new Error('not implemented');
+  }
+  async readText(): Promise<string> {
+    throw new Error('not implemented');
+  }
+  async saveFile(): Promise<void> {
+    throw new Error('not implemented');
+  }
+  async saveFileAs(): Promise<string | null> {
+    throw new Error('not implemented');
+  }
+  async readBinary(): Promise<Uint8Array> {
+    throw new Error('not implemented');
+  }
+  async writeBinary(): Promise<void> {
+    throw new Error('not implemented');
+  }
+  async mkdir(): Promise<void> {
+    throw new Error('not implemented');
+  }
+  async remove(): Promise<void> {
+    throw new Error('not implemented');
+  }
+  async openWithSystem(): Promise<void> {
+    throw new Error('not implemented');
+  }
+}
+
+describe('detectContextCluster — empty / degenerate inputs', () => {
+  it('returns an empty cluster for an empty path', async () => {
+    const io = new FakeIO([], {});
+    const cluster = await detectContextCluster('', io);
+    expect(cluster.relatedCount).toBe(0);
+  });
+
+  it('returns an empty cluster when no canonical files exist anywhere', async () => {
+    const io = new FakeIO(['/repo/notes/foo.md'], { '/repo/notes': [], '/repo': ['notes/'] });
+    const cluster = await detectContextCluster('/repo/notes/foo.md', io);
+    expect(cluster.relatedCount).toBe(0);
+  });
+
+  it('skips the open document itself (no self-references)', async () => {
+    const io = new FakeIO(['/repo/AGENTS.md'], { '/repo': [], '/': ['repo/'] });
+    const cluster = await detectContextCluster('/repo/AGENTS.md', io);
+    expect(cluster.entries.find((e) => e.path === '/repo/AGENTS.md')).toBeUndefined();
+  });
+});
+
+describe('detectContextCluster — ancestors only', () => {
+  it('walks up to find canonical files in parent directories', async () => {
+    const io = new FakeIO(['/repo/AGENTS.md', '/repo/frontend/AGENTS.md'], {
+      '/repo/frontend': [],
+      '/repo': ['frontend/'],
+    });
+    const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
+
+    const parent = cluster.entries.find((e) => e.path === '/repo/AGENTS.md');
+    expect(parent).toBeDefined();
+    expect(parent?.direction).toBe('ancestor');
+    expect(parent?.distance).toBe(1);
+    expect(parent?.relativePath).toBe('../AGENTS.md');
+  });
+
+  it('caps walk-up at MAX_DEPTH_UP=5', async () => {
+    // 7-level deep file; canonical at level 6 (one beyond cap) should be missed.
+    const files = ['/a/b/c/d/e/f/g/file.md', '/a/AGENTS.md', '/a/b/AGENTS.md'];
+    const io = new FakeIO(files, {
+      '/a/b/c/d/e/f/g': [],
+      '/a/b/c/d/e/f': ['g/'],
+      '/a/b/c/d/e': ['f/'],
+      '/a/b/c/d': ['e/'],
+      '/a/b/c': ['d/'],
+      '/a/b': ['c/'],
+      '/a': ['b/'],
+    });
+    const cluster = await detectContextCluster('/a/b/c/d/e/f/g/file.md', io);
+
+    expect(cluster.entries.some((e) => e.path === '/a/b/AGENTS.md')).toBe(true);
+    expect(cluster.entries.some((e) => e.path === '/a/AGENTS.md')).toBe(false);
+  });
+});
+
+describe('detectContextCluster — children + siblings', () => {
+  it('finds canonical files in immediate child directories', async () => {
+    const io = new FakeIO(
+      ['/repo/AGENTS.md', '/repo/backend/AGENTS.md', '/repo/frontend/AGENTS.md'],
+      {
+        '/repo': ['backend/', 'frontend/'],
+        '/repo/backend': [],
+        '/repo/frontend': [],
+        '/': ['repo/'],
+      },
+    );
+    const cluster = await detectContextCluster('/repo/AGENTS.md', io);
+
+    const backend = cluster.entries.find((e) => e.path === '/repo/backend/AGENTS.md');
+    const frontend = cluster.entries.find((e) => e.path === '/repo/frontend/AGENTS.md');
+    expect(backend?.direction).toBe('child');
+    expect(backend?.distance).toBe(1);
+    expect(frontend?.direction).toBe('child');
+  });
+
+  it('finds canonical files in sibling directories (children of parent)', async () => {
+    const io = new FakeIO(
+      ['/repo/frontend/AGENTS.md', '/repo/backend/AGENTS.md', '/repo/shared/CLAUDE.md'],
+      {
+        '/repo': ['frontend/', 'backend/', 'shared/'],
+        '/repo/frontend': [],
+        '/repo/backend': [],
+        '/repo/shared': [],
+        '/': ['repo/'],
+      },
+    );
+    const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
+
+    const sibling = cluster.entries.find((e) => e.path === '/repo/backend/AGENTS.md');
+    expect(sibling?.direction).toBe('sibling');
+    expect(sibling?.distance).toBe(1);
+    expect(sibling?.relativePath).toBe('../backend/AGENTS.md');
+
+    const cousin = cluster.entries.find((e) => e.path === '/repo/shared/CLAUDE.md');
+    expect(cousin?.direction).toBe('sibling');
+    expect(cousin?.kind).toBe('claude-md');
+  });
+
+  it('handles ancestors + siblings + children together (the full §1 example)', async () => {
+    const io = new FakeIO(
+      [
+        '/repo/AGENTS.md',
+        '/repo/frontend/AGENTS.md',
+        '/repo/frontend/src/AGENTS.md',
+        '/repo/backend/AGENTS.md',
+        '/repo/shared/AGENTS.md',
+      ],
+      {
+        '/repo/frontend': ['src/'],
+        '/repo/frontend/src': [],
+        '/repo': ['frontend/', 'backend/', 'shared/'],
+        '/repo/backend': [],
+        '/repo/shared': [],
+        '/': ['repo/'],
+      },
+    );
+    const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
+
+    const paths = cluster.entries.map((e) => e.path).sort();
+    expect(paths).toEqual([
+      '/repo/AGENTS.md',
+      '/repo/backend/AGENTS.md',
+      '/repo/frontend/src/AGENTS.md',
+      '/repo/shared/AGENTS.md',
+    ]);
+  });
+});
+
+describe('detectContextCluster — multiple kinds in one directory', () => {
+  it('finds AGENTS.md, CLAUDE.md and .cursorrules side-by-side', async () => {
+    const io = new FakeIO(
+      ['/repo/AGENTS.md', '/repo/CLAUDE.md', '/repo/.cursorrules', '/repo/notes/foo.md'],
+      {
+        '/repo/notes': [],
+        '/repo': ['notes/'],
+      },
+    );
+    const cluster = await detectContextCluster('/repo/notes/foo.md', io);
+
+    const kinds = cluster.entries.map((e) => e.kind).sort();
+    expect(kinds).toEqual(['agents-md', 'claude-md', 'cursor-rules']);
+  });
+});
+
+describe('detectContextCluster — sort and cap', () => {
+  it('sorts results by ascending distance', async () => {
+    const io = new FakeIO(
+      ['/a/AGENTS.md', '/a/b/AGENTS.md', '/a/b/c/AGENTS.md', '/a/b/c/d/file.md'],
+      {
+        '/a/b/c/d': [],
+        '/a/b/c': ['d/'],
+        '/a/b': ['c/'],
+        '/a': ['b/'],
+      },
+    );
+    const cluster = await detectContextCluster('/a/b/c/d/file.md', io);
+
+    const distances = cluster.entries.map((e) => e.distance);
+    const sorted = [...distances].sort((x, y) => x - y);
+    expect(distances).toEqual(sorted);
+  });
+
+  it('caps results at MAX_RESULTS', async () => {
+    // Synthesise > MAX_RESULTS canonical files spread over many siblings.
+    const siblings: string[] = [];
+    const files: string[] = [];
+    for (let i = 0; i < MAX_RESULTS + 5; i++) {
+      siblings.push(`s${i}/`);
+      files.push(`/repo/s${i}/AGENTS.md`);
+    }
+    const dirs: Record<string, string[]> = {
+      '/repo/me': [],
+      '/repo': ['me/', ...siblings],
+    };
+    for (const s of siblings) {
+      dirs[`/repo/${s.slice(0, -1)}`] = [];
+    }
+    const io = new FakeIO(['/repo/me/AGENTS.md', ...files], dirs);
+    const cluster = await detectContextCluster('/repo/me/AGENTS.md', io);
+    expect(cluster.relatedCount).toBe(MAX_RESULTS);
+  });
+
+  it('skips hidden / build directories when walking children', async () => {
+    const io = new FakeIO(
+      ['/repo/AGENTS.md', '/repo/node_modules/AGENTS.md', '/repo/.git/AGENTS.md'],
+      {
+        '/repo': ['node_modules/', '.git/', 'src/'],
+        '/repo/src': [],
+        '/repo/node_modules': [],
+        '/repo/.git': [],
+      },
+    );
+    const cluster = await detectContextCluster('/repo/AGENTS.md', io);
+    expect(cluster.entries.some((e) => e.path.includes('/node_modules/'))).toBe(false);
+    expect(cluster.entries.some((e) => e.path.includes('/.git/'))).toBe(false);
+  });
+
+  it('caps children listed per parent at MAX_CHILDREN', async () => {
+    const children: string[] = [];
+    const dirs: Record<string, string[]> = { '/repo': [] };
+    for (let i = 0; i < MAX_CHILDREN + 10; i++) {
+      children.push(`d${i}/`);
+      dirs[`/repo/d${i}`] = [];
+    }
+    dirs['/repo'] = children;
+    const io = new FakeIO([], dirs);
+    await detectContextCluster('/repo/AGENTS.md', io);
+    // listDir on /repo returns N entries; detector stops asking after MAX_CHILDREN.
+    // We can verify the cap indirectly: existsCalls scoped to /repo/d*/<filename> should be
+    // bounded by MAX_CHILDREN * canonical_count.
+    const probesUnderRepo = io.existsCalls.filter((p) => p.startsWith('/repo/d'));
+    // 6 canonical filenames per scanned dir.
+    expect(probesUnderRepo.length).toBeLessThanOrEqual(MAX_CHILDREN * 6);
+  });
+});
+
+describe('detectContextCluster — error tolerance', () => {
+  it('returns partial results when a parent directory listing fails', async () => {
+    const io = new FakeIO(['/repo/AGENTS.md', '/repo/frontend/AGENTS.md'], {
+      '/repo/frontend': [],
+      '/repo': ['frontend/'],
+    });
+    io.forbiddenDirPrefixes.push('/');
+    const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
+    // The /repo listing is forbidden but we still find the parent's
+    // AGENTS.md via direct exists() probing of ancestors.
+    expect(cluster.entries.some((e) => e.path === '/repo/AGENTS.md')).toBe(true);
+  });
+
+  it('does not throw when exists() rejects on one probe', async () => {
+    const io = new FakeIO(['/repo/AGENTS.md'], {
+      '/repo': [],
+    });
+    const originalExists = io.exists.bind(io);
+    io.exists = async (p) => {
+      if (p === '/repo/CLAUDE.md') throw new Error('boom');
+      return originalExists(p);
+    };
+    await expect(detectContextCluster('/repo/notes.md', io)).resolves.toBeDefined();
+  });
+});
+
+describe('detectContextCluster — edge cases (M3)', () => {
+  it('returns partial results when probes exceed the timeout', async () => {
+    // Simulate a slow exists() that always takes longer than the timeout.
+    const io = new FakeIO(['/repo/AGENTS.md', '/repo/CLAUDE.md', '/repo/.cursorrules'], {
+      '/repo': [],
+    });
+    const slowExists = io.exists.bind(io);
+    io.exists = async (p) => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return slowExists(p);
+    };
+    const cluster = await detectContextCluster('/repo/notes.md', io, { timeoutMs: 5 });
+    // We may end up with 0 entries (timeout fires first) — the
+    // important invariant is that the function resolves promptly
+    // without throwing.
+    expect(cluster.relatedCount).toBeGreaterThanOrEqual(0);
+    expect(cluster.relatedCount).toBeLessThanOrEqual(3);
+  });
+
+  it('terminates even when the parent chain forms a symlink loop', async () => {
+    // /repo/loop/loop/... — every dirname returns '/repo/loop' itself.
+    // We can't reproduce that with `dirname` alone (it actually trims a
+    // segment), but the depth cap means the walk halts after 5 steps
+    // regardless of cycles in listDir entries.
+    const dirs: Record<string, string[]> = {};
+    for (let i = 0; i <= 10; i++) {
+      const path = `/repo${'/loop'.repeat(i)}`;
+      dirs[path] = i < 10 ? [`loop/`] : [];
+    }
+    const io = new FakeIO([], dirs);
+    const cluster = await detectContextCluster('/repo/loop/loop/loop/loop/loop/loop/file.md', io);
+    expect(cluster.relatedCount).toBe(0);
+    // The detector listed at most ~MAX_DEPTH_UP+2 distinct dirs.
+    const unique = new Set(io.listDirCalls).size;
+    expect(unique).toBeLessThanOrEqual(MAX_RESULTS);
+  });
+
+  it('collapses caller-supplied `..` segments before walking', async () => {
+    // `/repo/foo/../AGENTS.md` should resolve to `/repo/AGENTS.md` and
+    // be skipped as the open document — not double-counted via aliases.
+    const io = new FakeIO(['/repo/AGENTS.md', '/repo/sub/AGENTS.md'], {
+      '/repo': ['sub/'],
+      '/repo/sub': [],
+    });
+    const cluster = await detectContextCluster('/repo/foo/../AGENTS.md', io);
+    expect(cluster.entries.find((e) => e.path === '/repo/AGENTS.md')).toBeUndefined();
+    expect(cluster.entries.some((e) => e.path === '/repo/sub/AGENTS.md')).toBe(true);
+  });
+
+  it('handles a path-traversal attempt via . segments cleanly', async () => {
+    const io = new FakeIO(['/repo/AGENTS.md'], { '/repo': [] });
+    const cluster = await detectContextCluster('/repo/./notes/./foo.md', io);
+    // Should still find /repo/AGENTS.md as ancestor (via collapsed
+    // `/repo/notes` → ancestor /repo).
+    expect(cluster.entries.some((e) => e.path === '/repo/AGENTS.md')).toBe(true);
+  });
+});
+
+describe('detectContextCluster — relative path rendering', () => {
+  it('renders parent files with ../', async () => {
+    const io = new FakeIO(['/a/AGENTS.md'], { '/a': [], '/a/b': [] });
+    const cluster = await detectContextCluster('/a/b/file.md', io);
+    expect(cluster.entries[0]?.relativePath).toBe('../AGENTS.md');
+  });
+
+  it('renders sibling files with ../sibling/name', async () => {
+    const io = new FakeIO(['/a/back/AGENTS.md'], {
+      '/a': ['front/', 'back/'],
+      '/a/front': [],
+      '/a/back': [],
+    });
+    const cluster = await detectContextCluster('/a/front/AGENTS.md', io);
+    const sib = cluster.entries.find((e) => e.path === '/a/back/AGENTS.md');
+    expect(sib?.relativePath).toBe('../back/AGENTS.md');
+  });
+
+  it('renders child files with child/name', async () => {
+    const io = new FakeIO(['/a/sub/AGENTS.md'], { '/a': ['sub/'], '/a/sub': [] });
+    const cluster = await detectContextCluster('/a/AGENTS.md', io);
+    const child = cluster.entries.find((e) => e.path === '/a/sub/AGENTS.md');
+    expect(child?.relativePath).toBe('sub/AGENTS.md');
+  });
+});

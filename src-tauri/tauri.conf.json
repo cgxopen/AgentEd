@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "AgentEd",
+  "version": "0.2.0",
+  "identifier": "dev.agentedapp.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "AgentEd",
+        "width": 1024,
+        "height": 768,
+        "minWidth": 600,
+        "minHeight": 400
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self' customprotocol:",
+        "img-src": "'self' blob: data:",
+        "style-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost"
+      },
+      "assetProtocol": {
+        "enable": false,
+        "scope": []
+      }
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": "(https?://[^\\s]+|mailto:[^\\s]+|/[^\\s]+\\.(?i:md|markdown|txt|png|jpg|jpeg|gif|svg|webp|pdf|json|yaml|yml)|[A-Za-z]:[\\\\/][^\\s]+\\.(?i:md|markdown|txt|png|jpg|jpeg|gif|svg|webp|pdf|json|yaml|yml))"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["md"],
+        "mimeType": "text/markdown",
+        "description": "Markdown Document"
+      }
+    ]
+  }
+}
