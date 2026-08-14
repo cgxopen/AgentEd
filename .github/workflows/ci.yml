@@ -112,28 +112,6 @@ jobs:
       - run: npm ci
       - run: npm run tauri build
 
-      # ── TEMPORARY (PR #7 only) — remove before merge ──
-      # Nightly Build cannot be dispatched on this branch: workflow_dispatch
-      # requires the workflow file to exist on the default branch, and
-      # nightly.yml only lands on main through this PR. These two steps give
-      # the owner the Windows installer for the size check and the manual
-      # smoke test. Delete both once verification is done; nightly.yml is
-      # the permanent home for artifact uploads.
-      - name: Report bundle sizes (temporary)
-        shell: pwsh
-        run: |
-          Get-ChildItem -Recurse -File src-tauri/target/release/bundle |
-            Select-Object @{n='Size (bytes)';e={$_.Length}}, FullName |
-            Format-Table -AutoSize
-      - name: Upload Windows installer (temporary)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: AgentEd-pr7-windows-${{ github.sha }}
-          path: |
-            src-tauri/target/release/bundle/**/*
-          retention-days: 7
-          if-no-files-found: error
-
   pipeline-ok:
     name: Pipeline OK
     needs: [changes, frontend, rust, build-windows]
