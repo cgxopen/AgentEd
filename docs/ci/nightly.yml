@@ -1,0 +1,109 @@
+name: Nightly Build
+
+on:
+  schedule:
+    # 03:00 UTC = 06:00 Europe/Bucharest
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      include_linux:
+        description: 'Include Linux in the build matrix (manual verification build)'
+        type: boolean
+        default: false
+      include_macos:
+        description: 'Include macOS in the build matrix (manual verification build)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Activity guard + matrix
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Skip if no new commits since last successful run
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # On scheduled runs, skip if HEAD matches the head SHA of the
+          # last successful nightly - otherwise we pay for identical builds.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          last_sha=$(gh api \
+            "repos/${{ github.repository }}/actions/workflows/nightly.yml/runs?status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' || true)
+          if [ -n "$last_sha" ] && [ "$last_sha" = "${{ github.sha }}" ]; then
+            echo "No new commits since last successful nightly ($last_sha) - skipping."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute build matrix
+        id: matrix
+        run: |
+          # Windows is the primary target and the only nightly platform
+          # (REQUIREMENTS.md par. 7). Linux and macOS build on release tags,
+          # or here on explicit manual request only - macOS runners bill at
+          # ~10x the Linux rate.
+          matrix='{"include":[{"platform":"windows-latest","label":"windows"}]}'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            entries='{"platform":"windows-latest","label":"windows"}'
+            if [ "${{ inputs.include_linux }}" = "true" ]; then
+              entries="$entries,{\"platform\":\"ubuntu-22.04\",\"label\":\"linux\"}"
+            fi
+            if [ "${{ inputs.include_macos }}" = "true" ]; then
+              entries="$entries,{\"platform\":\"macos-latest\",\"label\":\"macos\"}"
+            fi
+            matrix="{\"include\":[$entries]}"
+          fi
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.label }})
+    needs: guard
+    if: needs.guard.outputs.should_run == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.guard.outputs.matrix) }}
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        with:
+          toolchain: stable
+
+      - name: Install Linux system deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - run: npm ci
+      - run: npm run tauri build
+
+      - name: Upload bundle artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: AgentEd-nightly-${{ matrix.label }}-${{ github.sha }}
+          path: |
+            src-tauri/target/release/bundle/**/*
+          retention-days: 7
+          if-no-files-found: error

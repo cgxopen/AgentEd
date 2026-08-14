@@ -1,0 +1,174 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-draft:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: '--target aarch64-apple-darwin'
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            args: '--target x86_64-apple-darwin'
+            target: x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+            target: ''
+          - platform: windows-latest
+            args: ''
+            target: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux system deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - run: npm ci
+
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'AgentEd ${{ github.ref_name }}'
+          releaseBody: |
+            ## What's new
+
+            <!-- Edit this section manually before publishing.
+                 Highlight 3-5 user-facing changes. Keep it scannable.
+                 Use GitHub's "Auto-generate release notes" button to append
+                 the commit/PR list automatically, then trim to essentials. -->
+
+            _Edit this section before publishing._
+
+            ## Download
+
+            | Platform | Installer |
+            |---|---|
+            | Windows | `AgentEd_${{ github.ref_name }}_x64-setup.exe` |
+            | macOS (Apple Silicon) | `AgentEd_${{ github.ref_name }}_aarch64.dmg` |
+            | macOS (Intel) | `AgentEd_${{ github.ref_name }}_x64.dmg` |
+            | Linux (Debian/Ubuntu) | `AgentEd_${{ github.ref_name }}_amd64.deb` |
+            | Linux (Fedora/RHEL) | `AgentEd-${{ github.ref_name }}-1.x86_64.rpm` |
+            | Linux (other) | `AgentEd_${{ github.ref_name }}_amd64.AppImage` |
+
+            First time? Most users want the installer for their OS above.
+
+            <details>
+            <summary><b>For developers - technical details</b></summary>
+
+            ### Verify checksums
+            Each asset has a `.sha256` sidecar; the combined `SHA256SUMS.txt`
+            lists all hashes in one file. Verify after download:
+            - Windows PowerShell: `Get-FileHash AgentEd_*.exe -Algorithm SHA256`
+            - macOS/Linux: `sha256sum -c SHA256SUMS.txt`
+
+            ### Build from source
+            See `README.md` for build instructions.
+
+            ### Changes in this release
+            Click "Auto-generate release notes" in the edit view to append PR/commit list.
+
+            </details>
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  curate-assets:
+    needs: build-and-draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Hide intermediate bundles and redundant installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Wait for all matrix builds to finish uploading
+          sleep 10
+
+          echo "Current assets on $TAG:"
+          gh release view "$TAG" --repo "${{ github.repository }}" --json assets \
+            --jq '.assets[].name'
+
+          # Delete .tar.gz app bundles (intermediate, not for end users)
+          for asset in $(gh release view "$TAG" --repo "${{ github.repository }}" --json assets \
+              --jq '.assets[].name' | grep -E '\.app\.tar\.gz$' || true); do
+            echo "Removing intermediate bundle: $asset"
+            gh release delete-asset "$TAG" "$asset" --yes --repo "${{ github.repository }}" || true
+          done
+
+          # Delete .msi (redundant with -setup.exe for Windows users)
+          for asset in $(gh release view "$TAG" --repo "${{ github.repository }}" --json assets \
+              --jq '.assets[].name' | grep -E '\.msi$' || true); do
+            echo "Removing redundant installer: $asset"
+            gh release delete-asset "$TAG" "$asset" --yes --repo "${{ github.repository }}" || true
+          done
+
+          echo "Assets after curation:"
+          gh release view "$TAG" --repo "${{ github.repository }}" --json assets \
+            --jq '.assets[].name'
+
+      - name: Generate SHA-256 checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p _release_assets
+          cd _release_assets
+
+          # Download every curated asset so we can hash it locally.
+          mapfile -t assets < <(gh release view "$TAG" --repo "${{ github.repository }}" \
+            --json assets --jq '.assets[].name')
+          for asset in "${assets[@]}"; do
+            case "$asset" in
+              *.sha256|SHA256SUMS.txt) continue ;;
+            esac
+            echo "Downloading $asset"
+            gh release download "$TAG" --pattern "$asset" \
+              --repo "${{ github.repository }}" --clobber
+          done
+
+          # Per-asset .sha256 sidecar files + a combined SHA256SUMS.txt.
+          : > SHA256SUMS.txt
+          for f in *; do
+            case "$f" in
+              *.sha256|SHA256SUMS.txt) continue ;;
+            esac
+            [ -f "$f" ] || continue
+            sha=$(sha256sum "$f" | awk '{print $1}')
+            printf '%s  %s\n' "$sha" "$f" >> SHA256SUMS.txt
+            printf '%s  %s\n' "$sha" "$f" > "$f.sha256"
+          done
+
+          echo "Computed checksums:"
+          cat SHA256SUMS.txt
+
+          gh release upload "$TAG" SHA256SUMS.txt *.sha256 \
+            --repo "${{ github.repository }}" --clobber

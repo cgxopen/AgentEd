@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  frontend:
+    name: Frontend (lint + typecheck + test + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run check
+      - run: npx tsc --noEmit
+      - run: npm test --if-present
+      - run: npm run build
+
+  rust:
+    name: Rust (fmt + clippy + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - name: Install Linux system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Cargo cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+      - run: cargo fmt --check
+        working-directory: src-tauri
+      - run: cargo clippy -- -D warnings
+        working-directory: src-tauri
+      - run: cargo test
+        working-directory: src-tauri
+
+  build-windows:
+    name: Build Windows (primary target)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        with:
+          toolchain: stable
+      - name: Cargo cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+      - run: npm ci
+      - run: npm run tauri build
+
+  pipeline-ok:
+    name: Pipeline OK
+    needs: [frontend, rust, build-windows]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verdict on required jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed=$(echo "$NEEDS" | jq -r '
+            to_entries
+            | map(select(.value.result == "failure" or .value.result == "cancelled"))
+            | map(.key) | join(", ")')
+          if [ -n "$failed" ]; then
+            echo "::error::Failed or cancelled jobs: ${failed}"
+            exit 1
+          fi
