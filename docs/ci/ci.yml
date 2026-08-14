@@ -11,8 +11,39 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      # Pinned to commit SHA, not tag (supply chain).
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'src-tauri/**'
+              - 'public/**'
+              - 'index.html'
+              - 'package*.json'
+              - 'tsconfig.json'
+              - 'vite.config.ts'
+              - 'vitest.setup.ts'
+              - 'biome.json'
+              - '.editorconfig'
+              - '.github/**'
+
   frontend:
     name: Frontend (lint + typecheck + test + build)
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -28,6 +59,8 @@ jobs:
 
   rust:
     name: Rust (fmt + clippy + test)
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -56,6 +89,8 @@ jobs:
 
   build-windows:
     name: Build Windows (primary target)
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -79,7 +114,7 @@ jobs:
 
   pipeline-ok:
     name: Pipeline OK
-    needs: [frontend, rust, build-windows]
+    needs: [changes, frontend, rust, build-windows]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -87,6 +122,8 @@ jobs:
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
+          # "skipped" counts as success (docs-only PRs); only failure or
+          # cancellation of a needed job fails the pipeline.
           failed=$(echo "$NEEDS" | jq -r '
             to_entries
             | map(select(.value.result == "failure" or .value.result == "cancelled"))
