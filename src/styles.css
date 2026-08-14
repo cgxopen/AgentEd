@@ -1116,132 +1116,6 @@ button.indicator-search:hover {
   font-weight: 600;
 }
 
-#sidebar-status {
-  padding: 8px 12px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.sidebar-status-ok {
-  color: var(--success);
-}
-.sidebar-status-warn {
-  color: var(--warning);
-}
-
-/* ── Validation Panel ── */
-#validation-panel {
-  width: 320px;
-  border-left: 1px solid var(--border);
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-#validation-panel.hidden {
-  display: none;
-}
-
-#validation-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-#validation-header button {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--muted);
-}
-
-#validation-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
-}
-
-.validation-group-header {
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.validation-group-error {
-  color: var(--danger);
-}
-.validation-group-warning {
-  color: var(--warning);
-}
-.validation-group-info {
-  color: var(--muted);
-}
-
-.validation-item {
-  padding: 8px 14px 8px 28px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.validation-item:hover {
-  background: var(--hover-overlay);
-}
-
-.validation-rule-id {
-  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-  font-size: 11px;
-  color: var(--muted);
-  margin-right: 6px;
-}
-
-.validation-message {
-  color: var(--text);
-}
-
-.validation-line {
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-
-.validation-suggestion {
-  font-size: 12px;
-  color: var(--accent);
-  margin-top: 4px;
-  font-style: italic;
-}
-
-#validation-footer {
-  padding: 8px 14px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--muted);
-}
-
-#validate-indicator {
-  cursor: pointer;
-}
-.validate-ok {
-  color: var(--success);
-}
-.validate-warn {
-  color: var(--warning);
-}
-.validate-error {
-  color: var(--danger);
-}
-
 /* ── Toasts ── */
 #toast-container {
   position: fixed;
@@ -1399,58 +1273,7 @@ button.appearance-menu-trigger:hover {
   }
 }
 
-/* ── Profile indicator (ADR-030) ── */
-.profile-indicator-wrapper {
-  position: relative;
-  display: inline-flex;
-}
-
-button.profile-indicator {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  color: var(--text);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
-}
-button.profile-indicator:hover {
-  background: var(--hover-overlay);
-}
-
-.profile-override-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 50;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  min-width: 180px;
-  padding: 4px 0;
-}
-.profile-override-menu.hidden {
-  display: none;
-}
-.profile-override-menu .profile-option {
-  display: block;
-  width: 100%;
-  padding: 6px 16px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text);
-  text-align: left;
-}
-.profile-override-menu .profile-option:hover {
-  background: var(--hover-overlay);
-}
-
-/* ── Cluster indicator + popover (ADR-031) ── */
+/* ── Cluster indicator + popover ── */
 button.cluster-indicator {
   background: none;
   border: none;
@@ -1535,14 +1358,6 @@ button.cluster-indicator:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.cluster-entry-chip {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 1px 8px;
-}
 .cluster-entry-path {
   font-size: 11px;
   color: var(--muted);
@@ -1588,7 +1403,7 @@ button.cluster-indicator:hover {
   }
 }
 
-/* ── Template Gallery (ADR-030 D8) ── */
+/* ── Template Gallery ── */
 .dialog.template-gallery {
   width: min(720px, 92vw);
   max-height: 88vh;

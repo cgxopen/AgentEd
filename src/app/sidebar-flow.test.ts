@@ -1,8 +1,8 @@
 /**
- * End-to-end integration scenario for the sidebar flow (M3 of ADR-030).
+ * End-to-end integration scenario for the sidebar flow (R-C6).
  * Composes shouldShowSidebar + walkRecursive (via refreshSidebar) + the
- * click handler against a stubbed PlatformIO that simulates a sibling
- * layout three levels deep:
+ * click handler against a stubbed PlatformIO that simulates a document
+ * with an adjacent folder three levels deep:
  *
  *   /proj/
  *   ├── doc.md          ← currently open
@@ -16,7 +16,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { FileEntry, PlatformIO } from '../platform/types';
-import type { Sidebar, SidebarStatus, TreeNode } from '../ui/sidebar';
+import type { Sidebar, TreeNode } from '../ui/sidebar';
 import type { DocumentActions } from './document-actions';
 import { createSidebarClickHandler } from './sidebar-click';
 import { refreshSidebar } from './sidebar-sync';
@@ -60,8 +60,8 @@ function buildIO(): PlatformIO {
 function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall | null } {
   let lastShow: SidebarShowCall | null = null;
   const sidebar: Sidebar = {
-    showTree: (nodes, rootName, rootPath, status) => {
-      lastShow = { nodes, rootName, rootPath, status };
+    showTree: (nodes, rootName, rootPath) => {
+      lastShow = { nodes, rootName, rootPath };
     },
     hide: () => {
       lastShow = null;
@@ -77,7 +77,6 @@ interface SidebarShowCall {
   nodes: TreeNode[];
   rootName: string;
   rootPath: string;
-  status: SidebarStatus;
 }
 
 function makeDocActions(): DocumentActions {
@@ -97,10 +96,9 @@ function flush(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-describe('Sidebar integration — sibling layout 3 levels', () => {
+describe('Sidebar integration — adjacent folder, 3 levels', () => {
   it('lists assets/, references/, scripts/ under the sibling root', async () => {
     const state = new AppState();
-    state.profile = 'plain';
     state.filePath = '/proj/doc.md';
     const io = buildIO();
     const { sidebar, lastShow } = captureSidebar();

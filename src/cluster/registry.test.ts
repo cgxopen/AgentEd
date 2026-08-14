@@ -46,7 +46,7 @@ describe('getKindForFilename — non-context filenames', () => {
     expect(getKindForFilename('README.md')).toBeNull();
   });
 
-  it('SKILL.md → null (skills are out of scope per ADR-031 §D1)', () => {
+  it('SKILL.md → null (not a context file)', () => {
     expect(getKindForFilename('SKILL.md')).toBeNull();
   });
 

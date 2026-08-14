@@ -27,21 +27,12 @@ export interface EditorInstance {
 function buildExtensions(
   getFilePath: () => string | null,
   requestSaveAs: () => Promise<string | null>,
-  imagePasteCheck: () => { allowed: boolean; reason?: string },
   ensureAssetsDir: () => Promise<string | null>,
 ): AnyExtension[] {
   const ImageDrop = Extension.create({
     name: 'imageDrop',
     addProseMirrorPlugins() {
-      return [
-        createImageDropPlugin(
-          this.editor,
-          getFilePath,
-          requestSaveAs,
-          imagePasteCheck,
-          ensureAssetsDir,
-        ),
-      ];
+      return [createImageDropPlugin(this.editor, getFilePath, requestSaveAs, ensureAssetsDir)];
     },
   });
 
@@ -61,13 +52,12 @@ function buildExtensions(
     Image.configure({ inline: true, allowBase64: false }),
     // resizable: false — GFM markdown has no column width syntax.
     // Enabling resize produces UX inconsistency (widths reset at save).
-    // See docs/to_do_later_or_pro.md for potential Pro feature.
     Table.configure({ resizable: false, HTMLAttributes: { class: 'tiptap-table' } }),
     TableRow,
     TableCell,
     TableHeader,
     ImageDrop,
-    // Find & Replace highlights (ADR-033). The wrapper in
+    // Find & Replace highlights (R-C4). The wrapper in
     // src/editor/search-extension.ts owns the user-facing API; this
     // call only registers the underlying decoration plugin so matches
     // can be highlighted as the user types in the search panel.
@@ -80,13 +70,11 @@ export function createEditor(
   onChange?: () => void,
   getFilePath?: () => string | null,
   requestSaveAs?: () => Promise<string | null>,
-  imagePasteCheck?: () => { allowed: boolean; reason?: string },
   ensureAssetsDir?: () => Promise<string | null>,
 ): EditorInstance {
   const extensions = buildExtensions(
     getFilePath ?? (() => null),
     requestSaveAs ?? (() => Promise.resolve(null)),
-    imagePasteCheck ?? (() => ({ allowed: true })),
     ensureAssetsDir ?? (() => Promise.resolve('assets')),
   );
 
@@ -94,9 +82,9 @@ export function createEditor(
     element,
     extensions,
     autofocus: true,
-    // Spell-check off by default — agent documents are full of technical
-    // identifiers (`metadata.openclaw`, `cl100k_base`, skill keys, JSON
-    // frontmatter) that browser spell-checkers underline as misspellings.
+    // Spell-check off by default (R-C9) — technical documents are full
+    // of identifiers and code blocks that browser spell-checkers
+    // underline as misspellings.
     // Re-enabled per session via the statusbar toggle; AppState owns the
     // flag and main.ts mirrors it onto `.ProseMirror` directly.
     editorProps: {

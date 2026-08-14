@@ -1,18 +1,16 @@
 /**
- * Public types for the Context Cluster subsystem (ADR-031).
+ * Public types for the context-awareness subsystem (R-A2).
  *
- * The cluster is an orthogonal subsystem from the Profile Registry — it
- * scans the filesystem tree around an open document and returns a list
- * of related context files (AGENTS.md, CLAUDE.md, .cursorrules, etc.).
+ * The cluster scans the filesystem tree around an open document and
+ * returns the related context files it finds (AGENTS.md, CLAUDE.md,
+ * .cursorrules, etc.). Detection is a pure function over `PlatformIO`;
+ * rendering happens in the UI layer (`src/ui/cluster-popover`).
  *
- * Detection is a pure function over `PlatformIO`; profile mapping for
- * popover chips happens later in the UI layer (`src/ui/cluster-popover`).
+ * Nothing here validates or judges the files it discovers — the cluster
+ * only tells the user they exist and lets them switch to one.
  */
 
-/**
- * Canonical kind for a discovered context file. Drives the chip label
- * and icon in the popover; profile mapping is decoupled.
- */
+/** Canonical kind for a discovered context file. */
 export type ContextFileKind =
   | 'agents-md'
   | 'claude-md'

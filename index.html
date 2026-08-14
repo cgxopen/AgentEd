@@ -24,11 +24,6 @@
             <span id="token-number" class="indicator indicator-primary" title="– tokens">–</span>
             <span id="token-unit" class="indicator indicator-collapse-600">tokens</span>
             <button id="spellcheck-toggle" type="button" class="indicator spellcheck-toggle spellcheck-off" title="Click to enable spell-check for this session">Spell: off</button>
-            <span id="validate-indicator" class="indicator" style="display:none"></span>
-            <div id="profile-indicator-wrapper" class="profile-indicator-wrapper">
-              <button id="profile-indicator" type="button" class="indicator profile-indicator" title="Click to override profile">Plain markdown</button>
-              <div id="profile-override-menu" class="profile-override-menu hidden"></div>
-            </div>
             <button id="indicator-search" type="button" class="indicator indicator-search indicator-collapse-800" title="Find (Ctrl+F)" aria-label="Find">
               <svg class="indicator-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="7" cy="7" r="4.5" />
@@ -71,7 +66,6 @@
             <button id="sidebar-close">&times;</button>
           </div>
           <div id="sidebar-tree"></div>
-          <div id="sidebar-status"></div>
         </aside>
         <div id="editor-stack">
           <div id="search-panel" class="search-panel" hidden>
@@ -108,21 +102,11 @@
             </div>
           </div>
           <details id="frontmatter-panel" class="frontmatter-panel hidden">
-            <summary>Frontmatter (YAML)</summary>
-            <textarea id="frontmatter-input" spellcheck="false" placeholder="name: my-skill&#10;description: ..."></textarea>
+            <summary>Metadata (YAML)</summary>
+            <textarea id="frontmatter-input" spellcheck="false" placeholder="title: My document&#10;description: ..."></textarea>
           </details>
           <main id="editor"></main>
         </div>
-        <aside id="validation-panel" class="hidden">
-          <div id="validation-header">
-            <span>Skill Validation</span>
-            <button id="validation-close">&times;</button>
-          </div>
-          <div id="validation-list"></div>
-          <div id="validation-footer">
-            <label><input type="checkbox" id="validation-show-info" /> Show suggestions</label>
-          </div>
-        </aside>
       </div>
     </div>
     <div id="table-dialog" class="dialog-overlay hidden">

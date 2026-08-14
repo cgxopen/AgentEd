@@ -38,11 +38,7 @@ describe('assembleMarkdown', () => {
       frontmatterRaw,
       markdownBody,
       images: [],
-      archiveEntries: [],
       rootPath: 'test.md',
-      meta: null,
-      docFolder: null,
-      layout: null,
     };
   }
 

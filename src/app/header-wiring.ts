@@ -12,7 +12,7 @@ export interface HeaderControls {
  * First-phase header setup: grabs DOM refs, wires filename expand toggle,
  * modified-indicator subscription, and overflow popover structure. Leaves
  * indicator click handlers to `wireHeaderIndicators` so they can reference
- * the AppContext (ModeManager, document actions) that is built after this.
+ * the AppContext that is built after this.
  */
 export function setupHeader(state: AppState): HeaderControls {
   const filenameEl = document.getElementById('filename')!;
@@ -47,15 +47,10 @@ export function setupHeader(state: AppState): HeaderControls {
 
 /** Second-phase wiring — indicator click handlers that need the full context. */
 export function wireHeaderIndicators(ctx: AppContext, _docActions: DocumentActions): void {
-  document.getElementById('validate-indicator')!.addEventListener('click', () => {
-    ctx.validationPanel.toggle();
-  });
   document.getElementById('indicator-search')!.addEventListener('click', () => {
     ctx.searchManager.openFind();
   });
   // Token number/unit are hover-only (title tooltips); no click handlers.
-  // The active profile is shown via the click-able profile indicator
-  // (src/ui/profile-indicator.ts) wired separately from main.ts.
 }
 
 function setupOverflowPopover(): void {

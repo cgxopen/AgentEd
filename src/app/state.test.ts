@@ -7,10 +7,11 @@ describe('AppState', () => {
     localStorage.clear();
   });
 
-  it('starts with profile=plain when no document is loaded', () => {
+  it('starts with no document loaded', () => {
     const state = new AppState();
-    expect(state.profile).toBe('plain');
-    expect(state.profileOverridden).toBe(false);
+    expect(state.filePath).toBeNull();
+    expect(state.frontmatter).toBeNull();
+    expect(state.modified).toBe(false);
   });
 
   it('setModified notifies listeners with the new value', () => {
@@ -23,18 +24,18 @@ describe('AppState', () => {
     expect(received).toEqual([true, false]);
   });
 
-  it('resetDocument clears profile + override and per-document fields', () => {
+  it('resetDocument clears the per-document fields', () => {
     const state = new AppState();
-    state.profile = 'claude-skill';
-    state.profileOverridden = true;
     state.filePath = '/tmp/x.md';
-    state.frontmatter = 'name: x';
+    state.frontmatter = 'title: x';
+    state.isFirstSave = false;
+    state.assetsDirCreationDeclined = true;
 
     state.resetDocument();
-    expect(state.profile).toBe('plain');
-    expect(state.profileOverridden).toBe(false);
     expect(state.filePath).toBeNull();
     expect(state.frontmatter).toBeNull();
+    expect(state.isFirstSave).toBe(true);
+    expect(state.assetsDirCreationDeclined).toBe(false);
   });
 
   it('starts with spellcheckEnabled=false', () => {
@@ -52,7 +53,7 @@ describe('AppState', () => {
     expect(received).toEqual([true, false]);
   });
 
-  describe('cluster subscription (ADR-031)', () => {
+  describe('cluster subscription', () => {
     it('starts with a null cluster', () => {
       expect(new AppState().cluster).toBeNull();
     });

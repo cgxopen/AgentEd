@@ -1,4 +1,4 @@
-import { basename, dirname, joinPath, stripExtension } from '../platform/paths';
+import { dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import type { AppState } from './state';
@@ -11,14 +11,9 @@ export interface AssetsDirInfo {
 }
 
 /**
- * Pick the canonical `assets/` directory for the document at `filePath`,
- * per ADR-030 D5. The lookup tries three patterns in priority order:
- *
- *   1. parent-as-folder — filename is `SKILL.md` (case-insensitive):
- *      `<parent>/assets/`
- *   2. sibling layout — `<stripExtension(path)>/` exists adjacent:
- *      `<sibling>/assets/`
- *   3. plain layout — anywhere else: `<dirname(path)>/assets/`
+ * Pick the canonical `assets/` directory for the document at `filePath`:
+ * `assets/` next to the file (R-C5), whatever the document is called and
+ * whatever else lives around it.
  *
  * Returns `null` when the path is unusable (no parent directory) — the
  * caller should bail out gracefully (e.g. require the user to Save As
@@ -30,20 +25,6 @@ export async function resolveAssetsDir(
   filePath: string,
   io: PlatformIO,
 ): Promise<AssetsDirInfo | null> {
-  if (basename(filePath).toLowerCase() === 'skill.md') {
-    const parent = dirname(filePath);
-    if (parent.length > 0 && parent !== '/') {
-      const dir = joinPath(parent, 'assets');
-      return { dir, exists: await io.exists(dir) };
-    }
-  }
-
-  const sibling = stripExtension(filePath);
-  if (await io.exists(sibling)) {
-    const dir = joinPath(sibling, 'assets');
-    return { dir, exists: await io.exists(dir) };
-  }
-
   const parent = dirname(filePath);
   // Reject empty parent (bare filename) and the filesystem root —
   // mkdir('/assets') is permission-denied on Linux and meaningless on

@@ -22,7 +22,6 @@
     "@biomejs/biome": "2.4.12",
     "@tauri-apps/cli": "^2",
     "@types/dompurify": "^3.0.5",
-    "@types/js-yaml": "^4.0.9",
     "@vitest/ui": "^4.1.4",
     "happy-dom": "^20.9.0",
     "typescript": "~5.9.3",
@@ -49,7 +48,6 @@
     "@tiptap/starter-kit": "^2.11",
     "dompurify": "^3.4.3",
     "gpt-tokenizer": "^3.4.0",
-    "js-yaml": "^4.1.1",
     "marked": "^15",
     "turndown": "^7.2"
   }

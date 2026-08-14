@@ -65,12 +65,3 @@ export function setCloseEnabled(enabled: boolean): void {
   btn.disabled = !enabled;
   btn.title = enabled ? 'Close current document' : 'No document to close';
 }
-
-export function setInsertMediaEnabled(enabled: boolean): void {
-  const btn = document.getElementById('menu-insert-media') as HTMLButtonElement;
-  if (!btn) return;
-  btn.disabled = !enabled;
-  btn.title = enabled
-    ? 'Insert an image from disk'
-    : 'Image paste is not supported for this profile';
-}

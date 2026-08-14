@@ -1,7 +1,8 @@
 // AGENTED-VENDOR: Vendored from sereneinserenade/tiptap-search-and-replace
 // Source: https://github.com/sereneinserenade/tiptap-search-and-replace
 // Snapshot: master branch (file searchAndReplace.ts, ~Q2 2024)
-// Vendored on: 2026-05-15 — see ADR-033 §M1.1 for the decision rationale.
+// Vendored on: 2026-05-15 — kept in-tree so Find & Replace (R-C4) does
+// not depend on an unmaintained upstream package.
 //
 // Why vendored, not via npm:
 //   The author's README explicitly recommends copy-paste over the npm package
@@ -9,7 +10,7 @@
 //   volatility and lets us upgrade deliberately by re-pulling the file.
 //
 // Do not hand-edit. Treat as an external snapshot — any improvements belong
-// upstream first, then re-vendor. R11 (300-line limit, ADR-020) is exempted
+// upstream first, then re-vendor. The module-size guideline is exempted
 // for this single file because it is unmodified third-party code. Biome
 // format/style is also exempted in biome.json so the file matches upstream
 // for easier diffing on re-vendor.

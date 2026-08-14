@@ -3,12 +3,9 @@ import type { AppearanceMenu } from '../ui/appearance-menu';
 import type { ClusterIndicator } from '../ui/cluster-indicator';
 import type { ClusterPopover } from '../ui/cluster-popover';
 import type { FrontmatterPanel } from '../ui/frontmatter-panel';
-import type { ProfileIndicator } from '../ui/profile-indicator';
 import type { Sidebar } from '../ui/sidebar';
 import type { Statusbar } from '../ui/statusbar';
-import type { ValidationPanel } from '../ui/validation-panel';
 import type { ErrorReporter } from './error-reporter';
-import type { ProfileManager } from './profile-manager';
 import type { SearchManager } from './search-manager';
 import type { AppState } from './state';
 
@@ -40,15 +37,12 @@ export interface AppContext {
   // Phase 4: UI panels
   statusbar: Statusbar;
   sidebar: Sidebar;
-  validationPanel: ValidationPanel;
   frontmatterPanel: FrontmatterPanel;
-  profileIndicator: ProfileIndicator;
   clusterIndicator: ClusterIndicator;
   clusterPopover: ClusterPopover;
   appearanceMenu: AppearanceMenu;
 
   // Phase 5: managers
-  profileManager: ProfileManager;
   searchManager: SearchManager;
 
   // Phase 6: helpers produced from ctx

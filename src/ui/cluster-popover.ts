@@ -1,17 +1,9 @@
 import { extractSnippet } from '../cluster/snippet';
 import type { ContextCluster, ContextFileEntry } from '../cluster/types';
 import type { PlatformIO } from '../platform/types';
-import { getProfile, profileRegistry } from '../profiles/index';
-import type { ProfileId } from '../profiles/types';
 import { showToast } from './toast';
 
 const SNIPPET_READ_BYTES = 1024;
-const PROFILE_BY_FILENAME: ReadonlyMap<string, ProfileId> = new Map([
-  // None of the cluster filenames have dedicated profiles at v0.2.x —
-  // they all surface as "Plain". The map exists so that when B2 lands
-  // dedicated profiles for AGENTS.md / CLAUDE.md / etc., a single
-  // edit here teaches the popover about them.
-]);
 
 export interface ClusterPopoverCallbacks {
   /** Resolve the I/O surface — async because the platform impl is loaded lazily. */
@@ -31,7 +23,7 @@ export interface ClusterPopover {
 
 /**
  * Popover anchored to the cluster indicator. Renders the entry list
- * with snippet previews, profile chips, and a refresh button.
+ * with snippet previews and a refresh button.
  *
  * Snippet previews are loaded lazily (on open) by reading the first
  * 1KB of each file in parallel with `Promise.all`. The popover stays
@@ -77,7 +69,7 @@ export function setupClusterPopover(callbacks: ClusterPopoverCallbacks): Cluster
     if (cluster && cluster.relatedCount > 0) open(cluster);
   }
 
-  // Click outside / Escape to close — same pattern as profile menu.
+  // Click outside / Escape to close.
   document.addEventListener('click', (e) => {
     if (!isOpen()) return;
     if (popover!.contains(e.target as Node)) return;
@@ -140,11 +132,6 @@ export function setupClusterPopover(callbacks: ClusterPopoverCallbacks): Cluster
     filename.className = 'cluster-entry-filename';
     filename.textContent = entry.filename;
     row.appendChild(filename);
-
-    const chip = document.createElement('span');
-    chip.className = 'cluster-entry-chip';
-    chip.textContent = profileChipLabel(entry.filename);
-    row.appendChild(chip);
 
     return row;
   }
@@ -264,12 +251,4 @@ function directionGlyph(entry: ContextFileEntry): string {
 
 function directionLabel(entry: ContextFileEntry): string {
   return DIRECTION_META[entry.direction].label(entry);
-}
-
-function profileChipLabel(filename: string): string {
-  const dedicated = PROFILE_BY_FILENAME.get(filename);
-  if (dedicated && profileRegistry.list().some((p) => p.id === dedicated)) {
-    return getProfile(dedicated).displayName;
-  }
-  return 'Plain';
 }

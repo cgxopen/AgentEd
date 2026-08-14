@@ -1,4 +1,4 @@
-import { getDisplayUrl, registerImage } from '../editor/image-registry';
+import { registerImage } from '../editor/image-registry';
 import type { DocumentBundle } from '../formats/types';
 import { isTauri } from '../platform/detect';
 import { dirname, joinPath } from '../platform/paths';
@@ -11,14 +11,9 @@ const HTML_IMG_RE = /<img\s+[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi;
 const HTML_IMG_REPLACE_RE = /(<img\s+[^>]*src\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
 
 /**
- * Resolve image references in a bundle's markdown body to displayable URLs.
- *
- * - plain markdown (no docFolder): read referenced images from disk
- *   relative to the document path, create blob URLs, register them.
- *   Handles `![]()` and `<img>` syntax.
- * - structured (docFolder !== null): rewrite registered relative paths
- *   to their existing blob URLs (registry was populated by
- *   registerBundleImages upstream).
+ * Resolve image references in a bundle's markdown body to displayable URLs:
+ * read the referenced images from disk relative to the document path,
+ * create blob URLs, and register them. Handles `![]()` and `<img>` syntax.
  *
  * Missing files are tolerated — the original src is left in place and a warn
  * is logged. Capped at MAX_IMAGES per syntax to defend against pathological docs.
@@ -27,19 +22,7 @@ export async function prepareMarkdownForDisplay(
   bundle: DocumentBundle,
   io: PlatformIO,
 ): Promise<string> {
-  if (bundle.docFolder === null) {
-    return resolveFilesystemImages(bundle.markdownBody, bundle.rootPath, io);
-  }
-  return resolveRegistryPaths(bundle.markdownBody);
-}
-
-function resolveRegistryPaths(md: string): string {
-  if (!md) return '';
-  return md.replace(MD_IMG_RE, (match, alt, src) => {
-    if (ABS_URL_RE.test(src)) return match;
-    const url = getDisplayUrl(src);
-    return url ? `![${alt}](${url})` : match;
-  });
+  return resolveFilesystemImages(bundle.markdownBody, bundle.rootPath, io);
 }
 
 async function resolveFilesystemImages(

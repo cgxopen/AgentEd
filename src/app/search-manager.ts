@@ -24,14 +24,14 @@ export interface SearchManager {
 
 /** Threshold for the Replace All confirmation dialog. Above this
  * count the user gets a modal before the change happens; below it,
- * the replacement is silent (with a toast). See ADR-033 §D6. */
+ * the replacement is silent (with a toast). */
 const REPLACE_ALL_CONFIRM_THRESHOLD = 50;
 
 export interface SearchManagerDeps {
   editor: Editor;
   panelRoot: HTMLElement;
   /** Called whenever the panel transitions from closed → open. Used to
-   * dismiss other floating UI (cluster popover) per ADR-033. */
+   * dismiss other floating UI (cluster popover). */
   onOpen?: () => void;
 }
 

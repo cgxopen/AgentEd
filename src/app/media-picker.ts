@@ -2,8 +2,6 @@ import type { Editor } from '@tiptap/core';
 import { handleImageFile } from '../editor/image-handler';
 import { getPlatformIO } from '../platform/index';
 import { basename } from '../platform/paths';
-import { getProfile } from '../profiles/index';
-import { showToast } from '../ui/toast';
 import { ensureAssetsDir } from './assets-dir';
 import type { ErrorReporter } from './error-reporter';
 import type { AppState } from './state';
@@ -36,12 +34,6 @@ export interface MediaPickerDeps {
  */
 export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
   const { state, editor, requestSaveAs, reporter } = deps;
-  const profile = getProfile(state.profile);
-
-  if (!profile.allowsImagePaste) {
-    showToast(`Image paste not supported for ${profile.displayName}.`, 'warn');
-    return;
-  }
 
   const io = await getPlatformIO();
   let pickedPath: string | null = null;
@@ -65,7 +57,6 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
       editor,
       () => state.filePath,
       requestSaveAs,
-      () => ({ allowed: true }),
       async () => {
         const path = state.filePath;
         if (!path) return null;

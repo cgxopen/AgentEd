@@ -6,7 +6,7 @@ export interface Sidebar {
    * registered via `setOnFileClick` receive absolute paths derived
    * from this root.
    */
-  showTree: (nodes: TreeNode[], rootName: string, rootPath: string, status: SidebarStatus) => void;
+  showTree: (nodes: TreeNode[], rootName: string, rootPath: string) => void;
   hide: () => void;
   isVisible: () => boolean;
   toggle: () => void;
@@ -18,8 +18,6 @@ export interface Sidebar {
    */
   setOnFileClick: (handler: (absPath: string, rootPath: string) => void) => void;
 }
-
-export type SidebarStatus = { valid: true } | { valid: false; message: string };
 
 export interface TreeNode {
   name: string;
@@ -144,15 +142,9 @@ function renderFileNode(
   li.appendChild(entry);
 }
 
-function renderStatus(status: SidebarStatus, container: HTMLElement): void {
-  container.textContent = status.valid ? '✅ Valid structure' : `⚠️ ${status.message}`;
-  container.className = status.valid ? 'sidebar-status-ok' : 'sidebar-status-warn';
-}
-
 export function setupSidebar(): Sidebar {
   const panel = document.getElementById('sidebar')!;
   const treeEl = document.getElementById('sidebar-tree')!;
-  const statusEl = document.getElementById('sidebar-status')!;
   const closeBtn = document.getElementById('sidebar-close')!;
 
   // No-op default — replaced by main.ts via setOnFileClick once
@@ -165,12 +157,7 @@ export function setupSidebar(): Sidebar {
 
   closeBtn.addEventListener('click', hidePanel);
 
-  function showTree(
-    nodes: TreeNode[],
-    rootName: string,
-    rootPath: string,
-    status: SidebarStatus,
-  ): void {
+  function showTree(nodes: TreeNode[], rootName: string, rootPath: string): void {
     treeEl.innerHTML = '';
     const header = document.createElement('div');
     header.className = 'sidebar-root';
@@ -183,7 +170,6 @@ export function setupSidebar(): Sidebar {
       rootPath,
       0,
     );
-    renderStatus(status, statusEl);
     panel.classList.remove('hidden');
   }
 

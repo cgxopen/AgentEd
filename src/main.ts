@@ -1,5 +1,5 @@
 import { ensureAssetsDir } from './app/assets-dir';
-import { buildBundle, scheduleClusterDetection } from './app/bundle';
+import { scheduleClusterDetection } from './app/bundle';
 import { createContext } from './app/context';
 import { createDocumentActions, type DocumentActions } from './app/document-actions';
 import { createErrorReporter } from './app/error-reporter';
@@ -7,7 +7,6 @@ import { setupFileAssociation } from './app/file-association';
 import { setupHeader, wireHeaderIndicators } from './app/header-wiring';
 import { setupKeyboard } from './app/keyboard';
 import { insertMedia } from './app/media-picker';
-import { ProfileManager } from './app/profile-manager';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
 import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
@@ -17,19 +16,15 @@ import { ThemeManager } from './app/theme-manager';
 import { createEditor } from './editor/setup';
 import { getPlatformIO } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
-import { detectProfileForBundle } from './profiles/detect-bundle';
-import { getProfile } from './profiles/index';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupClusterIndicator } from './ui/cluster-indicator';
 import { setupClusterPopover } from './ui/cluster-popover';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
-import { setupProfileIndicator } from './ui/profile-indicator';
 import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
 import { setupToolbar } from './ui/toolbar';
-import { setupValidationPanel } from './ui/validation-panel';
 
 // Sweep deprecated localStorage keys before any preference read runs.
 // One-shot per launch; subsequent runs are no-ops.
@@ -51,8 +46,8 @@ const header = setupHeader(state);
 ctx.setFilename = header.setFilename;
 ctx.updateCloseEnabled = header.updateCloseEnabled;
 
-// Phase 3 — editor. The editor's callbacks reach into ctx.profileManager
-// (set in Phase 5) and docActions (set in Phase 7) via late binding.
+// Phase 3 — editor. The editor's callbacks reach into docActions
+// (set in Phase 6) via late binding.
 let docActions!: DocumentActions;
 
 const editorEl = document.getElementById('editor')!;
@@ -60,15 +55,9 @@ const { editor, getMarkdown, setMarkdown } = createEditor(
   editorEl,
   () => {
     ctx.state.setModified(true);
-    ctx.profileManager.triggerValidationDebounced();
   },
   () => ctx.state.filePath,
   () => docActions.requestSaveAs(),
-  () => {
-    const profile = getProfile(ctx.state.profile);
-    if (profile.allowsImagePaste) return { allowed: true };
-    return { allowed: false, reason: `Image paste not supported for ${profile.displayName}.` };
-  },
   async () => {
     const path = ctx.state.filePath;
     if (!path) return null;
@@ -84,40 +73,16 @@ ctx.setMarkdown = setMarkdown;
 ctx.statusbar = setupStatusbar(editor);
 setupSpellcheckToggle(state);
 setupToolbar(editor);
-ctx.validationPanel = setupValidationPanel(() => {
-  editor.commands.focus();
-});
 ctx.sidebar = setupSidebar();
 ctx.frontmatterPanel = setupFrontmatterPanel(state);
-
-// Profile indicator wires up after the panels — the override callback
-// re-runs validation + frontmatter visibility, both of which need ctx.
-ctx.profileIndicator = setupProfileIndicator(state, {
-  onProfileChange: async (choice) => {
-    if (choice === null) {
-      ctx.state.profileOverridden = false;
-      const io = await getPlatformIO();
-      const bundle = buildBundle(ctx.state, ctx.getMarkdown);
-      ctx.state.profile = await detectProfileForBundle(bundle, io);
-    } else {
-      ctx.state.profile = choice;
-      ctx.state.profileOverridden = true;
-    }
-    ctx.profileIndicator.refresh();
-    ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
-    ctx.profileManager.triggerValidation();
-    await ctx.refreshSidebar();
-  },
-});
+ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(state));
 
 // Phase 5 — managers (need editor + panels in ctx).
-ctx.profileManager = new ProfileManager(ctx);
-
 // SearchManager owns the inline search panel + the vendor extension
 // wrapper. We construct it here (before docActions) so its keyboard
 // listeners install during Phase 8 and the panel root in index.html is
 // already in the DOM. The `onOpen` hook closes the cluster popover so
-// only one floating surface is visible at a time (ADR-033 decision).
+// only one floating surface is visible at a time.
 ctx.searchManager = createSearchManager({
   editor,
   panelRoot: document.getElementById('search-panel')!,
@@ -173,9 +138,9 @@ setupMenu({
   },
   onNewFromTemplate: () => {
     void (async () => {
-      const profileId = await showTemplateGallery();
-      if (!profileId) return;
-      await docActions.handleNewFromTemplate(profileId);
+      const templateId = await showTemplateGallery();
+      if (!templateId) return;
+      await docActions.handleNewFromTemplate(templateId);
     })().catch(console.error);
   },
   onOpen: () => {
@@ -229,5 +194,4 @@ setupKeyboard({
 setupFileAssociation(docActions.openFilePath);
 
 // Phase 9 — initial render + runtime event listeners.
-ctx.profileManager.triggerValidation();
 ctx.updateCloseEnabled();

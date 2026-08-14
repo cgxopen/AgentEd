@@ -35,18 +35,10 @@ describe('handleImageFile — M5 size cap', () => {
     const editor = makeStubEditor();
     const getFilePath = vi.fn(() => '/doc/notes.md');
     const requestSaveAs = vi.fn(async () => '/doc/notes.md');
-    const imagePasteCheck = vi.fn(() => ({ allowed: true }));
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const oversized = makeFile(MAX_IMAGE_SIZE + 1);
-    await handleImageFile(
-      oversized,
-      editor,
-      getFilePath,
-      requestSaveAs,
-      imagePasteCheck,
-      ensureAssetsDir,
-    );
+    await handleImageFile(oversized, editor, getFilePath, requestSaveAs, ensureAssetsDir);
 
     expect(ensureAssetsDir).not.toHaveBeenCalled();
     expect(oversized.arrayBuffer).not.toHaveBeenCalled();
@@ -56,11 +48,10 @@ describe('handleImageFile — M5 size cap', () => {
     const editor = makeStubEditor();
     const getFilePath = vi.fn(() => '/doc/notes.md');
     const requestSaveAs = vi.fn(async () => '/doc/notes.md');
-    const imagePasteCheck = vi.fn(() => ({ allowed: true }));
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const ok = makeFile(1024);
-    await handleImageFile(ok, editor, getFilePath, requestSaveAs, imagePasteCheck, ensureAssetsDir);
+    await handleImageFile(ok, editor, getFilePath, requestSaveAs, ensureAssetsDir);
 
     expect(ensureAssetsDir).toHaveBeenCalledTimes(1);
     expect(ok.arrayBuffer).toHaveBeenCalledTimes(1);

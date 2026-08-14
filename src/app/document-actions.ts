@@ -1,12 +1,10 @@
 import { clearImages } from '../editor/image-registry';
-import { ensureFrontmatterForProfile, splitFrontmatter } from '../formats/frontmatter';
+import { splitFrontmatter } from '../formats/frontmatter';
 import { loadDocument, saveDocument } from '../formats/index';
 import { getPlatformIO } from '../platform/index';
 import { dirname } from '../platform/paths';
 import { saveLastOpenedFolder } from '../preferences';
-import { detectProfileForBundle } from '../profiles/detect-bundle';
-import { getProfile } from '../profiles/index';
-import type { ProfileId } from '../profiles/types';
+import { getTemplate, type TemplateId } from '../templates/index';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
 import { showToast } from '../ui/toast';
 import { applyBundle, buildBundle } from './bundle';
@@ -16,7 +14,7 @@ import { createRequestSaveAs } from './save-as-flow';
 
 export interface DocumentActions {
   handleNew(): Promise<void>;
-  handleNewFromTemplate(profileId: ProfileId): Promise<void>;
+  handleNewFromTemplate(templateId: TemplateId): Promise<void>;
   handleOpen(): Promise<void>;
   handleSave(): Promise<void>;
   handleSaveAs(): Promise<void>;
@@ -28,10 +26,6 @@ export interface DocumentActions {
 export function createDocumentActions(ctx: AppContext): DocumentActions {
   const requestSaveAs = createRequestSaveAs(ctx);
 
-  function onProfileApplied(): void {
-    ctx.profileManager.triggerValidation();
-  }
-
   function clearDocumentForReplacement(): void {
     ctx.state.resetDocument();
     ctx.setFilename(null);
@@ -39,7 +33,6 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.statusbar.refresh();
     ctx.frontmatterPanel.refresh();
     ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
-    ctx.profileIndicator.refresh();
     clearImages();
     ctx.state.setModified(false);
   }
@@ -48,7 +41,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     const io = await getPlatformIO();
     try {
       const bundle = await loadDocument(path, io);
-      await applyBundle(bundle, path, ctx, io, onProfileApplied);
+      await applyBundle(bundle, path, ctx, io);
 
       const folder = dirname(path);
       if (folder.length > 0) saveLastOpenedFolder(folder);
@@ -60,34 +53,14 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     }
   }
 
+  /**
+   * Write the current document to disk exactly as the user wrote it —
+   * body, plus the frontmatter block only if the document already has
+   * one. Nothing is ever injected on save.
+   */
   async function persistBundle(): Promise<void> {
     const io = await getPlatformIO();
-    let bundle = buildBundle(ctx.state, ctx.getMarkdown);
-
-    // Re-detect profile BEFORE frontmatter injection so a Save As that
-    // changes the filename (e.g. plain → SKILL.md) picks the right
-    // skill profile and injects the matching defaults on this same
-    // save, not on the next one. Skip when the user pinned a profile
-    // via the statusbar override.
-    if (!ctx.state.profileOverridden) {
-      const detected = await detectProfileForBundle(bundle, io);
-      if (detected !== ctx.state.profile) {
-        ctx.state.profile = detected;
-        ctx.profileIndicator.refresh();
-        ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
-      }
-    }
-
-    const profile = getProfile(ctx.state.profile);
-    bundle = ensureFrontmatterForProfile(bundle, profile);
-    if (bundle.frontmatterRaw !== ctx.state.frontmatter) {
-      ctx.state.frontmatter = bundle.frontmatterRaw;
-      // Keep the editable panel in sync with the injected YAML so the
-      // user sees (and can edit) the just-generated frontmatter.
-      ctx.frontmatterPanel.refresh();
-      ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
-      showToast('Frontmatter added — please update name and description', 'info');
-    }
+    const bundle = buildBundle(ctx.state, ctx.getMarkdown);
 
     try {
       await saveDocument(bundle, io);
@@ -125,7 +98,6 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     try {
       await persistBundle();
       await ctx.refreshSidebar();
-      ctx.profileManager.triggerValidation();
     } finally {
       ctx.state.isSaving = false;
     }
@@ -139,11 +111,6 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       if (!path) return;
       await persistBundle();
       await ctx.refreshSidebar();
-      // Re-run validation after save — the just-injected frontmatter
-      // satisfies frontmatter rules, but the panel won't reflect that
-      // until something re-triggers. handleSave already does this at
-      // the end; handleSaveAs needs it too.
-      ctx.profileManager.triggerValidation();
     } finally {
       ctx.state.isSaving = false;
     }
@@ -157,41 +124,36 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
 
     clearDocumentForReplacement();
     ctx.sidebar.hide();
-    onProfileApplied();
   }
 
   /**
    * Seed a fresh document from one of the built-in templates. Routes
-   * through the same safety gate as `handleNew`, then reads the
-   * profile's bundled markdown, splits it into frontmatter + body,
-   * pins the profile, and pushes both into the editor + state. The
-   * document is unsaved — Save / Save As writes it to disk.
+   * through the same safety gate as `handleNew`, then splits the seed
+   * into frontmatter + body and pushes both into the editor + state.
+   * The document is unsaved — Save / Save As writes it to disk.
    */
-  async function handleNewFromTemplate(profileId: ProfileId): Promise<void> {
+  async function handleNewFromTemplate(templateId: TemplateId): Promise<void> {
     if (ctx.state.isSaving) return;
+
+    const template = getTemplate(templateId);
+    if (!template) {
+      showToast(`Unknown template: ${templateId}`, 'warn');
+      return;
+    }
+
     if (!(await discardCurrentDocument('new'))) return;
 
     clearDocumentForReplacement();
     ctx.sidebar.hide();
 
-    const profile = getProfile(profileId);
-    const template = profile.getTemplate();
-    const { raw, body } = splitFrontmatter(template);
+    const { raw, body } = splitFrontmatter(template.body);
     ctx.state.frontmatter = raw;
-    ctx.state.profile = profileId;
-    // Templates seed the *intent* — they're not the result of
-    // auto-detection. Mark as overridden so a quick first save
-    // doesn't redirect the profile back to plain just because the
-    // file isn't on disk yet.
-    ctx.state.profileOverridden = true;
 
     ctx.setMarkdown(body);
     ctx.frontmatterPanel.refresh();
     ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
-    ctx.profileIndicator.refresh();
     ctx.statusbar.refresh();
     ctx.state.setModified(true);
-    onProfileApplied();
   }
 
   async function handleClose(): Promise<void> {
@@ -200,8 +162,6 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
 
     clearDocumentForReplacement();
     ctx.sidebar.hide();
-    ctx.validationPanel.hide();
-    onProfileApplied();
   }
 
   async function handleOpen(): Promise<void> {

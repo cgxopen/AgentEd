@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AppState } from '../app/state';
-import { setupFrontmatterPanel } from './frontmatter-panel';
+import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './frontmatter-panel';
 
 function mountPanel(): {
   details: HTMLDetailsElement;
@@ -87,5 +87,22 @@ describe('FrontmatterPanel', () => {
     panel.setVisible(true);
     panel.setVisible(false);
     expect(details.classList.contains('hidden')).toBe(true);
+  });
+
+  describe('shouldShowFrontmatterPanel', () => {
+    it('is false for a document without a metadata block', () => {
+      expect(shouldShowFrontmatterPanel(state)).toBe(false);
+    });
+
+    it('is true as soon as the document carries one', () => {
+      state.frontmatter = 'title: x';
+      expect(shouldShowFrontmatterPanel(state)).toBe(true);
+    });
+
+    it('is false again once the block is emptied', () => {
+      state.frontmatter = 'title: x';
+      state.frontmatter = null;
+      expect(shouldShowFrontmatterPanel(state)).toBe(false);
+    });
   });
 });

@@ -8,14 +8,6 @@ import { registerImage } from './image-registry';
 export type GetFilePath = () => string | null;
 export type RequestSaveAs = () => Promise<string | null>;
 
-export interface ImagePasteCheckResult {
-  /** Whether the active profile permits image paste/drop. */
-  allowed: boolean;
-  /** User-facing reason when `allowed` is false (used for the toast). */
-  reason?: string;
-}
-
-export type ImagePasteCheck = () => ImagePasteCheckResult;
 /** Resolves (and creates if needed) the on-disk assets/ folder. */
 export type EnsureAssetsDir = () => Promise<string | null>;
 
@@ -33,20 +25,17 @@ function generateFilename(file: File): string {
   return `${base}-${timestamp}-${rand}.${ext}`;
 }
 
+/**
+ * Insert one image file into the document (R-C5). Any document can
+ * receive images at any time — there is no document kind to check.
+ */
 export async function handleImageFile(
   file: File,
   editor: Editor,
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
-  imagePasteCheck: ImagePasteCheck,
   ensureAssetsDir: EnsureAssetsDir,
 ): Promise<void> {
-  const check = imagePasteCheck();
-  if (!check.allowed) {
-    showToast(check.reason ?? 'Image paste is not supported.', 'warn');
-    return;
-  }
-
   if (file.size > MAX_IMAGE_SIZE) {
     const sizeMb = Math.round(file.size / 1024 / 1024);
     const limitMb = MAX_IMAGE_SIZE / 1024 / 1024;
@@ -69,7 +58,7 @@ export async function handleImageFile(
   const data = new Uint8Array(await file.arrayBuffer());
 
   // Convention: relativePath is always assets/<filename>. Save flow
-  // resolves the absolute path against the document's companion folder.
+  // resolves the absolute path against the document's own folder.
   const relativePath = `assets/${filename}`;
 
   // Use blob URLs universally for display (both Tauri and Web)
@@ -93,7 +82,6 @@ export function createImageDropPlugin(
   editor: Editor,
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
-  imagePasteCheck: ImagePasteCheck,
   ensureAssetsDir: EnsureAssetsDir,
 ): Plugin {
   return new Plugin({
@@ -105,14 +93,9 @@ export function createImageDropPlugin(
         if (images.length === 0) return false;
         event.preventDefault();
         for (const file of images) {
-          void handleImageFile(
-            file,
-            editor,
-            getFilePath,
-            requestSaveAs,
-            imagePasteCheck,
-            ensureAssetsDir,
-          ).catch(console.error);
+          void handleImageFile(file, editor, getFilePath, requestSaveAs, ensureAssetsDir).catch(
+            console.error,
+          );
         }
         return true;
       },
@@ -122,14 +105,9 @@ export function createImageDropPlugin(
         if (images.length === 0) return false;
         event.preventDefault();
         for (const file of images) {
-          void handleImageFile(
-            file,
-            editor,
-            getFilePath,
-            requestSaveAs,
-            imagePasteCheck,
-            ensureAssetsDir,
-          ).catch(console.error);
+          void handleImageFile(file, editor, getFilePath, requestSaveAs, ensureAssetsDir).catch(
+            console.error,
+          );
         }
         return true;
       },

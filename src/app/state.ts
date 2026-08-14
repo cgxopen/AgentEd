@@ -1,6 +1,4 @@
 import type { ContextCluster } from '../cluster/types';
-import type { ArchiveEntry, DocumentBundle, StructuredLayout } from '../formats/types';
-import type { ProfileId } from '../profiles/types';
 
 /**
  * Central mutable state for the app. All handlers read/write through a
@@ -10,44 +8,30 @@ import type { ProfileId } from '../profiles/types';
  * `modified` is the only field with a subscription API because it is the
  * only flag that drives DOM (modified indicator + Close button enable).
  *
- * After ADR-030, `profile` is the primary axis: validation rules,
- * frontmatter rules, and image-paste capability all derive from it.
- * Document layout (`docFolder` + `layout`) is the only persistence
- * shape — there's no longer a separate Mode field.
+ * A document is a plain `.md` file: a path, its frontmatter block (if
+ * any), and the dirty flag. There is no document mode and no profile —
+ * both left with the August 2026 reset.
  */
 export class AppState {
   filePath: string | null = null;
-  meta: DocumentBundle['meta'] = null;
   frontmatter: string | null = null;
-  archiveEntries: ArchiveEntry[] = [];
   isFirstSave = true;
   isSaving = false;
-  /** Active profile (auto-detected on load, or set via statusbar override). */
-  profile: ProfileId = 'plain';
-  /**
-   * True when the user explicitly overrode auto-detection via the
-   * statusbar dropdown for the current document. Cleared on Close /
-   * New / open of another document.
-   */
-  profileOverridden = false;
   /**
    * Sticky for the current document session: once the user cancels the
    * "Create assets/?" dialog on first image paste, subsequent pastes in
    * this session won't reopen it. Cleared on Close / New / open.
    */
   assetsDirCreationDeclined = false;
-  docFolder: string | null = null;
-  layout: StructuredLayout | null = null;
 
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
   /**
-   * Session-only spellcheck flag. Defaults to `false` because agent
-   * documents are full of technical identifiers (`metadata.openclaw`,
-   * skill keys, code blocks) that browser spell-checkers underline as
-   * misspellings. The user can opt in for the current session via the
-   * statusbar toggle. Per ADR-030 minimal-persistence principle, the
-   * flag is **not** written to localStorage — every launch starts OFF.
+   * Session-only spellcheck flag. Defaults to `false` (R-C9) because
+   * technical documents are full of identifiers and code blocks that
+   * browser spell-checkers underline as misspellings. The user can opt
+   * in for the current session via the statusbar toggle; the flag is
+   * **not** written to localStorage — every launch starts OFF.
    */
   private _spellcheckEnabled = false;
   private spellcheckListeners: Array<(enabled: boolean) => void> = [];
@@ -125,18 +109,12 @@ export class AppState {
     return this._clusterScanGeneration;
   }
 
-  /** Reset per-document state. Profile collapses back to `plain`. */
+  /** Reset per-document state. */
   resetDocument(): void {
     this.filePath = null;
-    this.meta = null;
     this.frontmatter = null;
-    this.archiveEntries = [];
     this.isFirstSave = true;
-    this.profile = 'plain';
-    this.profileOverridden = false;
     this.assetsDirCreationDeclined = false;
-    this.docFolder = null;
-    this.layout = null;
     // Bumping the generation invalidates any in-flight detector so the
     // next document doesn't briefly inherit the previous cluster.
     this._clusterScanGeneration += 1;

@@ -10,11 +10,7 @@ export async function loadMarkdown(path: string, io: PlatformIO): Promise<Docume
     frontmatterRaw: raw,
     markdownBody: body,
     images: [],
-    archiveEntries: [],
     rootPath: path,
-    meta: null,
-    docFolder: null,
-    layout: null,
   };
 }
 

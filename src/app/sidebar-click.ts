@@ -11,7 +11,7 @@ import type { DocumentActions } from './document-actions';
  *      events should not be surfaced or guess-able.
  *   2. Markdown file (`.md` / `.markdown`) → reuse the existing
  *      `openFilePath` flow, which routes through the unsaved-changes
- *      safety gate and re-runs profile detection on the new document.
+ *      safety gate.
  *   3. Anything else → open with the host OS via Tauri shell. The
  *      current document's editor state stays untouched in the
  *      background. Brief toast confirms the action.

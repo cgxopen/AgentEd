@@ -49,10 +49,10 @@ export function savePalettePreference(p: PaletteName): void {
 
 // ── Last opened folder ──
 //
-// Persisted across sessions per ADR-030 D8 — used as the initial
-// directory for the next File → Open dialog. Stores the parent of
-// the most recently opened file, not the file path itself (the ADR
-// is explicit: no last-opened-file persistence).
+// Persisted across sessions — used as the initial directory for the
+// next File → Open dialog. Stores the parent of the most recently
+// opened file, never the file path itself: AgentEd does not remember
+// which document you had open.
 
 const LAST_FOLDER_KEY = 'agented:last-opened-folder';
 
@@ -77,20 +77,20 @@ export function saveLastOpenedFolder(folder: string): void {
 
 // ── Legacy keys cleanup ──
 //
-// Earlier versions persisted three orthogonal axes:
-//   - default Mode (markdown / structured / skill)
-//   - per-mode frontmatter requirements
-//   - workspace preset (Plain / Agentic)
-//
-// ADR-030 collapsed all of them into the auto-detected profile. This
-// sweep runs once per launch; after the first one the keys are gone
-// and the warnings stay silent. Surviving preferences: theme + palette.
+// Earlier versions persisted document modes, per-mode frontmatter
+// requirements, a workspace preset, and a one-shot tip about structured
+// save layouts. None of those concepts exist any more (ADR-001), so the
+// keys are swept from localStorage rather than left behind on machines
+// that ran an older build. This runs once per launch; after the first
+// one the keys are gone and it stays silent. Surviving preferences:
+// theme + palette + last opened folder.
 
 const LEGACY_KEYS = [
   'agented:default-mode',
   'agented:default-format',
   'agented:frontmatter-required',
   'agented:workspace',
+  'agented:save-as-layout-tip-shown',
 ];
 
 export function purgeLegacyPreferences(): void {

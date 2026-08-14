@@ -2,7 +2,7 @@ import type { ContextFileKind } from './types';
 
 /**
  * Canonical list of context-file filenames that the cluster detector
- * recognises (ADR-031 D1).
+ * recognises.
  *
  * `caseSensitive` controls the match. All current entries are
  * case-sensitive — they reflect ecosystem conventions where the

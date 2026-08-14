@@ -247,7 +247,8 @@ export class WebIO implements PlatformIO {
     }
   }
 
-  // TODO: Option B — acquire dirHandle at Open for Structured/Skill (see docs/to_do_later_or_pro.md)
+  // Note: without a directory handle the web build can only write the
+  // file the user picked; Save As is what upgrades the access.
   private async resolveOrCreateFileHandle(path: string): Promise<FileSystemFileHandle> {
     if (this.dirHandle) {
       const parts = path.split('/').filter(Boolean);
@@ -257,9 +258,8 @@ export class WebIO implements PlatformIO {
     }
     // Fileless fallback: without a dirHandle, the only file we can write to
     // is the one the user picked. Require the requested name to match the
-    // active file's name — otherwise a structured save would clobber
-    // SKILL.md with the content of `.agented-meta.json` (same "single
-    // segment" path shape, no separator, but a different target file).
+    // active file's name — otherwise a companion write (e.g. an image
+    // under assets/) would clobber the document itself.
     if (this.fileHandle) {
       const requested = path.split('/').filter(Boolean).pop() ?? '';
       if (requested === this.fileHandle.name) return this.fileHandle;

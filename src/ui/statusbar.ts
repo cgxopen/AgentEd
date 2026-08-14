@@ -68,7 +68,7 @@ export function setupStatusbar(editor: Editor): Statusbar {
  * Wire the statusbar's spell-check toggle.
  *
  *  - Reads the initial state from AppState (always `false` at boot per
- *    ADR-030 — no persistence).
+ *    R-C9 — no persistence).
  *  - Mirrors changes onto the live `.ProseMirror` element via
  *    `setAttribute('spellcheck', …)` so the toggle is instant: no
  *    editor re-init, no lost selection / undo history.

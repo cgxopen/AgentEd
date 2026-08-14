@@ -3,14 +3,14 @@ import type { PlatformIO } from '../platform/types';
 import { getCanonicalFilenames, getKindForFilename } from './registry';
 import { type ClusterDirection, ContextCluster, type ContextFileEntry } from './types';
 
-/** Walk-up depth cap (ADR-031 D3). */
+/** Walk-up depth cap (R-A2: at most 5 levels up). */
 export const MAX_DEPTH_UP = 5;
-/** Maximum sibling/child directories per listed parent (ADR-031 D3). */
+/** Maximum sibling/child directories per listed parent. */
 export const MAX_CHILDREN = 50;
-/** Hard cap on returned entries (ADR-031 D3). */
+/** Hard cap on returned entries. */
 export const MAX_RESULTS = 20;
 /**
- * Hard wall-clock budget for a single detection pass (ADR-031 D3).
+ * Hard wall-clock budget for a single detection pass.
  * Probes that haven't resolved in time are dropped from the result —
  * the popover prefers a quick partial answer to a slow full one.
  */
@@ -62,7 +62,7 @@ interface ScanDir {
  * sorted by ascending distance (with tie-breaking by registration
  * order in the canonical filename list).
  *
- * Algorithm (ADR-031 D3, extended for siblings — see M1 reporter):
+ * Algorithm:
  *   1. Build the set of directories to probe = currentDir
  *      + ancestors (up to MAX_DEPTH_UP)
  *      + immediate children of currentDir
@@ -130,7 +130,7 @@ async function collectScanDirs(currentDir: string, io: PlatformIO): Promise<Scan
 
   // Siblings: children of the direct parent (distance 1) other than
   // currentDir itself. Without this step a file at depth N can't see
-  // its peer at the same depth — the §1 example in ADR-031 explicitly
+  // its peer at the same depth — the reference example explicitly
   // shows this case (frontend/AGENTS.md ↔ backend/AGENTS.md).
   const directParent = dirname(currentDir);
   if (directParent.length > 0 && directParent !== currentDir) {

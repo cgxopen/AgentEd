@@ -38,7 +38,7 @@ export interface SearchPanel {
 
 /** Time before a keystroke triggers a fresh search. 150ms feels
  * snappy without flooding the editor with re-decoration on every
- * letter while a long query is typed. See ADR-033 §M1.3. */
+ * letter while a long query is typed. */
 const QUERY_DEBOUNCE_MS = 150;
 
 export function setupSearchPanel(root: HTMLElement, callbacks: SearchPanelCallbacks): SearchPanel {

@@ -1,5 +1,4 @@
 import type { AppState } from '../app/state';
-import { getProfile } from '../profiles/index';
 
 export interface FrontmatterPanel {
   /** Sync textarea value from current state.frontmatter. */
@@ -9,33 +8,30 @@ export interface FrontmatterPanel {
 }
 
 /**
- * Visibility rule, post-ADR-030: the panel surfaces YAML editing for any
- * profile that requires frontmatter, plus any document that already has
- * frontmatter (so a `forbidden`-status profile like llms.txt can still
- * show the offending block while the user cleans it up).
- *
- * `plain` profile with no frontmatter → hidden. That collapses to the
- * Plain-workspace experience users had before — driven by context now,
- * not a global toggle.
+ * Visibility rule: the panel appears only for documents that already
+ * carry a metadata block. A document without frontmatter never sees it —
+ * nothing is proposed, nothing is required.
  */
 export function shouldShowFrontmatterPanel(state: AppState): boolean {
-  const profile = getProfile(state.profile);
-  if (profile.frontmatterRules.status === 'required') return true;
   return state.frontmatter !== null;
 }
 
 /**
  * Collapsible `<details>` above the editor that exposes the raw YAML
- * frontmatter as an editable textarea. Intentional fallback UX —
- * the visual form-field editor lands in v0.2.0.
+ * metadata block as an editable textarea.
  *
  * Edits flow straight to state.frontmatter and mark the document
- * modified. No inline YAML validation — profile detection re-runs on
- * save (wired in persistBundle).
+ * modified. Clearing the textarea drops the block from the document.
  */
 export function setupFrontmatterPanel(state: AppState): FrontmatterPanel {
-  const details = document.getElementById('frontmatter-panel') as HTMLDetailsElement;
-  const textarea = document.getElementById('frontmatter-input') as HTMLTextAreaElement;
+  const detailsEl = document.getElementById('frontmatter-panel') as HTMLDetailsElement | null;
+  const textareaEl = document.getElementById('frontmatter-input') as HTMLTextAreaElement | null;
+  if (!detailsEl || !textareaEl) {
+    // Defensive: tests / partial mounts get a no-op handle.
+    return { refresh: () => {}, setVisible: () => {} };
+  }
+  const details = detailsEl;
+  const textarea = textareaEl;
 
   textarea.addEventListener('input', () => {
     const value = textarea.value;
