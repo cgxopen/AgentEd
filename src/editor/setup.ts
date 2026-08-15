@@ -14,6 +14,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { createImageDropPlugin } from './image-handler';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
+import { OrderedListContinuity } from './ordered-list-continuity';
 import { createSearchExtension } from './search-extension';
 
 export interface EditorInstance {
@@ -57,6 +58,8 @@ function buildExtensions(
     TableCell,
     TableHeader,
     ImageDrop,
+    // A paragraph inserted mid-list must not restart the numbering (R-C1).
+    OrderedListContinuity,
     // Find & Replace highlights (R-C4). The wrapper in
     // src/editor/search-extension.ts owns the user-facing API; this
     // call only registers the underlying decoration plugin so matches
