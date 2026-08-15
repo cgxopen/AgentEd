@@ -111,6 +111,16 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
       - run: npm ci
       - run: npm run tauri build
+      # Storage only — the build above already runs on every code PR.
+      # NSIS setup.exe only: the .msi is redundant for end users and the
+      # uncompressed bundle intermediates would multiply storage for no gain.
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: AgentEd-windows-${{ github.sha }}
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          retention-days: 7
+          if-no-files-found: error
 
   pipeline-ok:
     name: Pipeline OK
