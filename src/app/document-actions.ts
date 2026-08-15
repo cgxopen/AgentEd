@@ -176,6 +176,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    * again, instead of the app exiting mid-write.
    */
   async function confirmWindowClose(): Promise<boolean> {
+    // The close guard refuses this case first and tells the user why; this
+    // is the backstop that keeps the invariant true for any other caller.
     if (ctx.state.isSaving) return false;
     return await discardCurrentDocument('window-close');
   }
