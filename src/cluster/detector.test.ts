@@ -55,7 +55,10 @@ class FakeIO implements PlatformIO {
   async saveFile(): Promise<void> {
     throw new Error('not implemented');
   }
-  async saveFileAs(): Promise<string | null> {
+  async pickSavePath(): Promise<string | null> {
+    throw new Error('not implemented');
+  }
+  async installCloseGuard(): Promise<void> {
     throw new Error('not implemented');
   }
   async readBinary(): Promise<Uint8Array> {

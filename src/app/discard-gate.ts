@@ -2,7 +2,7 @@ import { basename } from '../platform/paths';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import type { AppContext } from './context';
 
-export type DiscardAction = 'new' | 'open' | 'close';
+export type DiscardAction = 'new' | 'open' | 'close' | 'window-close';
 
 /**
  * Build the gate that protects destructive actions (New / Open / Close)
@@ -27,6 +27,7 @@ export function createDiscardGate(
       new: 'creating a new document',
       open: 'opening another document',
       close: 'closing',
+      'window-close': 'closing the window',
     }[action];
 
     const choice = await showConfirmDialog<'save' | 'discard' | 'cancel'>({

@@ -1,3 +1,4 @@
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import {
   exists as fsExists,
@@ -12,7 +13,7 @@ import {
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
 import { dirname, joinPath } from './paths';
-import type { FileEntry, FileResult, PlatformIO } from './types';
+import type { CloseGuard, FileEntry, FileResult, PlatformIO } from './types';
 
 export class TauriIO implements PlatformIO {
   readonly supportsMultiFile = true;
@@ -51,15 +52,43 @@ export class TauriIO implements PlatformIO {
     await writeTextFile(path, content);
   }
 
-  async saveFileAs(
-    content: string,
-    filterName = 'Markdown',
-    extensions = ['md'],
-  ): Promise<string | null> {
-    const filePath = await save({ filters: [{ name: filterName, extensions }] });
-    if (!filePath) return null;
-    await writeTextFile(filePath, content);
-    return filePath;
+  async pickSavePath(filterName = 'Markdown', extensions = ['md']): Promise<string | null> {
+    // Destination only — nothing is written here. The document reaches disk
+    // through saveFile(), once the user has actually decided to save.
+    return await save({ filters: [{ name: filterName, extensions }] });
+  }
+
+  /**
+   * Intercept the native close (title-bar ✕, Alt+F4, app quit) and hand the
+   * decision to the guard. `preventDefault` keeps the window alive while the
+   * dialog is open; `destroy()` then closes it without re-entering this
+   * handler. Each window installs its own guard, so quitting with several
+   * windows open asks once per window with unsaved work.
+   */
+  async installCloseGuard(guard: CloseGuard): Promise<void> {
+    const appWindow = getCurrentWindow();
+    await appWindow.onCloseRequested(async (event) => {
+      event.preventDefault();
+      let mayClose = false;
+      try {
+        mayClose = await guard.confirmClose();
+      } catch (e) {
+        // A failing gate must not trap the user in the app, but it must not
+        // discard their work either: keep the window open and surface it.
+        console.error('[close-guard] gate failed, keeping the window open:', e);
+        return;
+      }
+      if (!mayClose) return;
+      try {
+        // destroy() closes without re-emitting this event; close() would
+        // come straight back here and ask the user a second time.
+        await appWindow.destroy();
+      } catch (e) {
+        // The window stays open, which is the safe direction — the user's
+        // work is still in the editor and they can close again.
+        console.error('[close-guard] closing the window failed:', e);
+      }
+    });
   }
 
   async readBinary(path: string): Promise<Uint8Array> {

@@ -1,5 +1,6 @@
 import { ensureAssetsDir } from './app/assets-dir';
 import { scheduleClusterDetection } from './app/bundle';
+import { installCloseGuard } from './app/close-guard';
 import { createContext } from './app/context';
 import { createDocumentActions, type DocumentActions } from './app/document-actions';
 import { createErrorReporter } from './app/error-reporter';
@@ -192,6 +193,23 @@ setupKeyboard({
 });
 
 setupFileAssociation(docActions.openFilePath);
+
+// The window's own close button, Alt+F4 and app quit are destructive paths
+// too, so they route through the same unsaved-changes gate (R-C3). Awaited
+// lazily: the platform module loads on demand, and a failure to install
+// must be loud — silently losing the guard would be a data-loss path.
+void (async () => {
+  const io = await getPlatformIO();
+  await installCloseGuard(ctx.state, docActions, io);
+})().catch((e) => {
+  console.error('[main] failed to install the close guard:', e);
+  void ctx.reporter.dialog(
+    'AgentEd could not protect against closing with unsaved changes.\n\n' +
+      'Please save your work manually before closing the window.',
+    e,
+    'Close protection unavailable',
+  );
+});
 
 // Phase 9 — initial render + runtime event listeners.
 ctx.updateCloseEnabled();

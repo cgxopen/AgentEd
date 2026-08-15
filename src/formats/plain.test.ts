@@ -31,7 +31,8 @@ function stubIO(files: Record<string, string>): PlatformIO & {
     saveFile: async (path: string, content: string) => {
       written.set(path, content);
     },
-    saveFileAs: async () => null,
+    pickSavePath: async () => null,
+    installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async (path: string, data: Uint8Array) => {
       binaries.set(path, data);
