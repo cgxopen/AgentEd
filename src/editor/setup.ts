@@ -14,6 +14,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { createImageDropPlugin } from './image-handler';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
+import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 
 export interface EditorInstance {
@@ -44,6 +45,9 @@ function buildExtensions(
     Underline,
     Link.configure({
       openOnClick: false,
+      // R-C13: a pasted URL stays text. Typing one still autolinks — with no
+      // link button in the toolbar, that is the only way to make a link.
+      linkOnPaste: false,
       HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
@@ -57,6 +61,9 @@ function buildExtensions(
     TableCell,
     TableHeader,
     ImageDrop,
+    // Registered after ImageDrop so a pasted image is still handled as an
+    // image; this takes over everything else the clipboard carries (R-C13).
+    PredictablePaste,
     // Find & Replace highlights (R-C4). The wrapper in
     // src/editor/search-extension.ts owns the user-facing API; this
     // call only registers the underlying decoration plugin so matches
