@@ -17,17 +17,26 @@ import { htmlToMarkdown } from './markdown/serialize';
  * linkifying pasted text (typing a URL still autolinks, which is the only way
  * to make a link in this build).
  *
- * Three sources, three answers:
+ * Four sources, four answers:
  *
- *   - **Plain text** goes in exactly as it stands. Newlines split paragraphs,
- *     except inside a fenced block where they are content.
+ *   - **Plain text** is read as markdown, the way the file-open path reads a
+ *     document: a heading pasted from another editor or an AI chat arrives as
+ *     a heading, not as escaped source. Single newlines become line breaks
+ *     rather than spaces, so the lines the user copied stay the lines they
+ *     pasted.
  *   - **Rich HTML** is converted with the same serializer that writes the
  *     file, then re-parsed: whatever the source page wrapped its text in —
  *     spans, styles, classes, editor chrome — cannot survive a round trip
  *     through plain markdown, so no leftover markup reaches the document.
+ *   - **A forced plain paste** (Ctrl+Shift+V) inserts the characters
+ *     literally, markdown syntax and all — the escape hatch for when the
+ *     text is meant to be read, not obeyed.
  *   - **A copy from this editor** (`data-pm-slice`) is left to ProseMirror.
  *     Its HTML is already ours, so there is nothing to clean, and its slice
  *     context is what keeps copying a table row or a list item faithful.
+ *
+ * A caret inside a fenced block short-circuits all of it: there, every source
+ * is text and newlines are content.
  */
 
 /**
@@ -60,7 +69,12 @@ export function isInternalPaste(html: string): boolean {
   return html.includes('data-pm-slice');
 }
 
-function insertPlainText(view: EditorView, text: string): void {
+/** True when the caret sits in a block whose content is literal text. */
+function isCodeBlockSelection(view: EditorView): boolean {
+  return view.state.selection.$from.parent.type.spec.code === true;
+}
+
+function insertLiteralText(view: EditorView, text: string): void {
   const { state } = view;
   const tr = state.tr.setMeta('preventAutolink', true);
 
@@ -79,21 +93,57 @@ function insertPlainText(view: EditorView, text: string): void {
   view.dispatch(tr.replaceSelection(new Slice(Fragment.from(blocks), 1, 1)).scrollIntoView());
 }
 
-function insertCleanedHtml(view: EditorView, html: string): void {
+/**
+ * Already-sanitized HTML as a document slice. Both ends come back open, so a
+ * single pasted paragraph merges into the sentence at the caret instead of
+ * breaking it in two.
+ */
+function parseSlice(view: EditorView, html: string): Slice {
   const container = document.createElement('div');
-  // cleanPastedHtml ends in markdownToHtml, which sanitizes with DOMPurify.
-  container.innerHTML = cleanPastedHtml(html);
-  const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(container, {
+  container.innerHTML = html;
+  return ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(container, {
     preserveWhitespace: false,
   });
+}
+
+function insertParsedHtml(view: EditorView, html: string): void {
   view.dispatch(
-    view.state.tr.replaceSelection(slice).setMeta('preventAutolink', true).scrollIntoView(),
+    view.state.tr
+      .replaceSelection(parseSlice(view, html))
+      .setMeta('preventAutolink', true)
+      .scrollIntoView(),
   );
 }
 
-function pastePlainText(view: EditorView, text: string): boolean {
+/**
+ * Plain text read as markdown — the same reading the file-open path gives.
+ *
+ * A paste that is a single line keeps the spaces around it: markdown treats
+ * edge whitespace as insignificant (and four of them as a code block), but a
+ * word dropped into the middle of a sentence needs the space the user
+ * copied, so those spaces are set aside and put back around the result.
+ */
+function insertMarkdown(view: EditorView, text: string): void {
+  const singleLine = !/[\r\n]/.test(text);
+  const leading = singleLine ? (/^[ \t]*/.exec(text)?.[0] ?? '') : '';
+  const trailing = singleLine ? (/[ \t]*$/.exec(text)?.[0] ?? '') : '';
+  const body = singleLine ? text.slice(leading.length, text.length - trailing.length) : text;
+
+  const tr = view.state.tr.setMeta('preventAutolink', true);
+  if (leading.length > 0) tr.insertText(leading);
+  tr.replaceSelection(parseSlice(view, markdownToHtml(body, { breaks: true })));
+  if (trailing.length > 0) tr.insertText(trailing);
+  view.dispatch(tr.scrollIntoView());
+}
+
+function insertCleanedHtml(view: EditorView, html: string): void {
+  // cleanPastedHtml ends in markdownToHtml, which sanitizes with DOMPurify.
+  insertParsedHtml(view, cleanPastedHtml(html));
+}
+
+function pasteLiterally(view: EditorView, text: string): boolean {
   if (!text) return false;
-  insertPlainText(view, text);
+  insertLiteralText(view, text);
   return true;
 }
 
@@ -110,8 +160,22 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
         storage.plainPasteRequestedAt = 0;
         const forcePlain = requestedAt > 0 && Date.now() - requestedAt < PLAIN_PASTE_WINDOW_MS;
 
-        if (forcePlain || !html) {
-          if (!pastePlainText(view, text)) return false;
+        // Ctrl+Shift+V, or a fenced block where markdown means nothing and
+        // newlines are content: the characters go in exactly as they stand.
+        if (forcePlain || isCodeBlockSelection(view)) {
+          if (!pasteLiterally(view, text)) return false;
+          event.preventDefault();
+          return true;
+        }
+
+        if (!html) {
+          if (!text) return false;
+          try {
+            insertMarkdown(view, text);
+          } catch (error) {
+            console.error('[agented] failed to read pasted text as markdown:', error);
+            if (!pasteLiterally(view, text)) return false;
+          }
           event.preventDefault();
           return true;
         }
@@ -121,7 +185,7 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
         if (isInternalPaste(html)) return false;
 
         if (html.length > MAX_PASTED_HTML_LENGTH) {
-          if (!pastePlainText(view, text)) return false;
+          if (!pasteLiterally(view, text)) return false;
           showToast('Pasted as plain text — the copied content was too large to convert.', 'warn');
           event.preventDefault();
           return true;
@@ -133,7 +197,7 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
           // Never drop the paste on the floor: fall back to the text the
           // clipboard also carries, and say why the formatting was lost.
           console.error('[agented] failed to convert pasted HTML:', error);
-          if (!pastePlainText(view, text)) return false;
+          if (!pasteLiterally(view, text)) return false;
           showToast('Pasted as plain text — the copied formatting could not be read.', 'warn');
         }
         event.preventDefault();

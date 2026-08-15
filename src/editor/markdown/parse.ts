@@ -23,8 +23,18 @@ DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
   }
 });
 
-export function markdownToHtml(markdown: string): string {
-  const html = marked.parse(markdown, { async: false }) as string;
+export interface ParseOptions {
+  /**
+   * Read a single newline as a line break rather than as a space. Off for
+   * files, whose author chose where the paragraphs are; on for pasted text,
+   * where the lines the user copied are the only structure on offer and
+   * reflowing them into one line would lose it.
+   */
+  readonly breaks?: boolean;
+}
+
+export function markdownToHtml(markdown: string, options: ParseOptions = {}): string {
+  const html = marked.parse(markdown, { async: false, breaks: options.breaks ?? false }) as string;
 
   // Post-process: convert GFM task list items to TipTap-compatible attributes
   const processed = html

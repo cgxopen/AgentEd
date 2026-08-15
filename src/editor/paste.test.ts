@@ -68,21 +68,51 @@ afterEach(() => {
 });
 
 describe('predictable paste', () => {
-  describe('plain text goes in as it stands', () => {
-    it('does not read markdown emphasis in pasted plain text', () => {
+  describe('plain text is read as markdown', () => {
+    it('reads emphasis in pasted plain text', () => {
       const editor = editorWith('start');
       caretAfter(editor, 'start');
-      expect(paste(editor, { text: ' **not bold** and *not italic*' })).toBe(true);
-      expect(editor.editor.getHTML()).not.toContain('<strong>');
-      expect(editor.editor.getHTML()).not.toContain('<em>');
-      expect(editor.editor.getText()).toContain('**not bold** and *not italic*');
+      expect(paste(editor, { text: ' **bold** and *italic*' })).toBe(true);
+      expect(editor.editor.getHTML()).toContain('<strong>');
+      expect(editor.editor.getHTML()).toContain('<em>');
     });
 
-    it('does not read a pasted backtick span as inline code', () => {
+    it('reads a pasted backtick span as inline code', () => {
       const editor = editorWith('start');
       caretAfter(editor, 'start');
       paste(editor, { text: ' `npm test`' });
-      expect(editor.editor.getHTML()).not.toContain('<code>');
+      expect(editor.editor.getHTML()).toContain('<code>');
+    });
+
+    it('reads a pasted heading as a heading', () => {
+      const editor = editorWith('');
+      paste(editor, { text: '# Heading' });
+      expect(editor.editor.getHTML()).toContain('<h1>');
+      expect(editor.getMarkdown()).toBe('# Heading');
+    });
+
+    it('reads a block copied out of an AI chat as structure, not source', () => {
+      const editor = editorWith('');
+      paste(editor, { text: '## Steps\n\n1. first\n2. second\n\nSee `code` here.' });
+      const html = editor.editor.getHTML();
+      expect(html).toContain('<h2>');
+      expect(html).toContain('<ol>');
+      expect(html).toContain('<code>');
+      expect(editor.getMarkdown()).not.toContain('\\#');
+    });
+
+    it('reads a pasted fenced block as a code block', () => {
+      const editor = editorWith('');
+      paste(editor, { text: '```js\nconst a = 1;\n```' });
+      expect(editor.editor.getHTML()).toContain('<pre');
+      expect(editor.getMarkdown()).toContain('const a = 1;');
+    });
+
+    it('keeps four leading spaces as text rather than reading a code block', () => {
+      const editor = editorWith('');
+      paste(editor, { text: '    const x = 1;' });
+      expect(editor.editor.getHTML()).not.toContain('<pre');
+      expect(editor.editor.getText()).toContain('const x = 1;');
     });
 
     it('merges a single pasted line into the sentence around the caret', () => {
@@ -92,9 +122,21 @@ describe('predictable paste', () => {
       expect(editor.getMarkdown()).toBe('one two three');
     });
 
-    it('splits multi-line plain text into paragraphs', () => {
+    it('keeps pasted lines on separate lines', () => {
+      // Markdown would reflow a single newline into a space, losing the only
+      // structure a plain-text paste carries; pasted text reads it as a line
+      // break instead, so two copied lines stay two lines.
       const editor = editorWith('');
       paste(editor, { text: 'first\nsecond' });
+      expect(editor.editor.getHTML()).toContain('<br');
+      expect(editor.getMarkdown()).toContain('first');
+      expect(editor.getMarkdown()).toContain('second');
+      expect(editor.getMarkdown()).not.toBe('first second');
+    });
+
+    it('keeps a blank line between pasted paragraphs', () => {
+      const editor = editorWith('');
+      paste(editor, { text: 'first\n\nsecond' });
       expect(editor.getMarkdown()).toBe('first\n\nsecond');
     });
 
@@ -187,7 +229,40 @@ describe('predictable paste', () => {
     });
   });
 
-  describe('Ctrl+Shift+V forces plain text', () => {
+  describe('Ctrl+Shift+V inserts the characters literally', () => {
+    it('does not read markdown emphasis in the pasted text', () => {
+      const editor = editorWith('start');
+      caretAfter(editor, 'start');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      expect(paste(editor, { text: ' **not bold** and *not italic*' })).toBe(true);
+      expect(editor.editor.getHTML()).not.toContain('<strong>');
+      expect(editor.editor.getHTML()).not.toContain('<em>');
+      expect(editor.editor.getText()).toContain('**not bold** and *not italic*');
+    });
+
+    it('does not read a backtick span as inline code', () => {
+      const editor = editorWith('start');
+      caretAfter(editor, 'start');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text: ' `npm test`' });
+      expect(editor.editor.getHTML()).not.toContain('<code>');
+    });
+
+    it('splits multi-line text into paragraphs', () => {
+      const editor = editorWith('');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text: 'first\nsecond' });
+      expect(editor.getMarkdown()).toBe('first\n\nsecond');
+    });
+
+    it('escapes the syntax it inserted, so the literal text round-trips', () => {
+      const editor = editorWith('');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text: '# Heading' });
+      expect(editor.editor.getHTML()).not.toContain('<h1>');
+      expect(editor.getMarkdown()).toBe('\\# Heading');
+    });
+
     it('ignores the clipboard HTML when a plain paste was just requested', () => {
       const editor = editorWith('');
       storageOf(editor).plainPasteRequestedAt = Date.now();
@@ -212,6 +287,14 @@ describe('predictable paste', () => {
       storageOf(editor).plainPasteRequestedAt = Date.now() - 60_000;
       paste(editor, { text: 'Heading', html: '<h1>Heading</h1>' });
       expect(editor.getMarkdown()).toBe('# Heading');
+    });
+
+    it('keeps newlines as content when forced inside a fenced block', () => {
+      const editor = editorWith('```\nkeep\n```');
+      caretAfter(editor, 'keep');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text: '\nsecond line' });
+      expect(editor.getMarkdown()).toContain('keep\nsecond line');
     });
   });
 
