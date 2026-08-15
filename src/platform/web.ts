@@ -1,5 +1,5 @@
 import { joinPath } from './paths';
-import type { FileEntry, FileResult, PlatformIO } from './types';
+import type { CloseGuard, FileEntry, FileResult, PlatformIO } from './types';
 
 export class WebIO implements PlatformIO {
   readonly supportsMultiFile = true;
@@ -68,11 +68,7 @@ export class WebIO implements PlatformIO {
     await writable.close();
   }
 
-  async saveFileAs(
-    content: string,
-    filterName = 'Markdown file',
-    extensions = ['md'],
-  ): Promise<string | null> {
+  async pickSavePath(filterName = 'Markdown file', extensions = ['md']): Promise<string | null> {
     try {
       const accept: Record<string, string[]> = {
         'text/markdown': extensions.map((e) => `.${e}`),
@@ -81,18 +77,34 @@ export class WebIO implements PlatformIO {
         suggestedName: `document.${extensions[0]}`,
         types: [{ description: filterName, accept }],
       });
+      // Keep the handle so saveFile() can write to it later, but do NOT
+      // open a writable stream here: createWritable() truncates the file,
+      // which would destroy an existing document the moment the user picks
+      // it in the dialog — before any save decision (R-C3).
       this.fileHandle = handle;
-      const writable = await handle.createWritable();
-      await writable.write(content);
-      await writable.close();
       // Acquire directory handle for multi-file operations
       await this.acquireDirectoryHandle();
       return handle.name;
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return null;
-      console.error('saveFileAs failed:', e);
+      console.error('pickSavePath failed:', e);
       return null;
     }
+  }
+
+  /**
+   * The browser cannot await an in-page dialog before unloading, so the
+   * best available guard is the native "Leave site?" prompt, requested by
+   * cancelling the beforeunload event while the document is dirty.
+   * `confirmClose` stays unused here — it has no way to run in time.
+   */
+  async installCloseGuard(guard: CloseGuard): Promise<void> {
+    window.addEventListener('beforeunload', (event) => {
+      if (!guard.hasUnsavedChanges()) return;
+      event.preventDefault();
+      // Legacy field, still required by some browsers to trigger the prompt.
+      event.returnValue = '';
+    });
   }
 
   async readBinary(path: string): Promise<Uint8Array> {

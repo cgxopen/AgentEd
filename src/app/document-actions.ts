@@ -21,6 +21,12 @@ export interface DocumentActions {
   handleClose(): Promise<void>;
   openFilePath(path: string): Promise<void>;
   requestSaveAs(): Promise<string | null>;
+  /**
+   * Run the unsaved-changes gate for a window close / app quit. Resolves
+   * `true` when the window may close (nothing unsaved, saved on request,
+   * or discarded on request) and `false` when the user cancelled.
+   */
+  confirmWindowClose(): Promise<boolean>;
 }
 
 export function createDocumentActions(ctx: AppContext): DocumentActions {
@@ -164,6 +170,16 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.sidebar.hide();
   }
 
+  /**
+   * Gate for the window-close / quit path. A save already in flight blocks
+   * the close rather than racing it: the write finishes and the user closes
+   * again, instead of the app exiting mid-write.
+   */
+  async function confirmWindowClose(): Promise<boolean> {
+    if (ctx.state.isSaving) return false;
+    return await discardCurrentDocument('window-close');
+  }
+
   async function handleOpen(): Promise<void> {
     if (!(await discardCurrentDocument('open'))) return;
 
@@ -194,5 +210,6 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     handleClose,
     openFilePath,
     requestSaveAs,
+    confirmWindowClose,
   };
 }

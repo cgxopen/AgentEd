@@ -46,7 +46,8 @@ function buildIO(): PlatformIO {
     pickFile: async () => null,
     readText: async () => '',
     saveFile: async () => {},
-    saveFileAs: async () => null,
+    pickSavePath: async () => null,
+    installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
     exists: async (p: string) => existing.has(p),
@@ -89,6 +90,7 @@ function makeDocActions(): DocumentActions {
     handleClose: vi.fn(async () => {}),
     openFilePath: vi.fn(async () => {}),
     requestSaveAs: vi.fn(async () => null),
+    confirmWindowClose: vi.fn(async () => true),
   };
 }
 
