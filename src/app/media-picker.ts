@@ -62,6 +62,8 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
         if (!path) return null;
         return ensureAssetsDir(path, io, state);
       },
+      // The picked file carries the name the user knows it by (R-C5).
+      'file',
     );
   } catch (e) {
     await reporter.dialog(`Failed to insert image: ${pickedPath}`, e);
