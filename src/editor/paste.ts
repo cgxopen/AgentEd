@@ -1,8 +1,9 @@
 import { Extension } from '@tiptap/core';
 import { Fragment, DOMParser as ProseMirrorDOMParser, Slice } from '@tiptap/pm/model';
-import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { showToast } from '../ui/toast';
+import { isSingleUrl } from './link-url';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 
@@ -171,6 +172,47 @@ function pasteLiterally(view: EditorView, text: string): boolean {
 }
 
 /**
+ * Paste a URL over a selection and the selection becomes a link to it — the
+ * gesture Word, Google Docs and GitHub's editor all share, and how most links
+ * actually get written: the sentence first, the address after (#25).
+ *
+ * This is the opposite of what R-C13 forbids. R-C13 is about a pasted URL
+ * linking *itself* — syntax appearing in the file the user did not ask for.
+ * Here the user selected the text and supplied the destination, which is an
+ * authoring act, and the two live a few lines apart on purpose.
+ *
+ * Deliberately narrow, because a wrong guess in the permissive direction turns
+ * an ordinary paste into a mangled link:
+ *
+ *   - the clipboard must hold a URL and nothing else (`isSingleUrl`);
+ *   - the selection must be non-empty and inside a single text block — a
+ *     selection spanning paragraphs is not link text;
+ *   - Ctrl+Shift+V never reaches here: forced-plain returns above it;
+ *   - a copy from this editor keeps going to ProseMirror, which owns the
+ *     slice context for internal pastes.
+ */
+function isLinkableSelection(view: EditorView): boolean {
+  const { selection, schema } = view.state;
+  if (selection.empty || !schema.marks.link) return false;
+  if (!(selection instanceof TextSelection)) return false;
+  return selection.$from.sameParent(selection.$to) && selection.$from.parent.isTextblock;
+}
+
+function linkSelection(view: EditorView, href: string): void {
+  const { state } = view;
+  // One transaction, so undo returns to the selected text in a single step
+  // rather than "link removed, then text restored". addMark drops any link
+  // mark already in the range, so pasting over an existing link replaces its
+  // destination instead of nesting one link inside another.
+  const tr = state.tr.addMark(
+    state.selection.from,
+    state.selection.to,
+    state.schema.marks.link.create({ href }),
+  );
+  view.dispatch(tr.scrollIntoView());
+}
+
+/**
  * Arm the plain branch from a DOM keydown, in the capture phase, and let the
  * keystroke through: the WebView's own paste-as-plain-text raises the paste
  * event that follows. Capture phase and the document as the listener target
@@ -213,6 +255,17 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
         // newlines are content: the characters go in exactly as they stand.
         if (forcePlain || isCodeBlockSelection(view)) {
           if (!pasteLiterally(view, text)) return false;
+          event.preventDefault();
+          return true;
+        }
+
+        // A lone URL dropped on a selection links it (#25). Checked before the
+        // clipboard's HTML is looked at: copying a link out of a web page puts
+        // an <a> on the clipboard next to the URL text, and the gesture means
+        // the same thing either way. A copy from this editor is left alone.
+        const internal = html !== '' && isInternalPaste(html);
+        if (!internal && isSingleUrl(text) && isLinkableSelection(view)) {
+          linkSelection(view, text.trim());
           event.preventDefault();
           return true;
         }

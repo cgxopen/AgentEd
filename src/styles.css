@@ -928,10 +928,30 @@ button.indicator-search:hover {
   border-color: var(--accent);
 }
 
+/* Link dialog (#25) — one address field, wide enough to read a URL. The
+ * shared .dialog-fields input width is sized for the table dialog's two
+ * number boxes; the colours follow .search-input, the other field the user
+ * types free text into. */
+#link-dialog .dialog-fields {
+  display: block;
+}
+
+#link-url {
+  width: 360px;
+  max-width: 70vw;
+  background: var(--bg);
+  color: var(--text);
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* Remove is offered only when there is a link to unmake. */
+.dialog-actions button.hidden {
+  display: none;
 }
 
 .dialog-actions button {

@@ -45,9 +45,16 @@ function buildExtensions(
     }),
     Underline,
     Link.configure({
+      // A plain click places the caret; Ctrl/Cmd+click follows the link
+      // through the platform layer (wired in main.ts).
       openOnClick: false,
-      // R-C13: a pasted URL stays text. Typing one still autolinks — with no
-      // link button in the toolbar, that is the only way to make a link.
+      // R-C13, now uniform: AgentEd never writes link syntax the user did not
+      // ask for. `linkOnPaste` kept a pasted URL as text (#21); `autolink`
+      // used to make one anyway, a keystroke later, as soon as a boundary
+      // character followed — the same artifact, merely delayed (#37). Both are
+      // off, and the explicit routes (toolbar button, Ctrl+K, pasting a URL
+      // over a selection) are what make a link now.
+      autolink: false,
       linkOnPaste: false,
       HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
     }),

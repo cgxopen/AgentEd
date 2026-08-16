@@ -56,6 +56,18 @@ function paste(editorInstance: EditorInstance, clipboard: Clipboard): boolean {
   );
 }
 
+/** Select the given text inside the document. */
+function select(editorInstance: EditorInstance, text: string): void {
+  let from = -1;
+  editorInstance.editor.state.doc.descendants((node, pos) => {
+    if (node.isText && node.text?.includes(text)) {
+      from = pos + node.text.indexOf(text);
+    }
+  });
+  if (from < 0) throw new Error(`text not found: ${text}`);
+  editorInstance.editor.commands.setTextSelection({ from, to: from + text.length });
+}
+
 /** Put the caret at the end of the given text. */
 function caretAfter(editorInstance: EditorInstance, text: string): void {
   let position = -1;
@@ -425,6 +437,111 @@ describe('predictable paste', () => {
       pressPlainPasteShortcut(editor.editor.view.dom, { shiftKey: false, key: 'v' });
       paste(editor, { text: '# Heading', html: '<h1>Heading</h1>' });
       expect(editor.getMarkdown()).toBe('# Heading');
+    });
+  });
+
+  // #25: the sentence first, the address after — the way Word, Google Docs and
+  // GitHub's editor all behave. The opposite of what R-C13 forbids: there a
+  // pasted URL links *itself*; here the user selected the text and supplied
+  // the destination.
+  describe('a URL pasted over a selection links it', () => {
+    it('makes the selection the link text', () => {
+      const editor = editorWith('read the docs now');
+      select(editor, 'the docs');
+      expect(paste(editor, { text: 'https://example.com' })).toBe(true);
+
+      expect(editor.getMarkdown()).toBe('read [the docs](https://example.com) now');
+    });
+
+    it('round-trips what it created, byte for byte (R-C2)', () => {
+      const editor = editorWith('the docs');
+      select(editor, 'the docs');
+      paste(editor, { text: 'https://example.com' });
+
+      const markdown = editor.getMarkdown();
+      editor.setMarkdown(markdown);
+      expect(editor.getMarkdown()).toBe(markdown);
+    });
+
+    it('links from a clipboard that also carries the source page markup', () => {
+      // Copying a link out of a web page puts an <a> next to the URL text; the
+      // gesture means the same thing either way.
+      const editor = editorWith('the docs');
+      select(editor, 'the docs');
+      paste(editor, {
+        text: 'https://example.com',
+        html: '<a href="https://example.com">https://example.com</a>',
+      });
+
+      expect(editor.getMarkdown()).toBe('[the docs](https://example.com)');
+    });
+
+    it('replaces the destination when the selection is already a link', () => {
+      const editor = editorWith('[the docs](https://old.example)');
+      select(editor, 'the docs');
+      paste(editor, { text: 'https://new.example' });
+
+      expect(editor.getMarkdown()).toBe('[the docs](https://new.example)');
+    });
+
+    it('undoes back to the selected text in one step', () => {
+      const editor = editorWith('the docs');
+      select(editor, 'the docs');
+      paste(editor, { text: 'https://example.com' });
+
+      editor.editor.commands.undo();
+
+      expect(editor.getMarkdown()).toBe('the docs');
+    });
+
+    it('never links a forced plain paste', () => {
+      const editor = editorWith('the docs');
+      select(editor, 'the docs');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text: 'https://example.com' });
+
+      expect(editor.editor.getHTML()).not.toContain('<a ');
+      expect(editor.getMarkdown()).toBe('https://example.com');
+    });
+
+    it.each([
+      ['a paragraph that merely contains a URL', 'see https://example.com here'],
+      ['two URLs', 'https://a.example https://b.example'],
+      ['a bare host with no scheme', 'example.com'],
+      ['ordinary prose', 'replacement text'],
+    ])('replaces the selection as an ordinary paste for %s', (_label, clipboard) => {
+      const editor = editorWith('the docs');
+      select(editor, 'the docs');
+      paste(editor, { text: clipboard });
+
+      expect(editor.editor.getHTML()).not.toContain('<a ');
+    });
+
+    it('leaves an empty selection to the ordinary paste', () => {
+      const editor = editorWith('start');
+      caretAfter(editor, 'start');
+      paste(editor, { text: ' https://example.com' });
+
+      expect(editor.editor.getHTML()).not.toContain('<a ');
+      expect(editor.getMarkdown()).toBe('start https://example.com');
+    });
+
+    it('does not link a selection that spans two paragraphs', () => {
+      // A selection crossing a block boundary is not link text.
+      const editor = editorWith('first\n\nsecond');
+      editor.editor.commands.selectAll();
+      paste(editor, { text: 'https://example.com' });
+
+      expect(editor.editor.getHTML()).not.toContain('<a ');
+    });
+
+    it('leaves a selection inside a fenced block literal', () => {
+      const editor = editorWith('```\nkeep\n```');
+      select(editor, 'keep');
+      paste(editor, { text: 'https://example.com' });
+
+      expect(editor.editor.getHTML()).not.toContain('<a ');
+      expect(editor.getMarkdown()).toContain('https://example.com');
     });
   });
 
