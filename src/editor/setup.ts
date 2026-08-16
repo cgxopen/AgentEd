@@ -15,6 +15,7 @@ import { createImageDropPlugin } from './image-handler';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { OrderedListContinuity } from './ordered-list-continuity';
+import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 
 export interface EditorInstance {
@@ -45,6 +46,9 @@ function buildExtensions(
     Underline,
     Link.configure({
       openOnClick: false,
+      // R-C13: a pasted URL stays text. Typing one still autolinks — with no
+      // link button in the toolbar, that is the only way to make a link.
+      linkOnPaste: false,
       HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
@@ -58,6 +62,9 @@ function buildExtensions(
     TableCell,
     TableHeader,
     ImageDrop,
+    // Registered after ImageDrop so a pasted image is still handled as an
+    // image; this takes over everything else the clipboard carries (R-C13).
+    PredictablePaste,
     // A paragraph inserted mid-list must not restart the numbering (R-C1).
     OrderedListContinuity,
     // Find & Replace highlights (R-C4). The wrapper in

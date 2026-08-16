@@ -56,6 +56,7 @@ Coming next (see [REQUIREMENTS.md](REQUIREMENTS.md) §8): predictable paste, ext
 | `Ctrl+Shift+K` | Code block |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save / Save As |
 | `Ctrl+O` | Open |
+| `Ctrl+Shift+V` | Paste as plain text |
 | `Ctrl+F` / `Ctrl+H` | Find / Replace |
 | `F3` / `Shift+F3` | Find next / previous |
 | `Tab` / `Shift+Tab` | Indent / dedent (in lists) |
