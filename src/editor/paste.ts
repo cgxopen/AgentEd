@@ -5,6 +5,8 @@ import type { EditorView } from '@tiptap/pm/view';
 import { showToast } from '../ui/toast';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
+// DIAGNOSTIC BUILD ONLY — see paste-diagnostics.ts. Not for merge.
+import { recordDiagnostic } from './paste-diagnostics';
 
 /**
  * Predictable paste (R-C13, defect D2).
@@ -182,14 +184,54 @@ function armPlainPasteOnKeydown(view: EditorView, storage: PredictablePasteStora
   const doc = view.dom.ownerDocument;
 
   function onKeydown(event: KeyboardEvent): void {
-    if (!isPlainPasteShortcut(event)) return;
+    const matches = isPlainPasteShortcut(event);
     const target = event.target;
-    if (!(target instanceof Node) || !view.dom.contains(target)) return;
+    const inEditor = target instanceof Node && view.dom.contains(target);
+    const arms = matches && inEditor;
+
+    // DIAGNOSTIC BUILD ONLY. Every keydown carrying a Ctrl/Cmd modifier, plus
+    // any V at all, so the log shows near misses as well as matches.
+    if (event.ctrlKey || event.metaKey || event.code === 'KeyV') {
+      recordDiagnostic('keydown', {
+        code: event.code,
+        key: event.key,
+        ctrl: event.ctrlKey,
+        shift: event.shiftKey,
+        alt: event.altKey,
+        meta: event.metaKey,
+        repeat: event.repeat,
+        inEditor,
+        matches,
+        arms,
+      });
+    }
+
+    if (!arms) return;
     storage.plainPasteRequestedAt = Date.now();
   }
 
+  /**
+   * DIAGNOSTIC BUILD ONLY — catches routes that insert without ever raising a
+   * `paste` event. If the Windows context menu's "Paste as plain text" shows
+   * up here with no matching `paste` line, it never reaches our handler, and
+   * that is the finding rather than anything about arming.
+   */
+  function onBeforeInput(event: InputEvent): void {
+    if (!event.inputType.startsWith('insert')) return;
+    const transfer = event.dataTransfer;
+    recordDiagnostic('beforeinput', {
+      type: event.inputType,
+      data: event.data === null ? 'null' : String(event.data.length),
+      dtTypes: transfer ? transfer.types.join(',') || 'none' : 'none',
+    });
+  }
+
   doc.addEventListener('keydown', onKeydown, true);
-  return () => doc.removeEventListener('keydown', onKeydown, true);
+  view.dom.addEventListener('beforeinput', onBeforeInput, true);
+  return () => {
+    doc.removeEventListener('keydown', onKeydown, true);
+    view.dom.removeEventListener('beforeinput', onBeforeInput, true);
+  };
 }
 
 export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
@@ -208,11 +250,26 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
         const requestedAt = storage.plainPasteRequestedAt;
         storage.plainPasteRequestedAt = 0;
         const forcePlain = requestedAt > 0 && Date.now() - requestedAt < PLAIN_PASTE_WINDOW_MS;
+        const inCodeBlock = isCodeBlockSelection(view);
+
+        // DIAGNOSTIC BUILD ONLY — the state the branch is chosen from, before
+        // any branch runs. `flag` is how long ago the keystroke armed it, or
+        // `none`; that single number separates "never armed" from "armed and
+        // expired".
+        recordDiagnostic('paste', {
+          flag: requestedAt === 0 ? 'none' : `${Date.now() - requestedAt}ms`,
+          forcePlain,
+          inCodeBlock,
+          text: text.length,
+          html: html.length,
+          internal: html !== '' && isInternalPaste(html),
+        });
 
         // Ctrl+Shift+V, or a fenced block where markdown means nothing and
         // newlines are content: the characters go in exactly as they stand.
-        if (forcePlain || isCodeBlockSelection(view)) {
+        if (forcePlain || inCodeBlock) {
           if (!pasteLiterally(view, text)) return false;
+          recordDiagnostic('branch', { taken: 'literal', reason: forcePlain ? 'forced' : 'code' });
           event.preventDefault();
           return true;
         }
@@ -221,8 +278,17 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
           if (!text) return false;
           try {
             insertMarkdown(view, text);
+            recordDiagnostic('branch', { taken: 'markdown' });
           } catch (error) {
             console.error('[agented] failed to read pasted text as markdown:', error);
+            // The fallback that would explain a plain Ctrl+V arriving literal
+            // without the flag ever being armed: the markdown read threw and
+            // the handler quietly fell back to the characters.
+            recordDiagnostic('branch', {
+              taken: 'literal',
+              reason: 'markdown-threw',
+              error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+            });
             if (!pasteLiterally(view, text)) return false;
           }
           event.preventDefault();
@@ -231,10 +297,14 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
 
         // A copy from this editor: ProseMirror's own path preserves the
         // slice context, and the markup is already ours.
-        if (isInternalPaste(html)) return false;
+        if (isInternalPaste(html)) {
+          recordDiagnostic('branch', { taken: 'not-handled', reason: 'internal' });
+          return false;
+        }
 
         if (html.length > MAX_PASTED_HTML_LENGTH) {
           if (!pasteLiterally(view, text)) return false;
+          recordDiagnostic('branch', { taken: 'literal', reason: 'html-too-large' });
           showToast('Pasted as plain text — the copied content was too large to convert.', 'warn');
           event.preventDefault();
           return true;
@@ -242,10 +312,16 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
 
         try {
           insertCleanedHtml(view, html);
+          recordDiagnostic('branch', { taken: 'rich-html' });
         } catch (error) {
           // Never drop the paste on the floor: fall back to the text the
           // clipboard also carries, and say why the formatting was lost.
           console.error('[agented] failed to convert pasted HTML:', error);
+          recordDiagnostic('branch', {
+            taken: 'literal',
+            reason: 'html-threw',
+            error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+          });
           if (!pasteLiterally(view, text)) return false;
           showToast('Pasted as plain text — the copied formatting could not be read.', 'warn');
         }

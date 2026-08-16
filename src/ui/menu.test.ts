@@ -20,6 +20,7 @@ function callbacks(): MenuCallbacks {
     onInsertMedia: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
+    onPasteDiagnostics: vi.fn(),
   };
 }
 

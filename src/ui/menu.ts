@@ -13,6 +13,8 @@ export interface MenuCallbacks {
   onInsertMedia: () => void;
   onToggleSidebar: () => void;
   onAbout: () => void;
+  /** DIAGNOSTIC BUILD ONLY — not for merge. */
+  onPasteDiagnostics: () => void;
 }
 
 export function setupMenu(callbacks: MenuCallbacks): void {
@@ -59,6 +61,7 @@ export function setupMenu(callbacks: MenuCallbacks): void {
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-toggle-sidebar', callbacks.onToggleSidebar);
   bind('menu-about', callbacks.onAbout);
+  bind('menu-paste-diagnostics', callbacks.onPasteDiagnostics);
 }
 
 export function setCloseEnabled(enabled: boolean): void {

@@ -23,6 +23,7 @@ import { setupClusterIndicator } from './ui/cluster-indicator';
 import { setupClusterPopover } from './ui/cluster-popover';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
+import { showPasteDiagnostics } from './ui/paste-diagnostics-dialog';
 import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
@@ -175,6 +176,10 @@ setupMenu({
   },
   onAbout: () => {
     void showAboutDialog().catch(console.error);
+  },
+  // DIAGNOSTIC BUILD ONLY — not for merge.
+  onPasteDiagnostics: () => {
+    void showPasteDiagnostics().catch(console.error);
   },
 });
 
