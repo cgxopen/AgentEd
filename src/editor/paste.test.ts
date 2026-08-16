@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanPastedHtml, isInternalPaste, type PredictablePasteStorage } from './paste';
+import {
+  cleanPastedHtml,
+  isInternalPaste,
+  isPlainPasteShortcut,
+  type PredictablePasteStorage,
+} from './paste';
 import { createEditor, type EditorInstance } from './setup';
 
 vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
@@ -16,6 +21,11 @@ function editorWith(markdown: string): EditorInstance {
   const element = document.createElement('div');
   document.body.appendChild(element);
   instance = createEditor(element);
+  // TipTap builds extension storage once per extension object, and the
+  // extension list is a module singleton — so every editor in this process
+  // shares it. One editor per window in the app, but in a test file a pending
+  // plain-paste request would leak into the next test.
+  (instance.editor.storage.predictablePaste as PredictablePasteStorage).plainPasteRequestedAt = 0;
   instance.setMarkdown(markdown);
   return instance;
 }
@@ -60,6 +70,25 @@ function caretAfter(editorInstance: EditorInstance, text: string): void {
 
 function storageOf(editorInstance: EditorInstance): PredictablePasteStorage {
   return editorInstance.editor.storage.predictablePaste as PredictablePasteStorage;
+}
+
+/**
+ * Press Ctrl+Shift+V the way a browser reports it: `key` shifted to uppercase
+ * "V", `code` naming the physical key, and no `keyCode` — the deprecated field
+ * the previous binding secretly depended on.
+ */
+function pressPlainPasteShortcut(target: EventTarget, overrides: KeyboardEventInit = {}): void {
+  target.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'V',
+      code: 'KeyV',
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+      ...overrides,
+    }),
+  );
 }
 
 afterEach(() => {
@@ -295,6 +324,107 @@ describe('predictable paste', () => {
       storageOf(editor).plainPasteRequestedAt = Date.now();
       paste(editor, { text: '\nsecond line' });
       expect(editor.getMarkdown()).toContain('keep\nsecond line');
+    });
+  });
+
+  // #32: the branch above was correct all along; what failed in the desktop
+  // build was the arming — the keystroke never set the flag, so every paste
+  // took the ordinary path. These cover the keystroke itself.
+  describe('Ctrl+Shift+V arms the plain branch', () => {
+    describe('isPlainPasteShortcut', () => {
+      it('matches the event a browser reports for Ctrl+Shift+V', () => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'V',
+          code: 'KeyV',
+          ctrlKey: true,
+          shiftKey: true,
+        });
+        expect(isPlainPasteShortcut(event)).toBe(true);
+      });
+
+      it('matches Cmd+Shift+V on macOS', () => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'V',
+          code: 'KeyV',
+          metaKey: true,
+          shiftKey: true,
+        });
+        expect(isPlainPasteShortcut(event)).toBe(true);
+      });
+
+      it('matches on the physical key even when the layout reports another character', () => {
+        const event = new KeyboardEvent('keydown', {
+          key: 'ẞ',
+          code: 'KeyV',
+          ctrlKey: true,
+          shiftKey: true,
+        });
+        expect(isPlainPasteShortcut(event)).toBe(true);
+      });
+
+      it('matches on the key when the event carries no code', () => {
+        const event = new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, shiftKey: true });
+        expect(isPlainPasteShortcut(event)).toBe(true);
+      });
+
+      it.each([
+        ['plain Ctrl+V', { key: 'v', code: 'KeyV', ctrlKey: true }],
+        ['Shift+V with no modifier', { key: 'V', code: 'KeyV', shiftKey: true }],
+        ['Ctrl+Shift+C', { key: 'C', code: 'KeyC', ctrlKey: true, shiftKey: true }],
+        [
+          'Ctrl+Alt+Shift+V',
+          { key: 'V', code: 'KeyV', ctrlKey: true, shiftKey: true, altKey: true },
+        ],
+      ])('does not match %s', (_label, init) => {
+        expect(isPlainPasteShortcut(new KeyboardEvent('keydown', init))).toBe(false);
+      });
+    });
+
+    it('arms the flag from a real keydown on the editor', () => {
+      const editor = editorWith('');
+      expect(storageOf(editor).plainPasteRequestedAt).toBe(0);
+      pressPlainPasteShortcut(editor.editor.view.dom);
+      expect(storageOf(editor).plainPasteRequestedAt).toBeGreaterThan(0);
+    });
+
+    it('ignores the shortcut pressed outside the editor', () => {
+      const editor = editorWith('');
+      const elsewhere = document.createElement('input');
+      document.body.appendChild(elsewhere);
+      pressPlainPasteShortcut(elsewhere);
+      expect(storageOf(editor).plainPasteRequestedAt).toBe(0);
+      elsewhere.remove();
+    });
+
+    it('keeps a browser-copied URL as text, HTML and all', () => {
+      // What the owner reported: a URL copied from a browser carries both
+      // text/plain and an <a> in text/html.
+      const editor = editorWith('');
+      pressPlainPasteShortcut(editor.editor.view.dom);
+      paste(editor, {
+        text: 'https://example.com',
+        html: '<a href="https://example.com" rel="nofollow noreferrer">https://example.com</a>',
+      });
+      expect(editor.editor.getHTML()).not.toContain('<a ');
+      expect(editor.getMarkdown()).toBe('https://example.com');
+    });
+
+    it('still links that same clipboard on an ordinary paste', () => {
+      // The other half of the acceptance criteria: the rich-HTML branch is
+      // correct and must keep the link the copied content actually had.
+      const editor = editorWith('');
+      paste(editor, {
+        text: 'https://example.com',
+        html: '<a href="https://example.com" rel="nofollow noreferrer">https://example.com</a>',
+      });
+      expect(editor.getMarkdown()).toBe('[https://example.com](https://example.com)');
+    });
+
+    it('does not arm an ordinary Ctrl+V', () => {
+      const editor = editorWith('');
+      pressPlainPasteShortcut(editor.editor.view.dom, { shiftKey: false, key: 'v' });
+      paste(editor, { text: '# Heading', html: '<h1>Heading</h1>' });
+      expect(editor.getMarkdown()).toBe('# Heading');
     });
   });
 

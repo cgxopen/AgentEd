@@ -59,6 +59,29 @@ export interface PredictablePasteStorage {
   plainPasteRequestedAt: number;
 }
 
+/**
+ * True for the keystroke that requests a forced plain paste: Ctrl+Shift+V, or
+ * Cmd+Shift+V on macOS.
+ *
+ * Matched here rather than through a ProseMirror `Mod-Shift-v` binding, which
+ * is what #32 broke on. `Mod-Shift-v` normalizes to the map entry
+ * `Ctrl-Shift-v` (lowercase v), while a real Ctrl+Shift+V keydown reports
+ * `key === 'V'` — shifted, so uppercase — and looks up `Ctrl-Shift-V`. The two
+ * only meet through prosemirror-keymap's fallback on the *deprecated*
+ * `event.keyCode`; any WebView that omits or zeroes that field never fires the
+ * binding, the plain branch is never armed, and the paste falls through to the
+ * ordinary one — exactly the reported symptom.
+ *
+ * `event.code` is the physical key, unaffected by the shift state and by the
+ * keyboard layout, so it is tried first; `event.key` covers events that carry
+ * no code (synthetic events, some IMEs).
+ */
+export function isPlainPasteShortcut(event: KeyboardEvent): boolean {
+  if (!(event.ctrlKey || event.metaKey)) return false;
+  if (!event.shiftKey || event.altKey) return false;
+  return event.code === 'KeyV' || event.key === 'v' || event.key === 'V';
+}
+
 /** Rich HTML rewritten as the markdown pipeline would write and read it. */
 export function cleanPastedHtml(html: string): string {
   return markdownToHtml(htmlToMarkdown(html));
@@ -147,9 +170,35 @@ function pasteLiterally(view: EditorView, text: string): boolean {
   return true;
 }
 
+/**
+ * Arm the plain branch from a DOM keydown, in the capture phase, and let the
+ * keystroke through: the WebView's own paste-as-plain-text raises the paste
+ * event that follows. Capture phase and the document as the listener target
+ * mean nothing between the key and the editor can swallow the request first.
+ * The editor must own the keystroke, though — a Ctrl+Shift+V typed in the
+ * search field is not a request to paste into the document.
+ */
+function armPlainPasteOnKeydown(view: EditorView, storage: PredictablePasteStorage): () => void {
+  const doc = view.dom.ownerDocument;
+
+  function onKeydown(event: KeyboardEvent): void {
+    if (!isPlainPasteShortcut(event)) return;
+    const target = event.target;
+    if (!(target instanceof Node) || !view.dom.contains(target)) return;
+    storage.plainPasteRequestedAt = Date.now();
+  }
+
+  doc.addEventListener('keydown', onKeydown, true);
+  return () => doc.removeEventListener('keydown', onKeydown, true);
+}
+
 export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
   return new Plugin({
     key: new PluginKey('predictablePaste'),
+    view(view: EditorView) {
+      const disarm = armPlainPasteOnKeydown(view, storage);
+      return { destroy: disarm };
+    },
     props: {
       handlePaste(view: EditorView, event: ClipboardEvent): boolean {
         if (!event.clipboardData) return false;
@@ -214,16 +263,8 @@ export const PredictablePaste = Extension.create<Record<string, never>, Predicta
     return { plainPasteRequestedAt: 0 };
   },
 
-  addKeyboardShortcuts() {
-    return {
-      // Arm the plain-text branch, then let the keystroke through: the
-      // browser's own paste-as-plain-text raises the paste event we answer.
-      'Mod-Shift-v': () => {
-        this.storage.plainPasteRequestedAt = Date.now();
-        return false;
-      },
-    };
-  },
+  // Ctrl+Shift+V is armed by the plugin's own DOM listener rather than by a
+  // keyboard shortcut here — see isPlainPasteShortcut for why (#32).
 
   addProseMirrorPlugins() {
     return [createPastePlugin(this.storage)];
