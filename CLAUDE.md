@@ -2,6 +2,14 @@
 
 This file is read by Claude Code (DEV) sessions working on AgentEd. It is intentionally short; the product truth lives in [REQUIREMENTS.md](REQUIREMENTS.md).
 
+## Before you start — read these, in this order
+
+1. **[REQUIREMENTS.md](REQUIREMENTS.md)** — what the product is and what it must never do.
+2. **[docs/internal/STATUS.md](docs/internal/STATUS.md)** — where the project *currently* is: phase, ordered agenda, decisions taken, what merged last.
+3. This file, in full.
+
+Then **verify the live state against the repository before planning or reporting anything**: which pull requests are open, what is on `main`, which branches exist. Your session context goes stale — a branch you remember may already be merged and deleted, an issue you remember as next may already be closed. The repository is the state; your memory of an earlier session is not. Never report project status from context alone.
+
 ## What this project is
 
 AgentEd is an **easy-to-use WYSIWYG markdown editor** (Tauri 2 + TypeScript + TipTap), with light AI-era instrumentation (token count, context-file awareness) as a secondary layer. Priority order on any trade-off: **(1) ease of use → (2) speed & lightness → (3) AI instrumentation.**
@@ -50,4 +58,4 @@ npm run check && npx tsc --noEmit && npm test && npm run build
 cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 ```
 
-Then `npm run tauri dev` on Windows for a manual smoke test: open → edit → save → all close paths (File → Close, window ✕, app quit) behave per R-C3.
+Then `npm run tauri dev` on Windows for a manual smoke test: open → edit → save → all close paths (File → Close, window ✕, app quit) behave per R-C3. When no Windows machine is available, say so explicitly in the PR and list what the owner must test by hand — never imply a verification you did not run.
