@@ -14,9 +14,15 @@ import { normalizeLinkUrl } from '../editor/link-url';
  *     second field: a dialog with two inputs is a form, and this is a control.
  *
  * Escape cancels and changes nothing. An empty address on an existing link is
- * the same as Remove. Anything unusable is refused quietly — the dialog stays
- * open with the text still there, rather than lecturing about syntax.
+ * the same as Remove. Anything unusable is refused *with a reason*: the dialog
+ * stays open, the text stays put, and one line says what would be accepted —
+ * a refusal that explains nothing reads as a broken application, which is the
+ * same finding as #13.
  */
+
+/** Why an address was refused. One line each, no syntax lecture. */
+const NEEDS_ADDRESS = 'Enter an address, or press Escape to cancel.';
+const UNSUPPORTED_ADDRESS = 'Only http, https and mailto addresses are supported.';
 export interface LinkDialog {
   open: () => void;
 }
@@ -25,8 +31,20 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
   const dialog = document.getElementById('link-dialog')!;
   const input = document.getElementById('link-url') as HTMLInputElement;
   const removeButton = document.getElementById('link-remove') as HTMLButtonElement;
+  const errorEl = document.getElementById('link-error')!;
+
+  function showError(message: string): void {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+  }
+
+  function clearError(): void {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
 
   function close(): void {
+    clearError();
     dialog.classList.add('hidden');
     editor.chain().focus().run();
   }
@@ -48,8 +66,9 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
 
     const href = normalizeLinkUrl(raw);
     if (href === null) {
-      // Refused quietly: nothing is inserted and the dialog stays put, so a
-      // typo is one keystroke from being fixed rather than from being redone.
+      // Nothing is inserted and the dialog stays put, so a typo is one
+      // keystroke from being fixed rather than from being retyped.
+      showError(raw.trim() === '' ? NEEDS_ADDRESS : UNSUPPORTED_ADDRESS);
       input.select();
       return;
     }
@@ -87,7 +106,12 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
     }
   });
 
+  // Typing is an attempt at a correction; the complaint about the old value
+  // should not outlive it.
+  input.addEventListener('input', clearError);
+
   function open(): void {
+    clearError();
     const existing = editor.getAttributes('link').href as string | undefined;
     input.value = existing ?? '';
     removeButton.classList.toggle('hidden', !editor.isActive('link'));

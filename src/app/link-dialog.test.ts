@@ -48,6 +48,7 @@ const overlay = () => document.getElementById('link-dialog') as HTMLElement;
 const input = () => document.getElementById('link-url') as HTMLInputElement;
 const remove = () => document.getElementById('link-remove') as HTMLButtonElement;
 const confirm = () => document.getElementById('link-confirm') as HTMLButtonElement;
+const error = () => document.getElementById('link-error') as HTMLElement;
 
 function type(url: string): void {
   input().value = url;
@@ -186,7 +187,7 @@ describe('link dialog — refusals and cancelling', () => {
     'not a url',
     'javascript:alert(1)',
     '   ',
-  ])('refuses %s quietly, leaving the dialog open and the document untouched', (bad) => {
+  ])('refuses %s, leaving the dialog open and the document untouched', (bad) => {
     const editor = editorWith('the docs');
     select(editor, 'the docs');
     dialog.open();
@@ -195,5 +196,69 @@ describe('link dialog — refusals and cancelling', () => {
 
     expect(editor.getMarkdown()).toBe('the docs');
     expect(overlay().classList.contains('hidden')).toBe(false);
+  });
+});
+
+// A refusal that explains nothing reads as a broken application — the finding
+// from #13, applied here.
+describe('link dialog — a refusal says why', () => {
+  function refuse(value: string): void {
+    const editor = editorWith('the docs');
+    select(editor, 'the docs');
+    dialog.open();
+    type(value);
+    confirm().click();
+  }
+
+  it.each([
+    'not a url',
+    'javascript:alert(1)',
+    'file:///etc/passwd',
+  ])('names what is supported when %s is rejected', (bad) => {
+    refuse(bad);
+    expect(error().classList.contains('hidden')).toBe(false);
+    expect(error().textContent).toBe('Only http, https and mailto addresses are supported.');
+  });
+
+  it('asks for an address instead of talking about schemes when the field is empty', () => {
+    refuse('   ');
+    expect(error().textContent).toContain('Enter an address');
+  });
+
+  it('says nothing until something is actually refused', () => {
+    const editor = editorWith('the docs');
+    select(editor, 'the docs');
+    dialog.open();
+
+    expect(error().classList.contains('hidden')).toBe(true);
+  });
+
+  it('drops the complaint as soon as the user starts correcting it', () => {
+    refuse('not a url');
+    type('https://example.com');
+    input().dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(error().classList.contains('hidden')).toBe(true);
+  });
+
+  it('does not carry the complaint into the next time the dialog opens', () => {
+    refuse('not a url');
+    (document.getElementById('link-cancel') as HTMLButtonElement).click();
+    dialog.open();
+
+    expect(error().classList.contains('hidden')).toBe(true);
+  });
+
+  it('clears once the address is accepted', () => {
+    const editor = editorWith('the docs');
+    select(editor, 'the docs');
+    dialog.open();
+    type('nope');
+    confirm().click();
+    type('https://example.com');
+    confirm().click();
+
+    expect(editor.getMarkdown()).toBe('[the docs](https://example.com)');
+    expect(error().classList.contains('hidden')).toBe(true);
   });
 });

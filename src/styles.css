@@ -943,6 +943,20 @@ button.indicator-search:hover {
   color: var(--text);
 }
 
+/* Why an address was refused. A refusal with no reason reads as a broken
+ * application — the same finding as #13, where a close that silently did
+ * nothing looked like a freeze. */
+.dialog-error {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: -8px 0 12px;
+}
+
+.dialog-error.hidden {
+  display: none;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
