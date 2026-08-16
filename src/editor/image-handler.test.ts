@@ -1,6 +1,10 @@
 import type { Editor } from '@tiptap/core';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleImageFile, MAX_IMAGE_SIZE } from './image-handler';
+import { registerImage } from './image-registry';
+
+/** Names the fake assets folder holds for the test in progress. */
+let filesOnDisk: string[] = [];
 
 vi.mock('../ui/toast', () => ({
   showToast: vi.fn(),
@@ -8,6 +12,15 @@ vi.mock('../ui/toast', () => ({
 
 vi.mock('./image-registry', () => ({
   registerImage: vi.fn(),
+  getAllImages: vi.fn(() => []),
+}));
+
+vi.mock('../platform/index', () => ({
+  getPlatformIO: vi.fn(async () => ({
+    listDir: vi.fn(async () =>
+      filesOnDisk.map((name) => ({ name, path: `/doc/assets/${name}`, isDirectory: false })),
+    ),
+  })),
 }));
 
 vi.mock('../platform/detect', () => ({
@@ -38,7 +51,7 @@ describe('handleImageFile — M5 size cap', () => {
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const oversized = makeFile(MAX_IMAGE_SIZE + 1);
-    await handleImageFile(oversized, editor, getFilePath, requestSaveAs, ensureAssetsDir);
+    await handleImageFile(oversized, editor, getFilePath, requestSaveAs, ensureAssetsDir, 'file');
 
     expect(ensureAssetsDir).not.toHaveBeenCalled();
     expect(oversized.arrayBuffer).not.toHaveBeenCalled();
@@ -51,9 +64,61 @@ describe('handleImageFile — M5 size cap', () => {
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const ok = makeFile(1024);
-    await handleImageFile(ok, editor, getFilePath, requestSaveAs, ensureAssetsDir);
+    await handleImageFile(ok, editor, getFilePath, requestSaveAs, ensureAssetsDir, 'file');
 
     expect(ensureAssetsDir).toHaveBeenCalledTimes(1);
     expect(ok.arrayBuffer).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('handleImageFile — naming (R-C5)', () => {
+  const requestSaveAs = vi.fn(async () => '/doc/notes.md');
+  const ensureAssetsDir = vi.fn(async () => '/doc/assets');
+
+  beforeEach(() => {
+    filesOnDisk = [];
+    vi.mocked(registerImage).mockClear();
+  });
+
+  /** Relative path the insert registered for the image. */
+  async function insert(name: string, origin: 'clipboard' | 'file', documentPath: string) {
+    await handleImageFile(
+      makeFile(1024, 'image/png', name),
+      makeStubEditor(),
+      () => documentPath,
+      requestSaveAs,
+      ensureAssetsDir,
+      origin,
+    );
+    return vi.mocked(registerImage).mock.calls.at(-1)?.[1].relativePath;
+  }
+
+  it('names a pasted screenshot after the document', async () => {
+    expect(await insert('image.png', 'clipboard', '/doc/Raport lunar.md')).toBe(
+      'assets/raport-lunar-01.png',
+    );
+  });
+
+  it('continues the sequence past what the folder already holds', async () => {
+    filesOnDisk = ['raport-lunar-01.png', 'raport-lunar-02.png'];
+    expect(await insert('image.png', 'clipboard', '/doc/Raport lunar.md')).toBe(
+      'assets/raport-lunar-03.png',
+    );
+  });
+
+  it('keeps the name of a file the user picked, sanitized', async () => {
+    expect(await insert('Diagramă finală.PNG', 'file', '/doc/notes.md')).toBe(
+      'assets/Diagrama-finala.png',
+    );
+  });
+
+  it('never overwrites a file already in the folder', async () => {
+    filesOnDisk = ['diagram.png'];
+    expect(await insert('diagram.png', 'file', '/doc/notes.md')).toBe('assets/diagram-2.png');
+  });
+
+  it('produces no timestamp or random suffix', async () => {
+    const path = await insert('image.png', 'clipboard', '/doc/notes.md');
+    expect(path).toBe('assets/notes-01.png');
   });
 });
