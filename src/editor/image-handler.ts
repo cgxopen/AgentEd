@@ -2,8 +2,11 @@ import type { Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { isTauri } from '../platform/detect';
+import { getPlatformIO } from '../platform/index';
+import { basename } from '../platform/paths';
 import { showToast } from '../ui/toast';
-import { registerImage } from './image-registry';
+import { buildImageName, type ImageOrigin } from './image-names';
+import { getAllImages, registerImage } from './image-registry';
 
 export type GetFilePath = () => string | null;
 export type RequestSaveAs = () => Promise<string | null>;
@@ -17,12 +20,24 @@ export type EnsureAssetsDir = () => Promise<string | null>;
 // and design exports while keeping a comfortable memory ceiling.
 export const MAX_IMAGE_SIZE = 25 * 1024 * 1024;
 
-function generateFilename(file: File): string {
-  const timestamp = Date.now();
-  const rand = Math.random().toString(36).slice(2, 8);
-  const ext = file.name.split('.').pop() || 'png';
-  const base = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
-  return `${base}-${timestamp}-${rand}.${ext}`;
+/**
+ * Every name already spoken for in the assets folder: what is on disk, plus
+ * what this session has claimed but not yet written. Nothing may be
+ * overwritten, so a folder we cannot read still yields the session's names
+ * rather than an empty set (R-C5).
+ */
+async function takenNames(assetsDir: string): Promise<Set<string>> {
+  const names = new Set<string>();
+  for (const image of getAllImages()) names.add(basename(image.relativePath));
+  try {
+    const io = await getPlatformIO();
+    for (const entry of await io.listDir(assetsDir)) {
+      if (!entry.isDirectory) names.add(entry.name);
+    }
+  } catch (e) {
+    console.warn('[agented] could not read the assets folder for naming:', e);
+  }
+  return names;
 }
 
 /**
@@ -35,6 +50,7 @@ export async function handleImageFile(
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
   ensureAssetsDir: EnsureAssetsDir,
+  origin: ImageOrigin,
 ): Promise<void> {
   if (file.size > MAX_IMAGE_SIZE) {
     const sizeMb = Math.round(file.size / 1024 / 1024);
@@ -54,7 +70,20 @@ export async function handleImageFile(
   const assetsDir = await ensureAssetsDir();
   if (!assetsDir) return;
 
-  const filename = generateFilename(file);
+  const documentPath = getFilePath();
+  const filename = buildImageName({
+    sourceName: file.name,
+    documentName: documentPath ? basename(documentPath) : null,
+    taken: await takenNames(assetsDir),
+    origin,
+  });
+  if (!filename) {
+    // Only reachable with a thousand taken variants of the same name;
+    // refusing beats overwriting one of them (R-C5).
+    showToast('Could not find a free file name in the assets folder.', 'warn');
+    return;
+  }
+
   const data = new Uint8Array(await file.arrayBuffer());
 
   // Convention: relativePath is always assets/<filename>. Save flow
@@ -93,9 +122,15 @@ export function createImageDropPlugin(
         if (images.length === 0) return false;
         event.preventDefault();
         for (const file of images) {
-          void handleImageFile(file, editor, getFilePath, requestSaveAs, ensureAssetsDir).catch(
-            console.error,
-          );
+          // A dropped file brings its own name (R-C5).
+          void handleImageFile(
+            file,
+            editor,
+            getFilePath,
+            requestSaveAs,
+            ensureAssetsDir,
+            'file',
+          ).catch(console.error);
         }
         return true;
       },
@@ -105,9 +140,14 @@ export function createImageDropPlugin(
         if (images.length === 0) return false;
         event.preventDefault();
         for (const file of images) {
-          void handleImageFile(file, editor, getFilePath, requestSaveAs, ensureAssetsDir).catch(
-            console.error,
-          );
+          void handleImageFile(
+            file,
+            editor,
+            getFilePath,
+            requestSaveAs,
+            ensureAssetsDir,
+            'clipboard',
+          ).catch(console.error);
         }
         return true;
       },
