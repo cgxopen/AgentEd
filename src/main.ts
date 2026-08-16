@@ -17,6 +17,7 @@ import { ThemeManager } from './app/theme-manager';
 import { createEditor } from './editor/setup';
 import { getPlatformIO } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
+import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupClusterIndicator } from './ui/cluster-indicator';
 import { setupClusterPopover } from './ui/cluster-popover';
@@ -171,6 +172,9 @@ setupMenu({
   },
   onToggleSidebar: () => {
     ctx.sidebar.toggle();
+  },
+  onAbout: () => {
+    void showAboutDialog().catch(console.error);
   },
 });
 

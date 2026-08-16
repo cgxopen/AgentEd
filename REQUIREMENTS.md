@@ -57,6 +57,7 @@ Not a note-taking or knowledge-management app, not a wiki, not a word processor,
 - **Q2 Startup**: opens in under ~2 s on typical hardware; usable as a fast viewer.
 - **Q3 Offline**: zero network calls at runtime.
 - **Q4 Stability**: no data loss — the safety-gate invariant (R-C3) and the no-silent-overwrite invariant (R-C14) are non-negotiable.
+- **Q5 Supportability**: the application states its own version and build commit, reachable in at most two clicks and copyable in one, so that any report can be tied to the exact build it came from. A build produced outside CI says so plainly rather than showing a commit it cannot know. This is stated *to* the user, never sent anywhere — Q3 stands.
 
 ## 7. Platforms & delivery
 
