@@ -12,6 +12,7 @@ export interface MenuCallbacks {
   onInsertTable: () => void;
   onInsertMedia: () => void;
   onToggleSidebar: () => void;
+  onAbout: () => void;
 }
 
 export function setupMenu(callbacks: MenuCallbacks): void {
@@ -57,6 +58,7 @@ export function setupMenu(callbacks: MenuCallbacks): void {
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-toggle-sidebar', callbacks.onToggleSidebar);
+  bind('menu-about', callbacks.onAbout);
 }
 
 export function setCloseEnabled(enabled: boolean): void {
