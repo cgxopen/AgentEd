@@ -26,6 +26,69 @@ turndown.addRule('taskListItem', {
   },
 });
 
+// ── List serialization ──
+//
+// Turndown's built-in rules pad every marker to a fixed width ("-   item",
+// "1.  item") and, because TipTap wraps each item body in <p>, leave an
+// indented blank line behind every item. Both rewrite list markup the user
+// never touched, which breaks the R-C2 round-trip. The rules below emit the
+// canonical single-space markers, honour the parent <ol start> so a list
+// interrupted by a paragraph keeps its numbering (R-C1), and indent
+// continuation lines by exactly the marker width, as CommonMark requires.
+
+function isTaskListItem(node: Node): boolean {
+  return (node as HTMLElement).parentElement?.getAttribute('data-type') === 'taskList';
+}
+
+/** Marker for one item: "- " for bullets, "N. " for ordered items. */
+function listItemPrefix(li: HTMLElement, bulletMarker: string): string {
+  const parent = li.parentElement;
+  if (parent?.nodeName !== 'OL') return `${bulletMarker} `;
+  const declared = Number.parseInt(parent.getAttribute('start') || '1', 10);
+  const start = Number.isFinite(declared) ? declared : 1;
+  const index = Array.prototype.indexOf.call(parent.children, li);
+  return `${start + index}. `;
+}
+
+/** Indent every line but the first by the marker width; blank lines stay empty. */
+function indentContinuation(body: string, width: number): string {
+  const pad = ' '.repeat(width);
+  return body
+    .split('\n')
+    .map((line, i) => (i === 0 || line.length === 0 ? line : pad + line))
+    .join('\n');
+}
+
+// Explicitly excludes task list items so this rule cannot shadow the
+// 'taskListItem' rule above — turndown gives precedence to the rule added
+// last, so the two filters must not overlap.
+turndown.addRule('listItem', {
+  filter: (node) => node.nodeName === 'LI' && !isTaskListItem(node),
+  replacement: (content, node, options) => {
+    const prefix = listItemPrefix(node as HTMLElement, options.bulletListMarker ?? '-');
+    const body = content.replace(/^\n+/, '').replace(/\s+$/, '');
+    // An item holding more than one block is a loose item: CommonMark keeps
+    // the blank line before the item that follows it.
+    const separator = body.includes('\n\n') ? '\n\n' : '\n';
+    return prefix + indentContinuation(body, prefix.length) + (node.nextSibling ? separator : '');
+  },
+});
+
+// A paragraph inside a list item ends with a single newline when a nested
+// list follows, so the nested list stays tight ("- one\n  - nested"); two
+// paragraphs in the same item keep the blank line that separates them.
+turndown.addRule('listItemParagraph', {
+  filter: (node) => {
+    const parent = node.parentElement;
+    return node.nodeName === 'P' && parent?.nodeName === 'LI' && !isTaskListItem(parent);
+  },
+  replacement: (content, node) => {
+    const next = (node as HTMLElement).nextElementSibling;
+    const nestedListFollows = next?.nodeName === 'UL' || next?.nodeName === 'OL';
+    return `\n\n${content}${next && !nestedListFollows ? '\n\n' : '\n'}`;
+  },
+});
+
 // Preserve underline as <u> tag (not standard MD, but round-trips)
 turndown.addRule('underline', {
   filter: ['u'],

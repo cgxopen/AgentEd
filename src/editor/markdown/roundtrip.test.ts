@@ -43,10 +43,7 @@ describe('markdown roundtrip', () => {
   });
 
   it('preserves bullet list with two items', () => {
-    // Turndown emits "-   " (3 spaces) by default, not "- " — content is preserved
-    const out = roundtrip('- one\n- two');
-    expect(out).toMatch(/-\s+one/);
-    expect(out).toMatch(/-\s+two/);
+    expect(roundtrip('- one\n- two')).toBe('- one\n- two');
   });
 
   it('preserves nested bullet list structure', () => {
@@ -77,6 +74,46 @@ describe('markdown roundtrip', () => {
     const out = roundtrip(md);
     expect(out).toContain('```');
     expect(out).toContain('const x = 1;');
+  });
+
+  // ── List markup, byte for byte (R-C2) ──
+  //
+  // Lists are the markup an editing session touches most, and turndown's
+  // built-in rules reformat every marker it serializes. These cases assert
+  // exact equality, so any future change to the list rules that widens a
+  // marker or leaves whitespace behind fails here.
+  describe('list markup is byte-identical', () => {
+    const identical: Array<[string, string]> = [
+      ['bullet list', '- one\n- two'],
+      ['ordered list', '1. one\n2. two'],
+      ['nested bullet list', '- one\n  - nested\n- two'],
+      ['nested ordered list', '1. one\n   1. nested\n2. two'],
+      ['three levels deep', '- a\n  - b\n    - c\n- d'],
+      ['ordered list starting past 1', '9. nine\n10. ten\n11. eleven'],
+      ['list interrupted by a paragraph', '1. one\n2. two\n\nA paragraph.\n\n3. three\n4. four'],
+      ['two lists that both restart', '1. one\n2. two\n\nA paragraph.\n\n1. alpha\n2. beta'],
+      ['item holding two paragraphs', '1. one\n\n   continued\n\n2. two'],
+      ['bullet list next to an ordered list', '- one\n- two\n\ntext\n\n1. a\n2. b'],
+    ];
+    for (const [name, md] of identical) {
+      it(`preserves a ${name}`, () => {
+        expect(roundtrip(md)).toBe(md);
+      });
+    }
+
+    it('numbers items from the ol start attribute, not from their position', () => {
+      // D1: a list continuing after a paragraph keeps the numbering the
+      // editor renders, instead of restarting from 1 on the way to disk.
+      expect(roundtrip('5. five\n6. six')).toBe('5. five\n6. six');
+    });
+
+    it('KNOWN LIMITATION: a loose list is tightened', () => {
+      // TipTap's schema wraps every list item body in a paragraph, so a
+      // blank-line-separated list and an ordinary one reach the serializer
+      // as the same HTML. Tight is the far commoner shape, so it wins; the
+      // list's content is unaffected either way.
+      expect(roundtrip('- one\n\n- two')).toBe('- one\n- two');
+    });
   });
 
   it('preserves GFM table with header and rows', () => {
