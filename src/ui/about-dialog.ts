@@ -5,7 +5,10 @@ import { showToast } from './toast';
 
 /**
  * About AgentEd — version and build commit, two clicks from anywhere
- * (hamburger → About) and one click to copy into a bug report (#31).
+ * (hamburger → About) and one click to copy into a bug report (Q5, #31).
+ *
+ * Q5 also says what this dialog must *not* grow into: it states the build to
+ * the user and sends nothing anywhere. No update check, no report button.
  *
  * Built on `showConfirmDialog` rather than as a dialog of its own: the focus
  * handling, Escape, Tab trap and styling already exist there, and an About box

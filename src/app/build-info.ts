@@ -1,5 +1,5 @@
 /**
- * Which build is this? (#31)
+ * Which build is this? (Q5, #31)
  *
  * A defect was once "reproduced" on an installer that predated its fix, and
  * nothing inside the app could tell which build was running. The installer
