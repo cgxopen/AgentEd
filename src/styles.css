@@ -364,6 +364,12 @@ body {
   font-weight: 600;
 }
 
+/* Word / character counts sit next to the token count (R-C12). Muted so the
+ * three counts read as a group without competing with the primary number. */
+.indicator-secondary {
+  color: var(--muted);
+}
+
 #token-number,
 #token-unit {
   cursor: help;
