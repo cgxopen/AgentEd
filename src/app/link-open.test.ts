@@ -109,8 +109,31 @@ describe('the modifier click never reaches the editor', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it('leaves the mousedown alone for a link it will not follow anyway', () => {
-    const { reachedEditor } = mouseDown(anchor('./notes.md'), { ctrlKey: true });
+  // Two questions, not one: whether the gesture is ours, and whether the
+  // address can be handed to the shell. A link we decline to open is still a
+  // link, and Ctrl+click on it must not mean "select this paragraph" — the
+  // chord has been given another meaning in this editor.
+  it.each([
+    ['a relative path', './notes.md'],
+    ['an absolute path', '/etc/passwd'],
+    ['a script URL', 'javascript:alert(1)'],
+    ['a file URL', 'file:///etc/passwd'],
+    ['an anchor', '#section'],
+  ])('claims the gesture on %s too, even though it will not follow it', (_label, href) => {
+    const { event, reachedEditor } = mouseDown(anchor(href), { ctrlKey: true });
+
+    expect(reachedEditor).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+    expect(openExternal).not.toHaveBeenCalled();
+  });
+
+  it('leaves a mousedown that missed every link to the editor', () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'no link here';
+    root.appendChild(paragraph);
+
+    const { reachedEditor } = mouseDown(paragraph, { ctrlKey: true });
+
     expect(reachedEditor).toBe(true);
   });
 });

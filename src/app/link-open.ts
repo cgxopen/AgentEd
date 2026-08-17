@@ -18,11 +18,14 @@ import { isSingleUrl } from '../editor/link-url';
  *     mousedown, so cancelling the click afterwards is too late; the gesture
  *     is intercepted in the capture phase instead, before the event reaches
  *     the editor's DOM.
- *  3. **Only followable addresses are claimed.** `http`, `https` and `mailto`.
- *     A document may hold any href — a relative path to a neighbouring file,
- *     something a converter left behind — and handing an arbitrary string to
- *     the OS opener is not a thing to do on a click. Those links keep the
- *     editor's ordinary behavior; they simply never navigate.
+ *  3. **The gesture is claimed on every link; only some are followed.** Two
+ *     different questions, and the guard must not answer them with one test.
+ *     Ctrl+click on a link means "follow this" in this editor, so it may never
+ *     fall through to ProseMirror's node selection — not even on a link we
+ *     decline to open. What the scheme decides is only whether the address is
+ *     handed to the OS: `http`, `https` and `mailto` are, and a relative path
+ *     or whatever a converter left behind is not, because handing an arbitrary
+ *     string to the shell is not a thing to do on a click.
  */
 export interface LinkOpenerOptions {
   /** Hand the URL to the OS (Tauri) — rejects on the web build. */
@@ -45,11 +48,12 @@ function isFollowGesture(event: MouseEvent): boolean {
 export function installLinkOpener(root: HTMLElement, options: LinkOpenerOptions): () => void {
   function onMouseDown(event: MouseEvent): void {
     if (!isFollowGesture(event)) return;
-    const href = linkAt(event);
-    if (href === null || !isSingleUrl(href)) return;
-    // Claimed here so prosemirror-view's mousedown never runs and no node
-    // selection is made. stopPropagation is the point; preventDefault keeps
-    // the WebView from starting a drag or a navigation of its own.
+    // Any link, whatever it points at: the scheme decides what happens next,
+    // never whether the gesture is ours. Claimed here so prosemirror-view's
+    // mousedown never runs and no node selection is made. stopPropagation is
+    // the point; preventDefault keeps the WebView from starting a drag or a
+    // navigation of its own.
+    if (linkAt(event) === null) return;
     event.preventDefault();
     event.stopPropagation();
   }
