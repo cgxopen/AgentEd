@@ -1,9 +1,14 @@
 import type { Editor } from '@tiptap/core';
 
+export interface ToolbarHandlers {
+  /** Open the link dialog (#25). Owned by the app layer, which has the DOM. */
+  onLink: () => void;
+}
+
 interface ToolbarButton {
   label: string;
   title: string;
-  action: (editor: Editor) => void;
+  action: (editor: Editor, handlers: ToolbarHandlers) => void;
   isActive: (editor: Editor) => boolean;
 }
 
@@ -39,6 +44,15 @@ const buttons: ToolbarButton[] = [
       e.chain().focus().toggleStrike().run();
     },
     isActive: (e) => e.isActive('strike'),
+  },
+  {
+    // Links are made here or with Ctrl+K — the editor never invents one (#37).
+    label: '\u{1F517}',
+    title: 'Link (Ctrl+K)',
+    action: (_e, handlers) => {
+      handlers.onLink();
+    },
+    isActive: (e) => e.isActive('link'),
   },
   {
     label: '<>',
@@ -98,7 +112,11 @@ const buttons: ToolbarButton[] = [
   },
 ];
 
-function createToolbarButtons(toolbar: HTMLElement, editor: Editor): HTMLButtonElement[] {
+function createToolbarButtons(
+  toolbar: HTMLElement,
+  editor: Editor,
+  handlers: ToolbarHandlers,
+): HTMLButtonElement[] {
   const elements: HTMLButtonElement[] = [];
   for (const btn of buttons) {
     const el = document.createElement('button');
@@ -106,7 +124,7 @@ function createToolbarButtons(toolbar: HTMLElement, editor: Editor): HTMLButtonE
     el.title = btn.title;
     el.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      btn.action(editor);
+      btn.action(editor, handlers);
     });
     toolbar.appendChild(el);
     elements.push(el);
@@ -157,12 +175,12 @@ function bindToolbarEvents(
   editor.on('focus', positionToolbar);
 }
 
-export function setupToolbar(editor: Editor): void {
+export function setupToolbar(editor: Editor, handlers: ToolbarHandlers): void {
   const toolbar = document.createElement('div');
   toolbar.id = 'floating-toolbar';
   toolbar.className = 'floating-toolbar hidden';
   document.body.appendChild(toolbar);
 
-  const btnElements = createToolbarButtons(toolbar, editor);
+  const btnElements = createToolbarButtons(toolbar, editor, handlers);
   bindToolbarEvents(toolbar, editor, btnElements);
 }

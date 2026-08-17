@@ -51,7 +51,8 @@ Coming next (see [REQUIREMENTS.md](REQUIREMENTS.md) §8): predictable paste, ext
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | Bold / Italic / Underline |
-| `Ctrl+K` | Insert link |
+| `Ctrl+K` | Insert link (or edit / remove the link at the caret) |
+| `Ctrl`/`Cmd` + click | Open a link in the system browser |
 | `Ctrl+E` | Inline code |
 | `Ctrl+Shift+K` | Code block |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save / Save As |

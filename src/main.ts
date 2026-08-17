@@ -7,6 +7,8 @@ import { createErrorReporter } from './app/error-reporter';
 import { setupFileAssociation } from './app/file-association';
 import { setupHeader, wireHeaderIndicators } from './app/header-wiring';
 import { setupKeyboard } from './app/keyboard';
+import { type LinkDialog, setupLinkDialog } from './app/link-dialog';
+import { installLinkOpener } from './app/link-open';
 import { insertMedia } from './app/media-picker';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
@@ -71,10 +73,22 @@ ctx.editor = editor;
 ctx.getMarkdown = getMarkdown;
 ctx.setMarkdown = setMarkdown;
 
-// Phase 4 — UI panels that attach to the editor.
+// Phase 4 — UI panels that attach to the editor. The link dialog itself is
+// built in Phase 8 (it needs no more than the editor, but it lives with the
+// other dialogs); the toolbar reaches it by late binding, as it does for
+// docActions.
+let linkDialog!: LinkDialog;
 ctx.statusbar = setupStatusbar(editor);
 setupSpellcheckToggle(state);
-setupToolbar(editor);
+setupToolbar(editor, { onLink: () => linkDialog.open() });
+
+// Ctrl/Cmd+click follows a link; a plain click still places the caret (#25).
+installLinkOpener(editorEl, {
+  openExternal: async (url) => {
+    const io = await getPlatformIO();
+    await io.openWithSystem(url);
+  },
+});
 ctx.sidebar = setupSidebar();
 ctx.frontmatterPanel = setupFrontmatterPanel(state);
 ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(state));
@@ -133,6 +147,7 @@ wireHeaderIndicators(ctx, docActions);
 ctx.sidebar.setOnFileClick(createSidebarClickHandler(docActions, getPlatformIO));
 
 const tableDialog = setupTableDialog(editor);
+linkDialog = setupLinkDialog(editor);
 
 setupMenu({
   onNew: () => {
@@ -194,6 +209,7 @@ setupKeyboard({
   onOpen: () => {
     void docActions.handleOpen().catch(console.error);
   },
+  onLink: () => linkDialog.open(),
 });
 
 setupFileAssociation(docActions.openFilePath);

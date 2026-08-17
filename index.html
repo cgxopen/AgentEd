@@ -127,6 +127,20 @@
         </div>
       </div>
     </div>
+    <div id="link-dialog" class="dialog-overlay hidden">
+      <div class="dialog">
+        <div class="dialog-title">Link</div>
+        <div class="dialog-fields">
+          <label>Address <input id="link-url" type="text" spellcheck="false" autocomplete="off" placeholder="https://example.com" /></label>
+        </div>
+        <div id="link-error" class="dialog-error hidden" role="alert"></div>
+        <div class="dialog-actions">
+          <button id="link-remove" class="danger hidden">Remove</button>
+          <button id="link-cancel">Cancel</button>
+          <button id="link-confirm" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
