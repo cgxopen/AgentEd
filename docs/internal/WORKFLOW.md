@@ -24,7 +24,7 @@
 ## Rules that keep it untangled
 
 - **Test before merge, from the PR artifact.** `main` should always be a state the owner has accepted. (Before the artifact step existed, testing meant a manual Nightly dispatch, which is why it briefly happened after merge instead. That workaround is obsolete.)
-- **Check the artifact matches the PR.** The `<sha>` in the artifact name is the commit it was built from; if it does not match the PR head, it is the wrong build. Most "the fix isn't working" reports are a stale installer.
+- **Check the artifact matches the PR.** The `<sha>` in the artifact name is the commit it was built from; if it does not match the PR head, it is the wrong build. Most "the fix isn't working" reports are a stale installer. Since #31, the running application reports its own commit under About — check there when in doubt.
 - **Nightly is not a testing tool.** It is a scheduled health check on `main`. Do not dispatch it to test a branch.
 - **Parallel PRs only when they touch different files.** Otherwise sequential. Squash-merging rewrites `main`, so sibling branches that share a file will conflict — one at a time costs less than resolving the cascade.
 - **A requirement change ships with the code that changes it**, in the same PR — never a PR that leaves REQUIREMENTS disagreeing with the build.
@@ -38,6 +38,7 @@ An issue is done when the PR is merged, the owner has tested it, and STATUS reco
 
 ## When something is off
 
-- **A defect that will not reproduce**: confirm the build first (artifact sha), then write down the hypothesis for *why* it disappeared rather than assuming luck. See #4 for the pattern.
+- **A manual result that contradicts the automated tests: suspect the input before the code.** Three experiments in one batch were contaminated, each differently — a behavior that fired *after* the paste, a clipboard payload that differed *before* it, and a guard that branched on a value nobody thought to vary. Each cost a round of argument that measurement then settled in minutes. Before debating a surprising result, confirm the input was identical across the runs being compared, and instrument rather than reason when it is not.
+- **A defect that will not reproduce**: confirm the build first (artifact sha, or About), then write down the hypothesis for *why* it disappeared rather than assuming luck. See #4 for the pattern.
 - **A DEV session reporting stale state**: point it at STATUS and ask it to verify against the repository. The rule lives in CLAUDE.md.
 - **Conflicts after a batch**: DEV resolves them on its branch with a merge (not a rebase with force-push), so approved reviews stay attached.
