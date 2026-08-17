@@ -11,8 +11,13 @@ import { getAllImages, registerImage } from './image-registry';
 export type GetFilePath = () => string | null;
 export type RequestSaveAs = () => Promise<string | null>;
 
-/** Resolves (and creates if needed) the on-disk assets/ folder. */
-export type EnsureAssetsDir = () => Promise<string | null>;
+/**
+ * Resolves the assets/ folder for the current document, asking the user
+ * to agree to its creation when it does not exist yet. Returns `null`
+ * when the user declines or there is no usable path. It does **not**
+ * create the folder — the save flow does that (#14).
+ */
+export type ConfirmAssetsDir = () => Promise<string | null>;
 
 // Reject paste/drop of images past this size to prevent OOM. file.arrayBuffer()
 // allocates the whole buffer up front, and the registry then keeps a copy alive
@@ -49,7 +54,7 @@ export async function handleImageFile(
   editor: Editor,
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
-  ensureAssetsDir: EnsureAssetsDir,
+  confirmAssetsDir: ConfirmAssetsDir,
   origin: ImageOrigin,
 ): Promise<void> {
   if (file.size > MAX_IMAGE_SIZE) {
@@ -65,9 +70,11 @@ export async function handleImageFile(
     if (!saved) return;
   }
 
-  // Resolve (and possibly create) the assets/ folder. Cancelled by the
-  // user → silently no-op for the rest of this document session.
-  const assetsDir = await ensureAssetsDir();
+  // Settle where assets/ will go, and get the user's agreement to create
+  // it if it is not there yet — asked here, before the image is placed,
+  // even though the folder itself only appears on save (#14). Cancelled
+  // by the user → silently no-op for the rest of this document session.
+  const assetsDir = await confirmAssetsDir();
   if (!assetsDir) return;
 
   const documentPath = getFilePath();
@@ -111,7 +118,7 @@ export function createImageDropPlugin(
   editor: Editor,
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
-  ensureAssetsDir: EnsureAssetsDir,
+  confirmAssetsDir: ConfirmAssetsDir,
 ): Plugin {
   return new Plugin({
     key: new PluginKey('imageDropHandler'),
@@ -128,7 +135,7 @@ export function createImageDropPlugin(
             editor,
             getFilePath,
             requestSaveAs,
-            ensureAssetsDir,
+            confirmAssetsDir,
             'file',
           ).catch(console.error);
         }
@@ -145,7 +152,7 @@ export function createImageDropPlugin(
             editor,
             getFilePath,
             requestSaveAs,
-            ensureAssetsDir,
+            confirmAssetsDir,
             'clipboard',
           ).catch(console.error);
         }

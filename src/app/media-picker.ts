@@ -2,7 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { handleImageFile } from '../editor/image-handler';
 import { getPlatformIO } from '../platform/index';
 import { basename } from '../platform/paths';
-import { ensureAssetsDir } from './assets-dir';
+import { confirmAssetsDir } from './assets-dir';
 import type { ErrorReporter } from './error-reporter';
 import type { AppState } from './state';
 
@@ -60,7 +60,7 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
       async () => {
         const path = state.filePath;
         if (!path) return null;
-        return ensureAssetsDir(path, io, state);
+        return confirmAssetsDir(path, io, state);
       },
       // The picked file carries the name the user knows it by (R-C5).
       'file',

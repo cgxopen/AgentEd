@@ -60,6 +60,24 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
   }
 
   /**
+   * Tell the user the document was saved but its images were not. Modal
+   * rather than a toast: the file on disk now references images that do
+   * not exist next to it, which is not something to let scroll past.
+   */
+  async function reportAssetsFailure(error: unknown): Promise<void> {
+    const needsFolderAccess = error instanceof Error && error.message.includes('NO_DIR_HANDLE');
+    const remedy = needsFolderAccess
+      ? 'Web mode: use Save As to grant folder access, then save again.'
+      : 'The images are still open in this document — saving again will retry them.';
+    await ctx.reporter.dialog(
+      'The document was saved, but its images could not be written to the ' +
+        `assets folder next to it.\n\n${remedy}`,
+      error,
+      'Images not saved',
+    );
+  }
+
+  /**
    * Write the current document to disk exactly as the user wrote it —
    * body, plus the frontmatter block only if the document already has
    * one. Nothing is ever injected on save.
@@ -68,8 +86,9 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     const io = await getPlatformIO();
     const bundle = buildBundle(ctx.state, ctx.getMarkdown);
 
+    let result: Awaited<ReturnType<typeof saveDocument>>;
     try {
-      await saveDocument(bundle, io);
+      result = await saveDocument(bundle, io);
     } catch (e) {
       if (e instanceof Error && e.message.includes('NO_DIR_HANDLE')) {
         showToast(
@@ -83,6 +102,11 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
 
     ctx.state.isFirstSave = false;
     ctx.state.setModified(false);
+
+    // The .md is on disk; only its images failed. The save stands — we
+    // never un-write a document — but the user has to hear that the
+    // references now point at files that are not there (#14).
+    if (result.assetsError) await reportAssetsFailure(result.assetsError);
 
     if (ctx.state.filePath) {
       const folder = dirname(ctx.state.filePath);
