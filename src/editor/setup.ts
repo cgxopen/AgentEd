@@ -56,7 +56,17 @@ function buildExtensions(
       // over a selection) are what make a link now.
       autolink: false,
       linkOnPaste: false,
-      HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+      // `target: null` rather than an omitted key: TipTap's `configure` merges
+      // deeply, so the extension's own `target: '_blank'` default survives
+      // anything short of overwriting it, and null is what its
+      // `mergeAttributes` drops. In an editing surface a target does nothing
+      // useful, and it is what turns a plain click into a new-window request
+      // that the host shell then honours — the link opening in the browser
+      // without anyone asking for it. Following a link is the modifier
+      // gesture's job (src/app/link-open.ts), through the platform layer.
+      // `rel` is kept: it costs nothing and stays correct if this HTML is ever
+      // rendered somewhere else.
+      HTMLAttributes: { rel: 'noopener noreferrer', target: null },
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
     TaskList,

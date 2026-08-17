@@ -7,7 +7,6 @@ let uninstall: () => void;
 
 function anchor(href: string): HTMLAnchorElement {
   const a = document.createElement('a');
-  a.href = href;
   a.setAttribute('href', href);
   a.textContent = 'the docs';
   root.appendChild(a);
@@ -18,6 +17,32 @@ function click(target: Element, init: MouseEventInit = {}): MouseEvent {
   const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ...init });
   target.dispatchEvent(event);
   return event;
+}
+
+/**
+ * A mousedown that reports whether it reached the editor. prosemirror-view
+ * listens on its own DOM node inside `root`, so "reached the editor" is
+ * modelled by a listener on the anchor itself: anything that stops
+ * propagation in the capture phase above it keeps ProseMirror out.
+ */
+function mouseDown(
+  target: Element,
+  init: MouseEventInit = {},
+): { event: MouseEvent; reachedEditor: boolean } {
+  let reachedEditor = false;
+  const spy = () => {
+    reachedEditor = true;
+  };
+  target.addEventListener('mousedown', spy);
+  const event = new MouseEvent('mousedown', {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    ...init,
+  });
+  target.dispatchEvent(event);
+  target.removeEventListener('mousedown', spy);
+  return { event, reachedEditor };
 }
 
 beforeEach(() => {
@@ -56,47 +81,75 @@ describe('Ctrl/Cmd+click follows a link', () => {
 
     expect(openExternal).toHaveBeenCalledWith('https://example.com');
   });
+
+  it('follows mailto, which is a link a reader means to use', () => {
+    click(anchor('mailto:hi@example.com'), { ctrlKey: true });
+    expect(openExternal).toHaveBeenCalledWith('mailto:hi@example.com');
+  });
 });
 
-describe('a plain click is left alone', () => {
-  it('places the caret rather than opening anything', () => {
-    const event = click(anchor('https://example.com'));
+/**
+ * The paragraph that came back selected on Windows: prosemirror-view turns
+ * Ctrl+click into "select the clicked node" from its own mousedown listener.
+ * The gesture has to be taken in the capture phase — by the time the click
+ * fires, the selection has already been made.
+ */
+describe('the modifier click never reaches the editor', () => {
+  it('stops the mousedown before ProseMirror can select the node', () => {
+    const { event, reachedEditor } = mouseDown(anchor('https://example.com'), { ctrlKey: true });
 
-    expect(openExternal).not.toHaveBeenCalled();
+    expect(reachedEditor).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('leaves an ordinary mousedown alone, so clicking still places the caret', () => {
+    const { event, reachedEditor } = mouseDown(anchor('https://example.com'));
+
+    expect(reachedEditor).toBe(true);
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it('ignores a Ctrl+click that is not on a link', () => {
-    const paragraph = document.createElement('p');
-    paragraph.textContent = 'no link here';
-    root.appendChild(paragraph);
-
-    click(paragraph, { ctrlKey: true });
-
-    expect(openExternal).not.toHaveBeenCalled();
+  it('leaves the mousedown alone for a link it will not follow anyway', () => {
+    const { reachedEditor } = mouseDown(anchor('./notes.md'), { ctrlKey: true });
+    expect(reachedEditor).toBe(true);
   });
 });
 
-// A document can hold any href — a relative path to a neighbouring file, or
-// something a converter left behind. Handing an arbitrary string to the OS
-// opener is not a thing to do on a click.
-describe('only allow-listed schemes are followed', () => {
+/**
+ * A document being edited must not navigate away — least of all to a relative
+ * path, which would leave the app on a blank page. Cancelling the click does
+ * not disturb the caret: the browser placed it at mousedown.
+ */
+describe('a link click never navigates the editing surface', () => {
+  it('cancels the anchor default on a plain click, and opens nothing', () => {
+    const event = click(anchor('https://example.com'));
+
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it.each([
     ['a relative path', './notes.md'],
     ['an absolute path', '/etc/passwd'],
     ['a script URL', 'javascript:alert(1)'],
     ['a file URL', 'file:///etc/passwd'],
     ['an anchor', '#section'],
-  ])('ignores %s', (_label, href) => {
+  ])('cancels the default for %s without following it', (_label, href) => {
     const event = click(anchor(href), { ctrlKey: true });
 
     expect(openExternal).not.toHaveBeenCalled();
-    expect(event.defaultPrevented).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
   });
 
-  it('follows mailto, which is a link a reader means to use', () => {
-    click(anchor('mailto:hi@example.com'), { ctrlKey: true });
-    expect(openExternal).toHaveBeenCalledWith('mailto:hi@example.com');
+  it('ignores a click that is not on a link at all', () => {
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'no link here';
+    root.appendChild(paragraph);
+
+    const event = click(paragraph, { ctrlKey: true });
+
+    expect(openExternal).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 });
 
@@ -116,7 +169,30 @@ describe('when the platform cannot open it', () => {
 describe('teardown', () => {
   it('stops listening once uninstalled', () => {
     uninstall();
-    click(anchor('https://example.com'), { ctrlKey: true });
+    const a = anchor('https://example.com');
+    const { reachedEditor } = mouseDown(a, { ctrlKey: true });
+    const event = click(a, { ctrlKey: true });
+
     expect(openExternal).not.toHaveBeenCalled();
+    expect(reachedEditor).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+// The other half of the fix lives in the editor config: the anchors carry no
+// target, so the WebView has no new-window request to hand to the shell.
+describe('the editor renders links without a target', () => {
+  it('is asserted where the extension is configured', async () => {
+    const { createEditor } = await import('../editor/setup');
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const instance = createEditor(host);
+    instance.setMarkdown('[docs](https://example.com)');
+
+    const html = instance.editor.getHTML();
+    expect(html).toContain('href="https://example.com"');
+    expect(html).not.toContain('target=');
+
+    instance.destroy();
   });
 });
