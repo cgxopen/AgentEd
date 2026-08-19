@@ -169,18 +169,32 @@ export function resolveCollision(name: string, taken: ReadonlySet<string>): stri
 }
 
 /**
+ * The name an image keeps from its own source, sanitized and before any
+ * collision is resolved — `Diagramă finală.PNG` → `Diagrama-finala.png`.
+ * Null when the image has no name worth keeping and takes one from the
+ * document instead.
+ *
+ * Separate from `buildImageName` because it is the only part of a name that
+ * does not depend on what is already taken, which is what lets the caller
+ * ask "is the file this image wants to be already on disk?" before it
+ * allocates anything (#52).
+ */
+export function keptFileName(sourceName: string, origin: ImageOrigin): string | null {
+  if (sourceName.length === 0) return null;
+  if (origin !== 'file' && isGenericName(sourceName)) return null;
+  const extension = extensionOf(sourceName) || 'png';
+  return `${sanitizeBaseName(withoutExtension(sourceName))}.${extension}`;
+}
+
+/**
  * The name an inserted image is written under. Null when no free name could
  * be found, which the caller must report rather than overwrite anything.
  */
 export function buildImageName(request: ImageNameRequest): string | null {
+  const kept = keptFileName(request.sourceName, request.origin);
+  if (kept) return resolveCollision(kept, request.taken);
+
   const extension = extensionOf(request.sourceName) || 'png';
-  const keepsItsName = request.origin === 'file' || !isGenericName(request.sourceName);
-
-  if (keepsItsName && request.sourceName.length > 0) {
-    const base = sanitizeBaseName(withoutExtension(request.sourceName));
-    return resolveCollision(`${base}.${extension}`, request.taken);
-  }
-
   const base = documentBaseName(request.documentName);
   const index = nextDocumentIndex(base, request.taken);
   return resolveCollision(`${base}-${formatIndex(index)}.${extension}`, request.taken);

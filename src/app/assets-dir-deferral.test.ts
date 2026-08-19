@@ -54,12 +54,18 @@ function stubEditor(): Editor {
   return { chain: vi.fn(() => ({ focus })) } as unknown as Editor;
 }
 
-function imageFile(name: string): File {
+/**
+ * `seed` makes each image genuinely distinct. Identical bytes are one
+ * picture and are stored once (#52), so a fixture that repeated itself
+ * would prove nothing about a *second* insert.
+ */
+function imageFile(name: string, seed = 1): File {
+  const data = Uint8Array.from({ length: 8 }, (_, i) => seed * 16 + i);
   return {
-    size: 1024,
+    size: data.length,
     type: 'image/png',
     name,
-    arrayBuffer: async () => new ArrayBuffer(8),
+    arrayBuffer: async () => data.slice().buffer,
   } as unknown as File;
 }
 
@@ -68,10 +74,10 @@ function imageFile(name: string): File {
  * the flow: no path yet, so `requestSaveAs` settles one (writing nothing,
  * per #11), then the assets folder is confirmed.
  */
-async function pasteIntoFreshDocument(state: AppState) {
+async function pasteIntoFreshDocument(state: AppState, seed = 1) {
   const { handleImageFile } = await import('../editor/image-handler');
   await handleImageFile(
-    imageFile('diagram.png'),
+    imageFile('diagram.png', seed),
     stubEditor(),
     () => state.filePath,
     async () => {
@@ -113,9 +119,9 @@ describe('#14 — an image in a document that was never saved', () => {
     vi.mocked(showConfirmDialog).mockResolvedValue('create');
     const state = new AppState();
 
-    await pasteIntoFreshDocument(state);
-    await pasteIntoFreshDocument(state);
-    await pasteIntoFreshDocument(state);
+    await pasteIntoFreshDocument(state, 1);
+    await pasteIntoFreshDocument(state, 2);
+    await pasteIntoFreshDocument(state, 3);
 
     // The folder is not created until the save, so the third insert
     // still finds it absent — the consent has to be remembered.
