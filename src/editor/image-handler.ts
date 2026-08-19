@@ -4,8 +4,8 @@ import type { EditorView } from '@tiptap/pm/view';
 import { isTauri } from '../platform/detect';
 import { getPlatformIO } from '../platform/index';
 import { basename, joinPath } from '../platform/paths';
-import { showToast } from '../ui/toast';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
+import type { ReportImageInsert } from './image-insert-outcome';
 import { buildImageName, type ImageOrigin, keptFileName } from './image-names';
 import { getAllImages, getDisplayUrl, registerImage } from './image-registry';
 
@@ -19,15 +19,6 @@ export type RequestSaveAs = () => Promise<string | null>;
  * create the folder — the save flow does that (#14).
  */
 export type ConfirmAssetsDir = () => Promise<string | null>;
-
-/**
- * Called once the image is in the document — the insert's only success
- * signal, and the moment nothing has been written yet (#48). A cancelled
- * insert, at either dialog, never reaches it. What to say about that is
- * the app layer's business (`src/app/destination-cue.ts`); this module
- * only reports that it happened.
- */
-export type OnImageInserted = () => void;
 
 // Reject paste/drop of images past this size to prevent OOM. file.arrayBuffer()
 // allocates the whole buffer up front, and the registry then keeps a copy alive
@@ -112,27 +103,42 @@ export async function handleImageFile(
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
   origin: ImageOrigin,
-  onInserted: OnImageInserted = () => {},
+  report: ReportImageInsert,
 ): Promise<void> {
   if (file.size > MAX_IMAGE_SIZE) {
-    const sizeMb = Math.round(file.size / 1024 / 1024);
-    const limitMb = MAX_IMAGE_SIZE / 1024 / 1024;
-    showToast(`Image too large (${sizeMb} MB). Max ${limitMb} MB.`, 'warn');
+    report({
+      kind: 'refused',
+      reason: 'too-large',
+      sizeBytes: file.size,
+      limitBytes: MAX_IMAGE_SIZE,
+    });
     return;
   }
 
   // Need a file path before we can decide where assets/ goes.
   if (isTauri && !getFilePath()) {
     const saved = await requestSaveAs();
-    if (!saved) return;
+    if (!saved) {
+      report({ kind: 'cancelled', at: 'destination' });
+      return;
+    }
   }
 
   // Settle where assets/ will go, and get the user's agreement to create
   // it if it is not there yet — asked here, before the image is placed,
-  // even though the folder itself only appears on save (#14). Cancelled
-  // by the user → silently no-op for the rest of this document session.
+  // even though the folder itself only appears on save (#14).
   const assetsDir = await confirmAssetsDir();
-  if (!assetsDir) return;
+  if (!assetsDir) {
+    // A cancellation, because that is what it is today: the user declined
+    // the folder, now or earlier in this document session, and the answer
+    // is sticky (R-C5). Two other causes reach this same null and are
+    // *not* cancellations — a decline remembered from another document
+    // (#51) and a web build that never asks (#46). Neither is fixed here;
+    // both become a new outcome kind on this contract, which the app
+    // layer then has to word before it compiles.
+    report({ kind: 'cancelled', at: 'assets-folder' });
+    return;
+  }
 
   // Read the bytes before allocating anything: they are what decides
   // whether this document already has this picture (#52).
@@ -145,7 +151,7 @@ export async function handleImageFile(
   const identicalUrl = identical ? getDisplayUrl(identical.relativePath) : undefined;
   if (identicalUrl) {
     editor.chain().focus().setImage({ src: identicalUrl, alt: file.name }).run();
-    onInserted();
+    report({ kind: 'inserted' });
     return;
   }
 
@@ -167,7 +173,7 @@ export async function handleImageFile(
   if (!filename) {
     // Only reachable with a thousand taken variants of the same name;
     // refusing beats overwriting one of them (R-C5).
-    showToast('Could not find a free file name in the assets folder.', 'warn');
+    report({ kind: 'refused', reason: 'no-free-name' });
     return;
   }
 
@@ -182,10 +188,10 @@ export async function handleImageFile(
 
   editor.chain().focus().setImage({ src: displayUrl, alt: file.name }).run();
 
-  // The image is in the document and nothing is on disk. Notify last, so
+  // The image is in the document and nothing is on disk. Reported last, so
   // no cue is raised for an insert that bailed out above — and after the
   // assets/ dialog rather than under it.
-  onInserted();
+  report({ kind: 'inserted' });
 }
 
 function getImagesFromDataTransfer(dataTransfer: DataTransfer): File[] {
@@ -197,12 +203,21 @@ function getImagesFromDataTransfer(dataTransfer: DataTransfer): File[] {
   return files;
 }
 
+/**
+ * One report per file, for a drop or paste carrying several of them.
+ *
+ * Deliberate, and deliberately unchanged: today three oversized files
+ * produce three messages, and #61 is a structural change that must move
+ * nothing the user sees. Batching them into one is now a change in a
+ * single app-layer function rather than in this loop — which is the point
+ * of the contract, not a licence to use it here.
+ */
 export function createImageDropPlugin(
   editor: Editor,
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
-  onInserted: OnImageInserted = () => {},
+  report: ReportImageInsert,
 ): Plugin {
   return new Plugin({
     key: new PluginKey('imageDropHandler'),
@@ -221,7 +236,7 @@ export function createImageDropPlugin(
             requestSaveAs,
             confirmAssetsDir,
             'file',
-            onInserted,
+            report,
           ).catch(console.error);
         }
         return true;
@@ -239,7 +254,7 @@ export function createImageDropPlugin(
             requestSaveAs,
             confirmAssetsDir,
             'clipboard',
-            onInserted,
+            report,
           ).catch(console.error);
         }
         return true;

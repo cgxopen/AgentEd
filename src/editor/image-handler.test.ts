@@ -1,14 +1,11 @@
 import type { Editor } from '@tiptap/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleImageFile, MAX_IMAGE_SIZE } from './image-handler';
+import type { ImageInsertOutcome } from './image-insert-outcome';
 import { registerImage } from './image-registry';
 
 /** Names the fake assets folder holds for the test in progress. */
 let filesOnDisk: string[] = [];
-
-vi.mock('../ui/toast', () => ({
-  showToast: vi.fn(),
-}));
 
 vi.mock('./image-registry', () => ({
   registerImage: vi.fn(),
@@ -27,6 +24,12 @@ vi.mock('../platform/detect', () => ({
   isTauri: false,
 }));
 
+/** Every outcome the insert under test reported (#61). */
+let outcomes: ImageInsertOutcome[] = [];
+const record = (outcome: ImageInsertOutcome) => {
+  outcomes.push(outcome);
+};
+
 function makeStubEditor() {
   const setImage = vi.fn(() => ({ run: vi.fn() }));
   const focus = vi.fn(() => ({ setImage }));
@@ -44,6 +47,10 @@ function makeFile(size: number, type = 'image/png', name = 'big.png'): File {
 }
 
 describe('handleImageFile — M5 size cap', () => {
+  beforeEach(() => {
+    outcomes = [];
+  });
+
   it('bails out before any I/O when file exceeds MAX_IMAGE_SIZE', async () => {
     const editor = makeStubEditor();
     const getFilePath = vi.fn(() => '/doc/notes.md');
@@ -51,10 +58,27 @@ describe('handleImageFile — M5 size cap', () => {
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const oversized = makeFile(MAX_IMAGE_SIZE + 1);
-    await handleImageFile(oversized, editor, getFilePath, requestSaveAs, ensureAssetsDir, 'file');
+    await handleImageFile(
+      oversized,
+      editor,
+      getFilePath,
+      requestSaveAs,
+      ensureAssetsDir,
+      'file',
+      record,
+    );
 
     expect(ensureAssetsDir).not.toHaveBeenCalled();
     expect(oversized.arrayBuffer).not.toHaveBeenCalled();
+    // The refusal is a reported fact, not a message written here (#61).
+    expect(outcomes).toEqual([
+      {
+        kind: 'refused',
+        reason: 'too-large',
+        sizeBytes: MAX_IMAGE_SIZE + 1,
+        limitBytes: MAX_IMAGE_SIZE,
+      },
+    ]);
   });
 
   it('proceeds past the size guard when file fits under the cap', async () => {
@@ -64,7 +88,7 @@ describe('handleImageFile — M5 size cap', () => {
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const ok = makeFile(1024);
-    await handleImageFile(ok, editor, getFilePath, requestSaveAs, ensureAssetsDir, 'file');
+    await handleImageFile(ok, editor, getFilePath, requestSaveAs, ensureAssetsDir, 'file', record);
 
     expect(ensureAssetsDir).toHaveBeenCalledTimes(1);
     expect(ok.arrayBuffer).toHaveBeenCalledTimes(1);
@@ -77,6 +101,7 @@ describe('handleImageFile — naming (R-C5)', () => {
 
   beforeEach(() => {
     filesOnDisk = [];
+    outcomes = [];
     vi.mocked(registerImage).mockClear();
   });
 
@@ -89,6 +114,7 @@ describe('handleImageFile — naming (R-C5)', () => {
       requestSaveAs,
       ensureAssetsDir,
       origin,
+      record,
     );
     return vi.mocked(registerImage).mock.calls.at(-1)?.[1].relativePath;
   }

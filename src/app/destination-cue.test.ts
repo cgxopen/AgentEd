@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleImageFile } from '../editor/image-handler';
 import { clearImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
-import { createDestinationCue, DESTINATION_CUE } from './destination-cue';
+import { DESTINATION_CUE } from './destination-cue';
+import { createImageInsertReporter } from './image-insert-report';
 import { AppState } from './state';
 
 /**
@@ -55,7 +56,9 @@ async function insertImage(
     requestSaveAs,
     confirmAssetsDir,
     'clipboard',
-    createDestinationCue(state),
+    // The cue is reached through the app-layer reporter, exactly as
+    // main.ts wires it: the cue answers one outcome, not every exit (#61).
+    createImageInsertReporter(state),
   );
 }
 

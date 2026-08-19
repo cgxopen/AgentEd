@@ -45,7 +45,6 @@ const io: PlatformIO = {
 
 vi.mock('../platform/detect', () => ({ isTauri: true }));
 vi.mock('../platform/index', () => ({ getPlatformIO: vi.fn(async () => io) }));
-vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
 vi.mock('../ui/confirm-dialog', () => ({ showConfirmDialog: vi.fn() }));
 
 function stubEditor(): Editor {
@@ -90,6 +89,10 @@ async function pasteIntoFreshDocument(state: AppState, seed = 1) {
       return confirmAssetsDir(path, io, state);
     },
     'file',
+    // #14 measures what reaches the disk, not what is said: the outcome
+    // (#61) is deliberately ignored here and asserted in
+    // image-insert-report.test.ts instead.
+    () => {},
   );
 }
 
