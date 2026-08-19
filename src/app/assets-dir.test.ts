@@ -120,7 +120,7 @@ describe('confirmAssetsDir — asks now, creates never (#14)', () => {
       ),
     ).toBeNull();
     expect(mkdirCalls).toEqual([]);
-    expect(state.assetsDirCreationDeclined).toBe(true);
+    expect(state.assetsDirDeclinedFor).toBe('/proj/assets');
   });
 
   it('does not ask twice after a refusal in the same document session', async () => {
@@ -132,6 +132,45 @@ describe('confirmAssetsDir — asks now, creates never (#14)', () => {
     await confirmAssetsDir('/proj/notes.md', io, state);
 
     expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask twice after acceptance — one dialog, however many images', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    // Three screenshots pasted into a document that has not been saved
+    // yet. The folder still does not exist on the third insert, so the
+    // consent has to be remembered rather than inferred from the disk.
+    const dirs = [
+      await confirmAssetsDir('/proj/notes.md', io, state),
+      await confirmAssetsDir('/proj/notes.md', io, state),
+      await confirmAssetsDir('/proj/notes.md', io, state),
+    ];
+
+    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+    expect(dirs).toEqual(['/proj/assets', '/proj/assets', '/proj/assets']);
+    expect(mkdirCalls).toEqual([]);
+  });
+
+  it('asks again when Save As moves the document to a folder never agreed to', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    await confirmAssetsDir('/proj/notes.md', io, state);
+    expect(await confirmAssetsDir('/elsewhere/notes.md', io, state)).toBe('/elsewhere/assets');
+
+    expect(showConfirmDialog).toHaveBeenCalledTimes(2);
+  });
+
+  it('a refusal does not carry over to a different folder either', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValueOnce('cancel').mockResolvedValueOnce('create');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    expect(await confirmAssetsDir('/proj/notes.md', io, state)).toBeNull();
+    expect(await confirmAssetsDir('/elsewhere/notes.md', io, state)).toBe('/elsewhere/assets');
   });
 
   it('reuses an existing assets/ silently — no prompt, no warning (R-C5)', async () => {

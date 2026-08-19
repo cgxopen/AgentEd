@@ -47,10 +47,12 @@ export async function resolveAssetsDir(
  * *consent*: asking at insert time, before the user has committed to the
  * image, is a far better moment than asking mid-save.
  *
- * The user's "Cancel" choice is sticky for the current document session
- * (`state.assetsDirCreationDeclined`); subsequent paste attempts within
- * the same session are silently dropped. Closing or opening another
- * document clears the flag.
+ * The answer is remembered per folder, so the question is asked once
+ * however many images the user inserts before saving — and asked again
+ * only if a Save As moves the document somewhere new, which is a folder
+ * the user has not agreed to yet. A refusal is equally sticky: further
+ * inserts into that folder are silently dropped. Closing or opening
+ * another document clears both.
  */
 export async function confirmAssetsDir(
   filePath: string,
@@ -61,7 +63,9 @@ export async function confirmAssetsDir(
   if (!info) return null;
   if (info.exists) return info.dir;
 
-  if (state.assetsDirCreationDeclined) return null;
+  // Already settled for this folder — do not ask a second time.
+  if (state.assetsDirConfirmedFor === info.dir) return info.dir;
+  if (state.assetsDirDeclinedFor === info.dir) return null;
 
   const choice = await showConfirmDialog<'create' | 'cancel'>({
     title: 'Create assets folder?',
@@ -76,9 +80,10 @@ export async function confirmAssetsDir(
   });
 
   if (choice !== 'create') {
-    state.assetsDirCreationDeclined = true;
+    state.assetsDirDeclinedFor = info.dir;
     return null;
   }
 
+  state.assetsDirConfirmedFor = info.dir;
   return info.dir;
 }

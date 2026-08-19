@@ -94,24 +94,33 @@ describe('#14 — an image in a document that was never saved', () => {
     vi.mocked(showConfirmDialog).mockReset();
   });
 
-  it('touches nothing on disk at insert time, however the user answers', async () => {
-    vi.mocked(showConfirmDialog).mockResolvedValue('create');
-    await pasteIntoFreshDocument(new AppState());
-
-    expect(calls.filter((c) => c.startsWith('mkdir'))).toEqual([]);
-    expect(calls.filter((c) => c.startsWith('writeBinary'))).toEqual([]);
-    expect(calls.filter((c) => c.startsWith('saveFile'))).toEqual([]);
-  });
-
-  it('leaves no assets/ behind when the document is discarded', async () => {
+  it('touches nothing on disk from insert through discard', async () => {
     vi.mocked(showConfirmDialog).mockResolvedValue('create');
     const state = new AppState();
-    await pasteIntoFreshDocument(state);
 
-    // Discard: the document is dropped without ever being saved.
+    await pasteIntoFreshDocument(state);
+    // Discard: the document is dropped without ever being saved. Folded
+    // into one test on purpose — asserted separately, the post-discard
+    // half could only repeat an assertion that already held, which is a
+    // green tick standing in for coverage it does not have.
     clearImages();
     state.resetDocument();
 
+    expect(calls).toEqual([]);
+  });
+
+  it('asks once however many images go in before the first save', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    const state = new AppState();
+
+    await pasteIntoFreshDocument(state);
+    await pasteIntoFreshDocument(state);
+    await pasteIntoFreshDocument(state);
+
+    // The folder is not created until the save, so the third insert
+    // still finds it absent — the consent has to be remembered.
+    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+    expect(getAllImages()).toHaveLength(3);
     expect(calls).toEqual([]);
   });
 

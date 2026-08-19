@@ -29,13 +29,15 @@ describe('AppState', () => {
     state.filePath = '/tmp/x.md';
     state.frontmatter = 'title: x';
     state.isFirstSave = false;
-    state.assetsDirCreationDeclined = true;
+    state.assetsDirConfirmedFor = '/tmp/assets';
+    state.assetsDirDeclinedFor = '/other/assets';
 
     state.resetDocument();
     expect(state.filePath).toBeNull();
     expect(state.frontmatter).toBeNull();
     expect(state.isFirstSave).toBe(true);
-    expect(state.assetsDirCreationDeclined).toBe(false);
+    expect(state.assetsDirConfirmedFor).toBeNull();
+    expect(state.assetsDirDeclinedFor).toBeNull();
   });
 
   it('starts with spellcheckEnabled=false', () => {

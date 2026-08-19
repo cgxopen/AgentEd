@@ -20,7 +20,7 @@ export interface SaveResult {
    * nothing to write or everything was written. The `.md` itself is on
    * disk either way — a failure here never means the document was lost.
    */
-  readonly assetsError: unknown | null;
+  readonly assetsError: unknown;
 }
 
 /**

@@ -18,11 +18,20 @@ export class AppState {
   isFirstSave = true;
   isSaving = false;
   /**
-   * Sticky for the current document session: once the user cancels the
-   * "Create assets/?" dialog on first image paste, subsequent pastes in
-   * this session won't reopen it. Cleared on Close / New / open.
+   * The user's answer to the "Create assets/?" dialog, remembered per
+   * folder rather than per session, and asked once (#14, #45).
+   *
+   * Keyed by directory because the folder is no longer created at the
+   * moment it is agreed to: without the creation to make the second
+   * insert find `exists: true`, a boolean would re-open the dialog for
+   * every image pasted before the first save. Keying on the path also
+   * gives the honest answer after a Save As into a different folder —
+   * that is a different folder to consent to, so it is asked about.
+   *
+   * Both are cleared on Close / New / open.
    */
-  assetsDirCreationDeclined = false;
+  assetsDirConfirmedFor: string | null = null;
+  assetsDirDeclinedFor: string | null = null;
 
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
@@ -114,7 +123,8 @@ export class AppState {
     this.filePath = null;
     this.frontmatter = null;
     this.isFirstSave = true;
-    this.assetsDirCreationDeclined = false;
+    this.assetsDirConfirmedFor = null;
+    this.assetsDirDeclinedFor = null;
     // Bumping the generation invalidates any in-flight detector so the
     // next document doesn't briefly inherit the previous cluster.
     this._clusterScanGeneration += 1;

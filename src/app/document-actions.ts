@@ -101,12 +101,22 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     }
 
     ctx.state.isFirstSave = false;
-    ctx.state.setModified(false);
 
-    // The .md is on disk; only its images failed. The save stands — we
-    // never un-write a document — but the user has to hear that the
-    // references now point at files that are not there (#14).
-    if (result.assetsError) await reportAssetsFailure(result.assetsError);
+    if (result.assetsError) {
+      // The .md is on disk; its images are not. The save stands — we
+      // never un-write a document — but the document stays **modified**,
+      // because that is the accurate statement: not all of it reached
+      // the disk. A clipboard image exists only in the in-memory
+      // registry, so clearing the flag here would leave nothing between
+      // the user and closing the app on top of it. Keeping it on puts
+      // the existing unsaved-changes gate back in front of that loss
+      // (R-C3/Q4) and gives the retry the modal promises somewhere to
+      // land: Ctrl+S tries again, and discarding stays a knowing act.
+      ctx.state.setModified(true);
+      await reportAssetsFailure(result.assetsError);
+    } else {
+      ctx.state.setModified(false);
+    }
 
     if (ctx.state.filePath) {
       const folder = dirname(ctx.state.filePath);
