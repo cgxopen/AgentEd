@@ -131,11 +131,17 @@ export async function handleImageFile(
   if (!assetsDir) {
     // A cancellation, because that is what it is today: the user just
     // declined the folder for this image, and nothing is remembered
-    // about it (#66). Two other causes reach this same null and are
-    // *not* cancellations — a consent that outlived its document (#51)
-    // and a web build that never asks (#46). Neither is fixed here; both
-    // become a new outcome kind on this contract, which the app layer
-    // then has to word before it compiles.
+    // about it (#66). Since #68 this kind also ends the gesture it
+    // belongs to — the files behind this one are not asked again.
+    //
+    // Two other causes reach this same null and are *not* cancellations
+    // — a consent that outlived its document (#51) and a web build that
+    // never asks (#46) — and they now cost a whole gesture rather than
+    // one image, which raises what they are worth without changing what
+    // they are. Neither is fixed here; both become a new outcome kind on
+    // this contract, which the app layer has to word before it compiles.
+    // The third false cancellation, a dialog guard answering null under
+    // a concurrent insert, is gone: the gesture is sequenced (#68).
     report({ kind: 'cancelled', at: 'assets-folder' });
     return;
   }
@@ -204,13 +210,87 @@ function getImagesFromDataTransfer(dataTransfer: DataTransfer): File[] {
 }
 
 /**
- * One report per file, for a drop or paste carrying several of them.
+ * Insert every image of one gesture, one after another (#68).
  *
- * Deliberate, and deliberately unchanged: today three oversized files
- * produce three messages, and #61 is a structural change that must move
- * nothing the user sees. Batching them into one is now a change in a
- * single app-layer function rather than in this loop — which is the point
- * of the contract, not a licence to use it here.
+ * **Sequenced, not concurrent.** The loop this replaces fired one
+ * `void handleImageFile(...)` per file, so every image of a paste reached
+ * the `assets/` question in the same tick — and `showConfirmDialog`
+ * refuses a second dialog while one is open, answering `null`. That
+ * `null` is indistinguishable from a user pressing Cancel, so a paste
+ * carrying three images kept the first and dropped two, silently,
+ * whichever button the user pressed. Awaiting each insert is the whole
+ * fix: the first file settles the destination and the folder consent,
+ * and the rest find both already answered (R-C5, once per folder).
+ *
+ * With the gesture sequenced, no two inserts of it are ever in flight at
+ * once, so nothing on this path meets that guard any more — and no new
+ * outcome kind is needed to tell its `null` from a user's Cancel. A
+ * second gesture cannot start under the dialog either: the overlay is
+ * fixed over the whole viewport and takes the focus, so the menu that
+ * reaches Insert Media is beneath it and neither a paste nor a drop is
+ * delivered to the editor while it is open.
+ *
+ * Sequencing also settles three things the concurrent loop left to
+ * chance: the images land in the order the gesture carried them, the
+ * destination picker opens at most once per gesture rather than once per
+ * file, and the same picture twice in one gesture is recognised as the
+ * copy it is (#52) — the second insert now runs after the first has
+ * registered.
+ *
+ * **A cancellation ends the gesture; a refusal does not.** They are
+ * already different kinds on the #61 contract, and that is exactly the
+ * distinction this loop needs: a user who declines the `assets/` folder
+ * declined it for this paste, so the files behind it are not asked again
+ * — they are not attempted at all, which is why they report nothing and
+ * say nothing. A refusal the *application* made concerns one file, so a
+ * gesture of three images with one over the size cap still lands two and
+ * warns once.
+ *
+ * The outcome is read off the same channel the app layer reads rather
+ * than returned beside it: `handleImageFile` pushes precisely because a
+ * returned value dies at a `void` call (#61), and a second way out kept
+ * only for this loop is a second thing to keep in step.
+ */
+export async function insertImageGesture(
+  files: readonly File[],
+  editor: Editor,
+  getFilePath: GetFilePath,
+  requestSaveAs: RequestSaveAs,
+  confirmAssetsDir: ConfirmAssetsDir,
+  origin: ImageOrigin,
+  report: ReportImageInsert,
+): Promise<void> {
+  let cancelled = false;
+  const watch: ReportImageInsert = (outcome) => {
+    if (outcome.kind === 'cancelled') cancelled = true;
+    report(outcome);
+  };
+
+  for (const file of files) {
+    await handleImageFile(
+      file,
+      editor,
+      getFilePath,
+      requestSaveAs,
+      confirmAssetsDir,
+      origin,
+      watch,
+    );
+    if (cancelled) return;
+  }
+}
+
+/**
+ * Drop and paste — the two routes that can carry several images at once.
+ *
+ * Both hand the gesture over whole and return synchronously: ProseMirror
+ * needs the boolean now, and the inserts run after it. The list is taken
+ * from the event before any `await`, because `dataTransfer` does not
+ * survive the tick the event was dispatched in.
+ *
+ * One report per file stays deliberate: three oversized files still
+ * produce three messages. Batching them into one is a change in a single
+ * app-layer function (#61), not in this loop.
  */
 export function createImageDropPlugin(
   editor: Editor,
@@ -227,18 +307,16 @@ export function createImageDropPlugin(
         const images = getImagesFromDataTransfer(event.dataTransfer);
         if (images.length === 0) return false;
         event.preventDefault();
-        for (const file of images) {
-          // A dropped file brings its own name (R-C5).
-          void handleImageFile(
-            file,
-            editor,
-            getFilePath,
-            requestSaveAs,
-            confirmAssetsDir,
-            'file',
-            report,
-          ).catch(console.error);
-        }
+        // A dropped file brings its own name (R-C5).
+        void insertImageGesture(
+          images,
+          editor,
+          getFilePath,
+          requestSaveAs,
+          confirmAssetsDir,
+          'file',
+          report,
+        ).catch(console.error);
         return true;
       },
       handlePaste(_view: EditorView, event: ClipboardEvent) {
@@ -246,17 +324,15 @@ export function createImageDropPlugin(
         const images = getImagesFromDataTransfer(event.clipboardData);
         if (images.length === 0) return false;
         event.preventDefault();
-        for (const file of images) {
-          void handleImageFile(
-            file,
-            editor,
-            getFilePath,
-            requestSaveAs,
-            confirmAssetsDir,
-            'clipboard',
-            report,
-          ).catch(console.error);
-        }
+        void insertImageGesture(
+          images,
+          editor,
+          getFilePath,
+          requestSaveAs,
+          confirmAssetsDir,
+          'clipboard',
+          report,
+        ).catch(console.error);
         return true;
       },
     },
