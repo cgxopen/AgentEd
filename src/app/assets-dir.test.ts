@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlatformIO } from '../platform/types';
-import { resolveAssetsDir } from './assets-dir';
+import { showConfirmDialog } from '../ui/confirm-dialog';
+import { confirmAssetsDir, resolveAssetsDir } from './assets-dir';
+import { AppState } from './state';
+
+vi.mock('../ui/confirm-dialog', () => ({ showConfirmDialog: vi.fn() }));
+
+/** Every mkdir the code under test asked for, in order. */
+let mkdirCalls: string[] = [];
 
 function mockIO(existsPredicate: (path: string) => boolean): PlatformIO {
   return {
@@ -15,7 +22,9 @@ function mockIO(existsPredicate: (path: string) => boolean): PlatformIO {
     writeBinary: async () => {},
     exists: async (p: string) => existsPredicate(p),
     listDir: async () => [],
-    mkdir: async () => {},
+    mkdir: async (p: string) => {
+      mkdirCalls.push(p);
+    },
     remove: async () => {},
     openWithSystem: async () => {},
   };
@@ -70,5 +79,124 @@ describe('resolveAssetsDir', () => {
       mockIO(() => false),
     );
     expect(info).toBeNull();
+  });
+});
+
+/**
+ * The consent stays at insert time; the folder does not (#14). These pin
+ * both halves of that split — the prompt still runs and still cancels the
+ * insert, and nothing reaches the filesystem here.
+ */
+describe('confirmAssetsDir — asks now, creates never (#14)', () => {
+  beforeEach(() => {
+    mkdirCalls = [];
+    vi.mocked(showConfirmDialog).mockReset();
+  });
+
+  it('asks before an assets/ folder that does not exist, and creates nothing', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    const state = new AppState();
+
+    const dir = await confirmAssetsDir(
+      '/proj/notes.md',
+      mockIO(() => false),
+      state,
+    );
+
+    expect(dir).toBe('/proj/assets');
+    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+    expect(mkdirCalls).toEqual([]);
+  });
+
+  it('cancelling refuses the folder, so the caller drops the insert', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('cancel');
+    const state = new AppState();
+
+    expect(
+      await confirmAssetsDir(
+        '/proj/notes.md',
+        mockIO(() => false),
+        state,
+      ),
+    ).toBeNull();
+    expect(mkdirCalls).toEqual([]);
+    expect(state.assetsDirDeclinedFor).toBe('/proj/assets');
+  });
+
+  it('does not ask twice after a refusal in the same document session', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('cancel');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    await confirmAssetsDir('/proj/notes.md', io, state);
+    await confirmAssetsDir('/proj/notes.md', io, state);
+
+    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask twice after acceptance — one dialog, however many images', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    // Three screenshots pasted into a document that has not been saved
+    // yet. The folder still does not exist on the third insert, so the
+    // consent has to be remembered rather than inferred from the disk.
+    const dirs = [
+      await confirmAssetsDir('/proj/notes.md', io, state),
+      await confirmAssetsDir('/proj/notes.md', io, state),
+      await confirmAssetsDir('/proj/notes.md', io, state),
+    ];
+
+    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+    expect(dirs).toEqual(['/proj/assets', '/proj/assets', '/proj/assets']);
+    expect(mkdirCalls).toEqual([]);
+  });
+
+  it('asks again when Save As moves the document to a folder never agreed to', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    await confirmAssetsDir('/proj/notes.md', io, state);
+    expect(await confirmAssetsDir('/elsewhere/notes.md', io, state)).toBe('/elsewhere/assets');
+
+    expect(showConfirmDialog).toHaveBeenCalledTimes(2);
+  });
+
+  it('a refusal does not carry over to a different folder either', async () => {
+    vi.mocked(showConfirmDialog).mockResolvedValueOnce('cancel').mockResolvedValueOnce('create');
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    expect(await confirmAssetsDir('/proj/notes.md', io, state)).toBeNull();
+    expect(await confirmAssetsDir('/elsewhere/notes.md', io, state)).toBe('/elsewhere/assets');
+  });
+
+  it('reuses an existing assets/ silently — no prompt, no warning (R-C5)', async () => {
+    const state = new AppState();
+
+    const dir = await confirmAssetsDir(
+      '/proj/notes.md',
+      mockIO((p) => p === '/proj/assets'),
+      state,
+    );
+
+    expect(dir).toBe('/proj/assets');
+    expect(showConfirmDialog).not.toHaveBeenCalled();
+    expect(mkdirCalls).toEqual([]);
+  });
+
+  it('refuses an unusable path without asking anything', async () => {
+    const state = new AppState();
+
+    expect(
+      await confirmAssetsDir(
+        'notes.md',
+        mockIO(() => false),
+        state,
+      ),
+    ).toBeNull();
+    expect(showConfirmDialog).not.toHaveBeenCalled();
   });
 });

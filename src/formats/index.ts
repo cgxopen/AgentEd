@@ -1,8 +1,9 @@
 import type { PlatformIO } from '../platform/types';
-import { loadMarkdown, saveMarkdown } from './plain';
+import { loadMarkdown, type SaveResult, saveMarkdown } from './plain';
 import type { DocumentBundle } from './types';
 
 export { assembleMarkdown, splitFrontmatter } from './frontmatter';
+export type { SaveResult } from './plain';
 export type { DocumentBundle, DocumentImage } from './types';
 
 /**
@@ -13,6 +14,6 @@ export async function loadDocument(path: string, io: PlatformIO): Promise<Docume
   return loadMarkdown(path, io);
 }
 
-export async function saveDocument(bundle: DocumentBundle, io: PlatformIO): Promise<void> {
+export async function saveDocument(bundle: DocumentBundle, io: PlatformIO): Promise<SaveResult> {
   return saveMarkdown(bundle, io);
 }

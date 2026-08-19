@@ -35,16 +35,26 @@ export async function resolveAssetsDir(
 }
 
 /**
- * Resolve the assets/ directory for the current document, prompting the
- * user to create it if missing. Returns the directory path on success or
- * `null` if the user cancelled or the path is unusable.
+ * Resolve the assets/ directory for the current document, asking the user
+ * to agree to creating it if it is missing. Returns the directory path
+ * once the user has agreed (or it already exists), and `null` if the user
+ * declined or the path is unusable.
  *
- * The user's "Cancel" choice is sticky for the current document session
- * (`state.assetsDirCreationDeclined`); subsequent paste attempts within
- * the same session are silently dropped. Closing or opening another
- * document clears the flag.
+ * **Nothing is created here (#14).** The folder is created by the save
+ * flow, next to the write it guards, so that inserting an image into a
+ * document that never reaches disk leaves nothing behind — "never claims
+ * ownership of your folders" (R-C5) read strictly. What stays here is the
+ * *consent*: asking at insert time, before the user has committed to the
+ * image, is a far better moment than asking mid-save.
+ *
+ * The answer is remembered per folder, so the question is asked once
+ * however many images the user inserts before saving — and asked again
+ * only if a Save As moves the document somewhere new, which is a folder
+ * the user has not agreed to yet. A refusal is equally sticky: further
+ * inserts into that folder are silently dropped. Closing or opening
+ * another document clears both.
  */
-export async function ensureAssetsDir(
+export async function confirmAssetsDir(
   filePath: string,
   io: PlatformIO,
   state: AppState,
@@ -53,29 +63,27 @@ export async function ensureAssetsDir(
   if (!info) return null;
   if (info.exists) return info.dir;
 
-  if (state.assetsDirCreationDeclined) return null;
+  // Already settled for this folder — do not ask a second time.
+  if (state.assetsDirConfirmedFor === info.dir) return info.dir;
+  if (state.assetsDirDeclinedFor === info.dir) return null;
 
   const choice = await showConfirmDialog<'create' | 'cancel'>({
     title: 'Create assets folder?',
     message:
-      'AgentEd needs an assets/ folder next to this file to save pasted images. Create it now?',
+      'AgentEd needs an assets/ folder next to this file to save pasted images. ' +
+      'It will be created when you save the document. Continue?',
     actions: [
       { label: 'Cancel', value: 'cancel' },
-      { label: 'Create', value: 'create', variant: 'primary' },
+      { label: 'Continue', value: 'create', variant: 'primary' },
     ],
     defaultAction: 'create',
   });
 
   if (choice !== 'create') {
-    state.assetsDirCreationDeclined = true;
+    state.assetsDirDeclinedFor = info.dir;
     return null;
   }
 
-  try {
-    await io.mkdir(info.dir);
-    return info.dir;
-  } catch (e) {
-    console.error('[assets-dir] mkdir failed:', e);
-    return null;
-  }
+  state.assetsDirConfirmedFor = info.dir;
+  return info.dir;
 }

@@ -107,6 +107,96 @@ describe('saveMarkdown — images', () => {
     expect(io.binaries.has('/docs/assets/shot.png')).toBe(true);
   });
 
+  it('creates assets/ here and nowhere else — the folder appears on save (#14)', async () => {
+    const io = stubIO({});
+    expect(io.dirs).toEqual([]);
+    await saveMarkdown(
+      {
+        frontmatterRaw: null,
+        markdownBody: '![shot](assets/shot.png)\n',
+        images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
+        rootPath: '/docs/notes.md',
+      },
+      io,
+    );
+    expect(io.dirs).toEqual(['/docs/assets']);
+  });
+
+  /**
+   * The deliberate outcome for #14: the document is written first and is
+   * never rolled back for the sake of its images. A failure to create the
+   * folder is reported to the caller, not thrown — the .md is already on
+   * disk and AgentEd does not un-write or delete files.
+   */
+  it('keeps the saved document when the assets folder cannot be created', async () => {
+    const io = stubIO({});
+    io.mkdir = async () => {
+      throw new Error('EACCES: permission denied');
+    };
+
+    const result = await saveMarkdown(
+      {
+        frontmatterRaw: null,
+        markdownBody: '# Notes\n\n![shot](assets/shot.png)\n',
+        images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
+        rootPath: '/docs/notes.md',
+      },
+      io,
+    );
+
+    expect(io.written.get('/docs/notes.md')).toBe('# Notes\n\n![shot](assets/shot.png)\n');
+    expect(io.binaries.size).toBe(0);
+    expect((result.assetsError as Error).message).toContain('EACCES');
+  });
+
+  it('reports a failed image write the same way, without losing the document', async () => {
+    const io = stubIO({});
+    io.writeBinary = async () => {
+      throw new Error('ENOSPC: no space left on device');
+    };
+
+    const result = await saveMarkdown(
+      {
+        frontmatterRaw: null,
+        markdownBody: '![shot](assets/shot.png)\n',
+        images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
+        rootPath: '/docs/notes.md',
+      },
+      io,
+    );
+
+    expect(io.written.has('/docs/notes.md')).toBe(true);
+    expect((result.assetsError as Error).message).toContain('ENOSPC');
+  });
+
+  it('still throws when the document itself cannot be written — that save did not happen', async () => {
+    const io = stubIO({});
+    io.saveFile = async () => {
+      throw new Error('EACCES: permission denied');
+    };
+
+    await expect(
+      saveMarkdown(
+        { frontmatterRaw: null, markdownBody: '# Notes\n', images: [], rootPath: '/docs/notes.md' },
+        io,
+      ),
+    ).rejects.toThrow('EACCES');
+  });
+
+  it('reports no error when everything lands', async () => {
+    const io = stubIO({});
+    const result = await saveMarkdown(
+      {
+        frontmatterRaw: null,
+        markdownBody: '![shot](assets/shot.png)\n',
+        images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
+        rootPath: '/docs/notes.md',
+      },
+      io,
+    );
+    expect(result.assetsError).toBeNull();
+  });
+
   it('ignores images registered outside assets/ — never scribbles on user paths', async () => {
     const io = stubIO({});
     await saveMarkdown(

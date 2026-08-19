@@ -29,12 +29,12 @@ export interface EditorInstance {
 function buildExtensions(
   getFilePath: () => string | null,
   requestSaveAs: () => Promise<string | null>,
-  ensureAssetsDir: () => Promise<string | null>,
+  confirmAssetsDir: () => Promise<string | null>,
 ): AnyExtension[] {
   const ImageDrop = Extension.create({
     name: 'imageDrop',
     addProseMirrorPlugins() {
-      return [createImageDropPlugin(this.editor, getFilePath, requestSaveAs, ensureAssetsDir)];
+      return [createImageDropPlugin(this.editor, getFilePath, requestSaveAs, confirmAssetsDir)];
     },
   });
 
@@ -97,12 +97,12 @@ export function createEditor(
   onChange?: () => void,
   getFilePath?: () => string | null,
   requestSaveAs?: () => Promise<string | null>,
-  ensureAssetsDir?: () => Promise<string | null>,
+  confirmAssetsDir?: () => Promise<string | null>,
 ): EditorInstance {
   const extensions = buildExtensions(
     getFilePath ?? (() => null),
     requestSaveAs ?? (() => Promise.resolve(null)),
-    ensureAssetsDir ?? (() => Promise.resolve('assets')),
+    confirmAssetsDir ?? (() => Promise.resolve('assets')),
   );
 
   const editor = new Editor({

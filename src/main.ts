@@ -1,4 +1,4 @@
-import { ensureAssetsDir } from './app/assets-dir';
+import { confirmAssetsDir } from './app/assets-dir';
 import { scheduleClusterDetection } from './app/bundle';
 import { installCloseGuard } from './app/close-guard';
 import { createContext } from './app/context';
@@ -66,7 +66,7 @@ const { editor, getMarkdown, setMarkdown } = createEditor(
     const path = ctx.state.filePath;
     if (!path) return null;
     const io = await getPlatformIO();
-    return ensureAssetsDir(path, io, ctx.state);
+    return confirmAssetsDir(path, io, ctx.state);
   },
 );
 ctx.editor = editor;
