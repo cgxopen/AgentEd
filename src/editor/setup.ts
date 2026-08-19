@@ -11,7 +11,13 @@ import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
 import type { Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
-import { createImageDropPlugin, type OnImageInserted } from './image-handler';
+import {
+  type ConfirmAssetsDir,
+  createImageDropPlugin,
+  type GetFilePath,
+  type RequestSaveAs,
+} from './image-handler';
+import type { ReportImageInsert } from './image-insert-outcome';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { OrderedListContinuity } from './ordered-list-continuity';
@@ -26,22 +32,33 @@ export interface EditorInstance {
   destroy: () => void;
 }
 
-function buildExtensions(
-  getFilePath: () => string | null,
-  requestSaveAs: () => Promise<string | null>,
-  confirmAssetsDir: () => Promise<string | null>,
-  onImageInserted: OnImageInserted,
-): AnyExtension[] {
+/**
+ * Everything an editor needs to accept an image (R-C5). Kept together
+ * because they are not independently useful: a surface that can ask for
+ * a destination but has nowhere to report the outcome is exactly the
+ * half-wired caller #61 exists to make impossible. An editor built
+ * without this handles no image drops or pastes at all.
+ */
+export interface ImageInsertWiring {
+  readonly getFilePath: GetFilePath;
+  readonly requestSaveAs: RequestSaveAs;
+  readonly confirmAssetsDir: ConfirmAssetsDir;
+  /** How every insert — landed, cancelled or refused — is reported (#61). */
+  readonly report: ReportImageInsert;
+}
+
+function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] {
   const ImageDrop = Extension.create({
     name: 'imageDrop',
     addProseMirrorPlugins() {
+      if (!images) return [];
       return [
         createImageDropPlugin(
           this.editor,
-          getFilePath,
-          requestSaveAs,
-          confirmAssetsDir,
-          onImageInserted,
+          images.getFilePath,
+          images.requestSaveAs,
+          images.confirmAssetsDir,
+          images.report,
         ),
       ];
     },
@@ -104,17 +121,9 @@ function buildExtensions(
 export function createEditor(
   element: HTMLElement,
   onChange?: () => void,
-  getFilePath?: () => string | null,
-  requestSaveAs?: () => Promise<string | null>,
-  confirmAssetsDir?: () => Promise<string | null>,
-  onImageInserted?: OnImageInserted,
+  images?: ImageInsertWiring,
 ): EditorInstance {
-  const extensions = buildExtensions(
-    getFilePath ?? (() => null),
-    requestSaveAs ?? (() => Promise.resolve(null)),
-    confirmAssetsDir ?? (() => Promise.resolve('assets')),
-    onImageInserted ?? (() => {}),
-  );
+  const extensions = buildExtensions(images);
 
   const editor = new Editor({
     element,

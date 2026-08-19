@@ -3,6 +3,7 @@ import { saveMarkdown } from '../formats/plain';
 import type { DocumentImage } from '../formats/types';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
 import { handleImageFile } from './image-handler';
+import type { ImageInsertOutcome } from './image-insert-outcome';
 import { clearImages, getAllImages, registerImage } from './image-registry';
 import { createEditor, type EditorInstance } from './setup';
 
@@ -29,6 +30,7 @@ vi.mock('../platform/index', () => ({
 }));
 
 let instance: EditorInstance;
+let outcomes: ImageInsertOutcome[] = [];
 
 /** Distinct bytes per seed — two images are identical iff their seeds match. */
 function bytesFor(seed: number, length = 64): Uint8Array {
@@ -53,6 +55,9 @@ async function insert(name: string, seed: number, origin: 'clipboard' | 'file' =
     async () => '/doc/notes.md',
     async () => '/doc/assets',
     origin,
+    // The dedup tests are about what lands in assets/, not about what is
+    // said; the outcome is recorded so nothing is dropped (#61).
+    (outcome) => outcomes.push(outcome),
   );
 }
 
@@ -74,6 +79,7 @@ function markdownImagePaths(): string[] {
 
 beforeEach(() => {
   filesOnDisk = new Map();
+  outcomes = [];
   clearImages();
   const host = document.createElement('div');
   document.body.appendChild(host);
