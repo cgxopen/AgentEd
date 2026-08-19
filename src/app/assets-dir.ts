@@ -47,12 +47,18 @@ export async function resolveAssetsDir(
  * *consent*: asking at insert time, before the user has committed to the
  * image, is a far better moment than asking mid-save.
  *
- * The answer is remembered per folder, so the question is asked once
- * however many images the user inserts before saving — and asked again
- * only if a Save As moves the document somewhere new, which is a folder
- * the user has not agreed to yet. A refusal is equally sticky: further
- * inserts into that folder are silently dropped. Closing or opening
- * another document clears both.
+ * An **agreement** is remembered per folder, so the question is asked
+ * once however many images the user inserts before saving — and asked
+ * again only if a Save As moves the document somewhere new, which is a
+ * folder the user has not agreed to yet. Closing or opening another
+ * document clears it.
+ *
+ * A **refusal is not remembered** (#66). It cancels the image it was
+ * asked about, and the next insert asks again — exactly like cancelling
+ * the destination picker one gesture earlier. The asymmetry is
+ * deliberate: remembering a yes spares the user a repeated dialog, while
+ * remembering a no silently disabled images for the rest of the
+ * document, with no way to change the answer.
  */
 export async function confirmAssetsDir(
   filePath: string,
@@ -63,9 +69,8 @@ export async function confirmAssetsDir(
   if (!info) return null;
   if (info.exists) return info.dir;
 
-  // Already settled for this folder — do not ask a second time.
+  // Already agreed for this folder — do not ask a second time.
   if (state.assetsDirConfirmedFor === info.dir) return info.dir;
-  if (state.assetsDirDeclinedFor === info.dir) return null;
 
   const choice = await showConfirmDialog<'create' | 'cancel'>({
     title: 'Create assets folder?',
@@ -79,10 +84,9 @@ export async function confirmAssetsDir(
     defaultAction: 'create',
   });
 
-  if (choice !== 'create') {
-    state.assetsDirDeclinedFor = info.dir;
-    return null;
-  }
+  // Nothing is recorded on a refusal: this image is cancelled, the next
+  // one asks again (#66).
+  if (choice !== 'create') return null;
 
   state.assetsDirConfirmedFor = info.dir;
   return info.dir;

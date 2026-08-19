@@ -120,10 +120,11 @@ describe('confirmAssetsDir — asks now, creates never (#14)', () => {
       ),
     ).toBeNull();
     expect(mkdirCalls).toEqual([]);
-    expect(state.assetsDirDeclinedFor).toBe('/proj/assets');
+    // Nothing is remembered about a refusal (#66).
+    expect(state.assetsDirConfirmedFor).toBeNull();
   });
 
-  it('does not ask twice after a refusal in the same document session', async () => {
+  it('asks again after a refusal — cancel means "not this image" (#66)', async () => {
     vi.mocked(showConfirmDialog).mockResolvedValue('cancel');
     const state = new AppState();
     const io = mockIO(() => false);
@@ -131,7 +132,23 @@ describe('confirmAssetsDir — asks now, creates never (#14)', () => {
     await confirmAssetsDir('/proj/notes.md', io, state);
     await confirmAssetsDir('/proj/notes.md', io, state);
 
-    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+    expect(showConfirmDialog).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts on a later attempt after a refusal, with no residue in between', async () => {
+    const state = new AppState();
+    const io = mockIO(() => false);
+
+    vi.mocked(showConfirmDialog).mockResolvedValueOnce('cancel');
+    expect(await confirmAssetsDir('/proj/notes.md', io, state)).toBeNull();
+
+    vi.mocked(showConfirmDialog).mockResolvedValueOnce('create');
+    expect(await confirmAssetsDir('/proj/notes.md', io, state)).toBe('/proj/assets');
+
+    // And the agreement is sticky from there, as it always was (R-C5).
+    expect(await confirmAssetsDir('/proj/notes.md', io, state)).toBe('/proj/assets');
+    expect(showConfirmDialog).toHaveBeenCalledTimes(2);
+    expect(mkdirCalls).toEqual([]);
   });
 
   it('does not ask twice after acceptance — one dialog, however many images', async () => {
