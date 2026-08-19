@@ -33,6 +33,16 @@ export class AppState {
   assetsDirConfirmedFor: string | null = null;
   assetsDirDeclinedFor: string | null = null;
 
+  /**
+   * Whether this document has already been told that naming a
+   * destination is not a save (#48). The cue explains the silence that
+   * follows the first insert into a document with no file on disk;
+   * repeating it for every pasted image would be noise, so it is shown
+   * once per document and cleared in `resetDocument()` alongside the
+   * assets/ answers, which it belongs with.
+   */
+  destinationCueShown = false;
+
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
   /**
@@ -125,6 +135,7 @@ export class AppState {
     this.isFirstSave = true;
     this.assetsDirConfirmedFor = null;
     this.assetsDirDeclinedFor = null;
+    this.destinationCueShown = false;
     // Bumping the generation invalidates any in-flight detector so the
     // next document doesn't briefly inherit the previous cluster.
     this._clusterScanGeneration += 1;

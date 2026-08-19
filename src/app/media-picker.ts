@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core';
-import { handleImageFile } from '../editor/image-handler';
+import { handleImageFile, type OnImageInserted } from '../editor/image-handler';
 import { getPlatformIO } from '../platform/index';
 import { basename } from '../platform/paths';
 import { confirmAssetsDir } from './assets-dir';
@@ -25,6 +25,8 @@ export interface MediaPickerDeps {
   editor: Editor;
   requestSaveAs: () => Promise<string | null>;
   reporter: ErrorReporter;
+  /** Raised after the image lands in the document (#48). */
+  onImageInserted: OnImageInserted;
 }
 
 /**
@@ -33,7 +35,7 @@ export interface MediaPickerDeps {
  * insertion flow (`handleImageFile`) which also services drag/paste.
  */
 export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
-  const { state, editor, requestSaveAs, reporter } = deps;
+  const { state, editor, requestSaveAs, reporter, onImageInserted } = deps;
 
   const io = await getPlatformIO();
   let pickedPath: string | null = null;
@@ -64,6 +66,7 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
       },
       // The picked file carries the name the user knows it by (R-C5).
       'file',
+      onImageInserted,
     );
   } catch (e) {
     await reporter.dialog(`Failed to insert image: ${pickedPath}`, e);

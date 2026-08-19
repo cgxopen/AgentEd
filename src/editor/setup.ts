@@ -11,7 +11,7 @@ import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
 import type { Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
-import { createImageDropPlugin } from './image-handler';
+import { createImageDropPlugin, type OnImageInserted } from './image-handler';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { OrderedListContinuity } from './ordered-list-continuity';
@@ -30,11 +30,20 @@ function buildExtensions(
   getFilePath: () => string | null,
   requestSaveAs: () => Promise<string | null>,
   confirmAssetsDir: () => Promise<string | null>,
+  onImageInserted: OnImageInserted,
 ): AnyExtension[] {
   const ImageDrop = Extension.create({
     name: 'imageDrop',
     addProseMirrorPlugins() {
-      return [createImageDropPlugin(this.editor, getFilePath, requestSaveAs, confirmAssetsDir)];
+      return [
+        createImageDropPlugin(
+          this.editor,
+          getFilePath,
+          requestSaveAs,
+          confirmAssetsDir,
+          onImageInserted,
+        ),
+      ];
     },
   });
 
@@ -98,11 +107,13 @@ export function createEditor(
   getFilePath?: () => string | null,
   requestSaveAs?: () => Promise<string | null>,
   confirmAssetsDir?: () => Promise<string | null>,
+  onImageInserted?: OnImageInserted,
 ): EditorInstance {
   const extensions = buildExtensions(
     getFilePath ?? (() => null),
     requestSaveAs ?? (() => Promise.resolve(null)),
     confirmAssetsDir ?? (() => Promise.resolve('assets')),
+    onImageInserted ?? (() => {}),
   );
 
   const editor = new Editor({

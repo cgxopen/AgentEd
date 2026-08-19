@@ -19,6 +19,15 @@ export type RequestSaveAs = () => Promise<string | null>;
  */
 export type ConfirmAssetsDir = () => Promise<string | null>;
 
+/**
+ * Called once the image is in the document — the insert's only success
+ * signal, and the moment nothing has been written yet (#48). A cancelled
+ * insert, at either dialog, never reaches it. What to say about that is
+ * the app layer's business (`src/app/destination-cue.ts`); this module
+ * only reports that it happened.
+ */
+export type OnImageInserted = () => void;
+
 // Reject paste/drop of images past this size to prevent OOM. file.arrayBuffer()
 // allocates the whole buffer up front, and the registry then keeps a copy alive
 // as a Blob, so peak usage is ~2× the file size. 25 MB covers normal screenshots
@@ -56,6 +65,7 @@ export async function handleImageFile(
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
   origin: ImageOrigin,
+  onInserted: OnImageInserted = () => {},
 ): Promise<void> {
   if (file.size > MAX_IMAGE_SIZE) {
     const sizeMb = Math.round(file.size / 1024 / 1024);
@@ -103,6 +113,11 @@ export async function handleImageFile(
   registerImage(displayUrl, { relativePath, data, filename: file.name });
 
   editor.chain().focus().setImage({ src: displayUrl, alt: file.name }).run();
+
+  // The image is in the document and nothing is on disk. Notify last, so
+  // no cue is raised for an insert that bailed out above — and after the
+  // assets/ dialog rather than under it.
+  onInserted();
 }
 
 function getImagesFromDataTransfer(dataTransfer: DataTransfer): File[] {
@@ -119,6 +134,7 @@ export function createImageDropPlugin(
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
+  onInserted: OnImageInserted = () => {},
 ): Plugin {
   return new Plugin({
     key: new PluginKey('imageDropHandler'),
@@ -137,6 +153,7 @@ export function createImageDropPlugin(
             requestSaveAs,
             confirmAssetsDir,
             'file',
+            onInserted,
           ).catch(console.error);
         }
         return true;
@@ -154,6 +171,7 @@ export function createImageDropPlugin(
             requestSaveAs,
             confirmAssetsDir,
             'clipboard',
+            onInserted,
           ).catch(console.error);
         }
         return true;
