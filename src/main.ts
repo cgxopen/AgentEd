@@ -2,6 +2,7 @@ import { confirmAssetsDir } from './app/assets-dir';
 import { scheduleClusterDetection } from './app/bundle';
 import { installCloseGuard } from './app/close-guard';
 import { createContext } from './app/context';
+import { createDestinationCue } from './app/destination-cue';
 import { createDocumentActions, type DocumentActions } from './app/document-actions';
 import { createErrorReporter } from './app/error-reporter';
 import { setupFileAssociation } from './app/file-association';
@@ -39,6 +40,11 @@ const state = new AppState();
 const reporter = createErrorReporter();
 const ctx = createContext(state, reporter);
 
+// Explains, once per document, that an image inserted into a document
+// with no file on disk is waiting for a save (#48). It never writes
+// anything — the save flow stays the only thing that does.
+const showDestinationCue = createDestinationCue(state);
+
 // Theme is applied as early as possible to avoid a flash of the wrong
 // palette before the menu binds. It doesn't participate in the phased
 // ctx because no other module consumes it — it owns its own DOM effect.
@@ -68,6 +74,7 @@ const { editor, getMarkdown, setMarkdown } = createEditor(
     const io = await getPlatformIO();
     return confirmAssetsDir(path, io, ctx.state);
   },
+  showDestinationCue,
 );
 ctx.editor = editor;
 ctx.getMarkdown = getMarkdown;
@@ -183,6 +190,7 @@ setupMenu({
       editor: ctx.editor,
       requestSaveAs: docActions.requestSaveAs,
       reporter: ctx.reporter,
+      onImageInserted: showDestinationCue,
     }).catch(console.error);
   },
   onToggleSidebar: () => {

@@ -31,6 +31,7 @@ describe('AppState', () => {
     state.isFirstSave = false;
     state.assetsDirConfirmedFor = '/tmp/assets';
     state.assetsDirDeclinedFor = '/other/assets';
+    state.destinationCueShown = true;
 
     state.resetDocument();
     expect(state.filePath).toBeNull();
@@ -38,6 +39,8 @@ describe('AppState', () => {
     expect(state.isFirstSave).toBe(true);
     expect(state.assetsDirConfirmedFor).toBeNull();
     expect(state.assetsDirDeclinedFor).toBeNull();
+    // The next document has its own silence to explain (#48).
+    expect(state.destinationCueShown).toBe(false);
   });
 
   it('starts with spellcheckEnabled=false', () => {
