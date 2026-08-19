@@ -262,6 +262,67 @@ describe('#61 — the exit that succeeds', () => {
   });
 });
 
+describe('#61 — the drop and paste plugins', () => {
+  /**
+   * An editor wired for images the way `main.ts` wires it, so the drop
+   * and paste handlers under test are the registered plugin rather than
+   * a direct call to `handleImageFile`.
+   */
+  function wiredEditor(): EditorInstance {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    return createEditor(host, undefined, {
+      getFilePath: () => state.filePath,
+      requestSaveAs: pickerReturning('/doc/notes.md'),
+      confirmAssetsDir: askForAssetsDir,
+      report,
+    });
+  }
+
+  /** Fire a drop or paste carrying the given files, as the browser would. */
+  function drop(wired: EditorInstance, prop: 'handleDrop' | 'handlePaste', files: File[]): boolean {
+    const transfer = { files, types: ['Files'], getData: () => '' };
+    const event = {
+      dataTransfer: transfer,
+      clipboardData: transfer,
+      preventDefault: () => undefined,
+    } as unknown as DragEvent & ClipboardEvent;
+    const { view } = wired.editor;
+    return Boolean(
+      view.someProp(prop, (handler) => handler(view, event, view.state.selection.content(), false)),
+    );
+  }
+
+  it('registers the drop handler and reports through it', async () => {
+    const wired = wiredEditor();
+
+    expect(drop(wired, 'handleDrop', [makeImage()])).toBe(true);
+
+    await vi.waitFor(() => expect(reported).toEqual([{ kind: 'inserted' }]));
+  });
+
+  it('registers the paste handler and reports through it', async () => {
+    const wired = wiredEditor();
+
+    expect(drop(wired, 'handlePaste', [makeImage()])).toBe(true);
+
+    await vi.waitFor(() => expect(reported).toEqual([{ kind: 'inserted' }]));
+  });
+
+  it('reports every file of a multi-file drop, one by one', async () => {
+    const wired = wiredEditor();
+    const huge = () => makeImage('huge.png', MAX_IMAGE_SIZE + 1);
+
+    drop(wired, 'handleDrop', [huge(), huge(), huge()]);
+
+    // Three refusals and three messages — what the build did before #61,
+    // and the decision recorded in `createImageDropPlugin`.
+    await vi.waitFor(() => expect(reported).toHaveLength(3));
+    expect(reported.every((outcome) => outcome.kind === 'refused')).toBe(true);
+    expect(toastTexts()).toHaveLength(3);
+  });
+});
+
 describe('#61 — the third entry point', () => {
   /** Insert Media, wired as `main.ts` wires it. */
   async function pickAndInsert(): Promise<void> {
