@@ -30,7 +30,6 @@ describe('AppState', () => {
     state.frontmatter = 'title: x';
     state.isFirstSave = false;
     state.assetsDirConfirmedFor = '/tmp/assets';
-    state.assetsDirDeclinedFor = '/other/assets';
     state.destinationCueShown = true;
 
     state.resetDocument();
@@ -38,7 +37,6 @@ describe('AppState', () => {
     expect(state.frontmatter).toBeNull();
     expect(state.isFirstSave).toBe(true);
     expect(state.assetsDirConfirmedFor).toBeNull();
-    expect(state.assetsDirDeclinedFor).toBeNull();
     // The next document has its own silence to explain (#48).
     expect(state.destinationCueShown).toBe(false);
   });

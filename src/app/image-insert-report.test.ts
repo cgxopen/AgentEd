@@ -166,22 +166,45 @@ describe('#61 — the two exits that stay silent', () => {
     expect(instance.editor.getHTML()).not.toContain('<img');
   });
 
-  it('keeps a declined folder sticky, and reports every insert it silences (R-C5)', async () => {
+  it('asks again after a refusal, and reports each cancellation (#66)', async () => {
+    // This test is #63's, with its expectation inverted on purpose: it
+    // used to assert one dialog across two inserts, because a refusal was
+    // remembered. #66 removed that — cancel means "not this image".
     vi.mocked(showConfirmDialog).mockResolvedValue('cancel');
     const picker = pickerReturning('/doc/notes.md');
 
     await insertImage(picker, makeImage('one.png', 1024, 1));
     await insertImage(picker, makeImage('two.png', 1024, 2));
 
-    // The question is asked once; the second insert is dropped by the
-    // remembered answer — and still comes out of the flow as an outcome
-    // rather than as nothing at all.
-    expect(showConfirmDialog).toHaveBeenCalledTimes(1);
+    expect(showConfirmDialog).toHaveBeenCalledTimes(2);
     expect(reported).toEqual([
       { kind: 'cancelled', at: 'assets-folder' },
       { kind: 'cancelled', at: 'assets-folder' },
     ]);
     expect(toastTexts()).toEqual([]);
+  });
+
+  it('inserts normally once the folder is agreed to after a refusal (#66)', async () => {
+    const picker = pickerReturning('/doc/notes.md');
+    vi.mocked(showConfirmDialog).mockResolvedValueOnce('cancel');
+
+    await insertImage(picker, makeImage('one.png', 1024, 1));
+    expect(instance.editor.getHTML()).not.toContain('<img');
+
+    vi.mocked(showConfirmDialog).mockResolvedValue('create');
+    await insertImage(picker, makeImage('two.png', 1024, 2));
+    await insertImage(picker, makeImage('three.png', 1024, 3));
+
+    // Asked twice, not three times: the agreement is still remembered,
+    // only the refusal is not (R-C5).
+    expect(showConfirmDialog).toHaveBeenCalledTimes(2);
+    expect(reported).toEqual([
+      { kind: 'cancelled', at: 'assets-folder' },
+      { kind: 'inserted' },
+      { kind: 'inserted' },
+    ]);
+    // One cue for the document, raised by the first image that landed.
+    expect(toastTexts()).toEqual([DESTINATION_CUE]);
   });
 });
 

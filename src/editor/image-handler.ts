@@ -129,13 +129,13 @@ export async function handleImageFile(
   // even though the folder itself only appears on save (#14).
   const assetsDir = await confirmAssetsDir();
   if (!assetsDir) {
-    // A cancellation, because that is what it is today: the user declined
-    // the folder, now or earlier in this document session, and the answer
-    // is sticky (R-C5). Two other causes reach this same null and are
-    // *not* cancellations — a decline remembered from another document
-    // (#51) and a web build that never asks (#46). Neither is fixed here;
-    // both become a new outcome kind on this contract, which the app
-    // layer then has to word before it compiles.
+    // A cancellation, because that is what it is today: the user just
+    // declined the folder for this image, and nothing is remembered
+    // about it (#66). Two other causes reach this same null and are
+    // *not* cancellations — a consent that outlived its document (#51)
+    // and a web build that never asks (#46). Neither is fixed here; both
+    // become a new outcome kind on this contract, which the app layer
+    // then has to word before it compiles.
     report({ kind: 'cancelled', at: 'assets-folder' });
     return;
   }

@@ -18,8 +18,9 @@ export class AppState {
   isFirstSave = true;
   isSaving = false;
   /**
-   * The user's answer to the "Create assets/?" dialog, remembered per
-   * folder rather than per session, and asked once (#14, #45).
+   * The folder the user has *agreed* to an `assets/` directory in,
+   * remembered per folder rather than per session and asked once (#14,
+   * #45).
    *
    * Keyed by directory because the folder is no longer created at the
    * moment it is agreed to: without the creation to make the second
@@ -28,10 +29,16 @@ export class AppState {
    * gives the honest answer after a Save As into a different folder —
    * that is a different folder to consent to, so it is asked about.
    *
-   * Both are cleared on Close / New / open.
+   * **Only an agreement is remembered** (#66). A refusal cancels the
+   * image it was asked about and nothing more, so the next insert asks
+   * again — the same as cancelling the destination picker one gesture
+   * earlier. Remembering a *yes* saves the user a repeated dialog;
+   * remembering a *no* silently removed the feature for the life of the
+   * document.
+   *
+   * Cleared on Close / New / open.
    */
   assetsDirConfirmedFor: string | null = null;
-  assetsDirDeclinedFor: string | null = null;
 
   /**
    * Whether this document has already been told that naming a
@@ -134,7 +141,6 @@ export class AppState {
     this.frontmatter = null;
     this.isFirstSave = true;
     this.assetsDirConfirmedFor = null;
-    this.assetsDirDeclinedFor = null;
     this.destinationCueShown = false;
     // Bumping the generation invalidates any in-flight detector so the
     // next document doesn't briefly inherit the previous cluster.
