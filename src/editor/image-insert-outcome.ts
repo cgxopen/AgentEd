@@ -22,7 +22,25 @@ export type ImageInsertCancelledAt = 'destination' | 'assets-folder';
  */
 export type ImageInsertRefusal =
   | { readonly reason: 'too-large'; readonly sizeBytes: number; readonly limitBytes: number }
-  | { readonly reason: 'no-free-name' };
+  | { readonly reason: 'no-free-name' }
+  /**
+   * One gesture asked for more bytes than it may retain (#71). Reported
+   * once for the gesture rather than once per file it left out — the
+   * user made one gesture and gets one answer about it.
+   *
+   * Counts, not names: naming fifty files the user just selected
+   * themselves explains nothing and cannot fit in a message.
+   */
+  | {
+      readonly reason: 'gesture-too-large';
+      /** Everything the gesture carried, oversized files included. */
+      readonly bytesAttempted: number;
+      readonly budgetBytes: number;
+      /** How many images actually landed. */
+      readonly inserted: number;
+      /** How many the budget turned away, never attempted. */
+      readonly refused: number;
+    };
 
 /**
  * How one call to `handleImageFile` ended. Every exit produces one,

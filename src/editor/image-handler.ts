@@ -26,6 +26,33 @@ export type ConfirmAssetsDir = () => Promise<string | null>;
 // and design exports while keeping a comfortable memory ceiling.
 export const MAX_IMAGE_SIZE = 25 * 1024 * 1024;
 
+/**
+ * The most one gesture may insert, counted in the bytes it would retain
+ * (#71). `MAX_IMAGE_SIZE` bounds one file; nothing bounded their sum
+ * until this, and a two-hundred-file paste is a loop over user input
+ * with no ceiling — which CLAUDE.md asks not to exist.
+ *
+ * **128 MB, measured rather than guessed.** An inserted image is held
+ * twice over until the document is saved — the `Uint8Array` the registry
+ * keeps and the `Blob` behind its display URL — and that factor was
+ * measured at **2.0×** across three gesture shapes (200 MB as 20×10 MB,
+ * 128 MB as 64×2 MB, 125 MB as 5×25 MB; `arrayBuffers` grew 1.94× to
+ * 2.18× each time). So this budget is a peak of about **256 MB** of
+ * image data, which has to sit alongside the document, the editor and
+ * the tokenizer.
+ *
+ * 128 rather than 100 or 150 for one concrete reason beyond the round
+ * number: five files at the per-file cap are 125 MB, so the two bounds
+ * agree instead of contradicting each other — a user pasting five
+ * maximum-size scans is refused by neither. In ordinary units it admits
+ * about 25 phone photos, 60 screenshots, or 5 design exports at the cap.
+ *
+ * Counted in bytes and never in files, because a count fails in both
+ * directions: twenty screenshots would be refused for nothing, and
+ * twenty files at the per-file cap would pass and take the process down.
+ */
+export const MAX_GESTURE_BYTES = 128 * 1024 * 1024;
+
 interface TakenNames {
   /** Names present in the assets folder on disk. */
   readonly onDisk: Set<string>;
@@ -209,6 +236,61 @@ function getImagesFromDataTransfer(dataTransfer: DataTransfer): File[] {
   return files;
 }
 
+interface GestureBudget {
+  /** The leading files the budget admits, in the order the gesture carried them. */
+  readonly accepted: readonly File[];
+  /** How many files were left out — everything after `accepted`, never attempted. */
+  readonly refused: number;
+  /** What the whole gesture weighed, oversized files included: what the user asked for. */
+  readonly bytesAttempted: number;
+}
+
+/**
+ * How much of a gesture fits in `MAX_GESTURE_BYTES` (#71).
+ *
+ * **Decided from `file.size` alone, before a single byte is read.** That
+ * is the whole point: reading two hundred files to discover that only
+ * twelve fit is the allocation the budget exists to prevent. It also
+ * lets the message name both counts the moment it appears, rather than
+ * discovering the limit halfway through.
+ *
+ * **The first file that does not fit ends the run**, and everything
+ * behind it is left out — rather than skipping it and squeezing in
+ * smaller files further along. A gesture is an ordered thing the user
+ * made; "the first twelve landed" is something they can act on, while a
+ * scattered subset chosen by size is not.
+ *
+ * **A file over the per-file cap consumes nothing.** It refuses itself
+ * inside `handleImageFile`, with its own message, and is never read — so
+ * charging the gesture for bytes it will not retain would truncate a
+ * gesture for an image that was never going to land.
+ *
+ * **The count is deliberately slightly high.** An image the document
+ * already holds is referenced rather than stored (#52), so it retains
+ * nothing, yet it is charged here — because recognising it means reading
+ * its bytes, which is the very thing being bounded. Erring toward
+ * refusing one image too many, on a gesture already over 128 MB, is the
+ * cheaper mistake.
+ */
+function applyGestureBudget(files: readonly File[]): GestureBudget {
+  let bytesAttempted = 0;
+  for (const file of files) bytesAttempted += file.size;
+
+  let used = 0;
+  let cut = files.length;
+  for (let i = 0; i < files.length; i++) {
+    const size = files[i].size;
+    if (size > MAX_IMAGE_SIZE) continue;
+    if (used + size > MAX_GESTURE_BYTES) {
+      cut = i;
+      break;
+    }
+    used += size;
+  }
+
+  return { accepted: files.slice(0, cut), refused: files.length - cut, bytesAttempted };
+}
+
 /**
  * Insert every image of one gesture, one after another (#68).
  *
@@ -249,7 +331,16 @@ function getImagesFromDataTransfer(dataTransfer: DataTransfer): File[] {
  * The outcome is read off the same channel the app layer reads rather
  * than returned beside it: `handleImageFile` pushes precisely because a
  * returned value dies at a `void` call (#61), and a second way out kept
- * only for this loop is a second thing to keep in step.
+ * only for this loop is a second thing to keep in step. Reading it is
+ * also how the gesture counts what landed, which the truncation message
+ * has to be exact about.
+ *
+ * **Bounded by `MAX_GESTURE_BYTES`** (#71). Sequencing is what made the
+ * bound matter: before it, a concurrency defect truncated every large
+ * gesture to one image, wrongly and silently, and fixing that removed
+ * the thing that was accidentally acting as a limit. What fits lands,
+ * the rest is refused with a message, and nothing that landed is rolled
+ * back — the user can paste the rest.
  */
 export async function insertImageGesture(
   files: readonly File[],
@@ -260,13 +351,17 @@ export async function insertImageGesture(
   origin: ImageOrigin,
   report: ReportImageInsert,
 ): Promise<void> {
+  const budget = applyGestureBudget(files);
+
   let cancelled = false;
+  let inserted = 0;
   const watch: ReportImageInsert = (outcome) => {
     if (outcome.kind === 'cancelled') cancelled = true;
+    if (outcome.kind === 'inserted') inserted++;
     report(outcome);
   };
 
-  for (const file of files) {
+  for (const file of budget.accepted) {
     await handleImageFile(
       file,
       editor,
@@ -278,6 +373,27 @@ export async function insertImageGesture(
     );
     if (cancelled) return;
   }
+
+  if (budget.refused === 0) return;
+
+  // Reported after the loop, so `inserted` is what actually landed
+  // rather than what the budget predicted — a file inside the accepted
+  // prefix may still have refused itself for its own size, and a message
+  // that counted it would be wrong about the one thing it exists to be
+  // exact about.
+  //
+  // Not reported at all when the user cancelled: they stopped the
+  // gesture themselves and hear nothing about it (#61), and a budget
+  // message on top of that deliberate silence would explain something
+  // that never happened.
+  report({
+    kind: 'refused',
+    reason: 'gesture-too-large',
+    bytesAttempted: budget.bytesAttempted,
+    budgetBytes: MAX_GESTURE_BYTES,
+    inserted,
+    refused: budget.refused,
+  });
 }
 
 /**

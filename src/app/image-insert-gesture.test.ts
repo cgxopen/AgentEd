@@ -14,14 +14,18 @@
  * would click.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { insertImageGesture, MAX_IMAGE_SIZE } from '../editor/image-handler';
+import { insertImageGesture, MAX_GESTURE_BYTES, MAX_IMAGE_SIZE } from '../editor/image-handler';
 import type { ImageInsertOutcome } from '../editor/image-insert-outcome';
 import { clearImages, getAllImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import type { FileEntry, PlatformIO } from '../platform/types';
 import { confirmAssetsDir } from './assets-dir';
 import { DESTINATION_CUE } from './destination-cue';
-import { createImageInsertReporter, imageTooLargeMessage } from './image-insert-report';
+import {
+  createImageInsertReporter,
+  imageGestureTooLargeMessage,
+  imageTooLargeMessage,
+} from './image-insert-report';
 import { AppState } from './state';
 
 const io: PlatformIO = {
@@ -65,6 +69,27 @@ function makeImage(name: string, seed: number): File {
 /** An image the size cap refuses, so a gesture can carry a mix. */
 function makeOversizedImage(name: string): File {
   return { ...makeImage(name, 9), size: MAX_IMAGE_SIZE + 1 } as unknown as File;
+}
+
+const MB = 1024 * 1024;
+
+/**
+ * An image that *claims* a size without carrying the bytes.
+ *
+ * The budget is decided from `file.size` before anything is read (#71),
+ * which is exactly what lets a test drive a 200 MB gesture through the
+ * real path in milliseconds and without the memory the feature exists to
+ * refuse. The bytes stay distinct per seed so nothing deduplicates (#52).
+ */
+function makeSizedImage(name: string, seed: number, sizeBytes: number): File {
+  return { ...makeImage(name, seed), size: sizeBytes } as unknown as File;
+}
+
+/** `count` images of `sizeMb` each, named and seeded apart. */
+function sizedGesture(count: number, sizeMb: number): File[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeSizedImage(`img-${i}.png`, i + 10, sizeMb * MB),
+  );
 }
 
 function toastTexts(): string[] {
@@ -366,5 +391,173 @@ describe('the gesture loop itself', () => {
     );
 
     expect(afterCancel).toEqual([{ kind: 'cancelled', at: 'assets-folder' }]);
+  });
+});
+
+/**
+ * The gesture budget (#71) — the bound #70 made necessary by removing
+ * the concurrency defect that had been truncating large gestures by
+ * accident.
+ *
+ * Driven through the real paste path with the real `showConfirmDialog`,
+ * per the #67/#70 precedent, and through files that declare a size
+ * without carrying it, per `makeSizedImage`.
+ */
+describe('the bytes one gesture may insert', () => {
+  /** Records the outcomes and still lets the app layer say its piece. */
+  function watchedReporter(): (outcome: ImageInsertOutcome) => void {
+    const speak = createImageInsertReporter(state);
+    return (outcome) => {
+      reported.push(outcome);
+      speak(outcome);
+    };
+  }
+
+  function insertedCount(): number {
+    return reported.filter((outcome) => outcome.kind === 'inserted').length;
+  }
+
+  it('inserts everything and says nothing about limits when the gesture fits', async () => {
+    const stop = answerDialogsWith('Continue');
+    const instance = wiredEditor(watchedReporter());
+
+    // 6 x 20 MB = 120 MB, comfortably inside the budget.
+    pasteImages(instance, sizedGesture(6, 20));
+    await vi.waitFor(() => expect(insertedCount()).toBe(6));
+    await settle();
+    stop();
+
+    expect(dialogsSeen).toBe(1);
+    expect(reported.every((outcome) => outcome.kind === 'inserted')).toBe(true);
+    expect(toastTexts()).toEqual([]);
+  });
+
+  it('inserts a gesture that lands exactly on the budget', async () => {
+    const stop = answerDialogsWith('Continue');
+    const instance = wiredEditor(watchedReporter());
+
+    // 8 x 16 MB = 128 MB, to the byte. The bound is "more than", so this
+    // fits — the boundary is a decision, not an accident of `>=`.
+    const files = sizedGesture(8, 16);
+    expect(files.reduce((total, file) => total + file.size, 0)).toBe(MAX_GESTURE_BYTES);
+
+    pasteImages(instance, files);
+    await vi.waitFor(() => expect(insertedCount()).toBe(8));
+    await settle();
+    stop();
+
+    expect(toastTexts()).toEqual([]);
+  });
+
+  it('inserts what fits, refuses the rest, and names both counts', async () => {
+    const stop = answerDialogsWith('Continue');
+    const instance = wiredEditor(watchedReporter());
+
+    // 7 x 20 MB = 140 MB. Six fit (120 MB); the seventh would be 140.
+    pasteImages(instance, sizedGesture(7, 20));
+    await vi.waitFor(() => expect(toastTexts()).toHaveLength(1));
+    await settle();
+    stop();
+
+    expect(insertedCount()).toBe(6);
+    expect(imagePaths()).toEqual([
+      'assets/img-0.png',
+      'assets/img-1.png',
+      'assets/img-2.png',
+      'assets/img-3.png',
+      'assets/img-4.png',
+      'assets/img-5.png',
+    ]);
+    expect(reported.at(-1)).toEqual({
+      kind: 'refused',
+      reason: 'gesture-too-large',
+      bytesAttempted: 140 * MB,
+      budgetBytes: MAX_GESTURE_BYTES,
+      inserted: 6,
+      refused: 1,
+    });
+    // Read as the user reads it, once, literally — the counts and the
+    // limit are the whole reason a partial insert is acceptable.
+    expect(toastTexts()).toEqual(['Inserted 6 images, 1 left out. Max 128 MB of images at once.']);
+  });
+
+  it('stops at the first file that does not fit, leaving the rest of the gesture out', async () => {
+    const stop = answerDialogsWith('Continue');
+    const instance = wiredEditor(watchedReporter());
+
+    // 10 x 20 MB = 200 MB. The file that trips the budget is the
+    // seventh, with three more behind it: everything before it lands,
+    // nothing after it does, and there is one message for all four.
+    pasteImages(instance, sizedGesture(10, 20));
+    await vi.waitFor(() => expect(toastTexts()).toHaveLength(1));
+    await settle();
+    stop();
+
+    expect(insertedCount()).toBe(6);
+    expect(imagePaths()).toEqual(sizedGesture(6, 20).map((file) => `assets/${file.name}`));
+    expect(toastTexts()).toEqual([imageGestureTooLargeMessage(6, 4, MAX_GESTURE_BYTES)]);
+    expect(dialogsSeen).toBe(1);
+  });
+
+  it('does not charge the budget for a file that refuses itself for its own size', async () => {
+    const stop = answerDialogsWith('Continue');
+    const instance = wiredEditor(watchedReporter());
+
+    // 6 x 20 MB = 120 MB, plus one oversized file in the middle. Charged
+    // for its 26 MB the gesture would be 146 MB and truncate; it never
+    // reaches memory, so it costs nothing and truncates nothing.
+    const files = sizedGesture(6, 20);
+    files.splice(3, 0, makeOversizedImage('huge.png'));
+
+    pasteImages(instance, files);
+    await vi.waitFor(() => expect(insertedCount()).toBe(6));
+    await settle();
+    stop();
+
+    // Its own message, unchanged, and no budget message at all.
+    expect(toastTexts()).toEqual([imageTooLargeMessage(MAX_IMAGE_SIZE + 1, MAX_IMAGE_SIZE)]);
+    expect(reported.filter((outcome) => outcome.kind === 'refused')).toEqual([
+      {
+        kind: 'refused',
+        reason: 'too-large',
+        sizeBytes: MAX_IMAGE_SIZE + 1,
+        limitBytes: MAX_IMAGE_SIZE,
+      },
+    ]);
+  });
+
+  it('says nothing about the budget when the user cancelled the gesture', async () => {
+    const stop = answerDialogsWith('Cancel');
+    const instance = wiredEditor(watchedReporter());
+
+    pasteImages(instance, sizedGesture(10, 20));
+    await vi.waitFor(() => expect(reported).toHaveLength(1));
+    await settle();
+    stop();
+
+    // The user stopped it themselves and hears nothing (#61). A
+    // truncation message here would explain something that never
+    // happened — nothing was truncated, nothing was inserted.
+    expect(reported).toEqual([{ kind: 'cancelled', at: 'assets-folder' }]);
+    expect(toastTexts()).toEqual([]);
+    expect(getAllImages()).toEqual([]);
+  });
+
+  it('counts what actually landed, not what the budget predicted', async () => {
+    const stop = answerDialogsWith('Continue');
+    const instance = wiredEditor(watchedReporter());
+
+    // The accepted prefix carries an oversized file, so six are admitted
+    // by the budget and only five can land. The message must say five.
+    const files = sizedGesture(7, 20);
+    files.splice(2, 0, makeOversizedImage('huge.png'));
+
+    pasteImages(instance, files);
+    await vi.waitFor(() => expect(toastTexts()).toHaveLength(2));
+    await settle();
+    stop();
+
+    expect(insertedCount()).toBe(6);
+    expect(toastTexts()).toContain(imageGestureTooLargeMessage(6, 1, MAX_GESTURE_BYTES));
   });
 });
