@@ -91,14 +91,72 @@ describe('link dialog — with a selection', () => {
     expect(editor.getMarkdown()).toBe(markdown);
   });
 
-  it('gives a bare host the implied scheme', () => {
+  // Inverted from #40: a bare host used to gain an implied `https://`. Nothing
+  // separates `example.com` from `README.md` by shape, and guessing wrong on
+  // the second is what a markdown editor does all day, so the guess went (#42).
+  it('adds no scheme to a bare host', () => {
     const editor = editorWith('docs');
     select(editor, 'docs');
     dialog.open();
     type('example.com');
     pressEnter();
 
-    expect(editor.getMarkdown()).toBe('[docs](https://example.com)');
+    expect(editor.getMarkdown()).toBe('[docs](example.com)');
+  });
+
+  // #42, the case the owner met: the dialog refused it outright, and once it
+  // stopped refusing, `setLink` silently inserted nothing for the paths with a
+  // directory in them.
+  it.each([
+    './notes.md',
+    'notes.md',
+    'README.md',
+    'docs/guide.md',
+    'docs/ADR/ADR-001.md',
+    '../a/b.md',
+    '/docs/x.md',
+    '#section',
+  ])('writes the relative address %s exactly as typed', (address) => {
+    const editor = editorWith('the docs');
+    select(editor, 'the docs');
+    dialog.open();
+    type(address);
+    confirm().click();
+
+    expect(editor.getMarkdown()).toBe(`[the docs](${address})`);
+    expect(overlay().classList.contains('hidden')).toBe(true);
+  });
+
+  it('round-trips a relative link it created, byte for byte (R-C2)', () => {
+    const editor = editorWith('read the docs now');
+    select(editor, 'the docs');
+    dialog.open();
+    type('docs/guide.md');
+    confirm().click();
+
+    const markdown = editor.getMarkdown();
+    editor.setMarkdown(markdown);
+    expect(editor.getMarkdown()).toBe(markdown);
+  });
+});
+
+describe('link dialog — on an existing relative link', () => {
+  it('opens pre-filled with the relative address, and offers Remove', () => {
+    const editor = editorWith('[the guide](docs/guide.md)');
+    caretIn(editor, 'the guide');
+    dialog.open();
+
+    expect(input().value).toBe('docs/guide.md');
+    expect(remove().classList.contains('hidden')).toBe(false);
+  });
+
+  it('unmakes a relative link, keeping the text', () => {
+    const editor = editorWith('[notes](./notes.md)');
+    caretIn(editor, 'notes');
+    dialog.open();
+    remove().click();
+
+    expect(editor.getMarkdown()).toBe('notes');
   });
 });
 
@@ -186,6 +244,11 @@ describe('link dialog — refusals and cancelling', () => {
   it.each([
     'not a url',
     'javascript:alert(1)',
+    'file:///etc/passwd',
+    'data:text/html,x',
+    '//evil.com',
+    '\\\\evil.com',
+    'C:\\notes\\x.md',
     '   ',
   ])('refuses %s, leaving the dialog open and the document untouched', (bad) => {
     const editor = editorWith('the docs');
@@ -210,6 +273,8 @@ describe('link dialog — a refusal says why', () => {
     confirm().click();
   }
 
+  // The wording changed with the rule (#42): it named three schemes, which now
+  // reads as "relative paths are unsupported" — the thing this issue fixed.
   it.each([
     'not a url',
     'javascript:alert(1)',
@@ -217,7 +282,9 @@ describe('link dialog — a refusal says why', () => {
   ])('names what is supported when %s is rejected', (bad) => {
     refuse(bad);
     expect(error().classList.contains('hidden')).toBe(false);
-    expect(error().textContent).toBe('Only http, https and mailto addresses are supported.');
+    expect(error().textContent).toBe(
+      'Use a web address (https://…), an email address (mailto:…), or a relative path (./notes.md).',
+    );
   });
 
   it('asks for an address instead of talking about schemes when the field is empty', () => {
@@ -253,7 +320,7 @@ describe('link dialog — a refusal says why', () => {
     const editor = editorWith('the docs');
     select(editor, 'the docs');
     dialog.open();
-    type('nope');
+    type('javascript:alert(1)');
     confirm().click();
     type('https://example.com');
     confirm().click();
