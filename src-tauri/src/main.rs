@@ -52,3 +52,33 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    /// Issue #65 — drag & drop of an image did nothing on Windows because
+    /// `dragDropEnabled` had never been set and Tauri defaults it to
+    /// `true`, replacing the webview's own drag-drop handler with its own.
+    /// The whole fix is that one line of configuration, so the one line is
+    /// pinned here: a JSON file cannot carry a comment saying why it must
+    /// stay, and the failure it guards against is silent — drop simply
+    /// stops working again, on a target CI cannot exercise.
+    #[test]
+    fn the_main_window_leaves_drag_and_drop_to_the_webview() {
+        let config: tauri::utils::config::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json"))
+                .expect("tauri.conf.json should parse as a Tauri config");
+
+        let main = config
+            .app
+            .windows
+            .iter()
+            .find(|window| window.label == "main")
+            .expect("there should be a window labelled `main`");
+
+        assert!(
+            !main.drag_drop_enabled,
+            "the main window must leave drag & drop to the webview, or the \
+             HTML5 drop event never reaches the editor on Windows (#65)"
+        );
+    }
+}
