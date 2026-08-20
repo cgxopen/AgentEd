@@ -17,6 +17,7 @@ function mockIO(options: MockIOOptions = {}): PlatformIO {
     pickFile: async () => null,
     readText: async () => '',
     saveFile: async () => {},
+    readSnapshot: async () => ({ kind: 'absent' as const }),
     pickSavePath: async () => null,
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),

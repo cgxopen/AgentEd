@@ -5,7 +5,7 @@
  * frontmatter injection, no sidecar files.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { FileEntry, FileResult, PlatformIO } from '../platform/types';
+import type { FileEntry, FileResult, FileSnapshot, PlatformIO } from '../platform/types';
 import { loadMarkdown, saveMarkdown } from './plain';
 
 function stubIO(files: Record<string, string>): PlatformIO & {
@@ -30,6 +30,10 @@ function stubIO(files: Record<string, string>): PlatformIO & {
     },
     saveFile: async (path: string, content: string) => {
       written.set(path, content);
+    },
+    readSnapshot: async (path: string): Promise<FileSnapshot> => {
+      const text = written.get(path) ?? files[path];
+      return text === undefined ? { kind: 'absent' } : { kind: 'file', text };
     },
     pickSavePath: async () => null,
     installCloseGuard: async () => {},
@@ -61,7 +65,7 @@ describe('open → save with no edits', () => {
   for (const doc of DOCUMENTS) {
     it(`is byte-identical for a ${doc.label}`, async () => {
       const io = stubIO({ '/docs/notes.md': doc.text });
-      const bundle = await loadMarkdown('/docs/notes.md', io);
+      const { bundle } = await loadMarkdown('/docs/notes.md', io);
       await saveMarkdown(bundle, io);
       expect(io.written.get('/docs/notes.md')).toBe(doc.text);
     });
@@ -69,7 +73,7 @@ describe('open → save with no edits', () => {
 
   it('never adds a metadata block to a document that had none', async () => {
     const io = stubIO({ '/docs/notes.md': '# Just a heading\n' });
-    const bundle = await loadMarkdown('/docs/notes.md', io);
+    const { bundle } = await loadMarkdown('/docs/notes.md', io);
     expect(bundle.frontmatterRaw).toBeNull();
     await saveMarkdown(bundle, io);
     expect(io.written.get('/docs/notes.md')).not.toContain('---');
@@ -77,7 +81,7 @@ describe('open → save with no edits', () => {
 
   it('writes only the .md file when the document has no images', async () => {
     const io = stubIO({ '/docs/notes.md': '# Heading\n' });
-    const bundle = await loadMarkdown('/docs/notes.md', io);
+    const { bundle } = await loadMarkdown('/docs/notes.md', io);
     await saveMarkdown(bundle, io);
     expect([...io.written.keys()]).toEqual(['/docs/notes.md']);
     expect(io.binaries.size).toBe(0);

@@ -33,6 +33,7 @@ const io: PlatformIO = {
     written.push(path);
   },
   pickSavePath: async () => null,
+  readSnapshot: async () => ({ kind: 'absent' as const }),
   installCloseGuard: async () => {},
   readBinary: async () => new Uint8Array(),
   writeBinary: async (path: string) => {

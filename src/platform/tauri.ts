@@ -13,7 +13,7 @@ import {
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
 import { dirname, joinPath } from './paths';
-import type { CloseGuard, FileEntry, FileResult, PlatformIO } from './types';
+import type { CloseGuard, FileEntry, FileResult, FileSnapshot, PlatformIO } from './types';
 
 export class TauriIO implements PlatformIO {
   readonly supportsMultiFile = true;
@@ -50,6 +50,26 @@ export class TauriIO implements PlatformIO {
 
   async saveFile(path: string, content: string): Promise<void> {
     await writeTextFile(path, content);
+  }
+
+  /**
+   * Read the file as it is on disk right now (R-C14). The read is
+   * attempted first and `exists` only consulted to explain a failure, so
+   * the ordinary case costs one call rather than two — and a file that
+   * disappeared between the two is reported as unreadable, which is the
+   * cautious direction.
+   */
+  async readSnapshot(path: string): Promise<FileSnapshot> {
+    try {
+      return { kind: 'file', text: await readTextFile(path) };
+    } catch (e) {
+      try {
+        if (!(await fsExists(path))) return { kind: 'absent' };
+      } catch {
+        // Fall through: we could not read it and cannot say why.
+      }
+      return { kind: 'unreadable', cause: e };
+    }
   }
 
   async pickSavePath(filterName = 'Markdown', extensions = ['md']): Promise<string | null> {

@@ -1,6 +1,7 @@
 import { detectContextCluster } from '../cluster/detector';
 import { ContextCluster } from '../cluster/types';
 import { clearImages, getAllImages } from '../editor/image-registry';
+import type { LoadResult } from '../formats/index';
 import type { DocumentBundle } from '../formats/types';
 import { basename } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
@@ -23,14 +24,21 @@ export function buildBundle(state: AppState, getMarkdown: () => string): Documen
  * Load a bundle into the editor and sync all derived state. `io` is passed
  * explicitly because callers already have a resolved PlatformIO to hand in;
  * the other dependencies live on ctx.
+ *
+ * The whole `LoadResult` is taken rather than just its bundle because the
+ * text that was on disk is recorded here, next to the path it belongs to:
+ * this is the moment AgentEd learns what the file contains, and every
+ * later save compares against it (R-C14).
  */
 export async function applyBundle(
-  bundle: DocumentBundle,
+  loaded: LoadResult,
   path: string,
   ctx: AppContext,
   io: PlatformIO,
 ): Promise<void> {
+  const bundle = loaded.bundle;
   ctx.state.filePath = path;
+  ctx.state.knownDiskText = loaded.diskText;
   ctx.state.frontmatter = bundle.frontmatterRaw;
   ctx.state.isFirstSave = false;
 

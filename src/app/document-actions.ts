@@ -1,8 +1,9 @@
 import { clearImages } from '../editor/image-registry';
 import { splitFrontmatter } from '../formats/frontmatter';
-import { loadDocument, saveDocument } from '../formats/index';
+import { detectExternalChange, loadDocument, saveDocument } from '../formats/index';
 import { getPlatformIO } from '../platform/index';
-import { dirname } from '../platform/paths';
+import { basename, dirname } from '../platform/paths';
+import type { PlatformIO } from '../platform/types';
 import { saveLastOpenedFolder } from '../preferences';
 import { getTemplate, type TemplateId } from '../templates/index';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
@@ -10,6 +11,7 @@ import { showToast } from '../ui/toast';
 import { applyBundle, buildBundle } from './bundle';
 import type { AppContext } from './context';
 import { createDiscardGate } from './discard-gate';
+import { askAboutExternalChange } from './external-change-prompt';
 import { createRequestSaveAs } from './save-as-flow';
 
 export interface DocumentActions {
@@ -46,8 +48,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
   async function loadBundleFromPath(path: string, errorLabel: string): Promise<void> {
     const io = await getPlatformIO();
     try {
-      const bundle = await loadDocument(path, io);
-      await applyBundle(bundle, path, ctx, io);
+      const loaded = await loadDocument(path, io);
+      await applyBundle(loaded, path, ctx, io);
 
       const folder = dirname(path);
       if (folder.length > 0) saveLastOpenedFolder(folder);
@@ -78,12 +80,49 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
   }
 
   /**
+   * The R-C14 gate, run before every write to a path the editor already
+   * knows: is the file still the one AgentEd last read or wrote?
+   *
+   * Returns `'write'` when the save may go ahead — either nothing
+   * changed, or the user chose to overwrite, or they chose a different
+   * destination and the picker gave one. Returns `'stop'` when it may
+   * not: the document was reloaded from disk instead, or the user
+   * backed out. Nothing is written on that branch, and the document
+   * stays modified, which is the accurate statement (R-C3).
+   */
+  async function resolveExternalChange(io: PlatformIO, path: string): Promise<'write' | 'stop'> {
+    const change = await detectExternalChange(path, ctx.state.knownDiskText, io);
+    if (change.kind === 'none') return 'write';
+
+    switch (await askAboutExternalChange(basename(path), change)) {
+      case 'overwrite':
+        return 'write';
+      case 'save-as':
+        // The picker moves the document to a new path and clears the
+        // baseline with it, so the write below lands there instead.
+        return (await requestSaveAs()) ? 'write' : 'stop';
+      case 'reload':
+        await loadBundleFromPath(path, `Failed to reload document: ${path}`);
+        return 'stop';
+      case 'cancel':
+        return 'stop';
+    }
+  }
+
+  /**
    * Write the current document to disk exactly as the user wrote it —
    * body, plus the frontmatter block only if the document already has
    * one. Nothing is ever injected on save.
    */
   async function persistBundle(): Promise<void> {
     const io = await getPlatformIO();
+
+    // Before the bundle is built, not after: the answer to the question
+    // may move the document to a different file, and the bundle carries
+    // the path it will be written to.
+    const target = ctx.state.filePath;
+    if (target !== null && (await resolveExternalChange(io, target)) === 'stop') return;
+
     const bundle = buildBundle(ctx.state, ctx.getMarkdown);
 
     let result: Awaited<ReturnType<typeof saveDocument>>;
@@ -101,6 +140,12 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     }
 
     ctx.state.isFirstSave = false;
+    // The `.md` is on disk and this is exactly what went into it, so it
+    // is what the next save compares against (R-C14). Recorded before
+    // the images branch below on purpose: a save whose images failed
+    // still wrote the document, and the retry it invites must not find
+    // AgentEd accusing itself of its own write.
+    ctx.state.knownDiskText = result.writtenText;
 
     if (result.assetsError) {
       // The .md is on disk; its images are not. The save stands — we

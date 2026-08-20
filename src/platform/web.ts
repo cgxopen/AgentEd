@@ -1,5 +1,5 @@
 import { joinPath } from './paths';
-import type { CloseGuard, FileEntry, FileResult, PlatformIO } from './types';
+import type { CloseGuard, FileEntry, FileResult, FileSnapshot, PlatformIO } from './types';
 
 export class WebIO implements PlatformIO {
   readonly supportsMultiFile = true;
@@ -66,6 +66,48 @@ export class WebIO implements PlatformIO {
     const writable = await handle.createWritable();
     await writable.write(content);
     await writable.close();
+  }
+
+  /**
+   * Read the file as it is on disk right now (R-C14). `getFile()` returns
+   * a fresh snapshot every call, so the web build compares the same thing
+   * the Tauri build does — the file's current text — and makes the same
+   * promise for any file it can reach. What it cannot reach it says so
+   * about (`unreadable`) rather than reporting a reassuring `absent`.
+   */
+  async readSnapshot(path: string): Promise<FileSnapshot> {
+    const parts = path.split('/').filter(Boolean);
+    const name = parts.pop() ?? '';
+    let handle: FileSystemFileHandle;
+    if (this.dirHandle) {
+      try {
+        const dir = await this.navigateToDirByParts(parts, false);
+        handle = await dir.getFileHandle(name);
+      } catch (e) {
+        if (e instanceof DOMException && e.name === 'NotFoundError') return { kind: 'absent' };
+        return { kind: 'unreadable', cause: e };
+      }
+    } else if (this.fileHandle && name === this.fileHandle.name) {
+      // Same fallback rule as resolveOrCreateFileHandle: without a
+      // directory handle the only file we can see is the one the user
+      // picked — which is exactly the file a save would write.
+      handle = this.fileHandle;
+    } else {
+      return {
+        kind: 'unreadable',
+        cause: new Error(
+          'NO_DIR_HANDLE: web mode cannot inspect files other than the one initially opened',
+        ),
+      };
+    }
+
+    try {
+      const file = await handle.getFile();
+      return { kind: 'file', text: await file.text() };
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'NotFoundError') return { kind: 'absent' };
+      return { kind: 'unreadable', cause: e };
+    }
   }
 
   async pickSavePath(filterName = 'Markdown file', extensions = ['md']): Promise<string | null> {

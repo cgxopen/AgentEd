@@ -3,14 +3,30 @@ import type { PlatformIO } from '../platform/types';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
 import type { DocumentBundle } from './types';
 
-export async function loadMarkdown(path: string, io: PlatformIO): Promise<DocumentBundle> {
+export interface LoadResult {
+  readonly bundle: DocumentBundle;
+  /**
+   * Exactly the text that was on disk, before any splitting — the
+   * baseline the save flow compares against (R-C14). It is reported
+   * rather than re-derived because splitting and reassembling is not a
+   * byte-exact round trip for every file (a CRLF document with
+   * frontmatter comes back with LF fences), and a baseline that differs
+   * from the file by one byte would accuse the user on their next save.
+   */
+  readonly diskText: string;
+}
+
+export async function loadMarkdown(path: string, io: PlatformIO): Promise<LoadResult> {
   const text = await io.readText(path);
   const { raw, body } = splitFrontmatter(text);
   return {
-    frontmatterRaw: raw,
-    markdownBody: body,
-    images: [],
-    rootPath: path,
+    bundle: {
+      frontmatterRaw: raw,
+      markdownBody: body,
+      images: [],
+      rootPath: path,
+    },
+    diskText: text,
   };
 }
 
@@ -21,6 +37,13 @@ export interface SaveResult {
    * disk either way — a failure here never means the document was lost.
    */
   readonly assetsError: unknown;
+  /**
+   * Exactly the text that was written to `rootPath`. The caller records
+   * it as the new baseline for the external-change check (R-C14), so
+   * that what AgentEd believes is on disk is what it put there, rather
+   * than something assembled a second time.
+   */
+  readonly writtenText: string;
 }
 
 /**
@@ -40,15 +63,16 @@ export interface SaveResult {
  * written first and never rolled back for the sake of its images.
  */
 export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Promise<SaveResult> {
-  await io.saveFile(bundle.rootPath, assembleMarkdown(bundle));
+  const writtenText = assembleMarkdown(bundle);
+  await io.saveFile(bundle.rootPath, writtenText);
 
-  if (!io.supportsMultiFile) return { assetsError: null };
+  if (!io.supportsMultiFile) return { assetsError: null, writtenText };
 
   const assetImages = bundle.images.filter((img) => img.relativePath.startsWith('assets/'));
-  if (assetImages.length === 0) return { assetsError: null };
+  if (assetImages.length === 0) return { assetsError: null, writtenText };
 
   const parent = dirname(bundle.rootPath);
-  if (parent.length === 0) return { assetsError: null };
+  if (parent.length === 0) return { assetsError: null, writtenText };
 
   try {
     await io.mkdir(joinPath(parent, 'assets'));
@@ -56,7 +80,7 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
       assetImages.map((img) => io.writeBinary(joinPath(parent, img.relativePath), img.data)),
     );
   } catch (e) {
-    return { assetsError: e };
+    return { assetsError: e, writtenText };
   }
-  return { assetsError: null };
+  return { assetsError: null, writtenText };
 }

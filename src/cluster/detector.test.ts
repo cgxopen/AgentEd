@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FileEntry, FileResult, PlatformIO } from '../platform/types';
+import type { FileEntry, FileResult, FileSnapshot, PlatformIO } from '../platform/types';
 import { detectContextCluster, MAX_CHILDREN, MAX_RESULTS } from './detector';
 
 /**
@@ -53,6 +53,9 @@ class FakeIO implements PlatformIO {
     throw new Error('not implemented');
   }
   async saveFile(): Promise<void> {
+    throw new Error('not implemented');
+  }
+  async readSnapshot(): Promise<FileSnapshot> {
     throw new Error('not implemented');
   }
   async pickSavePath(): Promise<string | null> {

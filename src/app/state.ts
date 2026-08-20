@@ -41,6 +41,29 @@ export class AppState {
   assetsDirConfirmedFor: string | null = null;
 
   /**
+   * Exactly the text AgentEd last read from, or wrote to, `filePath` —
+   * what it believes is on disk right now. The save flow compares the
+   * file against this before writing, so a change made by another
+   * program, a sync client or a second AgentEd window is caught instead
+   * of being silently overwritten (R-C14).
+   *
+   * `null` means *nothing is known about this path*, which is not the
+   * same as "unchanged": it is the state of a fresh document, and of a
+   * Save As destination the editor never opened. Nothing is known, so
+   * nothing is claimed and nothing is asked — that path's protection is
+   * the save picker's own replace question.
+   *
+   * It travels with the path, and every place that moves the document
+   * to a different file must clear it, or the next save compares one
+   * file against another file's text. Set on open and after every
+   * successful write (**including** a save whose images failed, since
+   * the `.md` did reach the disk — otherwise the retry that failure
+   * invites would accuse AgentEd of its own write). Cleared on New /
+   * Close / Open by `resetDocument`, and by `requestSaveAs`.
+   */
+  knownDiskText: string | null = null;
+
+  /**
    * Whether this document has already been told that naming a
    * destination is not a save (#48). The cue explains the silence that
    * follows the first insert into a document with no file on disk;
@@ -140,6 +163,7 @@ export class AppState {
     this.filePath = null;
     this.frontmatter = null;
     this.isFirstSave = true;
+    this.knownDiskText = null;
     this.assetsDirConfirmedFor = null;
     this.destinationCueShown = false;
     // Bumping the generation invalidates any in-flight detector so the

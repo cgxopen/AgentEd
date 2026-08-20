@@ -10,6 +10,19 @@ export interface FileResult {
 }
 
 /**
+ * What a platform could observe about a file at a given moment (R-C14).
+ *
+ * The three cases are deliberately distinct. `absent` is a fact — the
+ * file is not there, so there is nothing to overwrite. `unreadable` is
+ * an admission — the platform could not tell, which is **not** the same
+ * answer and must never be treated as "nothing changed".
+ */
+export type FileSnapshot =
+  | { readonly kind: 'file'; readonly text: string }
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unreadable'; readonly cause: unknown };
+
+/**
  * Guard consulted before the platform closes the window or quits the app.
  *
  * `confirmClose` runs the same unsaved-changes gate the in-app actions use
@@ -30,6 +43,13 @@ export interface PlatformIO {
   pickFile(filterName: string, extensions: string[]): Promise<string | null>;
   readText(path: string): Promise<string>;
   saveFile(path: string, content: string): Promise<void>;
+  /**
+   * Read the current on-disk text of `path` without throwing, so the save
+   * flow can tell whether the file changed since AgentEd last saw it
+   * (R-C14). Reports "not there" and "could not read" as different
+   * answers — see `FileSnapshot`.
+   */
+  readSnapshot(path: string): Promise<FileSnapshot>;
   /**
    * Ask the user where to save, and return the chosen path (or `null` when
    * cancelled). **Picking a destination writes nothing** — R-C3 allows a

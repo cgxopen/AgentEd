@@ -45,6 +45,7 @@ const io: PlatformIO = {
     calls.push(`saveFile ${path}`);
   },
   pickSavePath: async () => null,
+  readSnapshot: async () => ({ kind: 'absent' as const }),
   installCloseGuard: async () => {},
   // Distinct from anything the tests insert, so a name collision stays a
   // collision and is never mistaken for the same picture again (#52).
