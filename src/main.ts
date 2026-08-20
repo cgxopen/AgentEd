@@ -3,6 +3,7 @@ import { scheduleClusterDetection } from './app/bundle';
 import { installCloseGuard } from './app/close-guard';
 import { createContext } from './app/context';
 import { createDocumentActions, type DocumentActions } from './app/document-actions';
+import { installDropGuard } from './app/drop-guard';
 import { createErrorReporter } from './app/error-reporter';
 import { setupFileAssociation } from './app/file-association';
 import { setupHeader, wireHeaderIndicators } from './app/header-wiring';
@@ -99,6 +100,15 @@ installLinkOpener(editorEl, {
     await io.openWithSystem(url);
   },
 });
+
+// The other half of "this window never navigates away from the document"
+// (#65). A drop the editor did not take would otherwise be handled by the
+// browser, which replaces the page with the dropped file — the app gone,
+// unsaved work with it, and no gate in front of it (R-C3). Installed on
+// the window rather than on the editor: the header, the sidebar and the
+// statusbar are drop targets too.
+installDropGuard();
+
 ctx.sidebar = setupSidebar();
 ctx.frontmatterPanel = setupFrontmatterPanel(state);
 ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(state));
