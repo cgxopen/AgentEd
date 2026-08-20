@@ -21,6 +21,11 @@ export function createRequestSaveAs(ctx: AppContext): () => Promise<string | nul
     const path = await io.pickSavePath('Markdown', ['md']);
     if (!path) return null;
     ctx.state.filePath = path;
+    // The document now points at a file this session never read. Whatever
+    // AgentEd knew about the previous path says nothing about this one, and
+    // keeping it would make the next save compare one file against
+    // another file's text (R-C14).
+    ctx.state.knownDiskText = null;
     ctx.setFilename(basename(path), path);
     return path;
   };
