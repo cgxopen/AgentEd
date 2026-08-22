@@ -63,9 +63,11 @@ describe('the override takes nothing away (R-C2)', () => {
     expect(editor.getMarkdown()).toBe(markdown);
   });
 
-  // Not a change either: DOMPurify strips these hrefs in `markdownToHtml`, so
-  // the anchor reaches TipTap with nothing to keep. Recorded because the
-  // override must never be the thing that lets one through.
+  // `javascript:` is stripped by DOMPurify in `markdownToHtml`; `data:` is not —
+  // the parse regex admits it for images — so for `data:` this override's
+  // delegation to `defaultValidate` is the only thing that drops the mark.
+  // Pinned here so that replacing the delegation with a hand-written list
+  // never lets one through.
   it.each([
     ['a script address', '[js](javascript:alert1)', 'js'],
     ['a data address', '[d](data:text/html,x)', 'd'],
