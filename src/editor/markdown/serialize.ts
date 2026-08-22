@@ -95,6 +95,20 @@ turndown.addRule('underline', {
   replacement: (content) => `<u>${content}</u>`,
 });
 
+// Strikethrough (#85). Turndown ships no rule for it, and its default for an
+// element it does not recognise is to keep the text and drop the element — so
+// `~~gone~~` was saved as `gone`, the only R-C2 exception that lost something
+// the reader can see, and reachable from the floating toolbar's own S button.
+// The filter covers both ends of the pipeline: `marked` (gfm) emits <del>,
+// TipTap's Strike renders <s>, and <strike> is the legacy spelling its
+// parseHTML also accepts. `~~` is GFM, the dialect the parser already runs.
+// No overlap with the list, table or underline filters, so rule precedence
+// (last one added wins) is not in play here.
+turndown.addRule('strikethrough', {
+  filter: ['s', 'del', 'strike'],
+  replacement: (content) => `~~${content}~~`,
+});
+
 // Relativize image src via the registry at Turndown time.
 // The node's src attribute is the exact string used to register the image,
 // so the registry lookup is guaranteed to match (no intermediate normalization).
