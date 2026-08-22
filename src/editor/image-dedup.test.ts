@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_LINE_CONVENTIONS } from '../formats/line-conventions';
 import { saveMarkdown } from '../formats/plain';
 import type { DocumentImage } from '../formats/types';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
@@ -169,6 +170,7 @@ describe('the same image inserted twice (#52)', () => {
         markdownBody: instance.getMarkdown(),
         images: getAllImages(),
         rootPath: '/doc/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io as never,
     );

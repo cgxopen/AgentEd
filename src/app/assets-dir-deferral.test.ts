@@ -11,6 +11,7 @@
 import type { Editor } from '@tiptap/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearImages, getAllImages } from '../editor/image-registry';
+import { DEFAULT_LINE_CONVENTIONS } from '../formats/line-conventions';
 import { saveMarkdown } from '../formats/plain';
 import type { FileEntry, PlatformIO } from '../platform/types';
 import { showConfirmDialog } from '../ui/confirm-dialog';
@@ -155,6 +156,7 @@ describe('#14 — an image in a document that was never saved', () => {
         markdownBody: '![diagram](assets/diagram.png)\n',
         images: getAllImages(),
         rootPath: state.filePath!,
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );

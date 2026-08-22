@@ -1,4 +1,5 @@
 import type { ContextCluster } from '../cluster/types';
+import { DEFAULT_LINE_CONVENTIONS, type LineConventions } from '../formats/line-conventions';
 
 /**
  * Central mutable state for the app. All handlers read/write through a
@@ -62,6 +63,20 @@ export class AppState {
    * Close / Open by `resetDocument`, and by `requestSaveAs`.
    */
   knownDiskText: string | null = null;
+
+  /**
+   * How this document's text is written back: line terminator and
+   * final newline (#79). They belong to the **content**, not to the
+   * path — which is what separates them from `knownDiskText` above.
+   *
+   * Set on open, from the text that was read. Reset to the default
+   * (`\n`, final newline) by `resetDocument`, so New and New from
+   * Template are written the way every other tool writes markdown.
+   * **Not** cleared by `requestSaveAs`: a CRLF document saved under a
+   * new name is still a CRLF document, whereas what AgentEd knew about
+   * the old path says nothing about the new one.
+   */
+  lineConventions: LineConventions = DEFAULT_LINE_CONVENTIONS;
 
   /**
    * Whether this document has already been told that naming a
@@ -164,6 +179,7 @@ export class AppState {
     this.frontmatter = null;
     this.isFirstSave = true;
     this.knownDiskText = null;
+    this.lineConventions = DEFAULT_LINE_CONVENTIONS;
     this.assetsDirConfirmedFor = null;
     this.destinationCueShown = false;
     // Bumping the generation invalidates any in-flight detector so the

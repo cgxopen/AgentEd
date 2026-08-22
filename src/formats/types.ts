@@ -1,3 +1,5 @@
+import type { LineConventions } from './line-conventions';
+
 export interface DocumentImage {
   relativePath: string;
   data: Uint8Array;
@@ -22,4 +24,12 @@ export interface DocumentBundle {
   images: DocumentImage[];
   /** Path of the `.md` file on disk */
   rootPath: string;
+  /**
+   * How the text is written back: line terminator and final newline
+   * (#79). Required rather than optional, because a bundle built
+   * without them is the half-wired caller this repository refuses to
+   * allow (#61) — the omission would not fail, it would silently
+   * rewrite a Windows user's file.
+   */
+  lineConventions: LineConventions;
 }

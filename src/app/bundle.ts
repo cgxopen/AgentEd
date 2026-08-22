@@ -17,6 +17,7 @@ export function buildBundle(state: AppState, getMarkdown: () => string): Documen
     markdownBody: getMarkdown(),
     images: getAllImages(),
     rootPath: state.filePath ?? 'untitled.md',
+    lineConventions: state.lineConventions,
   };
 }
 
@@ -39,6 +40,9 @@ export async function applyBundle(
   const bundle = loaded.bundle;
   ctx.state.filePath = path;
   ctx.state.knownDiskText = loaded.diskText;
+  // The file's own line conventions, read on open and re-applied to
+  // everything AgentEd writes to it afterwards (#79).
+  ctx.state.lineConventions = bundle.lineConventions;
   ctx.state.frontmatter = bundle.frontmatterRaw;
   ctx.state.isFirstSave = false;
 

@@ -184,12 +184,15 @@ describe('a save that finds the file as AgentEd left it', () => {
     expect(state.knownDiskText).toBe(disk.get('/doc/notes.md'));
   });
 
-  it('does not accuse a document whose line endings the save rewrites', async () => {
+  it('does not accuse a document assembled from a CRLF file', async () => {
     // Splitting a CRLF document with frontmatter and reassembling it is
-    // not byte-exact: the fences come back with LF. So the baseline is
-    // the text that was **read**, never one re-derived from the parsed
+    // not byte-exact: `assembleMarkdown` emits LF fences. So the baseline
+    // is the text that was **read**, never one re-derived from the parsed
     // document — a baseline that differs from the file by one byte would
-    // put this dialog in front of the user's very first save.
+    // put this dialog in front of the user's very first save. (Since #79
+    // the save re-applies the file's own conventions to the assembled
+    // text, so the written text is CRLF again; the rule about where the
+    // baseline comes from is unchanged, and so are these assertions.)
     disk.set('/doc/crlf.md', '---\r\ntitle: Notes\r\n---\r\n# Notes\r\n');
     const stop = answerDialogsInTurn('Overwrite');
     const actions = makeActions();

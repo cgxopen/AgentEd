@@ -26,6 +26,10 @@ export function createRequestSaveAs(ctx: AppContext): () => Promise<string | nul
     // keeping it would make the next save compare one file against
     // another file's text (R-C14).
     ctx.state.knownDiskText = null;
+    // `state.lineConventions` is deliberately **not** cleared here (#79).
+    // What AgentEd knows about a path belongs to the path; how a document's
+    // lines end belongs to the document — a CRLF file saved under a new
+    // name is still a CRLF file.
     ctx.setFilename(basename(path), path);
     return path;
   };

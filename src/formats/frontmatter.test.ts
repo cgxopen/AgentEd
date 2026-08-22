@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
+import { DEFAULT_LINE_CONVENTIONS } from './line-conventions';
 import type { DocumentBundle } from './types';
 
 describe('splitFrontmatter', () => {
@@ -39,6 +40,7 @@ describe('assembleMarkdown', () => {
       markdownBody,
       images: [],
       rootPath: 'test.md',
+      lineConventions: DEFAULT_LINE_CONVENTIONS,
     };
   }
 
