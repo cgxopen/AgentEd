@@ -22,7 +22,8 @@ import { normalizeLinkUrl } from '../editor/link-url';
 
 /** Why an address was refused. One line each, no syntax lecture. */
 const NEEDS_ADDRESS = 'Enter an address, or press Escape to cancel.';
-const UNSUPPORTED_ADDRESS = 'Only http, https and mailto addresses are supported.';
+const UNSUPPORTED_ADDRESS =
+  'Use a web address (https://…), an email address (mailto:…), or a relative path (./notes.md).';
 export interface LinkDialog {
   open: () => void;
 }
