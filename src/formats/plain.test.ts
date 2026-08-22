@@ -6,6 +6,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import type { FileEntry, FileResult, FileSnapshot, PlatformIO } from '../platform/types';
+import { DEFAULT_LINE_CONVENTIONS } from './line-conventions';
 import { loadMarkdown, saveMarkdown } from './plain';
 
 function stubIO(files: Record<string, string>): PlatformIO & {
@@ -104,6 +105,7 @@ describe('saveMarkdown — images', () => {
           },
         ],
         rootPath: '/docs/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );
@@ -120,6 +122,7 @@ describe('saveMarkdown — images', () => {
         markdownBody: '![shot](assets/shot.png)\n',
         images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
         rootPath: '/docs/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );
@@ -144,6 +147,7 @@ describe('saveMarkdown — images', () => {
         markdownBody: '# Notes\n\n![shot](assets/shot.png)\n',
         images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
         rootPath: '/docs/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );
@@ -165,6 +169,7 @@ describe('saveMarkdown — images', () => {
         markdownBody: '![shot](assets/shot.png)\n',
         images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
         rootPath: '/docs/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );
@@ -181,7 +186,13 @@ describe('saveMarkdown — images', () => {
 
     await expect(
       saveMarkdown(
-        { frontmatterRaw: null, markdownBody: '# Notes\n', images: [], rootPath: '/docs/notes.md' },
+        {
+          frontmatterRaw: null,
+          markdownBody: '# Notes\n',
+          images: [],
+          rootPath: '/docs/notes.md',
+          lineConventions: DEFAULT_LINE_CONVENTIONS,
+        },
         io,
       ),
     ).rejects.toThrow('EACCES');
@@ -195,6 +206,7 @@ describe('saveMarkdown — images', () => {
         markdownBody: '![shot](assets/shot.png)\n',
         images: [{ relativePath: 'assets/shot.png', data: new Uint8Array([1]), filename: 's.png' }],
         rootPath: '/docs/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );
@@ -215,6 +227,7 @@ describe('saveMarkdown — images', () => {
           },
         ],
         rootPath: '/docs/notes.md',
+        lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
     );

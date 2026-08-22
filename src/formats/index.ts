@@ -4,6 +4,12 @@ import type { DocumentBundle } from './types';
 
 export { detectExternalChange, type ExternalChange } from './external-change';
 export { assembleMarkdown, splitFrontmatter } from './frontmatter';
+export {
+  applyLineConventions,
+  DEFAULT_LINE_CONVENTIONS,
+  detectLineConventions,
+  type LineConventions,
+} from './line-conventions';
 export type { LoadResult, SaveResult } from './plain';
 export type { DocumentBundle, DocumentImage } from './types';
 

@@ -1,6 +1,7 @@
 import { dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
+import { applyLineConventions, detectLineConventions } from './line-conventions';
 import type { DocumentBundle } from './types';
 
 export interface LoadResult {
@@ -8,10 +9,13 @@ export interface LoadResult {
   /**
    * Exactly the text that was on disk, before any splitting — the
    * baseline the save flow compares against (R-C14). It is reported
-   * rather than re-derived because splitting and reassembling is not a
-   * byte-exact round trip for every file (a CRLF document with
-   * frontmatter comes back with LF fences), and a baseline that differs
-   * from the file by one byte would accuse the user on their next save.
+   * rather than re-derived because splitting, editing and reassembling
+   * is not a byte-exact round trip for every file — R-C2 has its
+   * recorded exceptions — and a baseline that differs from the file by
+   * one byte would accuse the user on their next save. (Line endings
+   * and the final newline used to be such a difference for every CRLF
+   * document; since #79 they are re-applied on save, but the reason
+   * this is reported rather than re-derived is unchanged.)
    */
   readonly diskText: string;
 }
@@ -25,6 +29,10 @@ export async function loadMarkdown(path: string, io: PlatformIO): Promise<LoadRe
       markdownBody: body,
       images: [],
       rootPath: path,
+      // Read from the text before any splitting — the same text the
+      // R-C14 baseline is taken from, and for the same reason: this is
+      // what the file actually contains (#79).
+      lineConventions: detectLineConventions(text),
     },
     diskText: text,
   };
@@ -63,7 +71,11 @@ export interface SaveResult {
  * written first and never rolled back for the sake of its images.
  */
 export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Promise<SaveResult> {
-  const writtenText = assembleMarkdown(bundle);
+  // The document's own line conventions are re-applied here, to the
+  // whole assembled text and nowhere else (#79): the serializer emits
+  // `\n` and no final newline, and this is the point where the text
+  // that will be written exists in one piece.
+  const writtenText = applyLineConventions(assembleMarkdown(bundle), bundle.lineConventions);
   await io.saveFile(bundle.rootPath, writtenText);
 
   if (!io.supportsMultiFile) return { assetsError: null, writtenText };
