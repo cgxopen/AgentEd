@@ -9,7 +9,7 @@ import TableRow from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
-import type { Schema } from '@tiptap/pm/model';
+import { DOMParser as ProseMirrorDOMParser, type Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import {
   type ConfirmAssetsDir,
@@ -166,7 +166,33 @@ export function createEditor(
   });
 
   const getMarkdown = () => htmlToMarkdown(editor.getHTML());
-  const setMarkdown = (md: string) => editor.commands.setContent(markdownToHtml(md));
+
+  // The open path parses with ProseMirror directly, the way `paste.ts` does —
+  // one parser for both routes, so a document opened from a file and the same
+  // text pasted into the editor arrive as the same document (#89).
+  //
+  // Handing `setContent` a string instead would route it through TipTap's
+  // `elementFromString`, whose `removeWhitespaces` deletes every text node
+  // that is *exactly* a newline, at every depth. In `marked`'s output that
+  // node is a **soft line break** whenever an inline element ends one line
+  // and another starts the next, so the separator was removed and ProseMirror
+  // then merged the adjacent text: `**a**`⏎`**b**` opened as `<strong>ab</strong>`
+  // and was saved as `**ab**` — two words merged into one, out of the user's
+  // file (R-C2). The helper was written to tidy pretty-printed HTML and no
+  // `parseOptions` bypasses it; `createNodeFromContent` returns a ProseMirror
+  // `Node` untouched, which is the whole of the fix.
+  //
+  // Parse options are deliberately left at their defaults: that is what
+  // `setContent` used for the string, so whitespace is handled exactly as
+  // before everywhere the helper was not the difference — a soft break
+  // between two text characters still collapses to a single space, and a
+  // fenced block still keeps its newlines through ProseMirror's own `pre`
+  // rule.
+  const setMarkdown = (md: string) => {
+    const container = document.createElement('div');
+    container.innerHTML = markdownToHtml(md);
+    editor.commands.setContent(ProseMirrorDOMParser.fromSchema(editor.schema).parse(container));
+  };
   const destroy = () => editor.destroy();
 
   return { editor, schema: editor.schema, getMarkdown, setMarkdown, destroy };
