@@ -18,6 +18,7 @@ import {
   type RequestSaveAs,
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
+import { isRelativeLinkAddress } from './link-url';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { OrderedListContinuity } from './ordered-list-continuity';
@@ -93,6 +94,26 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
       // `rel` is kept: it costs nothing and stays correct if this HTML is ever
       // rendered somewhere else.
       HTMLAttributes: { rel: 'noopener noreferrer', target: null },
+      // #42: a relative path is a link address. The extension's own allow-list
+      // is consulted at `parseHTML`, `renderHTML` and `setLink`, and in 2.27.2
+      // it is built from a template literal in which `\-` is not an escape —
+      // so its last character class is `[^a-z+.-:]`, where `.-:` is a *range*
+      // covering `/`. Any scheme-less address whose first label is followed by
+      // a slash therefore failed it: `docs/guide.md` was dropped to bare text
+      // on open (measured here, not read from the regex), which is R-C2 losing
+      // a destination out of the user's file. The `./` shape passed through
+      // `[^a-z]`, which is why it never showed.
+      //
+      // The override widens by exactly one case and narrows by none: what the
+      // extension already accepts, it goes on accepting — delegating to
+      // `defaultValidate` rather than restating an allow-list, so a `tel:` or
+      // `ftp:` link in someone's file keeps its destination and this fix does
+      // not introduce the very exception it removes. `javascript:`, `data:`,
+      // `vbscript:`, `file:` and `C:\notes\x.md` are refused by that default,
+      // so the override is never looser than the dialog on anything dangerous.
+      // An empty href answers true, as the default does, leaving
+      // `renderHTML`'s stripped branch exactly as it behaves today.
+      isAllowedUri: (url, ctx) => isRelativeLinkAddress(url) || ctx.defaultValidate(url),
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
     TaskList,
