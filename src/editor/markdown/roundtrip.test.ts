@@ -116,6 +116,65 @@ describe('markdown roundtrip', () => {
     });
   });
 
+  // ── Strikethrough (#85) ──
+  //
+  // Turndown had no rule for `s`/`del`/`strike`, and its default for an
+  // unrecognised element keeps the text and drops the element — so every
+  // shape below came back with the strike gone, measured on `a9aab02`. It is
+  // the one R-C2 exception that lost something the reader can see.
+  describe('strikethrough is byte-identical', () => {
+    const identical: Array<[string, string]> = [
+      ['a whole line', '~~gone~~'],
+      ['a word inside a sentence', 'a ~~b~~ c'],
+      ['more than one word', '~~two words~~'],
+      ['strike inside bold', '**~~x~~**'],
+      ['strike inside italics', '*~~x~~*'],
+      ['bold inside strike', '~~**x**~~'],
+      ['inline code inside strike', '~~a `code` b~~'],
+      ['a link inside strike', '~~[t](https://example.com)~~'],
+      ['strike inside a link', '[~~t~~](https://example.com)'],
+    ];
+    for (const [name, md] of identical) {
+      it(`preserves ${name}`, () => {
+        expect(roundtrip(md)).toBe(md);
+      });
+    }
+
+    it('leaves tildes inside inline code alone', () => {
+      expect(roundtrip('`~~a~~`')).toBe('`~~a~~`');
+    });
+
+    it('KNOWN EXCEPTION: single-tilde strikethrough is written with two', () => {
+      // `marked` (gfm) parses `~gone~` into the same <del> as `~~gone~~`, and
+      // the mark carries no memory of which delimiter the file used — so the
+      // serializer has nothing to write it back with but the two-tilde
+      // spelling. Same rendering everywhere, different bytes. Recorded in
+      // REQUIREMENTS under R-C2; keeping the single tilde would mean carrying
+      // the delimiter on the mark, which is a larger change than #85.
+      expect(roundtrip('~gone~')).toBe('~~gone~~');
+      expect(roundtrip('a ~b~ c')).toBe('a ~~b~~ c');
+    });
+
+    it('never writes an empty pair of delimiters', () => {
+      // Turndown's own blank replacement answers '' for an inline element
+      // with no content, so `~~~~` — which markdown reads as a tilde fence,
+      // not as an empty strike — can never come out of this rule.
+      expect(htmlToMarkdown('<p><s></s></p>').trim()).toBe('');
+      expect(htmlToMarkdown('<p>a<s></s>b</p>').trim()).toBe('ab');
+      // Whitespace-only content: turndown moves flanking whitespace outside
+      // the delimiters, so no `~~ ~~` is written either.
+      expect(htmlToMarkdown('<p>a<s> </s>b</p>').trim()).toBe('a b');
+    });
+
+    it('serializes every spelling the parser and the editor produce', () => {
+      // <del> comes from `marked`, <s> from TipTap's Strike, <strike> is the
+      // legacy spelling Strike's own parseHTML also accepts.
+      expect(htmlToMarkdown('<p><del>x</del></p>').trim()).toBe('~~x~~');
+      expect(htmlToMarkdown('<p><s>x</s></p>').trim()).toBe('~~x~~');
+      expect(htmlToMarkdown('<p><strike>x</strike></p>').trim()).toBe('~~x~~');
+    });
+  });
+
   it('preserves GFM table with header and rows', () => {
     const md = '| Name | Age |\n| --- | --- |\n| Ada  | 30  |';
     const out = roundtrip(md);
