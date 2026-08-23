@@ -19,6 +19,12 @@ declare module 'turndown' {
   class TurndownService {
     constructor(options?: Options);
     turndown(html: string | Node): string;
+    /**
+     * Escapes markdown syntax in a text node's value. A public method on the
+     * service, so it can be narrowed by assignment (#90) without reaching into
+     * turndown's internals.
+     */
+    escape(text: string): string;
     addRule(key: string, rule: Rule): this;
     use(
       plugins: Array<(service: TurndownService) => void> | ((service: TurndownService) => void),

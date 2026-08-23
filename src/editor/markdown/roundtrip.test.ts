@@ -136,6 +136,60 @@ describe('markdown roundtrip', () => {
     });
   });
 
+  describe('escaping is narrowed to what CommonMark needs (#90)', () => {
+    // The pair-level half of #90; the editor-level pins and the two whole
+    // documents live in `src/editor/escape-noise.test.ts`.
+    //
+    // Turndown escapes every `_` and every backtick in a text node, because
+    // from one text node it cannot tell syntax from content. Measured on
+    // `86bc260`, every case in the first list came back with a backslash the
+    // file never had: `cl100k\_base`, `snake\_case`, `` \`\`\` ``.
+    it.each([
+      ['an identifier with one underscore', 'The tokenizer is cl100k_base here.'],
+      ['snake_case in a sentence', 'Call snake_case now.'],
+      ['two underscores in one word', 'Try a_b_c please.'],
+      ['a double underscore inside a word', 'A foo__bar name.'],
+      ['a bare triple backtick quoted in text', 'A ``` in running text.'],
+      ['a lone backtick', 'one ` backtick'],
+      ['a lone double backtick run', 'a `` run here'],
+    ])('leaves %s alone', (_label, markdown) => {
+      expect(roundtrip(markdown)).toBe(markdown);
+    });
+
+    // The floor. Each of these was already correct on `86bc260` and must stay
+    // correct: a narrowing that took any of them away would trade a
+    // bytes-only difference for a visible one, which is the whole risk of this
+    // change.
+    it.each([
+      ['underscores the file had already escaped', 'a \\_foo\\_ b'],
+      ['asterisks the file had already escaped', 'a \\*not bold\\* b'],
+      ['an underscore that could open emphasis', 'see \\_foo here'],
+      ['an underscore that could close emphasis', 'see foo\\_ here'],
+      ['an underscore run at both edges of a word', 'a \\_x_y\\_ b'],
+      ['emphasis spelled with asterisks', 'a *foo* b'],
+      // The trap: CommonMark forbids intraword emphasis with `_` and allows it
+      // with `*`, so this escape is load-bearing where the `_` one is noise.
+      // `escape.ts` does not treat the two alike, and this says so.
+      ['intraword emphasis with asterisks', 'a foo*bar*baz b'],
+      ['strong', 'a **bold** b'],
+    ])('still escapes %s', (_label, markdown) => {
+      expect(roundtrip(markdown)).toBe(markdown);
+    });
+
+    // A closable run is escaped, but it cannot be expressed as markdown input:
+    // two same-length runs in a source file *are* a code span, so they never
+    // reach `escape` from this direction. Pinned from the HTML side instead,
+    // in `escape.test.ts`, which is where a text node carrying them exists.
+
+    it('never reaches inline code or a fenced block', () => {
+      // Not a special case in `escape.ts`: turndown calls `escape` at exactly
+      // one site, `node.isCode ? node.nodeValue : self.escape(...)`, so code
+      // never arrives there at all. Pinned rather than left to inference.
+      expect(roundtrip('use `snake_case` here')).toBe('use `snake_case` here');
+      expect(roundtrip('```js\nconst a_b = 1;\n```')).toBe('```js\nconst a_b = 1;\n```');
+    });
+  });
+
   describe('strikethrough is byte-identical', () => {
     const identical: Array<[string, string]> = [
       ['a whole line', '~~gone~~'],

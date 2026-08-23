@@ -1,5 +1,6 @@
 import TurndownService from 'turndown';
 import { getRelativePath } from '../image-registry';
+import { createNarrowedEscape } from './escape';
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -10,6 +11,14 @@ const turndown = new TurndownService({
   emDelimiter: '*',
   strongDelimiter: '**',
 });
+
+// #90: turndown escapes every `_` and every backtick in a text node, because
+// from one text node it cannot tell syntax from content. Two of those escapes
+// are noise CommonMark never asked for — an intraword `_`, and a backtick run
+// nothing can close — and they landed in the user's file on every save. The
+// original method stays the authority on everything else; see `escape.ts` for
+// why `*` is deliberately not treated the same way.
+turndown.escape = createNarrowedEscape(TurndownService.prototype.escape.bind(turndown));
 
 // Task list support
 turndown.addRule('taskListItem', {
