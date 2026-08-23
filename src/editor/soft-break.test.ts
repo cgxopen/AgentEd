@@ -23,7 +23,17 @@ import { createEditor, type EditorInstance } from './setup';
  *
  * These go through the **editor**, not through the parser/serializer pair:
  * `markdown/roundtrip.test.ts` never builds one, which is why it could not see
- * this.
+ * this (it now carries the one-line pair-level case as well).
+ *
+ * **The helper reached further than the soft break.** It stripped such a node
+ * at every depth, and `marked` emits them between list items, around table
+ * rows, inside blockquotes and inside `<pre><code>` too. Those contexts are
+ * measured here on both routes rather than reasoned about: ProseMirror ignores
+ * whitespace-only text outside inline context, so they save byte-identically —
+ * which is the claim, now pinned. The one place the node genuinely survives
+ * into the document model where it did not before is an empty fenced block,
+ * and its saved bytes are unchanged for a reason that belongs to the
+ * serializer; that case is pinned too, as observed rather than as fixed.
  */
 let instance: EditorInstance | null = null;
 
@@ -110,6 +120,47 @@ describe('what this change does not touch', () => {
   it('still separates two elements that had a literal space between them', () => {
     const editor = editorWith('**a** **b**');
     expect(editor.getMarkdown().trim()).toBe('**a** **b**');
+  });
+
+  it('OBSERVED: an empty fenced block is dropped on save, on both routes', () => {
+    // The one case where `removeWhitespaces` reached a *block* context that
+    // matters: `marked` reads ```⏎⏎``` as `<pre><code>\n</code></pre>`, whose
+    // only child is a text node that is exactly a newline. On `230b4d7` the
+    // helper deleted it and the editor held an empty `<code>`; here the
+    // newline survives into the document model. The saved bytes are the same
+    // either way — the serializer writes nothing at all for a code block with
+    // no visible content, so the fence the user wrote is lost on both sides.
+    // Pre-existing, not caused and not fixed by #89, reported on the PR.
+    const editor = editorWith('```\n\n```');
+    expect(editor.editor.getJSON()).toMatchObject({
+      content: [{ type: 'codeBlock', content: [{ type: 'text', text: '\n' }] }],
+    });
+    expect(editor.getMarkdown().trim()).toBe('');
+  });
+});
+
+describe('the block contexts the helper also reached are unmoved', () => {
+  // Measured, not assumed: `marked` puts a bare-newline text node between
+  // `</li>` and `<li>`, around `<thead>`/`<tr>` and inside `<blockquote>`, all
+  // of which the helper used to strip. Each of these round-trips to the same
+  // bytes as it did on `230b4d7` — verified there by reverting `setup.ts` and
+  // re-running this file.
+  it.each([
+    ['a nested tight bullet list', '- a\n  - b\n  - c\n- d', '- a\n  - b\n  - c\n- d'],
+    ['a nested ordered list', '1. a\n   1. b\n   2. c\n2. d', '1. a\n   1. b\n   2. c\n2. d'],
+    ['a task list', '- [ ] a\n- [x] b', '- [ ] a\n- [x] b'],
+    ['a blockquote', '> a quote', '> a quote'],
+    ['a blockquote holding a list', '> - a\n> - b', '> - a\n> - b'],
+    // A GFM table comes back padded — the table-padding exception in R-C2,
+    // owner decision on #93. Unchanged by this PR, which is the point here.
+    [
+      'a GFM table',
+      '| a | b |\n| --- | --- |\n| 1 | 2 |',
+      '| a   | b   |\n| --- | --- |\n| 1   | 2   |',
+    ],
+  ])('leaves %s exactly as it was', (_label, markdown, expected) => {
+    const editor = editorWith(markdown);
+    expect(editor.getMarkdown().trim()).toBe(expected);
   });
 });
 
