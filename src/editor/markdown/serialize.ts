@@ -50,11 +50,16 @@ turndown.escape = createNarrowedEscape(TurndownService.prototype.escape.bind(tur
  * Anchored to the start of the content because that is the only place the
  * escape can appear: turndown applies that rule at the start of a *text
  * node*, and in a heading or a cell parsed from a file, the leading text node
- * is the start of the content. A number that begins an inline element
- * instead — `## [1. x](url)` — keeps its backslash: the rendering is the
- * same, and reaching it would mean rewriting `N\.` anywhere in the string,
- * which would corrupt the one place those characters belong to the user —
- * inside a code span.
+ * is the start of the content.
+ *
+ * A number that opens an **inline element** instead sits further in and keeps
+ * its backslash — `## **1. Bold** thing`, `## *1. x* y`, `## [1. x](url) y`,
+ * and the same three shapes inside a table cell. Rendering is identical and
+ * the file holds still after the first save; it is recorded in R-C2 as a
+ * known exception, with the constraint that decides it. Reaching those would
+ * mean rewriting `N\.` anywhere in the string, which would corrupt the one
+ * place those two characters are the user's own — inside a code span
+ * (`` ## `1\. x` ``), whose text never reaches `escape` at all.
  */
 function withoutLeadingListEscape(content: string): string {
   return content.replace(/^(\d+)\\\. /, '$1. ');
@@ -64,7 +69,21 @@ function withoutLeadingListEscape(content: string): string {
 // and only changes the content handed to it. `headingStyle: 'atx'` and
 // everything else that rule does stay turndown's business, exactly as
 // `escape.ts` leaves the rest of the escape table to turndown.
+//
+// The parity with `escape.ts` is not exact in one respect: turndown documents
+// overriding `TurndownService.prototype.escape`, but `options.rules` appears
+// in neither of its README's option tables — it lives in the library's
+// `defaults` and nowhere else, and the package ships no types, so TypeScript
+// cannot see it change shape. Hence the guard: if a future release stops
+// exposing the rule table, this fails at module load naming the cause, rather
+// than as `Cannot read properties of undefined` from a blank application.
 const builtinHeading = turndown.options.rules.heading;
+if (!builtinHeading) {
+  throw new Error(
+    'turndown no longer exposes options.rules.heading, so the heading rule cannot delegate to the ' +
+      'built-in one (#97). See the heading rule in src/editor/markdown/serialize.ts.',
+  );
+}
 turndown.addRule('heading', {
   filter: builtinHeading.filter,
   replacement: (content, node, options) =>

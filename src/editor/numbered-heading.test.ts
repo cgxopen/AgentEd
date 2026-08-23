@@ -63,6 +63,32 @@ describe('a numbered heading gains no backslash (#97)', () => {
     expect(saved).not.toContain('\\.');
   });
 
+  it.each([
+    ['a heading inside a blockquote', '> ## 1. x'],
+    ['a literal backslash the user typed', '## 1\\\\. x'],
+    ['a code span opening a heading', '## `1. x` y'],
+  ])('leaves %s exactly as the file had it', (_label, markdown) => {
+    // Where a reader fears the fix reached too far. The heading rule is
+    // anchored to the heading *node*, not to the top-level block, so a
+    // heading nested in a quote is still a heading; and the two shapes
+    // turndown never hands to `escape` — a backslash the user typed, and the
+    // text of a code element — are outside the helper's reach entirely.
+    const editor = editorWith(markdown);
+    expect(editor.getMarkdown().trim()).toBe(markdown);
+  });
+
+  it('keeps a heading inside a list item out of an ordered list', () => {
+    // Asserted as the property rather than as bytes: TipTap's `listItem`
+    // schema does not admit a heading, so `- ## 1. x` arrives with the
+    // heading lifted out of the item and the bullet gone — pre-existing, the
+    // same family as the finding reported on this PR, and untouched by it.
+    // What #97 owns holds either way: no backslash, and no list on re-read.
+    const saved = editorWith('- ## 1. x').getMarkdown().trim();
+    expect(saved).toContain('## 1. x');
+    expect(saved).not.toContain('\\.');
+    expect(editorWith(saved).editor.getHTML()).not.toContain('<ol');
+  });
+
   it('writes a heading built in the editor without a backslash', () => {
     // Not parsed from a file: the same heading typed into the document. The
     // fix is anchored to the node, so it applies wherever the heading came
@@ -70,6 +96,31 @@ describe('a numbered heading gains no backslash (#97)', () => {
     const editor = editorWith('');
     editor.editor.commands.setContent('<h2>1. Product statement</h2>');
     expect(editor.getMarkdown().trim()).toBe('## 1. Product statement');
+  });
+});
+
+describe('KNOWN EXCEPTION — a number that opens an inline element (#97)', () => {
+  // Recorded in R-C2 in this PR, and wider than a link: any leading inline
+  // element, in a heading and in a cell alike. The escape can only be
+  // withheld at the start of the content, which is where turndown's rule puts
+  // it; reaching further in would mean rewriting `N\.` anywhere in the
+  // string, which would corrupt a code span's own characters. Rendering is
+  // identical and the file holds still after the first save — the half that
+  // makes it an exception rather than a defect.
+  it.each([
+    ['a link opening a heading', '## [1. x](https://e.com) y', '## [1\\. x](https://e.com) y'],
+    ['emphasis opening a heading', '## *1. x* y', '## *1\\. x* y'],
+    ['strong opening a heading', '## **1. x** y', '## **1\\. x** y'],
+  ])('keeps the backslash when %s', (_label, markdown, expected) => {
+    const once = editorWith(markdown).getMarkdown().trim();
+    expect(once).toBe(expected);
+    expect(editorWith(once).getMarkdown().trim()).toBe(once);
+  });
+
+  it('keeps the backslash when strong opens a table cell', () => {
+    const once = editorWith('| **1. x** | y |\n| --- | --- |\n| a | b |').getMarkdown().trim();
+    expect(once).toContain('| **1\\. x** |');
+    expect(editorWith(once).getMarkdown().trim()).toBe(once);
   });
 });
 

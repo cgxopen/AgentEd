@@ -19,11 +19,16 @@ declare module 'turndown' {
   /**
    * Turndown's own rule table, resolved onto the service's options. Declared
    * so a replacement rule can delegate to the built-in it shadows (#97)
-   * instead of restating it — the same move `escape` makes for the escape
-   * table. Only the rule that is actually delegated to is named.
+   * instead of restating it — close to the move `escape` makes for the escape
+   * table, but not identical: turndown documents overriding
+   * `TurndownService.prototype.escape`, while `options.rules` appears in
+   * neither of its README's option tables. Only the rule actually delegated
+   * to is named, and it is declared **optional** on purpose: this file is our
+   * claim about a package that ships no types, so the caller is made to check
+   * rather than trust it.
    */
   interface BuiltinRules {
-    readonly heading: Rule;
+    readonly heading?: Rule;
   }
 
   class TurndownService {

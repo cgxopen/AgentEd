@@ -287,18 +287,51 @@ describe('markdown roundtrip', () => {
       expect(roundtrip(once)).toBe(once);
     });
 
-    it('KNOWN LEFTOVER: a number inside a leading link keeps its backslash', () => {
-      // Deliberately not covered. The escape is withheld at the *start* of a
-      // heading's content, which is where turndown can put it when the file is
-      // parsed; a number that opens an inline element instead sits further in.
-      // Reaching it would mean rewriting `N\.` anywhere in the heading, which
-      // would corrupt the one place those two characters are the user's own —
-      // inside a code span. Rendering is identical, and the file holds still
-      // after the first save.
-      const md = '## [1. x](https://e.com) y';
+    // ── The recorded R-C2 exception: a number that opens an inline element ──
+    //
+    // Deliberately not covered, and the scope is wider than links: **any**
+    // leading inline element, in a heading and in a cell alike. The escape is
+    // withheld at the *start* of the content, which is where turndown's rule
+    // puts it; a number that opens an inline element sits further in.
+    // Reaching it would mean rewriting `N\.` anywhere in the assembled
+    // string, which would corrupt the one place those two characters are the
+    // user's own — inside a code span. Rendering is identical, and the file
+    // holds still after the first save.
+    it.each([
+      ['a link opening a heading', '## [1. x](https://e.com) y', '## [1\\. x](https://e.com) y'],
+      ['emphasis opening a heading', '## *1. x* y', '## *1\\. x* y'],
+      ['strong opening a heading', '## **1. x** y', '## **1\\. x** y'],
+    ])('KNOWN EXCEPTION: %s keeps its backslash', (_label, md, expected) => {
       const once = roundtrip(md);
-      expect(once).toBe('## [1\\. x](https://e.com) y');
+      expect(once).toBe(expected);
       expect(roundtrip(once)).toBe(once);
+    });
+
+    it.each([
+      ['a link opening a cell', '| [1. x](https://e.com) | y |', '| [1\\. x](https://e.com) |'],
+      ['strong opening a cell', '| **1. x** | y |', '| **1\\. x** |'],
+    ])('KNOWN EXCEPTION: %s keeps its backslash', (_label, cellRow, expectedCell) => {
+      const md = `${cellRow}\n| --- | --- |\n| a | b |`;
+      const once = roundtrip(md);
+      expect(once).toContain(expectedCell);
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    // ── Anchored to the node, not to the top-level block ──
+    //
+    // Where a reader fears the fix reached too far. A heading nested inside
+    // another block is still a heading, and the two shapes turndown never
+    // hands to `escape` are untouched by the helper.
+    it.each([
+      ['a heading inside a blockquote', '> ## 1. x'],
+      ['a heading inside a list item', '- ## 1. x'],
+      ['a literal backslash the user typed', '## 1\\\\. x'],
+      ['a code span opening a heading', '## `1. x` y'],
+    ])('leaves %s exactly as the file had it', (_label, markdown) => {
+      const once = roundtrip(markdown);
+      expect(once).toBe(markdown);
+      expect(roundtrip(once)).toBe(once);
+      expect(markdownToHtml(once)).not.toContain('<ol');
     });
   });
 
