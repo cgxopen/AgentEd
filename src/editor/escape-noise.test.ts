@@ -136,13 +136,13 @@ describe('two real documents, opened and saved unedited', () => {
   //                    Two badge rows and a two-line sign-off collapse to one
   //                    line each at no byte cost: R-C2's soft-break exception.
   //   REQUIREMENTS.md — `**` re-nested around inline code and links: #84.
-  //                    `## 1.` written as `## 1\.`: now **#97**, and the fix
-  //                    belongs at the heading rule rather than here — in a
-  //                    heading that escape is noise, in a paragraph it is
-  //                    load-bearing, and `escape(text)` is not given the
-  //                    parent node.
   //                    A code span's delimiter run shortened to the minimum
   //                    width that still closes it: pre-existing and stable.
+  //                    `## 1.` written as `## 1\.` was the third; it closed
+  //                    with #97, at the heading rule rather than here — in a
+  //                    heading that escape is noise, in a paragraph it is
+  //                    load-bearing, and `escape(text)` is not given the
+  //                    parent node. Pinned in `numbered-heading.test.ts`.
   //
   // The backtick count is asserted as **unchanged**, not improved: this PR
   // narrows underscores only.

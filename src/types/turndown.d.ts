@@ -16,8 +16,20 @@ declare module 'turndown' {
     replacement: (content: string, node: Node, options: Options) => string;
   }
 
+  /**
+   * Turndown's own rule table, resolved onto the service's options. Declared
+   * so a replacement rule can delegate to the built-in it shadows (#97)
+   * instead of restating it — the same move `escape` makes for the escape
+   * table. Only the rule that is actually delegated to is named.
+   */
+  interface BuiltinRules {
+    readonly heading: Rule;
+  }
+
   class TurndownService {
     constructor(options?: Options);
+    /** The service's resolved options, including turndown's own rules. */
+    readonly options: Options & { readonly rules: BuiltinRules };
     turndown(html: string | Node): string;
     /**
      * Escapes markdown syntax in a text node's value. A public method on the
