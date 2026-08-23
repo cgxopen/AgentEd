@@ -12,12 +12,12 @@ const turndown = new TurndownService({
   strongDelimiter: '**',
 });
 
-// #90: turndown escapes every `_` and every backtick in a text node, because
-// from one text node it cannot tell syntax from content. Two of those escapes
-// are noise CommonMark never asked for — an intraword `_`, and a backtick run
-// nothing can close — and they landed in the user's file on every save. The
-// original method stays the authority on everything else; see `escape.ts` for
-// why `*` is deliberately not treated the same way.
+// #90: turndown escapes every `_` in a text node, because from one text node
+// it cannot tell syntax from content. An intraword `_` is noise CommonMark
+// never asked for, and it landed in the user's file on every save. The
+// original method stays the authority on everything else — including every
+// backtick; see `escape.ts` for why `*` and `` ` `` are deliberately not
+// treated the same way.
 turndown.escape = createNarrowedEscape(TurndownService.prototype.escape.bind(turndown));
 
 // Task list support
