@@ -16,8 +16,25 @@ declare module 'turndown' {
     replacement: (content: string, node: Node, options: Options) => string;
   }
 
+  /**
+   * Turndown's own rule table, resolved onto the service's options. Declared
+   * so a replacement rule can delegate to the built-in it shadows (#97)
+   * instead of restating it — close to the move `escape` makes for the escape
+   * table, but not identical: turndown documents overriding
+   * `TurndownService.prototype.escape`, while `options.rules` appears in
+   * neither of its README's option tables. Only the rule actually delegated
+   * to is named, and it is declared **optional** on purpose: this file is our
+   * claim about a package that ships no types, so the caller is made to check
+   * rather than trust it.
+   */
+  interface BuiltinRules {
+    readonly heading?: Rule;
+  }
+
   class TurndownService {
     constructor(options?: Options);
+    /** The service's resolved options, including turndown's own rules. */
+    readonly options: Options & { readonly rules: BuiltinRules };
     turndown(html: string | Node): string;
     /**
      * Escapes markdown syntax in a text node's value. A public method on the

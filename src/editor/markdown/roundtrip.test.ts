@@ -209,6 +209,132 @@ describe('markdown roundtrip', () => {
     });
   });
 
+  describe('a number that opens a heading or a cell is not escaped (#97)', () => {
+    // The pair-level half of #97; the editor-level pins and the two whole
+    // documents live in `src/editor/numbered-heading.test.ts`.
+    //
+    // Turndown escapes a text node that begins with digits and a full stop, so
+    // on `0ec52ed` every numbered heading in `REQUIREMENTS.md` came back as
+    // `## 1\. Product statement` — a backslash nobody typed, on every save.
+    //
+    // The escape is withheld in exactly the contexts where a list cannot
+    // begin. Measured with `parse.ts`'s options on `marked@15`: `# 1. Intro`
+    // and `| 1. x |` parse identically with and without it, while
+    // `1990. It was a good year.` does not — see the floor below.
+    it.each([
+      ['a numbered H1', '# 1. Intro'],
+      ['a numbered H2', '## 1. Product statement'],
+      ['a numbered H3', '### 1. Deeper'],
+      ['the deepest heading', '###### 1. Deep'],
+      ['a heading whose number is large enough to be a list start', '## 1990. A year.'],
+      ['a heading with an element after the number', '## 1. **Bold** thing'],
+    ])('writes %s without a backslash', (_label, markdown) => {
+      expect(roundtrip(markdown)).toBe(markdown);
+    });
+
+    it('writes a numbered table cell without a backslash', () => {
+      // A GFM cell holds inline content only, so nothing in one can open a
+      // list. The column padding is AgentEd's own spelling — the R-C2
+      // exception #93 tracks it — so this asserts the cells, not the widths.
+      const out = roundtrip('| 1. x | y |\n| --- | --- |\n| 2. a | b |');
+      expect(out).toContain('| 1. x |');
+      expect(out).toContain('| 2. a |');
+      expect(out).not.toContain('\\.');
+    });
+
+    // The floor. Each of these was already correct on `0ec52ed` and must stay
+    // correct: a paragraph, a blockquote body and a list-item body all host
+    // block content, so withholding the backslash there would turn a sentence
+    // into an ordered list — a visible loss where the heading case is bytes.
+    //
+    // Each source below is the *escaped* spelling, because that is the only
+    // way to write these sentences: `1990. It was a good year.` unescaped is
+    // an ordered list starting at 1990, which is the whole point.
+    it.each([
+      ['a paragraph opening with a year', '1990\\. It was a good year.'],
+      ['a paragraph opening with a small number', '1\\. It was a good year.'],
+      ['a blockquote opening with a year', '> 1990\\. A year.'],
+      ['a list item whose body opens with a year', '- 1990\\. A year.'],
+    ])('still escapes %s', (_label, markdown) => {
+      expect(roundtrip(markdown)).toBe(markdown);
+    });
+
+    it.each([
+      ['a paragraph', '1990\\. It was a good year.'],
+      ['a blockquote body', '> 1990\\. A year.'],
+      ['a list item body', '- 1990\\. A year.'],
+    ])('keeps %s out of an ordered list when it is read back', (_label, markdown) => {
+      // The half that matters more than the bytes: the escape survives the
+      // save, and re-reading what was written gives the same block back
+      // instead of `<ol start="1990">`.
+      const saved = roundtrip(markdown);
+      expect(saved).toBe(markdown);
+      expect(markdownToHtml(saved)).not.toContain('<ol');
+    });
+
+    it('still writes a real ordered list as an ordered list', () => {
+      expect(roundtrip('1. first\n2. second')).toBe('1. first\n2. second');
+      expect(roundtrip('3. third\n4. fourth')).toBe('3. third\n4. fourth');
+    });
+
+    it('does not preserve a redundant escape a numbered heading had', () => {
+      // The same shape as the intraword underscore above, and recorded in R-C2
+      // beside it: `marked` consumes the backslash on the way in, so nothing
+      // at serialization time knows the source had one. The file changes once
+      // and then holds still.
+      const once = roundtrip('## 1\\. Product statement');
+      expect(once).toBe('## 1. Product statement');
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    // ── The recorded R-C2 exception: a number that opens an inline element ──
+    //
+    // Deliberately not covered, and the scope is wider than links: **any**
+    // leading inline element, in a heading and in a cell alike. The escape is
+    // withheld at the *start* of the content, which is where turndown's rule
+    // puts it; a number that opens an inline element sits further in.
+    // Reaching it would mean rewriting `N\.` anywhere in the assembled
+    // string, which would corrupt the one place those two characters are the
+    // user's own — inside a code span. Rendering is identical, and the file
+    // holds still after the first save.
+    it.each([
+      ['a link opening a heading', '## [1. x](https://e.com) y', '## [1\\. x](https://e.com) y'],
+      ['emphasis opening a heading', '## *1. x* y', '## *1\\. x* y'],
+      ['strong opening a heading', '## **1. x** y', '## **1\\. x** y'],
+    ])('KNOWN EXCEPTION: %s keeps its backslash', (_label, md, expected) => {
+      const once = roundtrip(md);
+      expect(once).toBe(expected);
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    it.each([
+      ['a link opening a cell', '| [1. x](https://e.com) | y |', '| [1\\. x](https://e.com) |'],
+      ['strong opening a cell', '| **1. x** | y |', '| **1\\. x** |'],
+    ])('KNOWN EXCEPTION: %s keeps its backslash', (_label, cellRow, expectedCell) => {
+      const md = `${cellRow}\n| --- | --- |\n| a | b |`;
+      const once = roundtrip(md);
+      expect(once).toContain(expectedCell);
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    // ── Anchored to the node, not to the top-level block ──
+    //
+    // Where a reader fears the fix reached too far. A heading nested inside
+    // another block is still a heading, and the two shapes turndown never
+    // hands to `escape` are untouched by the helper.
+    it.each([
+      ['a heading inside a blockquote', '> ## 1. x'],
+      ['a heading inside a list item', '- ## 1. x'],
+      ['a literal backslash the user typed', '## 1\\\\. x'],
+      ['a code span opening a heading', '## `1. x` y'],
+    ])('leaves %s exactly as the file had it', (_label, markdown) => {
+      const once = roundtrip(markdown);
+      expect(once).toBe(markdown);
+      expect(roundtrip(once)).toBe(once);
+      expect(markdownToHtml(once)).not.toContain('<ol');
+    });
+  });
+
   describe('strikethrough is byte-identical', () => {
     const identical: Array<[string, string]> = [
       ['a whole line', '~~gone~~'],

@@ -20,6 +20,76 @@ const turndown = new TurndownService({
 // treated the same way.
 turndown.escape = createNarrowedEscape(TurndownService.prototype.escape.bind(turndown));
 
+// ── A number that begins a heading or a table cell (#97) ──
+//
+// Turndown's escape table holds `[/^(\d+)\. /g, '$1\\. ']`, so a text node
+// beginning with digits and a full stop is written back with a backslash:
+// `## 1. Product statement` was saved as `## 1\. Product statement`, on every
+// save of every numbered document, in every diff (R-C2).
+//
+// **That escape matters exactly where a list can begin.** Measured on
+// `marked@15` with `parse.ts`'s options: a heading and a table cell take
+// inline content only, so `1. x` in either parses identically with or without
+// the backslash — there it is noise. A paragraph, a blockquote body and a
+// list-item body host block content, and there it is load-bearing:
+// `1990. It was a good year.` without a backslash comes back as an ordered
+// list starting at 1990, a sentence turned into a list. So the escape stays
+// everywhere except the two contexts that know, by construction, that no list
+// can start in them.
+//
+// This is why the fix is not a second narrowing in `escape.ts`: that function
+// is handed one string and no node, so it cannot tell a heading's `1.` from a
+// paragraph's. For the same reason it is not a pass over the finished
+// markdown either — from the whole document those are the same characters.
+// It has to be done where the context is already known.
+
+/**
+ * Drop the backslash turndown put in front of a leading `N.`, for a caller
+ * that has already established a list cannot begin in it.
+ *
+ * Anchored to the start of the content because that is the only place the
+ * escape can appear: turndown applies that rule at the start of a *text
+ * node*, and in a heading or a cell parsed from a file, the leading text node
+ * is the start of the content.
+ *
+ * A number that opens an **inline element** instead sits further in and keeps
+ * its backslash — `## **1. Bold** thing`, `## *1. x* y`, `## [1. x](url) y`,
+ * and the same three shapes inside a table cell. Rendering is identical and
+ * the file holds still after the first save; it is recorded in R-C2 as a
+ * known exception, with the constraint that decides it. Reaching those would
+ * mean rewriting `N\.` anywhere in the string, which would corrupt the one
+ * place those two characters are the user's own — inside a code span
+ * (`` ## `1\. x` ``), whose text never reaches `escape` at all.
+ */
+function withoutLeadingListEscape(content: string): string {
+  return content.replace(/^(\d+)\\\. /, '$1. ');
+}
+
+// The heading rule delegates to the built-in one — same filter, same output —
+// and only changes the content handed to it. `headingStyle: 'atx'` and
+// everything else that rule does stay turndown's business, exactly as
+// `escape.ts` leaves the rest of the escape table to turndown.
+//
+// The parity with `escape.ts` is not exact in one respect: turndown documents
+// overriding `TurndownService.prototype.escape`, but `options.rules` appears
+// in neither of its README's option tables — it lives in the library's
+// `defaults` and nowhere else, and the package ships no types, so TypeScript
+// cannot see it change shape. Hence the guard: if a future release stops
+// exposing the rule table, this fails at module load naming the cause, rather
+// than as `Cannot read properties of undefined` from a blank application.
+const builtinHeading = turndown.options.rules.heading;
+if (!builtinHeading) {
+  throw new Error(
+    'turndown no longer exposes options.rules.heading, so the heading rule cannot delegate to the ' +
+      'built-in one (#97). See the heading rule in src/editor/markdown/serialize.ts.',
+  );
+}
+turndown.addRule('heading', {
+  filter: builtinHeading.filter,
+  replacement: (content, node, options) =>
+    builtinHeading.replacement(withoutLeadingListEscape(content), node, options),
+});
+
 // Task list support
 turndown.addRule('taskListItem', {
   filter: (node) => {
@@ -152,10 +222,17 @@ turndown.addRule('agentedImage', {
  *
  * Newlines are flattened to spaces (MD tables are single-line) and
  * pipes are escaped to avoid breaking the column structure.
+ *
+ * A cell's own content is inline by the time it is written — GFM gives a cell
+ * nothing else, and the newlines are flattened here anyway — so a leading
+ * `N.` cannot open a list when the table is read back, and it is written
+ * without turndown's backslash (#97). The recursive call above serializes the
+ * cell as a paragraph, which is where that escape comes from.
  */
 function cellContent(cell: HTMLElement): string {
   const inner = turndown.turndown(cell.innerHTML);
-  return inner.replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
+  const flattened = inner.replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
+  return withoutLeadingListEscape(flattened);
 }
 
 function pad(str: string, width: number): string {
