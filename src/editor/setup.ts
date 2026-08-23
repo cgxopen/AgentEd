@@ -9,7 +9,7 @@ import TableRow from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
-import type { Schema } from '@tiptap/pm/model';
+import { DOMParser as ProseMirrorDOMParser, type Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import {
   type ConfirmAssetsDir,
@@ -166,7 +166,51 @@ export function createEditor(
   });
 
   const getMarkdown = () => htmlToMarkdown(editor.getHTML());
-  const setMarkdown = (md: string) => editor.commands.setContent(markdownToHtml(md));
+
+  // The open path parses with ProseMirror directly, the way `paste.ts` already
+  // did — `setMarkdown` was the only route that still met TipTap's own helper,
+  // so both routes now reach the same DOM parser (#89).
+  //
+  // **The parser is what they share, not the markdown reading.** `paste.ts`
+  // calls `markdownToHtml` with `breaks: true` and this path leaves it false,
+  // so a single newline is a hard break in pasted text and a space in an
+  // opened file — measured on `marked` 15.0.12: `<a>A</a><br><a>B</a>` for the
+  // paste, `<a>A</a>\n<a>B</a>` for the open. That difference is deliberate and
+  // argued at `ParseOptions.breaks` in `markdown/parse.ts`: a file's author
+  // chose where the paragraphs are, while for pasted text the copied lines are
+  // the only structure on offer. Do not unify the two options to make the
+  // routes "agree" — they are not meant to.
+  //
+  // Handing `setContent` a string instead would route it through TipTap's
+  // `elementFromString`, whose `removeWhitespaces` deletes every text node
+  // that is *exactly* a newline, at every depth. In `marked`'s output that
+  // node is a **soft line break** whenever an inline element ends one line
+  // and another starts the next, so the separator was removed and ProseMirror
+  // then merged the adjacent text: `**a**`⏎`**b**` opened as `<strong>ab</strong>`
+  // and was saved as `**ab**` — two words merged into one, out of the user's
+  // file (R-C2). The helper was written to tidy pretty-printed HTML and no
+  // `parseOptions` bypasses it; `createNodeFromContent` returns a ProseMirror
+  // `Node` untouched, which is the whole of the fix.
+  //
+  // The helper's reach was wider than the soft break — `marked` emits such a
+  // node between list items, around table rows, inside blockquotes and inside
+  // `<pre><code>` too. Those contexts were measured on both routes and save
+  // byte-identically, because ProseMirror ignores whitespace-only text outside
+  // inline context; the one place the node now survives into the document
+  // model is an empty fenced block, where the saved bytes are unchanged anyway
+  // for a reason of the serializer's. Both are pinned in `soft-break.test.ts`.
+  //
+  // Parse options are deliberately left at their defaults: that is what
+  // `setContent` used for the string, so whitespace is handled exactly as
+  // before everywhere the helper was not the difference — a soft break
+  // between two text characters still collapses to a single space, and a
+  // fenced block still keeps its newlines through ProseMirror's own `pre`
+  // rule.
+  const setMarkdown = (md: string) => {
+    const container = document.createElement('div');
+    container.innerHTML = markdownToHtml(md);
+    editor.commands.setContent(ProseMirrorDOMParser.fromSchema(editor.schema).parse(container));
+  };
   const destroy = () => editor.destroy();
 
   return { editor, schema: editor.schema, getMarkdown, setMarkdown, destroy };
