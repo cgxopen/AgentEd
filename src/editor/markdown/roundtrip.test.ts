@@ -234,8 +234,8 @@ describe('markdown roundtrip', () => {
 
     it('writes a numbered table cell without a backslash', () => {
       // A GFM cell holds inline content only, so nothing in one can open a
-      // list. The column padding is AgentEd's own spelling — the R-C2
-      // exception #93 tracks it — so this asserts the cells, not the widths.
+      // list. Since #93 the widths are the file's own, so this asserts the
+      // cells rather than the geometry.
       const out = roundtrip('| 1. x | y |\n| --- | --- |\n| 2. a | b |');
       expect(out).toContain('| 1. x |');
       expect(out).toContain('| 2. a |');
@@ -397,5 +397,86 @@ describe('markdown roundtrip', () => {
     expect(out).toMatch(/\|\s*-+\s*\|\s*-+\s*\|/);
     // Data row
     expect(out).toMatch(/\|\s*Ada\s*\|\s*30\s*\|/);
+  });
+
+  describe('a table is written the way the file wrote it (#93)', () => {
+    // The pair-level half of #93; the editor-level pins and the real
+    // documents live in `src/editor/table-style.test.ts`.
+    //
+    // AgentEd used to pad every cell of every table to a uniform width: 628
+    // of the 630 bytes by which an untouched save grew `README.md` on
+    // `087e232`, and every one of the 488 by which it grew `WORKFLOW.md`.
+    // Minimal cells everywhere would have moved the same exception onto
+    // every hand-aligned file, so what is written now is what the file used.
+    it.each([
+      ['hugged cells', '| a | b |\n| --- | --- |\n| 1 | 2 |'],
+      [
+        'a tight separator with fitted dashes',
+        '| Shortcut | Action |\n|----------|--------|\n| `x` | y |',
+      ],
+      ['columns aligned to their content', '| a   | bb  |\n| --- | --- |\n| ccc | d   |'],
+      [
+        'columns padded wider than the content needs',
+        '| a      | b      |\n| ------ | ------ |\n| c      | d      |',
+      ],
+      ['a separator wider than three dashes', '| a | b |\n| ----- | ------- |\n| 1 | 2 |'],
+      ['alignment markers', '| a | b |\n| :-- | --: |\n| 1 | 2 |'],
+      [
+        'the shorter spelling of an empty cell',
+        '| | Does |\n| --- | --- |\n| **Owner** | Decides |',
+      ],
+      ['the longer spelling of an empty cell', '| Step | Owner |\n| --- | --- |\n|  |  |'],
+      ['a one-row table', '| a | b |\n| --- | --- |'],
+      [
+        'two tables spelled differently',
+        '| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntext\n\n| c   | d   |\n|-----|-----|\n| eee | fff |',
+      ],
+    ])('leaves %s byte-identical', (_label, markdown) => {
+      expect(roundtrip(markdown)).toBe(markdown);
+    });
+
+    it('leaves a table inside a fenced block alone', () => {
+      const md = '```\n| a | b |\n| --- | --- |\n```';
+      expect(roundtrip(md)).toBe(md);
+    });
+
+    it('writes a table that has no spelling of its own with hugged cells', () => {
+      // What `htmlToMarkdown` does with a table that never came from
+      // markdown — the default, and the one case the owner decided:
+      // hugged cells and a spaced three-dash separator (2026-08-24).
+      const html =
+        '<table><tbody><tr><th>Name</th><th>Age</th></tr><tr><td>Ada</td><td>30</td></tr></tbody></table>';
+      expect(htmlToMarkdown(html).trim()).toBe('| Name | Age |\n| --- | --- |\n| Ada | 30 |');
+    });
+
+    // The residue, measured rather than predicted, and recorded in R-C2.
+    it('KNOWN EXCEPTION: a table without outer pipes gains them', () => {
+      // The cells keep their spelling; only the outer pipes are new. 8 of the
+      // 772 files with tables in the corpus write a table this way.
+      const once = roundtrip('a | b\n--- | ---\n1 | 2');
+      expect(once).toBe('| a | b |\n|---|---|\n| 1 | 2 |');
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    it('KNOWN EXCEPTION: an indented table is written at the margin', () => {
+      const once = roundtrip('  | a | b |\n  | --- | --- |\n  | 1 | 2 |');
+      expect(once).toBe('| a | b |\n| --- | --- |\n| 1 | 2 |');
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    it('KNOWN EXCEPTION: cells written with no spaces at all get one', () => {
+      const once = roundtrip('|a|b|\n|---|---|\n|1|2|');
+      expect(once).toBe('| a | b |\n|---|---|\n| 1 | 2 |');
+      expect(roundtrip(once)).toBe(once);
+    });
+
+    it('KNOWN EXCEPTION: a column whose rows disagree is hugged', () => {
+      // A file aligned by hand and then edited elsewhere without
+      // re-aligning. It changes once — and then holds still, which is the
+      // half that makes it an exception rather than a defect.
+      const once = roundtrip('| a   | b   |\n| --- | --- |\n| c | d |');
+      expect(once).toBe('| a | b |\n| --- | --- |\n| c | d |');
+      expect(roundtrip(once)).toBe(once);
+    });
   });
 });

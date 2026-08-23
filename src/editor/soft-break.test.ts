@@ -151,13 +151,10 @@ describe('the block contexts the helper also reached are unmoved', () => {
     ['a task list', '- [ ] a\n- [x] b', '- [ ] a\n- [x] b'],
     ['a blockquote', '> a quote', '> a quote'],
     ['a blockquote holding a list', '> - a\n> - b', '> - a\n> - b'],
-    // A GFM table comes back padded — the table-padding exception in R-C2,
-    // owner decision on #93. Unchanged by this PR, which is the point here.
-    [
-      'a GFM table',
-      '| a | b |\n| --- | --- |\n| 1 | 2 |',
-      '| a   | b   |\n| --- | --- |\n| 1   | 2   |',
-    ],
+    // A GFM table used to come back padded — the R-C2 exception this file
+    // recorded when #89 landed. Since #93 the table is written the way the
+    // file wrote it, so the row now means what its name always said.
+    ['a GFM table', '| a | b |\n| --- | --- |\n| 1 | 2 |', '| a | b |\n| --- | --- |\n| 1 | 2 |'],
   ])('leaves %s exactly as it was', (_label, markdown, expected) => {
     const editor = editorWith(markdown);
     expect(editor.getMarkdown().trim()).toBe(expected);

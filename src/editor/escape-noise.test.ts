@@ -132,7 +132,8 @@ describe('KNOWN EXCEPTION — a redundant escape the source had is not kept', ()
 describe('two real documents, opened and saved unedited', () => {
   // Neither is byte-identical yet, and this asserts only the share #90 owns.
   // What remains, measured on this branch:
-  //   README.md      — the shortcuts table, re-padded (+628 bytes): #93.
+  //   README.md      — the shortcuts table, re-padded (+628 bytes): closed
+  //                    by #93; the table is now written as the file wrote it.
   //                    Two badge rows and a two-line sign-off collapse to one
   //                    line each at no byte cost: R-C2's soft-break exception.
   //   REQUIREMENTS.md — `**` re-nested around inline code and links: #84.

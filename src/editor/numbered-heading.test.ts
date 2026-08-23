@@ -54,8 +54,9 @@ describe('a numbered heading gains no backslash (#97)', () => {
 
   it('leaves a numbered table cell without a backslash', () => {
     // A GFM cell holds inline content only, so nothing in one can open a list.
-    // The column padding is AgentEd's own spelling (#93), so this asserts the
-    // cells, not the widths.
+    // Since #93 the column widths are the file's own, so this asserts the
+    // cells rather than the geometry — it is the escaping that is at stake
+    // here, not the padding.
     const editor = editorWith('| 1. x | y |\n| --- | --- |\n| 2. a | b |');
     const saved = editor.getMarkdown();
     expect(saved).toContain('| 1. x |');
