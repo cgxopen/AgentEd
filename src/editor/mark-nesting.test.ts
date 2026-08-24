@@ -129,13 +129,17 @@ describe('the toolbar routes (#84)', () => {
     // and opens a new one — which is what the marks say and what re-reading it
     // gives back.
     //
-    // **Nothing is lost and nothing drifts**, which is why it is recorded here
-    // rather than refused: the words, the monospace and the emphasis all
-    // survive, and the second save moves nothing. What the reader sees change is
-    // one code span becoming three adjacent ones. It is reachable only by
-    // selecting part of a code span deliberately, and it is the owner's call
-    // whether that is worth preventing in the UI — the measurement is here so
-    // that the answer is a decision rather than a discovery.
+    // **Nothing is lost and nothing drifts**: the words, the monospace and the
+    // emphasis all survive, and the second save moves nothing. What the reader
+    // sees change is one code span becoming three adjacent ones. It is
+    // reachable only by selecting part of a code span deliberately.
+    //
+    // **Owner decision, 2026-08-24**, taken on this branch's Windows build with
+    // the gesture in front of them: the behaviour stays as measured and the
+    // editor does not refuse the gesture. Recorded in REQUIREMENTS under R-C1,
+    // so this is a pinned decision rather than an open question — anyone
+    // changing what is written here is changing a product decision, not a
+    // detail.
     const editor = editorWith('abc `code` def');
     editor.editor.chain().focus().setTextSelection({ from: 6, to: 8 }).toggleBold().run();
     const saved = editor.getMarkdown().trim();
