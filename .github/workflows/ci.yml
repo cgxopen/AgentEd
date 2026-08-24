@@ -1,5 +1,16 @@
 name: CI
 
+# Ceilings, and what they do and do not cover.
+#
+# Every step that touches the network or compiles something carries its own
+# `timeout-minutes`, sized from real runs rather than from a guess; every job
+# carries one as a backstop, sized above a fully cold healthy run (#47).
+# Short shell steps are left to the job ceiling.
+#
+# `timeout-minutes` starts counting when a job begins executing on a runner.
+# A job waiting for a runner is not covered by any number here, so none of
+# these ceilings protect against a queue that never clears.
+
 on:
   push:
     branches: [main]
@@ -14,17 +25,25 @@ jobs:
   changes:
     name: Detect changed paths
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      code: ${{ steps.decide.outputs.code }}
+      build_sha: ${{ steps.identity.outputs.build_sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
       # Pinned to commit SHA, not tag (supply chain).
+      # Runs on pushes too, not only pull requests: on a push to `main` the
+      # action compares against `github.event.before`, which is what stops a
+      # documentation merge from rebuilding everything (#57).
       - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706
         id: filter
-        if: github.event_name == 'pull_request'
+        timeout-minutes: 5
+        # Fail open — see the step below.
+        continue-on-error: true
         with:
           filters: |
             code:
@@ -40,84 +59,180 @@ jobs:
               - '.editorconfig'
               - '.github/**'
 
+      - name: Decide whether the code jobs run
+        id: decide
+        env:
+          FILTER_OUTCOME: ${{ steps.filter.outcome }}
+          FILTER_CODE: ${{ steps.filter.outputs.code }}
+        run: |
+          set -euo pipefail
+          # Fail open, deliberately: a push with no usable comparison point —
+          # a force push whose old head is gone, a payload without `before` —
+          # must build everything rather than skip everything. Skipping on a
+          # failure to answer would be a silent green.
+          if [ "$FILTER_OUTCOME" = "success" ] && [ -n "$FILTER_CODE" ]; then
+            echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::The path filter did not answer (outcome: ${FILTER_OUTCOME}). Running the full pipeline."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Name the build
+        id: identity
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          # One value, used twice: it names the installer artifact and it is
+          # what the running application reports under About (#64). On a
+          # `pull_request` event `github.sha` is the ephemeral merge commit,
+          # which is not the sha the pull request page shows, so the head of
+          # the branch is used instead. Short, because About shows seven
+          # characters and the check this exists for is a human comparing two
+          # strings.
+          sha="${PR_HEAD_SHA:-$RUN_SHA}"
+          echo "build_sha=${sha:0:7}" >> "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend (lint + typecheck + test + build)
     needs: changes
-    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        timeout-minutes: 10
         with:
           node-version: 20
           cache: 'npm'
       - run: npm ci
+        timeout-minutes: 10
       - run: npm run check
       - run: npx tsc --noEmit
       - run: npm test --if-present
+        timeout-minutes: 15
       - run: npm run build
+        timeout-minutes: 15
 
   rust:
     name: Rust (fmt + clippy + test)
     needs: changes
-    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        id: toolchain
+        timeout-minutes: 10
         with:
           toolchain: stable
           components: clippy, rustfmt
       - name: Install Linux system deps
+        # The ceiling that catches a stall is the per-attempt `timeout`, not
+        # the step's: apt has legitimately taken 19m 44s here and succeeded,
+        # so a single tight ceiling would clip a passing run. A tight
+        # per-attempt ceiling plus a retry turns a stalled mirror into a slow
+        # success instead of a red mark that needs a human re-run. The step
+        # ceiling below is the backstop for the loop itself misbehaving.
+        timeout-minutes: 16
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          set -euo pipefail
+          for attempt in 1 2; do
+            if sudo timeout 120 apt-get update \
+              && sudo timeout 300 apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
+              exit 0
+            fi
+            echo "::warning::apt attempt ${attempt} stalled or failed."
+            sleep 5
+          done
+          echo "::error::apt did not complete within its budget after 2 attempts."
+          exit 1
       - name: Cargo cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        timeout-minutes: 15
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          # The rustc version belongs in the key (#53). Cargo's fingerprints
+          # include the compiler, so every artifact in `src-tauri/target`
+          # becomes stale the day `stable` moves — and with a key that never
+          # changes the cache is never re-saved, so the stale entry is
+          # restored, reported as a hit, and thrown away by cargo on every run
+          # for the rest of the toolchain's life. Keyed on the two things the
+          # dependency tree actually depends on, a toolchain move is a miss,
+          # the miss falls back to the nearest entry through `restore-keys`,
+          # and the fresh result is saved once.
+          key: ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-
       - run: cargo fmt --check
         working-directory: src-tauri
       - run: cargo clippy -- -D warnings
+        timeout-minutes: 20
         working-directory: src-tauri
       - run: cargo test
+        timeout-minutes: 20
         working-directory: src-tauri
 
   build-windows:
     name: Build Windows (primary target)
     needs: changes
-    if: needs.changes.outputs.code == 'true' || github.event_name == 'push'
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        timeout-minutes: 10
         with:
           node-version: 20
           cache: 'npm'
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        id: toolchain
+        timeout-minutes: 10
         with:
           toolchain: stable
       - name: Cargo cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        timeout-minutes: 15
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          # Same reasoning as the Rust job; see the comment there.
+          key: ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-
+            ${{ runner.os }}-cargo-
       - run: npm ci
+        timeout-minutes: 10
       - run: npm run tauri build
+        timeout-minutes: 40
+        env:
+          # The build says who it is from the inside, and the artifact below
+          # says who it is from the outside. Both read
+          # `needs.changes.outputs.build_sha` — one value, so they cannot
+          # drift apart, which is the only thing that makes comparing them
+          # worth doing (#64).
+          AGENTED_BUILD_COMMIT: ${{ needs.changes.outputs.build_sha }}
       # Storage only — the build above already runs on every code PR.
       # NSIS setup.exe only: the .msi is redundant for end users and the
       # uncompressed bundle intermediates would multiply storage for no gain.
       - name: Upload Windows installer
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        timeout-minutes: 10
         with:
-          name: AgentEd-windows-${{ github.sha }}
+          name: AgentEd-windows-${{ needs.changes.outputs.build_sha }}
           path: src-tauri/target/release/bundle/nsis/*-setup.exe
           retention-days: 7
           if-no-files-found: error
@@ -127,13 +242,17 @@ jobs:
     needs: [changes, frontend, rust, build-windows]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Verdict on required jobs
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
-          # "skipped" counts as success (docs-only PRs); only failure or
-          # cancellation of a needed job fails the pipeline.
+          # "skipped" counts as success (docs-only changes, on a pull request
+          # and on a push to main alike); only failure or cancellation of a
+          # needed job fails the pipeline. This is the single required check,
+          # so a docs-only change has to reach it and pass — which is why the
+          # job runs `always()` and gates on nothing.
           failed=$(echo "$NEEDS" | jq -r '
             to_entries
             | map(select(.value.result == "failure" or .value.result == "cancelled"))
