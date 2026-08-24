@@ -38,6 +38,8 @@ declare module 'turndown' {
    */
   export interface BuiltinRules {
     readonly heading?: Rule;
+    readonly blockquote?: Rule;
+    readonly list?: Rule;
   }
 
   export class TurndownService {
