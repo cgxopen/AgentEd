@@ -34,6 +34,15 @@ import type { BlankReplacement, Options } from 'turndown';
  * The child `CODE` arrives **before** its `PRE`, which is why the fence is
  * written for the `PRE`: written for the `CODE` it would land inside a block
  * that is then replaced in its turn.
+ *
+ * **Where this does not reach**: a fence that is the *only* content of a
+ * blockquote or a list item. The container is blank too, so the blank rule
+ * replaces the whole of it and the `PRE` inside is never offered here — the
+ * same mechanism, one level up. Measured, pinned as a labelled gap in
+ * `empty-fence.test.ts`, and left out of R-C2 deliberately, because it loses
+ * a block rather than respelling one. Anyone widening this should start from
+ * that: the fence is kept wherever it is *reached*, and it is not reached
+ * when its whole container is blank.
  */
 
 /** The language, as turndown's own fenced rule reads it off the `<code>`. */

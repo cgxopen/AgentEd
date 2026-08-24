@@ -97,3 +97,51 @@ describe('every other blank node behaves as it did (#94)', () => {
     expect(htmlToMarkdown(html)).toBe('a\n\n```\n```\n\nb\n\nc d');
   });
 });
+
+/**
+ * **Known gap — a fence that is the *only* content of its container is still
+ * lost.** The mechanism is the one this fix is about, one level up: the
+ * container is blank too, so the blank rule replaces the whole of it before
+ * the `<pre>` inside is ever consulted. Instrumented, the nodes reaching the
+ * hook are `CODE, PRE, BLOCKQUOTE` for a blockquote and `CODE, PRE, LI, UL`
+ * for a list — the fence is never offered. Where the container holds
+ * something else, the `<pre>` is reached and the fix works, which is why two
+ * of the four cases below already pass.
+ *
+ * **Not a regression**: all four lose the fence on `cdac091`, measured, and
+ * this fix repairs the two that have other content in the container.
+ *
+ * **Deliberately not recorded in R-C2**, on AMP's call: every exception there
+ * is a respelling — same document, different bytes, identical rendering —
+ * while this loses a block the reader can see, which is the class that got
+ * #94 opened in the first place. It becomes a follow-up issue instead, and
+ * this test exists so the next reader meets a decision rather than a
+ * surprise.
+ *
+ * One measurement that only the editor level shows, reported on #103 and not
+ * pinned: a fence alone in a **list item** loses its bullet at that level
+ * whether it is empty or not, because TipTap's `listItem` schema does not
+ * admit a code block as an item's first child. That is the pre-existing
+ * schema fact reported on #99 and filed as decision debt, not this gap; it is
+ * left unpinned there for the reason given then — pinning would enshrine it.
+ */
+describe('KNOWN GAP: a fence alone in its container is not reached (#94)', () => {
+  it.each([
+    ['a blockquote', '> ```\n> ```'],
+    ['a list item', '- ```\n  ```'],
+  ])('still loses an empty fence that is the only content of %s', (_label, markdown) => {
+    expect(roundtrip(markdown)).toBe('');
+  });
+
+  it.each([
+    ['a blockquote', '> text\n>\n> ```\n> ```', '> text\n> \n> ```\n> ```'],
+    ['a blockquote with a language', '> a\n>\n> ```js\n> ```', '> a\n> \n> ```js\n> ```'],
+    ['a list item', '- text\n\n  ```\n  ```', '- text\n\n  ```\n  ```'],
+  ])('keeps an empty fence when %s holds something else too', (_label, markdown, expected) => {
+    // The blank quote line comes back as `> ` rather than `>`: turndown's
+    // blockquote rule prefixes every line, blank ones included. Nothing to do
+    // with this fix — a blockquote holding two paragraphs and no blank node
+    // at all shows the same.
+    expect(roundtrip(markdown)).toBe(expected);
+  });
+});
