@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import claudeMd from '../../../CLAUDE.md?raw';
+import status from '../../../docs/internal/STATUS.md?raw';
+import workflow from '../../../docs/internal/WORKFLOW.md?raw';
+import readme from '../../../README.md?raw';
+import requirements from '../../../REQUIREMENTS.md?raw';
 import { decodeTableStyle, detectTableStyles } from './table-style';
 
 /**
@@ -101,7 +106,11 @@ describe('reading a style back off a node', () => {
     // travels through the document model and the clipboard, so it is
     // validated rather than trusted: anything else and the table falls back
     // to the default spelling.
-    for (const separator of ['x', ' --- |', '\n', ' --- <b>', '-'.repeat(500)]) {
+    // The length bound moved from 200 dashes inside the pattern to 1000
+    // characters checked before it: `readStyle` produces a 252-dash separator
+    // for a 250-wide aligned column, and the old bound refused it. What the
+    // validator is *for* is unchanged — dashes, colons and spaces only.
+    for (const separator of ['x', ' --- |', '\n', ' --- <b>', '-'.repeat(1001)]) {
       expect(
         decodeTableStyle(JSON.stringify({ columns: [{ kind: 'hug', width: 3, separator }] })),
       ).toBeNull();
@@ -119,6 +128,110 @@ describe('reading a style back off a node', () => {
   it('refuses junk without throwing', () => {
     for (const value of ['{', 'null', '[]', '{"columns":"x"}', '{"columns":[{"kind":"wide"}]}']) {
       expect(decodeTableStyle(value)).toBeNull();
+    }
+  });
+});
+
+describe('the detector and the validator agree — a property, not a case', () => {
+  /**
+   * **Anything `detectTableStyles` can produce, `decodeTableStyle` must
+   * accept.** The two are halves of one module, and before review they
+   * disagreed: `readStyle` described a hand-aligned table whose separator was
+   * left short — `" ---     "` — perfectly, and the validator's pattern allowed
+   * at most one space each side, so it refused the whole style and the table
+   * lost its alignment on the first untouched save.
+   *
+   * A case-by-case test could not have caught that, because the case nobody
+   * thought of is the one that broke (#96's lesson: a test exercising the easy
+   * case under a comment promising the hard one buys confidence it has not
+   * earned). This asserts the relationship instead, over every table shape the
+   * fixtures below and this repository's own documents contain — so a future
+   * narrowing of either half fails here rather than in someone's file.
+   */
+  const shapes: Array<[string, string]> = [
+    ['hugged, spaced separator', '| a | b |\n| --- | --- |\n| 1 | 2 |'],
+    ['hugged, tight separator', '| a | b |\n|---|---|\n| 1 | 2 |'],
+    ['tight cells', '|a|b|\n|---|---|\n|1|2|'],
+    ['aligned, separator filled', '| Name | Age |\n| ---- | --- |\n| Ada  | 36  |'],
+    ['aligned, separator left short', '| Name    | Age |\n| ---     | --- |\n| Ada     | 36  |'],
+    [
+      'aligned wider than the content needs',
+      '| a      | b      |\n| ------ | ------ |\n| 1      | 2      |',
+    ],
+    ['alignment colons', '| a | b |\n|:--- | ---:|\n| 1 | 2 |'],
+    ['centred', '| a | b |\n|:---:|:---:|\n| 1 | 2 |'],
+    ['colons, separator left short', '| Name    | Age |\n|:---     |---: |\n| Ada     | 36  |'],
+    ['an empty cell written as one space', '| a | b |\n| --- | --- |\n| | 2 |'],
+    ['an empty cell written as two', '| a | b |\n| --- | --- |\n|  | 2 |'],
+    ['no outer pipes', 'a | b\n--- | ---\n1 | 2'],
+    ['one column', '| a |\n| --- |\n| 1 |'],
+    ['many columns', `| ${'a | '.repeat(12)}\n| ${'--- | '.repeat(12)}\n| ${'1 | '.repeat(12)}`],
+    [
+      'a very wide aligned column',
+      `| ${'x'.repeat(120)} | b |\n| ---${' '.repeat(118)} | --- |\n| ${'y'.repeat(120)} | 2 |`,
+    ],
+    ['rows that disagree', '| Name    | Age |\n| ---     | --- |\n| Ada | 36 |'],
+    ['a pipe escaped in a cell', '| a \\| b | c |\n| --- | --- |\n| 1 | 2 |'],
+    [
+      'two tables in one document',
+      '| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntext\n\n| c      | d |\n| ------ | --- |\n| 3      | 4 |',
+    ],
+  ];
+
+  it.each(shapes)('accepts every style read from %s', (_label, markdown) => {
+    const styles = detectTableStyles(markdown);
+    expect(styles.length).toBeGreaterThan(0);
+    for (const style of styles) {
+      expect(decodeTableStyle(JSON.stringify(style))).not.toBeNull();
+    }
+  });
+
+  // The repository's own documents, as the corpus nobody hand-picked.
+  it.each([
+    ['README.md', readme],
+    ['REQUIREMENTS.md', requirements],
+    ['CLAUDE.md', claudeMd],
+    ['docs/internal/WORKFLOW.md', workflow],
+    ['docs/internal/STATUS.md', status],
+  ])('accepts every style read from %s', (_name, source) => {
+    const styles = detectTableStyles(source);
+    for (const style of styles) {
+      expect(decodeTableStyle(JSON.stringify(style))).not.toBeNull();
+    }
+  });
+
+  it.each([
+    ['spaces, at the widest column it will carry', ` ---${' '.repeat(496)}`, 500],
+    ['dashes filled to that width', ` ${'-'.repeat(498)} `, 500],
+    // The separator row need not line up with the header row, so a separator
+    // cell may be longer than the width beside it. Both bounds are exercised
+    // at once here: this is the shape that would fail if one were derived
+    // from the other.
+    ['a separator wider than the column it belongs to', ` ---${' '.repeat(600)}`, 500],
+  ])('accepts a separator of %s', (_label, separator, width) => {
+    expect(
+      decodeTableStyle(
+        JSON.stringify({ columns: [{ kind: 'fixed', width, separator }], emptyCell: null }),
+      ),
+    ).not.toBeNull();
+  });
+
+  it('still refuses a separator cell holding anything else', () => {
+    // The property widened what is accepted; it did not weaken what the
+    // validator is for. This cell is written into the user's file verbatim.
+    for (const separator of [
+      ' --- x ',
+      '<b>',
+      ' -- | -- ',
+      ' --\n-- ',
+      '',
+      ` ${'-'.repeat(1200)} `,
+    ]) {
+      expect(
+        decodeTableStyle(
+          JSON.stringify({ columns: [{ kind: 'hug', width: 5, separator }], emptyCell: null }),
+        ),
+      ).toBeNull();
     }
   });
 });

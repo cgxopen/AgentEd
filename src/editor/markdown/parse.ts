@@ -57,6 +57,14 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // Sanitize HTML to prevent XSS from malicious markdown.
   // blob: URIs must be allowed — image-registry.ts creates blob URLs
   // for all image display (both Tauri and Web).
+  //
+  // `TABLE_STYLE_ATTRIBUTE` widens the allow-list by `data-table-style`, and
+  // that is safe only because `attachTableStyles` in `table-style.ts` removes
+  // the attribute from every table before writing the detected one. Without
+  // that strip, a document carrying its own `data-table-style` in raw HTML
+  // would choose how its table is written — the two lines are load-bearing
+  // together and they live in different files, so neither may be removed while
+  // reading only the other. `decodeTableStyle` validates the value regardless.
   return DOMPurify.sanitize(processed, {
     ADD_ATTR: ['data-type', 'data-checked', TABLE_STYLE_ATTRIBUTE],
     ALLOWED_URI_REGEXP:

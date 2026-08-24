@@ -177,8 +177,66 @@ export function detectTableStyles(markdown: string): TableStyle[] {
   return findTableBlocks(markdown).map(readStyle);
 }
 
-/** A separator cell can only ever be dashes, alignment colons and spaces. */
-const SAFE_SEPARATOR_CELL = /^ ?:?-{1,200}:? ?$/;
+/** The widest column this will carry. Wider than any table a person writes. */
+const MAX_COLUMN_WIDTH = 500;
+
+/**
+ * The longest separator cell this will carry, and the bound on the pattern
+ * below — which is why that pattern needs no quantifier bound of its own: the
+ * length is checked first, on a plain string comparison.
+ *
+ * Comfortably above `MAX_COLUMN_WIDTH` on purpose, rather than equal to it. A
+ * separator cell's length comes from the *separator row*, while a column's
+ * width comes from the *header row*, and the two need not agree — measured: a
+ * 250-wide aligned column whose separator row was two characters out produced
+ * a 254-character separator against a width of 252. Deriving one bound from
+ * the other would refuse a style the detector had just produced whenever they
+ * diverged, which is the defect this pair of bounds was tightened to remove.
+ */
+const MAX_SEPARATOR_CELL = 1000;
+
+/**
+ * A separator cell can only ever be dashes, alignment colons and spaces.
+ *
+ * **The spaces are unbounded on both sides, deliberately.** A hand-aligned
+ * table whose author left `---` alone gives a separator cell that is mostly
+ * spaces — `" ---     "` for a column of width 9 — and `readStyle` reads that
+ * correctly. An earlier form of this pattern allowed one space each side, so
+ * it refused a spelling the detector had just produced, and the table lost its
+ * alignment on the first untouched save (#93, found in review). The two halves
+ * of this module have to agree on what a legal style is, and
+ * `table-style.test.ts` pins that as a property: anything `detectTableStyles`
+ * can produce, `decodeTableStyle` must accept.
+ */
+const SAFE_SEPARATOR_CELL = /^ *:?-+:? *$/;
+
+/** Whether a separator cell is safe to write into the user's file verbatim. */
+function isSafeSeparatorCell(cell: string): boolean {
+  // Length first: it keeps the scan over untrusted input explicitly bounded
+  // without a quantifier bound inside the pattern, where it would have to be
+  // kept in step with the width limit by hand. An earlier form bounded the
+  // dashes at 200 inside the pattern, and a 250-wide aligned column with its
+  // dashes filled to the width produced 252 — refused, and the table lost its
+  // alignment. Same defect as the spaces, one dimension over.
+  return cell.length <= MAX_SEPARATOR_CELL && SAFE_SEPARATOR_CELL.test(cell);
+}
+
+/** More columns than any table has; a longer list is not a style. */
+const MAX_COLUMNS = 200;
+
+/**
+ * Say what was refused and fall back to the default spelling.
+ *
+ * Every rejection below goes through here rather than returning `null`
+ * directly: a table quietly losing its spelling is exactly the defect #93 is
+ * about, and before review one of these paths was silent — the only
+ * `console.warn` covered a `JSON.parse` failure, so a *validation* refusal
+ * left nothing behind but a diff to work backwards from.
+ */
+function refuse(reason: string): null {
+  console.warn(`[agented] table style refused (${reason}); using the default spelling`);
+  return null;
+}
 
 /**
  * Read a style back off a table node.
@@ -189,7 +247,24 @@ const SAFE_SEPARATOR_CELL = /^ ?:?-{1,200}:? ?$/;
  * spaces — or a width that is not a small whole number — is refused and the
  * table falls back to the default spelling. A document that carried its own
  * `data-table-style` in raw HTML cannot reach this: `attachTableStyles`
- * strips the attribute before writing the detected one.
+ * strips the attribute before writing the detected one (see the note beside
+ * `ADD_ATTR` in `parse.ts`).
+ *
+ * **A refusal is per table, not per column, and that is deliberate.** Refusing
+ * only the offending column and keeping the rest was considered: it is the
+ * proportionate answer when a failure is genuinely local. This one is not. A
+ * separator cell that fails validation says nothing about whether the *widths*
+ * beside it are right, and the widths are what alignment is made of — so
+ * trusting half of a descriptor this function has just judged untrustworthy
+ * produces a table aligned by unverified numbers with one column hugged: the
+ * half-aligned table that is itself the harm #93 exists to prevent, and it
+ * would look deliberate. Falling back whole gives a coherent, valid spelling
+ * of the same table.
+ *
+ * That argument only holds because a refusal now means **corruption**, not a
+ * shape the detector produces: the property test in `table-style.test.ts`
+ * guarantees the two halves agree, which is what removes the case where
+ * refusing per table cost an ordinary file its alignment.
  */
 export function decodeTableStyle(value: string | null): TableStyle | null {
   if (!value) return null;
@@ -197,27 +272,36 @@ export function decodeTableStyle(value: string | null): TableStyle | null {
   try {
     parsed = JSON.parse(value);
   } catch {
-    // Not silent: a table whose style cannot be read is written in the
-    // default spelling, and the reason is said out loud rather than guessed
-    // at later from a diff.
-    console.warn('[agented] unreadable table style, using the default spelling');
-    return null;
+    return refuse('a style that is not readable JSON');
   }
-  if (typeof parsed !== 'object' || parsed === null) return null;
+  if (typeof parsed !== 'object' || parsed === null) return refuse('a style that is not an object');
   const { columns, emptyCell } = parsed as { columns?: unknown; emptyCell?: unknown };
-  if (!Array.isArray(columns) || columns.length > 200) return null;
+  if (!Array.isArray(columns) || columns.length > MAX_COLUMNS) {
+    return refuse('a column list that is missing or longer than a table can be');
+  }
   const safe: ColumnStyle[] = [];
   for (const column of columns) {
-    if (typeof column !== 'object' || column === null) return null;
-    const { kind, width, separator } = column as Record<string, unknown>;
-    if (kind !== 'hug' && kind !== 'fixed') return null;
-    if (typeof width !== 'number' || !Number.isInteger(width) || width < 0 || width > 500) {
-      return null;
+    if (typeof column !== 'object' || column === null) {
+      return refuse('a column that is not an object');
     }
-    if (typeof separator !== 'string' || !SAFE_SEPARATOR_CELL.test(separator)) return null;
+    const { kind, width, separator } = column as Record<string, unknown>;
+    if (kind !== 'hug' && kind !== 'fixed') return refuse('a column of an unknown kind');
+    if (
+      typeof width !== 'number' ||
+      !Number.isInteger(width) ||
+      width < 0 ||
+      width > MAX_COLUMN_WIDTH
+    ) {
+      return refuse('a column width outside the range a table can have');
+    }
+    if (typeof separator !== 'string' || !isSafeSeparatorCell(separator)) {
+      return refuse('a separator cell holding something other than dashes, colons and spaces');
+    }
     safe.push({ kind, width, separator });
   }
-  if (emptyCell !== null && emptyCell !== undefined && emptyCell !== ' ') return null;
+  if (emptyCell !== null && emptyCell !== undefined && emptyCell !== ' ') {
+    return refuse('an empty-cell spelling this cannot write');
+  }
   return { columns: safe, emptyCell: emptyCell === ' ' ? ' ' : null };
 }
 

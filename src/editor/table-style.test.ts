@@ -68,6 +68,19 @@ describe('a table is written the way the file wrote it (#93)', () => {
       'two tables spelled differently in one document',
       '| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntext\n\n| c   | d   |\n|-----|-----|\n| eee | fff |',
     ],
+    // Found in review, and the ordinary way to write markdown by hand: align
+    // the data, leave `---` alone. Detection read this correctly all along —
+    // the validator refused it, so the whole table lost its alignment on the
+    // first untouched save. The shape a reader will look for, kept beside the
+    // property that guarantees the class.
+    [
+      'aligned columns whose separator row was left short',
+      '| Name    | Age |\n| ---     | --- |\n| Ada     | 36  |',
+    ],
+    [
+      'aligned columns whose short separator carries alignment colons',
+      '| Name    | Age |\n|:---     |---: |\n| Ada     | 36  |',
+    ],
   ])('leaves %s byte-identical', (_label, markdown) => {
     const editor = editorWith(markdown);
     expect(editor.getMarkdown().trim()).toBe(markdown);
