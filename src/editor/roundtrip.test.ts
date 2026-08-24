@@ -48,11 +48,15 @@
  * ── What is deliberately not here ──
  *
  * A list item whose entire body is a heading loses its bullet at the editor
- * level (`- ## 1. x` → `## 1. x`), as does one whose body is an ordered list.
- * Both are TipTap schema facts reported on #99 and left unpinned by an explicit
- * decision recorded in STATUS §4 — pinning them would enshrine them. They are
- * left out of the table for that reason and no other; they are not fixed here
- * and they are not claimed to be absent.
+ * level (`- ## 1. x` → `## 1. x`), as does one whose body is an ordered list —
+ * and, #104 measured, as does one whose body is a fenced block, empty or not.
+ * All three are the same TipTap schema fact, reported on #99 and left unpinned
+ * by an explicit decision recorded in STATUS §4 — pinning them would enshrine
+ * them. They are left out of the table for that reason and no other; they are
+ * not fixed here and they are not claimed to be absent. The third one does
+ * appear further down, asserted as the property #104 owns rather than as
+ * bytes, because two of that issue's four shapes would otherwise be missing
+ * from this guard with no reason given.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import claudeMd from '../../CLAUDE.md?raw';
@@ -148,6 +152,15 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['an empty fence with a language', '```js\n```', 'identical'],
   ['a fence holding only spaces', '```\n   \n```', 'identical'],
   ['a task list', '- [ ] todo\n- [x] done', 'identical'],
+
+  // ── A fence that is the only content of its container (#104) ──
+  //
+  // The blockquote half. The list half is below, in its own block, because at
+  // this level it meets a TipTap schema fact that has nothing to do with the
+  // fence — see the comment there.
+  ['an empty fence alone in a blockquote', '> ```\n> ```', 'identical'],
+  ['an empty fence alone in a blockquote, with a language', '> ```js\n> ```', 'identical'],
+  ['a fence with content alone in a blockquote', '> ```\n> x\n> ```', 'identical'],
 
   // ── Lists ──
   ['a bullet list', '- one\n- two', 'identical'],
@@ -398,6 +411,80 @@ describe('the editor-level round-trip table (#84)', () => {
     // at all: a first save may normalise, the next one may not drift.
     const first = openAndSave(markdown);
     expect(openAndSave(first)).toBe(first);
+  });
+});
+
+/**
+ * #104's other half, asserted as the property the issue owns rather than as
+ * bytes — the move #99 made for `- ## 1. x`, and for the same reason.
+ *
+ * A fence alone in a **list item** cannot round-trip byte-identically at this
+ * level, and not because of anything #104 is about. TipTap's `listItem`
+ * schema takes `paragraph block*`, so a code block cannot be an item's first
+ * child: the editor lifts it out of the list on open and the empty item left
+ * behind is dropped on save. The bullet goes, the fence stays — and it goes
+ * exactly the same way for a fence that is **full**, which is what says the
+ * cause is the schema and not the emptiness.
+ *
+ * That is the third member of the family reported on #99 — an item whose whole
+ * body is a heading, or an ordered list — recorded in STATUS §4 as one schema
+ * decision and deliberately left unpinned, because pinning the bytes would
+ * enshrine them. So these shapes assert what #104 owns: **the fenced blocks of
+ * the document, with their languages and their contents, are unchanged.**
+ * Before this fix that was false at the pair level, where the whole item left
+ * the file; at this level the block already survived, and the rows are here so
+ * the four shapes of #104 are all visible in the guard rather than two of them
+ * being absent without a reason.
+ */
+const ALONE_IN_A_LIST_ITEM: ReadonlyArray<readonly [string, string, string]> = [
+  ['a bullet item', '- ```\n  ```', '- ```\n  x\n  ```'],
+  ['a bullet item with a language', '- ```js\n  ```', '- ```js\n  x\n  ```'],
+  ['an ordered item', '1. ```\n   ```', '1. ```\n   x\n   ```'],
+  ['an item inside another item', '- - ```\n    ```', '- - ```\n    x\n    ```'],
+  ['an item inside a blockquote', '> - ```\n>   ```', '> - ```\n>   x\n>   ```'],
+  ['a blockquote inside an item', '- > ```\n  > ```', '- > ```\n  > x\n  > ```'],
+];
+
+/**
+ * Every fenced block of a document, as the pair `language|content` the file
+ * spells it with. Read off the parsed HTML rather than off the markdown so
+ * that a block written back in a different container still matches — which is
+ * the point: this asserts the block, and says nothing about what holds it.
+ */
+function fencedBlocks(markdown: string): string[] {
+  return Array.from(
+    markdownToHtml(markdown).matchAll(/<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>/g),
+  ).map((m) => `${m[1]}|${m[2]}`);
+}
+
+describe('a fence alone in a list item, at the editor level (#104)', () => {
+  it.each(ALONE_IN_A_LIST_ITEM)('keeps the fence alone in %s', (_label, empty) => {
+    expect(fencedBlocks(openAndSave(empty))).toEqual(fencedBlocks(empty));
+  });
+
+  it.each(
+    ALONE_IN_A_LIST_ITEM,
+  )('keeps a fence that has content alone in %s', (_label, _e, full) => {
+    expect(fencedBlocks(openAndSave(full))).toEqual(fencedBlocks(full));
+  });
+
+  it.each(
+    ALONE_IN_A_LIST_ITEM,
+  )('loses the bullet of %s whether the fence is empty or not (#99 schema fact)', (_label, empty, full) => {
+    // Both, together, are the statement: the item does not survive either
+    // way, so what this costs is not about the fence being empty. Asserted
+    // as "no list survives" rather than as the bytes, so a schema decision
+    // that restored the bullet would move this row without enshrining the
+    // spelling it restores it in.
+    expect(markdownToHtml(openAndSave(empty))).not.toContain('<li>');
+    expect(markdownToHtml(openAndSave(full))).not.toContain('<li>');
+  });
+
+  it.each(ALONE_IN_A_LIST_ITEM)('%s — and the second save moves nothing', (_label, empty, full) => {
+    for (const markdown of [empty, full]) {
+      const first = openAndSave(markdown);
+      expect(openAndSave(first)).toBe(first);
+    }
   });
 });
 
