@@ -28,4 +28,11 @@ Three things it deliberately does: it records each file's write time so that **a
 
 It reads. The only things it writes are a `.before` copy of each fixture and a small state file, in the same folder.
 
+## What these look like on screen
+
+Measured by the owner on `05d727d`, and written down because a fixture that says only what its bytes do sends the next reader looking for the wrong thing:
+
+- **A fence with a language looks exactly like one without.** Nothing draws a language label — R-C15 commits to one pre-public precisely because the two are indistinguishable on screen today. A manual step that asks for that label is asking for something the build cannot show; it has now been written twice, on #103 and on #104.
+- **An empty box in a list item is drawn on the line after the bullet, not beside it**, with the bullet left empty. TipTap's `listItem` schema does not admit a code block as an item's first child, so the block is lifted out of the item on open. It is the same schema fact that takes the bullet off on save, and it is visible before any save happens.
+
 The two files that do not come back byte-identical are not failures of the fix they were written for. They meet a separate TipTap schema limit, recorded in STATUS §4, that takes the bullet off any list item whose whole body is a heading, an ordered list or a fenced block — full or empty alike. The pull request for #104 says so in the same words.
