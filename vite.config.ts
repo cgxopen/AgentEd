@@ -58,7 +58,8 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: false,
     setupFiles: ['./vitest.setup.ts'],
-    include: ['src/**/*.test.ts'],
+    // The workflow contract test lives beside the workflow it pins.
+    include: ['src/**/*.test.ts', '.github/workflows/*.test.ts'],
     coverage: {
       reporter: ['text', 'html'],
       include: ['src/**/*.ts'],
