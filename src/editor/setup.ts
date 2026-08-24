@@ -70,10 +70,21 @@ import { createSearchExtension } from './search-extension';
  * other way round — `StarterKit.extend({…}).configure({…})` — the kit builds
  * its sub-extensions from its *default* options and every value passed here is
  * silently dropped: measured on this branch, `heading` came back as levels 1–6
- * instead of 1–4, and the code block lost the `code-block` class its styling
- * hangs on. Nothing threw and no test failed, because both are configuration
- * rather than behaviour. `configure` first, then `extend`, is what keeps them.
+ * instead of 1–4, and the code block lost the `code-block` class. Nothing
+ * threw and no test failed, because both are configuration rather than
+ * behaviour. `configure` first, then `extend`, is what keeps them.
  * `configuration survives the extend` in `mark-nesting.test.ts` is the pin.
+ *
+ * **Only one of the two had a user-visible consequence, and it is the heading
+ * levels** — with 1–6 restored, `##### Five` becomes a heading here instead of
+ * the paragraph the rest of the codebase assumes (`numbered-heading.test.ts`).
+ * `code-block` is **not** what a fenced block's appearance hangs on: the
+ * styling is `.tiptap pre` in `src/styles.css`, and that class is referenced
+ * nowhere in it — it is configuration this file asks for and nothing consumes.
+ * An earlier version of this comment said the opposite; the owner's manual
+ * check on 2026-08-24 is what corrected it, after a step written from that
+ * wrong reading asked him for a border the application never draws. Whether
+ * dead configuration should be removed is its own question, not this one's.
  */
 function starterKitWithNestableCode() {
   return StarterKit.configure({

@@ -174,10 +174,17 @@ describe('the schema the fix depends on', () => {
     // *default* options — every value `setup.ts` passes is dropped, silently.
     // Measured on this branch before the order was corrected: `heading` came
     // back as levels 1–6 rather than 1–4, and the code block lost the
-    // `code-block` class its styling hangs on. Neither threw, and no test in
-    // the suite failed, because both are configuration rather than behaviour —
+    // `code-block` class. Neither threw, and no test in the suite failed,
+    // because both are configuration rather than behaviour —
     // `numbered-heading.test.ts` even carries a comment asserting the level
     // limit in prose, which had quietly become false.
+    //
+    // **Of the two, only the heading levels had a user-visible consequence.**
+    // Nothing styles `.code-block`: a fenced block's appearance comes from
+    // `.tiptap pre` in `src/styles.css`, which never mentions that class. It is
+    // asserted anyway, because the claim being pinned is *the configuration is
+    // what `setup.ts` asked for* — but it is not evidence about how anything
+    // looks, and an earlier version of this comment wrongly said it was.
     //
     // Asserted here rather than in the round-trip table on purpose: the table
     // is about bytes, and neither of these reaches the file.
@@ -208,7 +215,13 @@ describe('the schema the fix depends on', () => {
     expect(editor.editor.getHTML()).not.toContain('<h5');
   });
 
-  it('gives a fenced block the class its styling hangs on', () => {
+  it('gives a fenced block the class setup.ts asks for', () => {
+    // Deliberately *not* titled after styling. The class reaches the HTML, and
+    // that is all this asserts; `src/styles.css` styles `.tiptap pre` and does
+    // not mention `.code-block` anywhere, so this class is configuration
+    // nothing currently consumes. Found by the owner's manual check on
+    // 2026-08-24, against a step that had asked him for a border the
+    // application never draws — the same shape of error as #103.
     const editor = editorWith('```js\nx\n```');
     expect(editor.editor.getHTML()).toContain('class="code-block"');
   });
