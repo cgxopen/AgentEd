@@ -12,11 +12,11 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "lint": "biome lint src",
-    "format": "biome format --write src",
-    "format:check": "biome format src",
-    "check": "biome check src",
-    "check:fix": "biome check --write src"
+    "lint": "biome lint src .github",
+    "format": "biome format --write src .github",
+    "format:check": "biome format src .github",
+    "check": "biome check src .github",
+    "check:fix": "biome check --write src .github"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.12",

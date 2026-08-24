@@ -24,7 +24,7 @@
 ## Rules that keep it untangled
 
 - **Test before merge, from the PR artifact.** `main` should always be a state the owner has accepted. (Before the artifact step existed, testing meant a manual Nightly dispatch, which is why it briefly happened after merge instead. That workaround is obsolete.)
-- **Check the artifact matches the PR.** The `<sha>` in the artifact name is the commit it was built from; if it does not match the PR head, it is the wrong build. Most "the fix isn't working" reports are a stale installer. Since #31, the running application reports its own commit under About — check there when in doubt.
+- **Check the artifact matches the PR.** The `<sha>` in the artifact name is the seven-character head commit of the pull request — the same string the pull request page shows, and the same string the running application reports under About (#31). Three places, one value, on purpose: if any of them disagree, the installer is not the build under review. Most "the fix isn't working" reports are a stale installer, downloaded from `main`, from Nightly, or from an earlier run of the same pull request.
 - **Nightly is not a testing tool.** It is a scheduled health check on `main`. Do not dispatch it to test a branch.
 - **Parallel PRs only when they touch different files.** Otherwise sequential. Squash-merging rewrites `main`, so sibling branches that share a file will conflict — one at a time costs less than resolving the cascade.
 - **A requirement change ships with the code that changes it**, in the same PR — never a PR that leaves REQUIREMENTS disagreeing with the build.
