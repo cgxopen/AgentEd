@@ -195,9 +195,9 @@ describe('a fence alone in its container survives with it (#104)', () => {
     // filters read — so the pair is pinned here rather than described
     // somewhere, where the attribute can quietly go missing from the telling.
     expect(htmlToMarkdown('<ul><li><pre><code></code></pre></li></ul>')).toBe('- ```\n  ```');
-    expect(
-      htmlToMarkdown('<ul data-type="taskList"><li><pre><code></code></pre></li></ul>'),
-    ).toBe('- [ ] ```\n```');
+    expect(htmlToMarkdown('<ul data-type="taskList"><li><pre><code></code></pre></li></ul>')).toBe(
+      '- [ ] ```\n```',
+    );
   });
 
   it('is never consulted for a task item, because a checkbox is a void element', () => {
