@@ -98,14 +98,21 @@ describe('ci.yml — a docs-only change skips the build and still reports green 
   });
 });
 
-describe('the cargo cache is keyed on what the dependency tree depends on (#53)', () => {
-  const cacheKeys = [...CI.matchAll(/^\s*key: (\$\{\{ runner\.os \}\}-cargo-.+)$/gm)].map(
-    (match) => match[1],
-  );
+describe('the cargo caches are keyed on what each half depends on (#53)', () => {
+  const keys = [...CI.matchAll(/^\s*key: (\$\{\{ runner\.os \}\}-cargo-.+)$/gm)].map((m) => m[1]);
+  const registryKeys = keys.filter((key) => key.includes('-cargo-registry-'));
+  const targetKeys = keys.filter((key) => key.includes('-cargo-target-'));
 
-  it('keys both cargo caches on the toolchain as well as the lockfile', () => {
-    expect(cacheKeys).toHaveLength(2);
-    for (const key of cacheKeys) {
+  it('splits the two halves, on both runners', () => {
+    // One of each per job that compiles Rust: they go stale for different
+    // reasons and must not share an entry.
+    expect(keys).toHaveLength(4);
+    expect(registryKeys).toHaveLength(2);
+    expect(targetKeys).toHaveLength(2);
+  });
+
+  it('keys the build cache on the toolchain as well as the lockfile', () => {
+    for (const key of targetKeys) {
       // Without this, a `stable` release invalidates every fingerprint in
       // `src-tauri/target` while the key stays put — so the stale entry is
       // restored, reported as a hit, and discarded by cargo on every run for
@@ -115,9 +122,27 @@ describe('the cargo cache is keyed on what the dependency tree depends on (#53)'
     }
   });
 
-  it('gives every cargo cache a fallback, so a miss is partial rather than total', () => {
-    const restoreKeyBlocks = [...CI.matchAll(/^\s*restore-keys: \|$/gm)];
-    expect(restoreKeyBlocks).toHaveLength(cacheKeys.length);
+  it('keys the registry cache on the lockfile alone', () => {
+    for (const key of registryKeys) {
+      // Downloaded sources do not depend on the compiler; making them
+      // depend on it would throw away the download on every toolchain move.
+      expect(key).not.toContain('steps.toolchain.outputs.cachekey');
+      expect(key).toContain("hashFiles('src-tauri/Cargo.lock')");
+    }
+  });
+
+  it('keeps the build cache fallback inside one toolchain', () => {
+    const fallbacks = [...CI.matchAll(/^\s*restore-keys: \|\n((?:\s*\$\{\{.+\n)+)/gm)].map(
+      (m) => m[1],
+    );
+    expect(fallbacks).toHaveLength(4);
+    for (const block of fallbacks.filter((b) => b.includes('-cargo-target-'))) {
+      // A wider fallback would restore a dead toolchain's artifacts, and
+      // `actions/cache` would then save them again — the entry grows by one
+      // dead set per rustc release. Measured: 654 MB in, 1275 MB out.
+      expect(block).toContain('steps.toolchain.outputs.cachekey');
+      expect(block.trim().split('\n')).toHaveLength(1);
+    }
   });
 });
 

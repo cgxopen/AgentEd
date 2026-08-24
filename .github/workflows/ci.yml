@@ -152,27 +152,45 @@ jobs:
           done
           echo "::error::apt did not complete within its budget after 2 attempts."
           exit 1
-      - name: Cargo cache
+      # Two caches, because the two halves go stale for different reasons
+      # (#53). Downloaded sources depend on the lockfile and on nothing else,
+      # so they fall back widely and are never thrown away. Compiled
+      # artifacts depend on the compiler as well: cargo's fingerprints
+      # include the rustc version, so the day `stable` moves, everything in
+      # `src-tauri/target` is dead weight.
+      #
+      # That is what had gone wrong. The old key was the lockfile hash alone,
+      # `Cargo.lock` has not moved since 14 August, and `actions/cache` saves
+      # only on a miss — so the 14 August entry was restored on every run and
+      # never replaced. When `stable` went from 1.97.1 to 1.98.0 the entry
+      # became useless and stayed: a reported cache hit, 654 MB restored, and
+      # 299 crates recompiled anyway, on every run.
+      - name: Cargo registry cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         timeout-minutes: 15
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            src-tauri/target
-          # The rustc version belongs in the key (#53). Cargo's fingerprints
-          # include the compiler, so every artifact in `src-tauri/target`
-          # becomes stale the day `stable` moves — and with a key that never
-          # changes the cache is never re-saved, so the stale entry is
-          # restored, reported as a hit, and thrown away by cargo on every run
-          # for the rest of the toolchain's life. Keyed on the two things the
-          # dependency tree actually depends on, a toolchain move is a miss,
-          # the miss falls back to the nearest entry through `restore-keys`,
-          # and the fresh result is saved once.
-          key: ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-registry-
+      - name: Cargo build cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        timeout-minutes: 15
+        with:
+          path: src-tauri/target
+          # The fallback stays inside one toolchain on purpose. A changed
+          # lockfile falls back and rebuilds only what changed — the fork
+          # case, where a pull request can read this cache but not write one.
+          # A changed toolchain does not fall back at all: cargo would ignore
+          # what it restored, but `actions/cache` would save it again, and the
+          # entry would carry every dead toolchain's artifacts forever.
+          # Measured on this branch's first run, which inherited one such set:
+          # 654 MB in, 1275 MB out.
+          key: ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-
       - run: cargo fmt --check
         working-directory: src-tauri
       - run: cargo clippy -- -D warnings
@@ -201,19 +219,25 @@ jobs:
         timeout-minutes: 10
         with:
           toolchain: stable
-      - name: Cargo cache
+      # Same two caches, same reasoning; see the Rust job.
+      - name: Cargo registry cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         timeout-minutes: 15
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            src-tauri/target
-          # Same reasoning as the Rust job; see the comment there.
-          key: ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ steps.toolchain.outputs.cachekey }}-
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-registry-
+      - name: Cargo build cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        timeout-minutes: 15
+        with:
+          path: src-tauri/target
+          key: ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-
       - run: npm ci
         timeout-minutes: 10
       - run: npm run tauri build
