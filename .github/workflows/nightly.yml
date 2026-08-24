@@ -2,8 +2,17 @@ name: Nightly Build
 
 on:
   schedule:
-    # 03:00 UTC = 06:00 Europe/Bucharest
-    - cron: '0 3 * * *'
+    # Mondays, 03:00 UTC = 06:00 Europe/Bucharest.
+    #
+    # Weekly rather than daily (owner decision, 2026-08-24). What this run
+    # catches that pull-request CI cannot is environment drift — a runner
+    # image, a toolchain or an upstream package moving underneath us — and
+    # that is weekly-scale. Code drift is not possible here: `main` moves only
+    # through reviewed pull requests, every one of which runs the full suite
+    # against the tree being merged. Monday puts a week's drift in front of
+    # someone at the start of a working week rather than over a weekend.
+    # Revisited at publication.
+    - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
       include_linux:
@@ -23,6 +32,7 @@ jobs:
   guard:
     name: Activity guard + matrix
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       actions: read
     outputs:
@@ -78,29 +88,52 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.guard.outputs.matrix) }}
     runs-on: ${{ matrix.platform }}
+    # Ceilings as in ci.yml: each network-bound or compiling step carries its
+    # own, the job carries a backstop above a fully cold healthy build. None
+    # of them cover time spent queueing for a runner.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        timeout-minutes: 10
         with:
           node-version: 20
           cache: 'npm'
 
       - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        timeout-minutes: 10
         with:
           toolchain: stable
 
       - name: Install Linux system deps
         if: matrix.platform == 'ubuntu-22.04'
+        # The ceiling that catches a stalled mirror is the per-attempt
+        # `timeout`; the step ceiling is the backstop. Same shape and same
+        # reasoning as ci.yml.
+        timeout-minutes: 16
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          set -euo pipefail
+          for attempt in 1 2; do
+            if sudo timeout 120 apt-get update \
+              && sudo timeout 300 apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
+              exit 0
+            fi
+            echo "::warning::apt attempt ${attempt} stalled or failed."
+            sleep 5
+          done
+          echo "::error::apt did not complete within its budget after 2 attempts."
+          exit 1
 
       - run: npm ci
+        timeout-minutes: 10
       - run: npm run tauri build
+        timeout-minutes: 45
 
       - name: Upload bundle artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        timeout-minutes: 15
         with:
           name: AgentEd-nightly-${{ matrix.label }}-${{ github.sha }}
           path: |
