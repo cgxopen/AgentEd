@@ -27,6 +27,60 @@ import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 
 /**
+ * StarterKit, with its `Code` mark re-declared so that a code span can sit
+ * *inside* another mark instead of cancelling it (#84).
+ *
+ * Two facts of the shipped extension, both measured on `@tiptap/extension-code`
+ * 2.27.2 rather than read from a changelog:
+ *
+ *  - `excludes: '_'` — the code mark excludes **every** other mark. Marks are
+ *    flat and per text node in ProseMirror, so ``**bold `code` more**`` needs
+ *    its middle text node to carry `bold` *and* `code`; `excludes: '_'` forbids
+ *    exactly that, and the bold run was split around the span in the document
+ *    model, before turndown was ever involved. The same rule silently dropped
+ *    a mark whose whole extent was a code span: on `522cc04` ``**`c`**`` was
+ *    saved as ``` `c` ```, `~~`c`~~` as ``` `c` ```, and
+ *    ``[`c`](https://e.com)`` as ``` `c` ``` — a link losing its destination
+ *    out of the user's file, which is R-C2 losing something the reader can see.
+ *  - Its **rank in the schema** decides which of two coexisting marks is the
+ *    outer element in `getHTML`, and turndown writes the nesting it is given.
+ *    At the default priority `code` outranks `italic`, `strike` and
+ *    `underline`, so narrowing `excludes` alone put those marks *inside* the
+ *    backticks — `~~a `code` b~~` came out as ``~~a~~ `~~code~~` ~~b~~``,
+ *    where the tildes are no longer markup but four literal characters in a
+ *    code span. That is a change of meaning, so the two go together: opening
+ *    the mark set without also making `code` the innermost mark is worse than
+ *    leaving both alone.
+ *
+ * `priority: 1` puts it below every other mark (TipTap's default is 100, and
+ * `Link` sits at 1000), so a code span is always the innermost element and
+ * every other mark is written outside its backticks — which is the only
+ * nesting CommonMark can spell.
+ *
+ * The list is **read off StarterKit rather than restated**: whatever else the
+ * kit registers goes on being registered, and goes on doing so if a future
+ * release changes what that is. Importing `@tiptap/extension-code` directly
+ * would restate one entry of that list and add a package to `package.json`
+ * for a mark the bundle already contains.
+ */
+const StarterKitWithNestableCode = StarterKit.extend({
+  addExtensions() {
+    const registered = (this.parent?.() ?? []) as AnyExtension[];
+    const code = registered.find((extension) => extension.name === 'code');
+    if (!code) {
+      // A named cause at module load rather than a silent regression: if the
+      // kit ever stops registering `code` under that name, every shape this
+      // change fixed would quietly go back to being split, and the suite
+      // would be the only thing that noticed.
+      throw new Error('StarterKit no longer registers a mark named "code" (see #84)');
+    }
+    return registered.map((extension) =>
+      extension.name === 'code' ? extension.extend({ excludes: '', priority: 1 }) : extension,
+    );
+  },
+});
+
+/**
  * The table node, plus the one attribute #93 needs: the spelling the file
  * used for this table. `parseHTML`/`renderHTML` keep it on the round trip
  * through the document model, which is what lets an untouched table be
@@ -87,7 +141,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
   });
 
   return [
-    StarterKit.configure({
+    StarterKitWithNestableCode.configure({
       heading: { levels: [1, 2, 3, 4] },
       codeBlock: { HTMLAttributes: { class: 'code-block' } },
     }),

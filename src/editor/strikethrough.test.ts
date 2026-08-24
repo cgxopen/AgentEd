@@ -38,6 +38,11 @@ describe('strikethrough survives the editor (R-C2)', () => {
     ['strike inside bold', '**~~x~~**'],
     ['strike inside italics', '*~~x~~*'],
     ['strike inside a link', '[~~t~~](https://example.com)'],
+    // Was a #84 exception below until the `Code` mark stopped excluding every
+    // other one: the strike used to be split around the span in the document
+    // model, before turndown saw anything. Now the file's own spelling survives
+    // at the editor level as well as through the pair (#84).
+    ['strike spanning an inline code span', '~~a `code` b~~'],
   ])('keeps %s unchanged on open → save', (_label, markdown) => {
     const editor = editorWith(markdown);
     expect(editor.getMarkdown().trim()).toBe(markdown);
@@ -73,18 +78,24 @@ describe('the toolbar route reaches the file (#85)', () => {
 });
 
 /**
- * #84, not #85: TipTap re-orders nested marks and its `Code` mark excludes
- * every other mark, so a strike that meets a link or an inline code span comes
- * out of the editor spelled differently than it went in. **Nothing is lost** —
- * the strike survives on every fragment, which is what makes these #84's
- * re-nesting finding rather than this issue's. Pinned so that whoever fixes
- * #84 sees these change, and so that a regression that dropped the strike
- * again would fail here rather than pass quietly.
+ * #84, not #85: two marks that overlap have exactly one nesting in the editor's
+ * document model, so a strike that meets a link — or a bold — comes out spelled
+ * the way the schema ranks them rather than the way the file spelled it.
+ * **Nothing is lost**: the strike still covers the same words, which is what
+ * makes these #84's re-nesting finding rather than this issue's. Pinned so that
+ * a regression which dropped the strike would fail here rather than pass
+ * quietly.
  *
- * The same three shapes are byte-identical through the pair
- * (`markdown/roundtrip.test.ts`), which is exactly how the split was made.
+ * Both shapes are byte-identical through the pair
+ * (`markdown/roundtrip.test.ts`), which is exactly how the split was made, and
+ * both are recorded in REQUIREMENTS under R-C2 with the constraint that decided
+ * them: the nesting can be swapped but not removed.
+ *
+ * A third shape stood here — `~~a `code` b~~` split around the span — until the
+ * `Code` mark stopped excluding every other mark (#84). It is byte-identical
+ * now and has moved into the list above.
  */
-describe('KNOWN EXCEPTION (#84): strike re-nests around links and inline code', () => {
+describe('KNOWN EXCEPTION (#84): strike and another mark have one nesting', () => {
   it.each([
     ['bold inside strike becomes strike inside bold', '~~**x**~~', '**~~x~~**'],
     [
@@ -92,7 +103,6 @@ describe('KNOWN EXCEPTION (#84): strike re-nests around links and inline code', 
       '~~[t](https://example.com)~~',
       '[~~t~~](https://example.com)',
     ],
-    ['strike splits around an inline code span', '~~a `code` b~~', '~~a~~ `code` ~~b~~'],
   ])('%s', (_label, input, expected) => {
     const editor = editorWith(input);
     expect(editor.getMarkdown().trim()).toBe(expected);
