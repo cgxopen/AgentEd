@@ -166,4 +166,50 @@ describe('the schema the fix depends on', () => {
     expect(marks[marks.length - 1]).toBe('code');
     expect(editor.schema.marks.code.spec.excludes).toBe('');
   });
+
+  it('configuration survives the extend', () => {
+    // The regression this file exists to prevent a second time. Re-declaring
+    // the `Code` mark means reaching into StarterKit's own extension list, and
+    // `StarterKit.extend({…}).configure({…})` builds that list from the kit's
+    // *default* options — every value `setup.ts` passes is dropped, silently.
+    // Measured on this branch before the order was corrected: `heading` came
+    // back as levels 1–6 rather than 1–4, and the code block lost the
+    // `code-block` class its styling hangs on. Neither threw, and no test in
+    // the suite failed, because both are configuration rather than behaviour —
+    // `numbered-heading.test.ts` even carries a comment asserting the level
+    // limit in prose, which had quietly become false.
+    //
+    // Asserted here rather than in the round-trip table on purpose: the table
+    // is about bytes, and neither of these reaches the file.
+    const editor = editorWith('');
+    const extensions = editor.editor.extensionManager.extensions;
+    const optionsOf = (name: string) =>
+      extensions.find((extension) => extension.name === name)?.options as
+        | Record<string, unknown>
+        | undefined;
+
+    expect((optionsOf('heading') as { levels?: number[] } | undefined)?.levels).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(
+      (optionsOf('codeBlock') as { HTMLAttributes?: Record<string, unknown> } | undefined)
+        ?.HTMLAttributes,
+    ).toEqual({ class: 'code-block' });
+  });
+
+  it('keeps a heading level the editor does not have out of the schema', () => {
+    // The user-visible half of the same fact, stated as behaviour rather than
+    // as configuration: `#####` is not a heading here, so it opens as a
+    // paragraph. Not an endorsement of the limit — STATUS §4 records that the
+    // limit itself is unpinned on purpose — but a check that the limit
+    // `setup.ts` asks for is the limit the editor got.
+    const editor = editorWith('##### Five');
+    expect(Object.keys(editor.schema.nodes)).toContain('heading');
+    expect(editor.editor.getHTML()).not.toContain('<h5');
+  });
+
+  it('gives a fenced block the class its styling hangs on', () => {
+    const editor = editorWith('```js\nx\n```');
+    expect(editor.editor.getHTML()).toContain('class="code-block"');
+  });
 });

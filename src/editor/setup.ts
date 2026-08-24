@@ -55,30 +55,46 @@ import { createSearchExtension } from './search-extension';
  * `priority: 1` puts it below every other mark (TipTap's default is 100, and
  * `Link` sits at 1000), so a code span is always the innermost element and
  * every other mark is written outside its backticks — which is the only
- * nesting CommonMark can spell.
+ * nesting CommonMark can spell. Priority also orders the extensions for
+ * plugins, input rules, paste rules and keyboard shortcuts; that was measured
+ * against `522cc04` in isolation — `priority` alone, with `excludes` left as
+ * it was — and moves none of them (`mark-nesting.test.ts`).
  *
  * The list is **read off StarterKit rather than restated**: whatever else the
  * kit registers goes on being registered, and goes on doing so if a future
  * release changes what that is. Importing `@tiptap/extension-code` directly
  * would restate one entry of that list and add a package to `package.json`
  * for a mark the bundle already contains.
+ *
+ * **`configure` comes before `extend`, and the order is load-bearing.** The
+ * other way round — `StarterKit.extend({…}).configure({…})` — the kit builds
+ * its sub-extensions from its *default* options and every value passed here is
+ * silently dropped: measured on this branch, `heading` came back as levels 1–6
+ * instead of 1–4, and the code block lost the `code-block` class its styling
+ * hangs on. Nothing threw and no test failed, because both are configuration
+ * rather than behaviour. `configure` first, then `extend`, is what keeps them.
+ * `configuration survives the extend` in `mark-nesting.test.ts` is the pin.
  */
-const StarterKitWithNestableCode = StarterKit.extend({
-  addExtensions() {
-    const registered = (this.parent?.() ?? []) as AnyExtension[];
-    const code = registered.find((extension) => extension.name === 'code');
-    if (!code) {
-      // A named cause at module load rather than a silent regression: if the
-      // kit ever stops registering `code` under that name, every shape this
-      // change fixed would quietly go back to being split, and the suite
-      // would be the only thing that noticed.
-      throw new Error('StarterKit no longer registers a mark named "code" (see #84)');
-    }
-    return registered.map((extension) =>
-      extension.name === 'code' ? extension.extend({ excludes: '', priority: 1 }) : extension,
-    );
-  },
-});
+function starterKitWithNestableCode() {
+  return StarterKit.configure({
+    heading: { levels: [1, 2, 3, 4] },
+    codeBlock: { HTMLAttributes: { class: 'code-block' } },
+  }).extend({
+    addExtensions() {
+      const registered = (this.parent?.() ?? []) as AnyExtension[];
+      if (!registered.some((extension) => extension.name === 'code')) {
+        // A named cause at module load rather than a silent regression: if the
+        // kit ever stops registering `code` under that name, every shape this
+        // change fixed would quietly go back to being split, and the suite
+        // would be the only thing that noticed.
+        throw new Error('StarterKit no longer registers a mark named "code" (see #84)');
+      }
+      return registered.map((extension) =>
+        extension.name === 'code' ? extension.extend({ excludes: '', priority: 1 }) : extension,
+      );
+    },
+  });
+}
 
 /**
  * The table node, plus the one attribute #93 needs: the spelling the file
@@ -141,10 +157,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
   });
 
   return [
-    StarterKitWithNestableCode.configure({
-      heading: { levels: [1, 2, 3, 4] },
-      codeBlock: { HTMLAttributes: { class: 'code-block' } },
-    }),
+    starterKitWithNestableCode(),
     Underline,
     Link.configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link
