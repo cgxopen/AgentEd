@@ -76,6 +76,20 @@ describe('markdown roundtrip', () => {
     expect(out).toContain('const x = 1;');
   });
 
+  // A fenced block with nothing in it is still a block (#94). turndown used
+  // to replace it — fence, language and all — before any rule was consulted,
+  // because it replaces every blank node first. The cases and the narrowness
+  // that keeps every *other* blank node where it was are in
+  // `empty-fence.test.ts`; these three are here because this is the suite
+  // anyone changing the serializer runs.
+  it.each([
+    ['no language', '```\n```'],
+    ['a language', '```js\n```'],
+    ['spaces', '```\n   \n```'],
+  ])('preserves an empty fenced block with %s', (_label, md) => {
+    expect(roundtrip(md)).toBe(md);
+  });
+
   // ── List markup, byte for byte (R-C2) ──
   //
   // Lists are the markup an editing session touches most, and turndown's

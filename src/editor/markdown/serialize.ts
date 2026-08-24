@@ -1,5 +1,6 @@
 import TurndownService from 'turndown';
 import { getRelativePath } from '../image-registry';
+import { createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
 import {
   type ColumnStyle,
@@ -9,6 +10,31 @@ import {
   type TableStyle,
 } from './table-style';
 
+// ── An empty fenced block (#94) ──
+//
+// turndown replaces every blank node before it consults a rule, so an empty
+// fenced block used to leave the file entirely — see `empty-fence.ts` for the
+// mechanism and for why `addRule` cannot reach it. `blankReplacement` is the
+// hook that can, and it is passed **at construction** because that is when
+// the service resolves it into its rule table: assigning it afterwards has no
+// effect, and this option is documented where `options.rules` below is not.
+//
+// The default is read off a service of turndown's own making rather than
+// restated, so every blank node that is not a fenced block — an empty
+// paragraph, an empty inline element, an empty list item — keeps behaving
+// exactly as it does today, and goes on doing so if a future release changes
+// what that means. Optional in the declaration, so the check is demanded
+// rather than trusted: a release that stopped resolving a default would
+// otherwise fail as `blankOtherwise is not a function` on the first save that
+// meets an empty paragraph, rather than here, naming its cause.
+const defaultBlankReplacement = new TurndownService().options.blankReplacement;
+if (!defaultBlankReplacement) {
+  throw new Error(
+    'turndown no longer resolves a default options.blankReplacement, so an empty fenced block ' +
+      'cannot delegate to it (#94). See src/editor/markdown/empty-fence.ts.',
+  );
+}
+
 const turndown = new TurndownService({
   headingStyle: 'atx',
   hr: '---',
@@ -17,6 +43,7 @@ const turndown = new TurndownService({
   fence: '```',
   emDelimiter: '*',
   strongDelimiter: '**',
+  blankReplacement: createBlankReplacement(defaultBlankReplacement),
 });
 
 // #90: turndown escapes every `_` in a text node, because from one text node

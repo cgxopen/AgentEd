@@ -32,8 +32,9 @@ import { createEditor, type EditorInstance } from './setup';
  * whitespace-only text outside inline context, so they save byte-identically —
  * which is the claim, now pinned. The one place the node genuinely survives
  * into the document model where it did not before is an empty fenced block,
- * and its saved bytes are unchanged for a reason that belongs to the
- * serializer; that case is pinned too, as observed rather than as fixed.
+ * whose saved bytes were `''` on both sides of #89 for a reason that belonged
+ * to the serializer — pinned here as observed, filed as #94 and fixed there,
+ * so the assertion below now reads the fence rather than nothing.
  */
 let instance: EditorInstance | null = null;
 
@@ -122,20 +123,26 @@ describe('what this change does not touch', () => {
     expect(editor.getMarkdown().trim()).toBe('**a** **b**');
   });
 
-  it('OBSERVED: an empty fenced block is dropped on save, on both routes', () => {
+  it('keeps an empty fenced block, on both routes', () => {
     // The one case where `removeWhitespaces` reached a *block* context that
     // matters: `marked` reads ```⏎⏎``` as `<pre><code>\n</code></pre>`, whose
     // only child is a text node that is exactly a newline. On `230b4d7` the
     // helper deleted it and the editor held an empty `<code>`; here the
-    // newline survives into the document model. The saved bytes are the same
-    // either way — the serializer writes nothing at all for a code block with
-    // no visible content, so the fence the user wrote is lost on both sides.
-    // Pre-existing, not caused and not fixed by #89, reported on the PR.
+    // newline survives into the document model.
+    //
+    // **This assertion is inverted from the one #89 left behind**, which
+    // pinned the empty block being dropped as OBSERVED and filed it as #94.
+    // The saved bytes were `''` on both sides of that PR; they are now the
+    // fence, on both sides, because the serializer no longer writes nothing
+    // for a block with no visible content. The document model is unchanged —
+    // which is the point: #89's finding stands, and what #94 changed is only
+    // what is written for it. The blank line normalises away upstream in
+    // `marked`, a recorded R-C2 exception (see `markdown/empty-fence.test.ts`).
     const editor = editorWith('```\n\n```');
     expect(editor.editor.getJSON()).toMatchObject({
       content: [{ type: 'codeBlock', content: [{ type: 'text', text: '\n' }] }],
     });
-    expect(editor.getMarkdown().trim()).toBe('');
+    expect(editor.getMarkdown().trim()).toBe('```\n```');
   });
 });
 
