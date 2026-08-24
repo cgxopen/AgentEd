@@ -12,6 +12,12 @@ describe('AppState', () => {
     expect(state.filePath).toBeNull();
     expect(state.frontmatter).toBeNull();
     expect(state.modified).toBe(false);
+    // The other half of #51: the agreement is per folder and per
+    // *window*, and this default is the whole of what makes it end
+    // with the window — R-C8 gives each window its own AppState, so a
+    // fresh one having agreed to nothing is the promise. It lives here
+    // because it is a default, and defaults live in this test.
+    expect(state.assetsDirConfirmedFor).toBeNull();
   });
 
   it('setModified notifies listeners with the new value', () => {
@@ -46,7 +52,7 @@ describe('AppState', () => {
    * as an omission inside the test above it would read as something
    * nobody had got round to asserting.
    */
-  it('resetDocument keeps the assets/ agreement — it is the folder’s, not the document’s (#51)', () => {
+  it("resetDocument keeps the assets/ agreement — it is the folder's, not the document's (#51)", () => {
     const state = new AppState();
     state.assetsDirConfirmedFor = '/tmp/assets';
 

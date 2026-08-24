@@ -52,9 +52,12 @@ export async function resolveAssetsDir(
  * many images go in before the first save, and once however many
  * documents in that folder the user edits afterwards: the folder is
  * what was agreed to, and re-asking for the file beside it reads as the
- * application forgetting what it was told. Neither Open nor New clears
- * it — `resetDocument` deliberately leaves it alone, and the open path
- * never went through `resetDocument` in the first place.
+ * application forgetting what it was told. Nothing that replaces the
+ * document clears it — **New, New from Template and Close** all reach
+ * `resetDocument` through `clearDocumentForReplacement`, and it
+ * deliberately leaves this field alone; **Open** never went through
+ * `resetDocument` in the first place. That is the whole list, and it is
+ * the whole list on purpose.
  *
  * It is asked again in exactly two cases, both of them honest: a Save
  * As that moves the document to a folder not yet agreed to — a
