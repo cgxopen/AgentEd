@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { attachTableStyles, TABLE_STYLE_ATTRIBUTE } from './table-style';
 
 // Configure marked for GFM compatibility
 marked.setOptions({
@@ -36,8 +37,14 @@ export interface ParseOptions {
 export function markdownToHtml(markdown: string, options: ParseOptions = {}): string {
   const html = marked.parse(markdown, { async: false, breaks: options.breaks ?? false }) as string;
 
+  // How each table was spelled — padded or hugged columns, the separator's
+  // own shape — read from the markdown and pinned to the table it belongs to
+  // (#93). It has to happen here: `marked` trims every cell, so by the time
+  // this HTML exists the file's spacing is already gone.
+  const withTableStyles = attachTableStyles(html, markdown);
+
   // Post-process: convert GFM task list items to TipTap-compatible attributes
-  const processed = html
+  const processed = withTableStyles
     .replace(
       /<li><input checked="" disabled="" type="checkbox">\s*/g,
       '<li data-type="taskItem" data-checked="true">',
@@ -50,8 +57,16 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // Sanitize HTML to prevent XSS from malicious markdown.
   // blob: URIs must be allowed — image-registry.ts creates blob URLs
   // for all image display (both Tauri and Web).
+  //
+  // `TABLE_STYLE_ATTRIBUTE` widens the allow-list by `data-table-style`, and
+  // that is safe only because `attachTableStyles` in `table-style.ts` removes
+  // the attribute from every table before writing the detected one. Without
+  // that strip, a document carrying its own `data-table-style` in raw HTML
+  // would choose how its table is written — the two lines are load-bearing
+  // together and they live in different files, so neither may be removed while
+  // reading only the other. `decodeTableStyle` validates the value regardless.
   return DOMPurify.sanitize(processed, {
-    ADD_ATTR: ['data-type', 'data-checked'],
+    ADD_ATTR: ['data-type', 'data-checked', TABLE_STYLE_ATTRIBUTE],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   });

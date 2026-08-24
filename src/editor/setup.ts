@@ -21,9 +21,30 @@ import type { ReportImageInsert } from './image-insert-outcome';
 import { isRelativeLinkAddress } from './link-url';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
+import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
+
+/**
+ * The table node, plus the one attribute #93 needs: the spelling the file
+ * used for this table. `parseHTML`/`renderHTML` keep it on the round trip
+ * through the document model, which is what lets an untouched table be
+ * written back byte for byte.
+ */
+const TableWithStyle = Table.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      tableStyle: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute(TABLE_STYLE_ATTRIBUTE),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          attributes.tableStyle ? { [TABLE_STYLE_ATTRIBUTE]: attributes.tableStyle as string } : {},
+      },
+    };
+  },
+});
 
 export interface EditorInstance {
   editor: Editor;
@@ -121,7 +142,15 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     Image.configure({ inline: true, allowBase64: false }),
     // resizable: false — GFM markdown has no column width syntax.
     // Enabling resize produces UX inconsistency (widths reset at save).
-    Table.configure({ resizable: false, HTMLAttributes: { class: 'tiptap-table' } }),
+    //
+    // The extension is widened by one attribute: how the file spelled this
+    // table (#93). It is read from the raw markdown on the way in, rides on
+    // the table node through every edit, Save As and copy, and is consumed by
+    // the serializer on the way out — so a table and its spelling never
+    // travel separately, and nothing in the app has to carry them in step.
+    // It is editor state, never file content: the serializer writes markdown,
+    // so the attribute cannot reach the user's document.
+    TableWithStyle.configure({ resizable: false, HTMLAttributes: { class: 'tiptap-table' } }),
     TableRow,
     TableCell,
     TableHeader,

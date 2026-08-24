@@ -1,6 +1,13 @@
 import TurndownService from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { createNarrowedEscape } from './escape';
+import {
+  type ColumnStyle,
+  DEFAULT_TABLE_STYLE,
+  decodeTableStyle,
+  TABLE_STYLE_ATTRIBUTE,
+  type TableStyle,
+} from './table-style';
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -235,8 +242,66 @@ function cellContent(cell: HTMLElement): string {
   return withoutLeadingListEscape(flattened);
 }
 
-function pad(str: string, width: number): string {
-  return str + ' '.repeat(Math.max(0, width - str.length));
+// ── Writing a table the way the file wrote it (#93) ──
+//
+// AgentEd used to pad every cell of every table out to a uniform width,
+// whatever the file had: 628 of the 630 bytes by which an untouched save grew
+// `README.md`, and 488 of the 487 by which it grew `WORKFLOW.md` — the
+// largest single term in "an untouched save rewrites the user's file" (R-C2).
+// Minimal cells everywhere would have removed those bytes and moved the same
+// exception onto every file whose author aligned a table by hand, so what is
+// written now is what the file used: `table-style.ts` reads each table's
+// spelling from the raw markdown on the way in, and the rules below apply it
+// on the way out.
+//
+// **A carried width is a floor, not a size.** A cell the user edits past its
+// column's width widens the column rather than breaking the alignment, and a
+// column the user adds gets the width its content needs, in the table's own
+// spelling. Preserving the source text verbatim would have no answer for
+// either.
+
+/** The cell text as it will be written, between the two pipes. */
+function renderCell(
+  content: string,
+  column: ColumnStyle | undefined,
+  width: number,
+  emptyCell: string | null,
+): string {
+  // Hugging an empty cell gives `|  |` on its own; a file that wrote `| |`
+  // gets `| |` back. A padded column pads its empty cells like any other.
+  if (content.length === 0 && column?.kind !== 'fixed' && emptyCell === ' ') return ' ';
+  const padded = column?.kind === 'fixed' ? content.padEnd(width) : content;
+  return ` ${padded} `;
+}
+
+/**
+ * The separator cell for one column.
+ *
+ * It is written back verbatim while the column above it is unchanged — which
+ * is every table nobody edited, and the only way to keep a spelling this
+ * varied: `| --- |`, `|---|`, `|:----|`, dashes filled to the width. It is
+ * re-spelled only when the column's width has moved, and then in its own
+ * spelling: the spaces it had, the alignment colons it had, and dashes that
+ * follow the width only if they did before.
+ */
+function renderSeparator(column: ColumnStyle | undefined, headerWidth: number): string {
+  const sample = column?.separator ?? ' --- ';
+  // The comparison is against the *header* cell, because that is what a
+  // separator is written to line up with — in a hugging column the rows below
+  // are all different widths and none of them decides anything.
+  if (column !== undefined && headerWidth === column.width) return sample;
+
+  const spaced = sample.startsWith(' ') && sample.endsWith(' ');
+  const core = sample.trim();
+  const left = core.startsWith(':') ? ':' : '';
+  const right = core.endsWith(':') ? ':' : '';
+  const followedWidth = column !== undefined && sample.length === column.width;
+  const marks = left.length + right.length;
+  const dashes = followedWidth
+    ? Math.max(3, headerWidth - (spaced ? 2 : 0) - marks)
+    : Math.max(3, core.length - marks);
+  const core2 = `${left}${'-'.repeat(dashes)}${right}`;
+  return spaced ? ` ${core2} ` : core2;
 }
 
 function collectRows(table: HTMLTableElement): string[][] {
@@ -251,54 +316,72 @@ function collectRows(table: HTMLTableElement): string[][] {
   return rows;
 }
 
-function calculateColumnWidths(rows: string[][], colCount: number): number[] {
+/**
+ * The width of each column: what the file used, never less than what the
+ * content needs today. A column the style says nothing about — one the user
+ * added — gets its content's width, which for a hugging column costs nothing.
+ */
+function columnWidths(rows: string[][], colCount: number, style: TableStyle): number[] {
   const widths: number[] = [];
   for (let c = 0; c < colCount; c++) {
-    let max = 3; // minimum for separator ---
-    for (const row of rows) {
-      const len = (row[c] || '').length;
-      if (len > max) max = len;
-    }
-    widths.push(max);
+    let max = 0;
+    for (const row of rows) max = Math.max(max, (row[c] || '').length);
+    const column = style.columns[c];
+    widths.push(column?.kind === 'fixed' ? Math.max(column.width - 2, max) : max);
   }
   return widths;
 }
 
-function formatRow(row: string[], colWidths: number[], colCount: number): string {
-  const cells = [];
+function renderRow(row: string[], widths: number[], colCount: number, style: TableStyle): string[] {
+  const cells: string[] = [];
   for (let c = 0; c < colCount; c++) {
-    cells.push(pad(row[c] || '', colWidths[c]));
+    cells.push(renderCell(row[c] || '', style.columns[c], widths[c], style.emptyCell));
   }
-  return `| ${cells.join(' | ')} |`;
+  return cells;
 }
 
-function formatMarkdownTable(rows: string[][], colWidths: number[]): string {
-  const colCount = colWidths.length;
-  const lines: string[] = [];
+const joinRow = (cells: string[]): string => `|${cells.join('|')}|`;
 
-  // Header (first row — GFM always requires a header)
-  lines.push(formatRow(rows[0], colWidths, colCount));
+function formatMarkdownTable(rows: string[][], widths: number[], style: TableStyle): string {
+  const colCount = widths.length;
+  const header = renderRow(rows[0], widths, colCount, style);
+  const lines: string[] = [joinRow(header)];
 
-  // Separator
-  const sep = colWidths.map((w) => '-'.repeat(w));
-  lines.push(`| ${sep.join(' | ')} |`);
+  // The separator, in the spelling the file used, measured against the header
+  // cell it sits under.
+  lines.push(joinRow(header.map((cell, c) => renderSeparator(style.columns[c], cell.length))));
 
-  // Data rows
   for (let r = 1; r < rows.length; r++) {
-    lines.push(formatRow(rows[r], colWidths, colCount));
+    lines.push(joinRow(renderRow(rows[r], widths, colCount, style)));
   }
 
   return `\n\n${lines.join('\n')}\n\n`;
 }
 
+/**
+ * The spelling this table is written in: its own, or — for a table the user
+ * created, which has none — the spelling of the first table in the document
+ * that has one, so a document does not end up spelled two ways. With no table
+ * to inherit from, `DEFAULT_TABLE_STYLE`.
+ */
+function styleFor(table: HTMLTableElement): TableStyle {
+  const own = decodeTableStyle(table.getAttribute(TABLE_STYLE_ATTRIBUTE));
+  if (own) return own;
+  const sibling = table.ownerDocument?.querySelector(`table[${TABLE_STYLE_ATTRIBUTE}]`);
+  return (
+    decodeTableStyle(sibling?.getAttribute(TABLE_STYLE_ATTRIBUTE) ?? null) ?? DEFAULT_TABLE_STYLE
+  );
+}
+
 turndown.addRule('table', {
   filter: 'table',
   replacement: (_content, node) => {
-    const rows = collectRows(node as HTMLTableElement);
+    const table = node as HTMLTableElement;
+    const rows = collectRows(table);
     if (rows.length === 0) return '';
     const colCount = Math.max(...rows.map((r) => r.length));
-    const colWidths = calculateColumnWidths(rows, colCount);
-    return formatMarkdownTable(rows, colWidths);
+    const style = styleFor(table);
+    return formatMarkdownTable(rows, columnWidths(rows, colCount, style), style);
   },
 });
 
