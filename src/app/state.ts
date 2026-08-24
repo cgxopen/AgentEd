@@ -37,7 +37,11 @@ export class AppState {
    * remembering a *no* silently removed the feature for the life of the
    * document.
    *
-   * Cleared on Close / New / open.
+   * **It belongs to the folder, not to the document** (#51, R-C5), so
+   * `resetDocument` deliberately does not clear it: every document
+   * edited in this window inserts into an agreed folder without being
+   * asked again. It ends with the window, which is a real limit —
+   * R-C8 gives each window its own `AppState`.
    */
   assetsDirConfirmedFor: string | null = null;
 
@@ -60,7 +64,10 @@ export class AppState {
    * successful write (**including** a save whose images failed, since
    * the `.md` did reach the disk — otherwise the retry that failure
    * invites would accuse AgentEd of its own write). Cleared on New /
-   * Close / Open by `resetDocument`, and by `requestSaveAs`.
+   * Close by `resetDocument` and by `requestSaveAs`; on **Open** it is
+   * *replaced* by `applyBundle`, which records the text it just read.
+   * The distinction matters because the open path does not go through
+   * `resetDocument` at all — the fact #51 turned on.
    */
   knownDiskText: string | null = null;
 
@@ -83,8 +90,13 @@ export class AppState {
    * destination is not a save (#48). The cue explains the silence that
    * follows the first insert into a document with no file on disk;
    * repeating it for every pasted image would be noise, so it is shown
-   * once per document and cleared in `resetDocument()` alongside the
-   * assets/ answers, which it belongs with.
+   * once per document and cleared in `resetDocument()`.
+   *
+   * **It is per document where the assets/ agreement above is per
+   * folder** (#51), and the two part company here deliberately: what
+   * the cue explains is *this* document's silence, so a new document
+   * has its own silence to explain. Nothing about a folder is said in
+   * it.
    */
   destinationCueShown = false;
 
@@ -173,14 +185,20 @@ export class AppState {
     return this._clusterScanGeneration;
   }
 
-  /** Reset per-document state. */
+  /**
+   * Reset per-document state.
+   *
+   * `assetsDirConfirmedFor` is **not** among these, on purpose (#51):
+   * the agreement is the folder's, not the document's, so a new
+   * document whose destination lands in an agreed folder inserts
+   * without asking again. See the field's own comment, and R-C5.
+   */
   resetDocument(): void {
     this.filePath = null;
     this.frontmatter = null;
     this.isFirstSave = true;
     this.knownDiskText = null;
     this.lineConventions = DEFAULT_LINE_CONVENTIONS;
-    this.assetsDirConfirmedFor = null;
     this.destinationCueShown = false;
     // Bumping the generation invalidates any in-flight detector so the
     // next document doesn't briefly inherit the previous cluster.
