@@ -586,12 +586,16 @@ const NORMALISERS: readonly Normaliser[] = [
     apply: (text) => text.replace(/\n[ \t]*/g, ' '),
   },
   {
-    // R-C2: backtick runs are escaped even when nothing can close them, and a
-    // redundant escape the file already had is not preserved. Both directions
-    // are the same fact seen from two sides — turndown's escaping is handed one
-    // text node and `marked` consumes every backslash on the way in — so one
-    // normaliser covers both by removing every backslash that stands in front
-    // of a character the serializer escapes.
+    // R-C2: an escape the file did not have is added at a text-node boundary,
+    // and a redundant escape the file already had is not preserved. Both
+    // directions are the same fact seen from two sides — turndown's escaping is
+    // handed one text node and `marked` consumes every backslash on the way in
+    // — so one normaliser covers both by removing every backslash that stands
+    // in front of a character the serializer escapes.
+    //
+    // The exception used to be written for backticks only; #84 measured the
+    // same mechanism on a hyphen opening a text node and on an asterisk run
+    // `marked` read as literal, and REQUIREMENTS now states it generally.
     name: 'an escape added or dropped by the serializer',
     apply: (text) => text.replace(/\\([`*_[\]\-.])/g, '$1'),
   },
@@ -601,9 +605,10 @@ const NORMALISERS: readonly Normaliser[] = [
     // file comes back as ``` ` ` ```. Rendering is identical — CommonMark pairs
     // runs of equal length — and the file holds still afterwards.
     //
-    // **Not yet recorded in R-C2**: measured here for the first time, in
-    // `REQUIREMENTS.md`, and reported on #84's PR rather than fixed, because it
-    // is not one of the shapes that issue owns.
+    // Measured in #84, in `REQUIREMENTS.md`, and recorded in R-C2 as its own
+    // bullet — same family as the escaping exception above, different
+    // mechanism: turndown builds the delimiter from the content it is handed,
+    // so the file's width is carried nowhere.
     name: 'a code span delimiter run written at its shortest closing width',
     apply: (text) => text.replace(/`+/g, '`').replace(/ ?` ?/g, '`'),
   },
@@ -646,9 +651,10 @@ const REGION_RULES: readonly RegionRule[] = [
     // node for a leading blank line, and `assembleMarkdown` writes the closing
     // `---` with a single newline after it.
     //
-    // **Not yet recorded in R-C2**: measured here for the first time, in
-    // `src/templates/blank-frontmatter.md`, and reported on #84's PR rather
-    // than fixed — it is not one of the shapes that issue owns.
+    // Measured in #84, in `src/templates/blank-frontmatter.md`, and folded into
+    // R-C2's blank-line exception rather than given a bullet of its own: it is
+    // the same cause as the trailing run at the other end of the document —
+    // the editor has no node for a blank line.
     //
     // Claimed only immediately below the closing `---` of a block that opens
     // the file, so a blank line lost anywhere else still fails.
