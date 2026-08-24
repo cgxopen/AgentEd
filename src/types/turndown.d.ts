@@ -1,5 +1,13 @@
 declare module 'turndown' {
-  interface Options {
+  /**
+   * What turndown writes for a node whose text content is entirely
+   * whitespace. Documented in turndown's README, unlike `options.rules`
+   * below, and reached through the constructor because the service resolves
+   * it into its rule table once, at construction (#94).
+   */
+  export type BlankReplacement = (content: string, node: Node, options: Options) => string;
+
+  export interface Options {
     headingStyle?: 'setext' | 'atx';
     hr?: string;
     bulletListMarker?: '-' | '+' | '*';
@@ -9,9 +17,10 @@ declare module 'turndown' {
     strongDelimiter?: '__' | '**';
     linkStyle?: 'inlined' | 'referenced';
     linkReferenceStyle?: 'full' | 'collapsed' | 'shortcut';
+    blankReplacement?: BlankReplacement;
   }
 
-  interface Rule {
+  export interface Rule {
     filter: string | string[] | ((node: HTMLElement, options: Options) => boolean);
     replacement: (content: string, node: Node, options: Options) => string;
   }
@@ -27,13 +36,17 @@ declare module 'turndown' {
    * claim about a package that ships no types, so the caller is made to check
    * rather than trust it.
    */
-  interface BuiltinRules {
+  export interface BuiltinRules {
     readonly heading?: Rule;
   }
 
-  class TurndownService {
+  export class TurndownService {
     constructor(options?: Options);
-    /** The service's resolved options, including turndown's own rules. */
+    /**
+     * The service's resolved options, including turndown's own rules and the
+     * defaults it filled in — which is where `blankReplacement` is read from
+     * when it is delegated to rather than restated (#94).
+     */
     readonly options: Options & { readonly rules: BuiltinRules };
     turndown(html: string | Node): string;
     /**
