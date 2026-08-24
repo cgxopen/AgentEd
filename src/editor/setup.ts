@@ -27,6 +27,87 @@ import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 
 /**
+ * StarterKit, with its `Code` mark re-declared so that a code span can sit
+ * *inside* another mark instead of cancelling it (#84).
+ *
+ * Two facts of the shipped extension, both measured on `@tiptap/extension-code`
+ * 2.27.2 rather than read from a changelog:
+ *
+ *  - `excludes: '_'` — the code mark excludes **every** other mark. Marks are
+ *    flat and per text node in ProseMirror, so ``**bold `code` more**`` needs
+ *    its middle text node to carry `bold` *and* `code`; `excludes: '_'` forbids
+ *    exactly that, and the bold run was split around the span in the document
+ *    model, before turndown was ever involved. The same rule silently dropped
+ *    a mark whose whole extent was a code span: on `522cc04` ``**`c`**`` was
+ *    saved as ``` `c` ```, `~~`c`~~` as ``` `c` ```, and
+ *    ``[`c`](https://e.com)`` as ``` `c` ``` — a link losing its destination
+ *    out of the user's file, which is R-C2 losing something the reader can see.
+ *  - Its **rank in the schema** decides which of two coexisting marks is the
+ *    outer element in `getHTML`, and turndown writes the nesting it is given.
+ *    At the default priority `code` outranks `italic`, `strike` and
+ *    `underline`, so narrowing `excludes` alone put those marks *inside* the
+ *    backticks — `~~a `code` b~~` came out as ``~~a~~ `~~code~~` ~~b~~``,
+ *    where the tildes are no longer markup but four literal characters in a
+ *    code span. That is a change of meaning, so the two go together: opening
+ *    the mark set without also making `code` the innermost mark is worse than
+ *    leaving both alone.
+ *
+ * `priority: 1` puts it below every other mark (TipTap's default is 100, and
+ * `Link` sits at 1000), so a code span is always the innermost element and
+ * every other mark is written outside its backticks — which is the only
+ * nesting CommonMark can spell. Priority also orders the extensions for
+ * plugins, input rules, paste rules and keyboard shortcuts; that was measured
+ * against `522cc04` in isolation — `priority` alone, with `excludes` left as
+ * it was — and moves none of them (`mark-nesting.test.ts`).
+ *
+ * The list is **read off StarterKit rather than restated**: whatever else the
+ * kit registers goes on being registered, and goes on doing so if a future
+ * release changes what that is. Importing `@tiptap/extension-code` directly
+ * would restate one entry of that list and add a package to `package.json`
+ * for a mark the bundle already contains.
+ *
+ * **`configure` comes before `extend`, and the order is load-bearing.** The
+ * other way round — `StarterKit.extend({…}).configure({…})` — the kit builds
+ * its sub-extensions from its *default* options and every value passed here is
+ * silently dropped: measured on this branch, `heading` came back as levels 1–6
+ * instead of 1–4, and the code block lost the `code-block` class. Nothing
+ * threw and no test failed, because both are configuration rather than
+ * behaviour. `configure` first, then `extend`, is what keeps them.
+ * `configuration survives the extend` in `mark-nesting.test.ts` is the pin.
+ *
+ * **Only one of the two had a user-visible consequence, and it is the heading
+ * levels** — with 1–6 restored, `##### Five` becomes a heading here instead of
+ * the paragraph the rest of the codebase assumes (`numbered-heading.test.ts`).
+ * `code-block` is **not** what a fenced block's appearance hangs on: the
+ * styling is `.tiptap pre` in `src/styles.css`, and that class is referenced
+ * nowhere in it — it is configuration this file asks for and nothing consumes.
+ * An earlier version of this comment said the opposite; the owner's manual
+ * check on 2026-08-24 is what corrected it, after a step written from that
+ * wrong reading asked him for a border the application never draws. Whether
+ * dead configuration should be removed is its own question, not this one's.
+ */
+function starterKitWithNestableCode() {
+  return StarterKit.configure({
+    heading: { levels: [1, 2, 3, 4] },
+    codeBlock: { HTMLAttributes: { class: 'code-block' } },
+  }).extend({
+    addExtensions() {
+      const registered = (this.parent?.() ?? []) as AnyExtension[];
+      if (!registered.some((extension) => extension.name === 'code')) {
+        // A named cause at module load rather than a silent regression: if the
+        // kit ever stops registering `code` under that name, every shape this
+        // change fixed would quietly go back to being split, and the suite
+        // would be the only thing that noticed.
+        throw new Error('StarterKit no longer registers a mark named "code" (see #84)');
+      }
+      return registered.map((extension) =>
+        extension.name === 'code' ? extension.extend({ excludes: '', priority: 1 }) : extension,
+      );
+    },
+  });
+}
+
+/**
  * The table node, plus the one attribute #93 needs: the spelling the file
  * used for this table. `parseHTML`/`renderHTML` keep it on the round trip
  * through the document model, which is what lets an untouched table be
@@ -87,10 +168,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
   });
 
   return [
-    StarterKit.configure({
-      heading: { levels: [1, 2, 3, 4] },
-      codeBlock: { HTMLAttributes: { class: 'code-block' } },
-    }),
+    starterKitWithNestableCode(),
     Underline,
     Link.configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link
