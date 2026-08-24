@@ -129,6 +129,8 @@ describe('a fence alone in its container survives with it (#104)', () => {
     ['a list item, with a language', '- ```js\n  ```'],
     ['an ordered item', '1. ```\n   ```'],
     ['an ordered item past 1', '7. ```\n   ```'],
+    ['an ordered item starting at three', '3. ```\n   ```'],
+    ['an ordered item starting at five, with a language', '5. ```js\n   ```'],
     ['a list item inside a blockquote', '> - ```\n>   ```'],
     ['a blockquote inside a list item', '- > ```\n  > ```'],
     ['a list item inside a list item', '- - ```\n    ```'],
@@ -184,6 +186,18 @@ describe('a fence alone in its container survives with it (#104)', () => {
     ] as const) {
       expect(htmlToMarkdown(html).trim()).toBe(expected);
     }
+  });
+
+  it('writes a blank list item by the rule that item would have used', () => {
+    // The two shapes side by side, because they are one line apart in the DOM
+    // and a whole rule apart in the output. Which one is written is decided by
+    // `data-type="taskList"` on the **parent**, which is what the two `LI`
+    // filters read — so the pair is pinned here rather than described
+    // somewhere, where the attribute can quietly go missing from the telling.
+    expect(htmlToMarkdown('<ul><li><pre><code></code></pre></li></ul>')).toBe('- ```\n  ```');
+    expect(
+      htmlToMarkdown('<ul data-type="taskList"><li><pre><code></code></pre></li></ul>'),
+    ).toBe('- [ ] ```\n```');
   });
 
   it('is never consulted for a task item, because a checkbox is a void element', () => {
