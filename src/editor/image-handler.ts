@@ -161,14 +161,19 @@ export async function handleImageFile(
     // about it (#66). Since #68 this kind also ends the gesture it
     // belongs to — the files behind this one are not asked again.
     //
-    // Two other causes reach this same null and are *not* cancellations
-    // — a consent that outlived its document (#51) and a web build that
-    // never asks (#46) — and they now cost a whole gesture rather than
-    // one image, which raises what they are worth without changing what
-    // they are. Neither is fixed here; both become a new outcome kind on
-    // this contract, which the app layer has to word before it compiles.
-    // The third false cancellation, a dialog guard answering null under
-    // a concurrent insert, is gone: the gesture is sequenced (#68).
+    // One other cause reaches this same null and is *not* a
+    // cancellation — a web build that never asks (#46) — and it now
+    // costs a whole gesture rather than one image, which raises what it
+    // is worth without changing what it is. It is not fixed here; it
+    // becomes a new outcome kind on this contract, which the app layer
+    // has to word before it compiles. The second false cancellation, a
+    // dialog guard answering null under a concurrent insert, is gone:
+    // the gesture is sequenced (#68).
+    //
+    // #51 used to be listed here and never belonged: an agreement that
+    // outlives its document returns a directory, not null, so it could
+    // not reach this branch. It is now the deliberate promise of R-C5
+    // rather than a defect at all.
     report({ kind: 'cancelled', at: 'assets-folder' });
     return;
   }

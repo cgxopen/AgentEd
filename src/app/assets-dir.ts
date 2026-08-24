@@ -47,11 +47,24 @@ export async function resolveAssetsDir(
  * *consent*: asking at insert time, before the user has committed to the
  * image, is a far better moment than asking mid-save.
  *
- * An **agreement** is remembered per folder, so the question is asked
- * once however many images the user inserts before saving — and asked
- * again only if a Save As moves the document somewhere new, which is a
- * folder the user has not agreed to yet. Closing or opening another
- * document clears it.
+ * An **agreement belongs to the folder, and outlives the document that
+ * won it** (#51, owner decision 2026-08-24). It is asked once however
+ * many images go in before the first save, and once however many
+ * documents in that folder the user edits afterwards: the folder is
+ * what was agreed to, and re-asking for the file beside it reads as the
+ * application forgetting what it was told. Nothing that replaces the
+ * document clears it — **New, New from Template and Close** all reach
+ * `resetDocument` through `clearDocumentForReplacement`, and it
+ * deliberately leaves this field alone; **Open** never went through
+ * `resetDocument` in the first place. That is the whole list, and it is
+ * the whole list on purpose.
+ *
+ * It is asked again in exactly two cases, both of them honest: a Save
+ * As that moves the document to a folder not yet agreed to — a
+ * different folder is a different question, which falls out of keying
+ * on the directory — and a new window, since R-C8 gives each window its
+ * own state. That window is the whole lifetime of the answer; nothing
+ * is written to disk about it.
  *
  * A **refusal is not remembered** (#66). It cancels the image it was
  * asked about, and the next insert asks again — exactly like cancelling
