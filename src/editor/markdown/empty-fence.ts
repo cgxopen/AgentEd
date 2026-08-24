@@ -35,18 +35,28 @@ import type { BlankReplacement, Options } from 'turndown';
  * written for the `PRE`: written for the `CODE` it would land inside a block
  * that is then replaced in its turn.
  *
- * **Where this does not reach**: a fence that is the *only* content of a
- * blockquote or a list item. The container is blank too, so the blank rule
- * replaces the whole of it and the `PRE` inside is never offered here — the
- * same mechanism, one level up. Measured, pinned as a labelled gap in
- * `empty-fence.test.ts`, and left out of R-C2 deliberately, because it loses
- * a block rather than respelling one. Anyone widening this should start from
- * that: the fence is kept wherever it is *reached*, and it is not reached
- * when its whole container is blank.
+ * **The container half (#104).** A fence that is the *only* content of a
+ * blockquote or a list item used to go the same way, and take its container
+ * with it: a container holding nothing but a blank child is blank itself, so
+ * the blank rule replaced the whole of it. That is the same mechanism one
+ * level up, and `createBlankReplacement` now answers for the container too —
+ * see `keepContainer` below for why that costs one delegation per level and
+ * not a recursion.
  */
 
 /** The language, as turndown's own fenced rule reads it off the `<code>`. */
 const LANGUAGE_CLASS = /language-(\S+)/;
+
+/**
+ * How to write each container a blank fence can hide inside, by tag name
+ * (#104). Every entry is the rule that already writes that container when it
+ * is *not* blank — turndown's own for `BLOCKQUOTE`, `UL` and `OL`, this
+ * repository's for `LI` — so a container rescued here is written exactly as
+ * one holding a paragraph would be, and stays that way if either rule
+ * changes. The tag names are the keys because that is what turndown offers a
+ * blank node: `nodeName`, and content that is already finished.
+ */
+export type ContainerReplacements = Readonly<Record<string, BlankReplacement | undefined>>;
 
 /**
  * A fenced block, by the same three conditions turndown's `fencedCodeBlock`
@@ -113,8 +123,45 @@ function fenceFor(node: Node, options: Options): string {
  * this fix. Telling them apart would mean reading each block's spelling from
  * the raw markdown on open and carrying it on the node — the #93 shape — to
  * preserve a blank line that R-C2 already records as lost on the way in.
+ *
+ * ── The container, and why one condition is the whole of #104 ──
+ *
+ * `containers` is the same delegation in the other direction: a blockquote or
+ * a list item that is blank only because the fence inside it was, written by
+ * the rule that would have written it had it never been blank. Passed in
+ * rather than looked up here, because two of those rules are this
+ * repository's own (`listItem`, `taskListItem`) and two are turndown's
+ * (`blockquote`, `list`), and `serialize.ts` is the file that has both.
+ *
+ * **The condition is about the content, not about the fence.** turndown
+ * processes a node's children *before* it consults the rule for the node
+ * itself — `replacementForNode` calls `process` unconditionally, blank node
+ * or not — so by the time this runs, `content` already holds whatever the
+ * children were written as, the fence above included. A blank container whose
+ * children wrote nothing keeps the empty string it has today; a blank
+ * container whose children wrote something is a container that must not be
+ * dropped, whatever wrote it. Written that way round on purpose: it is the
+ * general statement of the defect, and it does not have to be revisited if
+ * something else ever escapes a blank node.
+ *
+ * **That is also what keeps it from multiplying with nesting.** Each level is
+ * one delegation reading a `content` that is already finished, so a fence
+ * alone in a list item inside a blockquote costs three of them and no
+ * recursion: `LI`, then `UL`, then `BLOCKQUOTE`, each handed the level below.
+ *
+ * **`content.trim()` is the test, not `content !== ''`.** turndown's own
+ * blank rule writes `'\n\n'` for a blank *block*, so a genuinely empty list
+ * — `<ul><li></li></ul>` — arrives here with `'\n\n'` as its content and is
+ * dropped exactly as it is today.
  */
-export function createBlankReplacement(blankOtherwise: BlankReplacement): BlankReplacement {
-  return (content, node, options) =>
-    isFencedBlock(node, options) ? fenceFor(node, options) : blankOtherwise(content, node, options);
+export function createBlankReplacement(
+  blankOtherwise: BlankReplacement,
+  containers: ContainerReplacements,
+): BlankReplacement {
+  return (content, node, options) => {
+    if (isFencedBlock(node, options)) return fenceFor(node, options);
+    const container = containers[node.nodeName];
+    if (container && content.trim() !== '') return container(content, node, options);
+    return blankOtherwise(content, node, options);
+  };
 }

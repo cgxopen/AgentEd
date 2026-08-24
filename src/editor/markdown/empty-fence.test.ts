@@ -99,49 +99,119 @@ describe('every other blank node behaves as it did (#94)', () => {
 });
 
 /**
- * **Known gap — a fence that is the *only* content of its container is still
- * lost.** The mechanism is the one this fix is about, one level up: the
- * container is blank too, so the blank rule replaces the whole of it before
- * the `<pre>` inside is ever consulted. Instrumented, the nodes reaching the
- * hook are `CODE, PRE, BLOCKQUOTE` for a blockquote and `CODE, PRE, LI, UL`
- * for a list — the fence is never offered. Where the container holds
- * something else, the `<pre>` is reached and the fix works, which is why two
- * of the four cases below already pass.
+ * #104: a fence that is the *only* content of its container used to go the
+ * same way, and take the container with it. The mechanism is the one above,
+ * one level up — a container holding nothing but a blank child is blank
+ * itself, so the blank rule replaced the whole of it before the `<pre>`
+ * inside was ever consulted. Instrumented, the nodes reaching the hook are
+ * `CODE, PRE, BLOCKQUOTE` for a blockquote and `CODE, PRE, LI, UL` for a
+ * list.
  *
- * **Not a regression**: all four lose the fence on `cdac091`, measured, and
- * this fix repairs the two that have other content in the container.
+ * **This block is the inverted gap.** It was written on #103 as a labelled
+ * gap asserting the loss — the way #89 left one for #103 — so that whoever
+ * fixed it would meet a decision rather than a surprise. Its two cases are
+ * the first two rows below, now asserting what they keep instead of what they
+ * lost.
  *
- * **Deliberately not recorded in R-C2**, on AMP's call: every exception there
- * is a respelling — same document, different bytes, identical rendering —
- * while this loses a block the reader can see, which is the class that got
- * #94 opened in the first place. It becomes a follow-up issue instead, and
- * this test exists so the next reader meets a decision rather than a
- * surprise.
+ * **Not a regression it repairs, but a loss that predates both**: all of
+ * these lose the fence on `cdac091` and on `8141cc9` alike.
  *
- * One measurement that only the editor level shows, reported on #103 and not
- * pinned: a fence alone in a **list item** loses its bullet at that level
- * whether it is empty or not, because TipTap's `listItem` schema does not
- * admit a code block as an item's first child. That is the pre-existing
- * schema fact reported on #99 and filed as decision debt, not this gap; it is
- * left unpinned there for the reason given then — pinning would enshrine it.
+ * The nesting rows are the measurement #104 asked for whichever way it fell.
+ * It falls this way: each level is one delegation over a `content` that is
+ * already finished, so depth costs nothing and the shapes hold at two levels
+ * as they do at one.
  */
-describe('KNOWN GAP: a fence alone in its container is not reached (#94)', () => {
+describe('a fence alone in its container survives with it (#104)', () => {
   it.each([
     ['a blockquote', '> ```\n> ```'],
     ['a list item', '- ```\n  ```'],
-  ])('still loses an empty fence that is the only content of %s', (_label, markdown) => {
-    expect(roundtrip(markdown)).toBe('');
+    ['a blockquote, with a language', '> ```js\n> ```'],
+    ['a list item, with a language', '- ```js\n  ```'],
+    ['an ordered item', '1. ```\n   ```'],
+    ['an ordered item past 1', '7. ```\n   ```'],
+    ['a list item inside a blockquote', '> - ```\n>   ```'],
+    ['a blockquote inside a list item', '- > ```\n  > ```'],
+    ['a list item inside a list item', '- - ```\n    ```'],
+    ['a list item inside a blockquote, with a language', '> - ```js\n>   ```'],
+  ])('writes an empty fence alone in %s back byte for byte', (_label, markdown) => {
+    expect(roundtrip(markdown)).toBe(markdown);
+  });
+
+  it('is stable on the second save', () => {
+    // The property #96 established, asked of the container shapes too.
+    for (const markdown of ['> ```\n> ```', '- ```\n  ```', '> - ```\n>   ```']) {
+      const once = roundtrip(markdown);
+      expect(roundtrip(once)).toBe(once);
+    }
+  });
+
+  it('leaves a container holding a fence that has content alone', () => {
+    for (const markdown of [
+      '> ```\n> x\n> ```',
+      '- ```\n  x\n  ```',
+      '> ```js\n> const a = 1;\n> ```',
+      '> - ```\n>   x\n>   ```',
+    ]) {
+      expect(roundtrip(markdown)).toBe(markdown);
+    }
   });
 
   it.each([
     ['a blockquote', '> text\n>\n> ```\n> ```', '> text\n> \n> ```\n> ```'],
     ['a blockquote with a language', '> a\n>\n> ```js\n> ```', '> a\n> \n> ```js\n> ```'],
     ['a list item', '- text\n\n  ```\n  ```', '- text\n\n  ```\n  ```'],
-  ])('keeps an empty fence when %s holds something else too', (_label, markdown, expected) => {
-    // The blank quote line comes back as `> ` rather than `>`: turndown's
-    // blockquote rule prefixes every line, blank ones included. Nothing to do
-    // with this fix — a blockquote holding two paragraphs and no blank node
-    // at all shows the same.
+  ])('still keeps an empty fence when %s holds something else too', (_label, markdown, expected) => {
+    // The two shapes #103 could already reach, unchanged by this. The blank
+    // quote line comes back as `> ` rather than `>`: turndown's blockquote
+    // rule prefixes every line, blank ones included, and a blockquote holding
+    // two paragraphs and no blank node at all shows the same.
     expect(roundtrip(markdown)).toBe(expected);
+  });
+
+  it('drops a container that really is empty, exactly as before', () => {
+    // The condition the fix turns on is the *content*, not the fence, so this
+    // is the half of it that must not move: a container whose children wrote
+    // nothing is still blank, and turndown's own blank rule still has it.
+    for (const [html, expected] of [
+      ['<p>a</p><blockquote></blockquote><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><blockquote><p></p></blockquote><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><ul><li></li></ul><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><ol><li></li></ol><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><ul><li><p></p></li></ul><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><blockquote><ul><li></li></ul></blockquote><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><pre></pre><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><blockquote><pre></pre></blockquote><p>b</p>', 'a\n\nb'],
+    ] as const) {
+      expect(htmlToMarkdown(html).trim()).toBe(expected);
+    }
+  });
+
+  it('is never consulted for a task item, because a checkbox is a void element', () => {
+    // The `LI` entry in the container table has to make the same split the two
+    // list rules make between them — rule *precedence* is what keeps those two
+    // filters apart, and a blank node never reaches the rule array to be
+    // ordered by it. That split is written for correctness, not for a shape
+    // this pipeline can produce: turndown counts a node holding a **void**
+    // element as non-blank, and every task item `marked` makes holds a
+    // checkbox `<input>`. So a task item is never blank, its fence is reached
+    // by the fence rule as any other is, and the hook is not consulted for the
+    // item at all — which is why nothing here asserts how one is spelled.
+    const markdown = '- [ ] todo\n\n  ```\n  ```';
+    expect(markdownToHtml(markdown)).toContain('<input');
+    expect(roundtrip(markdown)).toContain('```\n  ```');
+  });
+
+  it('writes what turndown itself writes for every container but the one holding a fence', () => {
+    // The same "narrow" test the fence half makes, one level up: a document
+    // through a service that has never heard of this fix differs in exactly
+    // the two places the fence used to be dropped from.
+    const html =
+      '<p>a</p><blockquote><pre><code></code></pre></blockquote>' +
+      '<blockquote><p></p></blockquote><ul><li></li></ul><p>b</p>';
+    const untouched = new TurndownService({ codeBlockStyle: 'fenced', fence: '```' }).turndown(
+      html,
+    );
+    expect(untouched).toBe('a\n\nb');
+    expect(htmlToMarkdown(html)).toBe('a\n\n> ```\n> ```\n\nb');
   });
 });

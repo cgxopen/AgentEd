@@ -1,6 +1,6 @@
-import TurndownService from 'turndown';
+import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
-import { createBlankReplacement } from './empty-fence';
+import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
 import {
   type ColumnStyle,
@@ -27,13 +27,57 @@ import {
 // rather than trusted: a release that stopped resolving a default would
 // otherwise fail as `blankOtherwise is not a function` on the first save that
 // meets an empty paragraph, rather than here, naming its cause.
-const defaultBlankReplacement = new TurndownService().options.blankReplacement;
+const turndownDefaults = new TurndownService().options;
+const defaultBlankReplacement = turndownDefaults.blankReplacement;
 if (!defaultBlankReplacement) {
   throw new Error(
     'turndown no longer resolves a default options.blankReplacement, so an empty fenced block ' +
       'cannot delegate to it (#94). See src/editor/markdown/empty-fence.ts.',
   );
 }
+
+// ── The container half of it (#104) ──
+//
+// A fence that is the *only* content of a blockquote or a list item went the
+// same way and took its container with it, because a container holding
+// nothing but a blank child is blank itself. The hook above answers for the
+// container too, and this is the table it answers from: for each container a
+// blank fence can hide inside, the rule that already writes that container
+// when it is not blank.
+//
+// **Every entry delegates.** `BLOCKQUOTE`, `UL` and `OL` are turndown's own
+// rules, read from its resolved defaults the way the heading rule below reads
+// `heading` and for the same stated reason; `LI` is this repository's, the
+// two functions the `listItem` and `taskListItem` rules are registered with
+// further down — one definition each, used twice. So a container rescued here
+// is written exactly as one holding a paragraph would be, indentation,
+// numbering and all, and it stays that way when either rule changes.
+//
+// Declared optional in `src/types/turndown.d.ts`, so the check is demanded
+// rather than trusted — the same guard, and the same failure it prevents, as
+// `blankReplacement` above.
+const builtinBlockquote = turndownDefaults.rules.blockquote;
+const builtinList = turndownDefaults.rules.list;
+if (!builtinBlockquote || !builtinList) {
+  throw new Error(
+    'turndown no longer exposes options.rules.blockquote and options.rules.list, so a fence that ' +
+      'is the only content of its container cannot delegate to them (#104). ' +
+      'See src/editor/markdown/empty-fence.ts.',
+  );
+}
+
+const CONTAINERS: ContainerReplacements = {
+  BLOCKQUOTE: builtinBlockquote.replacement,
+  UL: builtinList.replacement,
+  OL: builtinList.replacement,
+  // The same split the two `LI` rules make between them, and it has to be
+  // made here as well: rule *precedence* is what keeps those two filters
+  // apart, and a blank node never reaches the rule array to be ordered by it.
+  LI: (content, node, options) =>
+    isTaskListItem(node)
+      ? taskListItemReplacement(content, node)
+      : listItemReplacement(content, node, options),
+};
 
 const turndown = new TurndownService({
   headingStyle: 'atx',
@@ -43,7 +87,7 @@ const turndown = new TurndownService({
   fence: '```',
   emDelimiter: '*',
   strongDelimiter: '**',
-  blankReplacement: createBlankReplacement(defaultBlankReplacement),
+  blankReplacement: createBlankReplacement(defaultBlankReplacement, CONTAINERS),
 });
 
 // #90: turndown escapes every `_` in a text node, because from one text node
@@ -124,19 +168,25 @@ turndown.addRule('heading', {
     builtinHeading.replacement(withoutLeadingListEscape(content), node, options),
 });
 
-// Task list support
+// Task list support.
+//
+// A function declaration rather than an inline replacement because the
+// container table above delegates to this same function for a blank task item
+// (#104) — one definition, two callers, no restatement.
+function taskListItemReplacement(content: string, node: Node): string {
+  const li = node as HTMLLIElement;
+  const checkbox = li.querySelector('input[type="checkbox"]');
+  const checked = checkbox?.hasAttribute('checked') ? 'x' : ' ';
+  const textNode = li.querySelector('[data-node-view-content] p') || li.querySelector('p');
+  const text = textNode?.textContent || content.trim();
+  return `- [${checked}] ${text}\n`;
+}
+
 turndown.addRule('taskListItem', {
   filter: (node) => {
     return node.nodeName === 'LI' && node.parentElement?.getAttribute('data-type') === 'taskList';
   },
-  replacement: (_content, node) => {
-    const li = node as HTMLLIElement;
-    const checkbox = li.querySelector('input[type="checkbox"]');
-    const checked = checkbox?.hasAttribute('checked') ? 'x' : ' ';
-    const textNode = li.querySelector('[data-node-view-content] p') || li.querySelector('p');
-    const text = textNode?.textContent || _content.trim();
-    return `- [${checked}] ${text}\n`;
-  },
+  replacement: taskListItemReplacement,
 });
 
 // ── List serialization ──
@@ -172,19 +222,24 @@ function indentContinuation(body: string, width: number): string {
     .join('\n');
 }
 
-// Explicitly excludes task list items so this rule cannot shadow the
-// 'taskListItem' rule above — turndown gives precedence to the rule added
+// Named for the same reason as `taskListItemReplacement` above: the container
+// table delegates to it for a list item that is blank only because the fence
+// inside it was (#104).
+function listItemReplacement(content: string, node: Node, options: Options): string {
+  const prefix = listItemPrefix(node as HTMLElement, options.bulletListMarker ?? '-');
+  const body = content.replace(/^\n+/, '').replace(/\s+$/, '');
+  // An item holding more than one block is a loose item: CommonMark keeps
+  // the blank line before the item that follows it.
+  const separator = body.includes('\n\n') ? '\n\n' : '\n';
+  return prefix + indentContinuation(body, prefix.length) + (node.nextSibling ? separator : '');
+}
+
+// The filter explicitly excludes task list items so this rule cannot shadow
+// the 'taskListItem' rule above — turndown gives precedence to the rule added
 // last, so the two filters must not overlap.
 turndown.addRule('listItem', {
   filter: (node) => node.nodeName === 'LI' && !isTaskListItem(node),
-  replacement: (content, node, options) => {
-    const prefix = listItemPrefix(node as HTMLElement, options.bulletListMarker ?? '-');
-    const body = content.replace(/^\n+/, '').replace(/\s+$/, '');
-    // An item holding more than one block is a loose item: CommonMark keeps
-    // the blank line before the item that follows it.
-    const separator = body.includes('\n\n') ? '\n\n' : '\n';
-    return prefix + indentContinuation(body, prefix.length) + (node.nextSibling ? separator : '');
-  },
+  replacement: listItemReplacement,
 });
 
 // A paragraph inside a list item ends with a single newline when a nested
