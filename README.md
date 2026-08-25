@@ -66,7 +66,7 @@ Coming next (see [REQUIREMENTS.md](REQUIREMENTS.md) §8): language labels on cod
 
 ## Building from source
 
-**Prerequisites:** Node.js 22+, Rust toolchain (via [rustup](https://rustup.rs/)), Tauri CLI.
+**Prerequisites:** Node.js 20+, Rust toolchain (via [rustup](https://rustup.rs/)), Tauri CLI.
 
 ```
 git clone https://github.com/catge/AgentEd.git
