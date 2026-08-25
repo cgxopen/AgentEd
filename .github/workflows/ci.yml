@@ -31,6 +31,7 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.decide.outputs.code }}
+      guarded_docs: ${{ steps.decide.outputs.guarded_docs }}
       build_sha: ${{ steps.identity.outputs.build_sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -58,23 +59,53 @@ jobs:
               - 'biome.json'
               - '.editorconfig'
               - '.github/**'
+            # The documents `src/editor/roundtrip.test.ts` reads as **test
+            # input** (#118). They are not code and must not gate the Rust or
+            # Windows jobs — nothing they change can affect either — but a
+            # change to one of them changes what the round-trip guard is run
+            # against, so the job that runs it has to run.
+            #
+            # Named one by one rather than as `docs/**`: five of the eight are
+            # at the repository root, so no directory pattern reaches them,
+            # and a wildcard would also pull in documents the guard does not
+            # read. The four under `src/templates/` need no entry — `src/**`
+            # in `code:` already covers them.
+            #
+            # This list and the guard's own must not drift. `ci.test.ts`
+            # reads both and fails when a document the guard reads is matched
+            # by neither filter, which is the failure this issue exists for.
+            guarded-docs:
+              - 'CLAUDE.md'
+              - 'CONTRIBUTING.md'
+              - 'README.md'
+              - 'REQUIREMENTS.md'
+              - 'SECURITY.md'
+              - 'docs/ADR/ADR-001-reset-and-simplification.md'
+              - 'docs/internal/STATUS.md'
+              - 'docs/internal/WORKFLOW.md'
 
       - name: Decide whether the code jobs run
         id: decide
         env:
           FILTER_OUTCOME: ${{ steps.filter.outcome }}
           FILTER_CODE: ${{ steps.filter.outputs.code }}
+          FILTER_DOCS: ${{ steps.filter.outputs.guarded-docs }}
         run: |
           set -euo pipefail
           # Fail open, deliberately: a push with no usable comparison point —
           # a force push whose old head is gone, a payload without `before` —
           # must build everything rather than skip everything. Skipping on a
           # failure to answer would be a silent green.
-          if [ "$FILTER_OUTCOME" = "success" ] && [ -n "$FILTER_CODE" ]; then
+          #
+          # Both outputs fail open together. A non-answer says nothing about
+          # either question, so neither may be treated as answered "no".
+          if [ "$FILTER_OUTCOME" = "success" ] && [ -n "$FILTER_CODE" ] && [ -n "$FILTER_DOCS" ]; then
             echo "code=$FILTER_CODE" >> "$GITHUB_OUTPUT"
+            echo "guarded_docs=$FILTER_DOCS" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::The path filter did not answer (outcome: ${FILTER_OUTCOME}). Running the full pipeline."
             echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "guarded_docs=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Name the build
@@ -97,7 +128,11 @@ jobs:
   frontend:
     name: Frontend (lint + typecheck + test + build)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    # The one job that documents can start. `roundtrip.test.ts` reads the
+    # repository's documents as test input (#118), so a change to one of
+    # them changes what this job is run against. Rust and Windows below
+    # stay on `code` alone — nothing a document changes can reach either.
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.guarded_docs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
