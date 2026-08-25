@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+// The guard is read as text for the same reason the workflows are: what is
+// being pinned is the relationship between two lists that live in different
+// files and different languages, and reading one of them is the only way to
+// check it against the other.
+import ROUNDTRIP_GUARD from '../../src/editor/roundtrip.test.ts?raw';
 // The workflows are read as text, not parsed: `?raw` is Vite's own way of
 // asking for a file's bytes, so the test needs no filesystem access and no
 // dependency to reach them.
@@ -190,5 +195,115 @@ describe('nightly.yml runs weekly, and can still be asked for by hand', () => {
 
   it('keeps workflow_dispatch', () => {
     expect(NIGHTLY).toMatch(/^ {2}workflow_dispatch:$/m);
+  });
+});
+
+describe('the documents the round-trip guard reads can start the job that runs it (#118)', () => {
+  /**
+   * The failure this pins is the one that produced #118: `ci.yml` gates the
+   * frontend job on a path filter, `src/editor/roundtrip.test.ts` reads the
+   * repository's documents as test input, and the two lists are maintained by
+   * hand, in different languages, in different files. When they drifted, a
+   * documentation merge skipped the job that would have caught it and
+   * `Pipeline OK` reported success over a red suite.
+   *
+   * They cannot be derived from one another — one is TypeScript imports, the
+   * other is YAML read by an action before any of this exists — so the drift
+   * is made to **fail** instead.
+   */
+
+  /** Every document the guard runs through the real save assembly. */
+  function documentsUnderGuard(): string[] {
+    const start = ROUNDTRIP_GUARD.search(/^const DOCUMENTS\b/m);
+    expect(start, 'DOCUMENTS not found in the round-trip guard').toBeGreaterThan(-1);
+    const block = ROUNDTRIP_GUARD.slice(start, ROUNDTRIP_GUARD.indexOf('\n];', start));
+    return [...block.matchAll(/\['([^']+\.md)',/g)].map((m) => m[1]);
+  }
+
+  /** The path patterns one filter of the `changes` job lists. */
+  function filterPaths(name: string): string[] {
+    const section = CI.slice(CI.indexOf(`            ${name}:`));
+    const body = section.slice(0, section.search(/\n {12}[a-z]/) + 1 || undefined);
+    return [...body.matchAll(/^ {14}- '([^']+)'$/gm)].map((m) => m[1]);
+  }
+
+  it('reads a plausible list out of the guard rather than silently reading none', () => {
+    // The guard on the guard. A rename or a reformat that defeated the regex
+    // above would make every assertion below pass over an empty list, which
+    // is the same shape of silent green this whole issue is about.
+    const documents = documentsUnderGuard();
+    expect(documents.length).toBeGreaterThanOrEqual(8);
+    expect(documents).toContain('REQUIREMENTS.md');
+    expect(documents).toContain('docs/internal/STATUS.md');
+    expect(filterPaths('code').length).toBeGreaterThanOrEqual(8);
+    expect(filterPaths('guarded_docs').length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('matches every document under the guard to a filter that starts the frontend job', () => {
+    const guardedDocs = filterPaths('guarded_docs');
+    // `src/**` in `code:` is the only pattern doing work here — the four
+    // template documents live under it. Stated as the one prefix rather than
+    // by re-implementing glob matching, which would be a second thing that
+    // can disagree with the action.
+    expect(filterPaths('code')).toContain('src/**');
+
+    const unmatched = documentsUnderGuard().filter(
+      (doc) => !doc.startsWith('src/') && !guardedDocs.includes(doc),
+    );
+    expect(
+      unmatched,
+      `documents the round-trip guard reads that no filter matches, so a change to one ` +
+        `of them skips the job that runs the guard: ${unmatched.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('lists no document that the guard does not actually read', () => {
+    // The other direction, so the list cannot rot into a set of paths nobody
+    // tests any more — a filter entry for a document the guard dropped costs
+    // a frontend run on every change to it, forever, for nothing.
+    const documents = documentsUnderGuard();
+    const stale = filterPaths('guarded_docs').filter((p) => !documents.includes(p));
+    expect(stale, `filter entries no document under the guard needs: ${stale.join(', ')}`).toEqual(
+      [],
+    );
+  });
+
+  it('lets documents start the frontend job and nothing else', () => {
+    // The cost half. Documents cannot reach Rust or Windows, and nothing they
+    // change can affect either, so the saving #113 measured stays in place
+    // for the two expensive jobs.
+    const gate = (job: string) => {
+      const block = jobs(CI).get(job) ?? '';
+      const match = block.match(/^ {4}if: (.+)$/m);
+      expect(match, `job ${job} has no if:`).not.toBeNull();
+      return (match as RegExpMatchArray)[1].trim();
+    };
+    expect(gate('frontend')).toBe(
+      "needs.changes.outputs.code == 'true' || needs.changes.outputs.guarded_docs == 'true'",
+    );
+    expect(gate('rust')).toBe("needs.changes.outputs.code == 'true'");
+    expect(gate('build-windows')).toBe("needs.changes.outputs.code == 'true'");
+  });
+
+  it('spells the filter one way, in all three places it appears', () => {
+    // The filter's name, the expression that reads it, and the job output.
+    // A hyphenated output name reads correctly in an expression — measured
+    // on this branch, `false` rather than `NaN` — so this is not guarding a
+    // bug. It is guarding against two spellings of one name, transliterated
+    // by hand between two files, which is the shape that produced #118.
+    expect(CI).toMatch(/^ {12}guarded_docs:$/m);
+    expect(CI).toMatch(/steps\.filter\.outputs\.guarded_docs/);
+    expect(CI).toMatch(/^ {6}guarded_docs: \$\{\{ steps\.decide\.outputs\.guarded_docs \}\}$/m);
+    expect(CI).not.toMatch(/guarded-docs/);
+  });
+
+  it('fails open on both questions together', () => {
+    // A non-answer says nothing about either question, so neither may be read
+    // as "no". Skipping on a failure to answer is the silent green #118 is
+    // about, and it must not come back through the new output.
+    const block = jobs(CI).get('changes') ?? '';
+    const fallback = block.slice(block.indexOf('else'));
+    expect(fallback).toMatch(/echo "code=true"/);
+    expect(fallback).toMatch(/echo "guarded_docs=true"/);
   });
 });
