@@ -64,6 +64,7 @@ describe('handleImageFile — M5 size cap', () => {
       getFilePath,
       requestSaveAs,
       ensureAssetsDir,
+      async () => true,
       'file',
       record,
     );
@@ -88,7 +89,16 @@ describe('handleImageFile — M5 size cap', () => {
     const ensureAssetsDir = vi.fn(async () => '/doc/assets');
 
     const ok = makeFile(1024);
-    await handleImageFile(ok, editor, getFilePath, requestSaveAs, ensureAssetsDir, 'file', record);
+    await handleImageFile(
+      ok,
+      editor,
+      getFilePath,
+      requestSaveAs,
+      ensureAssetsDir,
+      async () => true,
+      'file',
+      record,
+    );
 
     expect(ensureAssetsDir).toHaveBeenCalledTimes(1);
     expect(ok.arrayBuffer).toHaveBeenCalledTimes(1);
@@ -113,6 +123,7 @@ describe('handleImageFile — naming (R-C5)', () => {
       () => documentPath,
       requestSaveAs,
       ensureAssetsDir,
+      async () => true,
       origin,
       record,
     );

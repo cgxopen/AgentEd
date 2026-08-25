@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dirname } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import { confirmAssetsDir, resolveAssetsDir } from './assets-dir';
@@ -12,6 +13,16 @@ let mkdirCalls: string[] = [];
 function mockIO(existsPredicate: (path: string) => boolean): PlatformIO {
   return {
     supportsMultiFile: true,
+    // Desktop-shaped, and it has to be: the two rejections these tests
+    // pin — a bare name and the filesystem root — moved out of
+    // `resolveAssetsDir` and into `TauriIO.canWriteCompanions` on #46,
+    // because they are facts about desktop paths rather than about every
+    // platform. Answering a flat `true` here would pass those tests over
+    // a guard that no longer exists anywhere.
+    canWriteCompanions: async (documentPath: string) => {
+      const parent = dirname(documentPath);
+      return parent.length > 0 && parent !== '/';
+    },
     openFile: async () => null,
     pickFile: async () => null,
     readText: async () => '',

@@ -38,6 +38,8 @@ let pickedFile: string | null = null;
 
 const io: PlatformIO = {
   supportsMultiFile: true,
+  // Desktop-shaped: every path carries a directory (#46).
+  canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => pickedFile,
   readText: async () => '',
@@ -122,6 +124,7 @@ async function insertImage(
     () => state.filePath,
     requestSaveAs,
     askForAssetsDir,
+    async () => true,
     'file',
     report,
   );
@@ -299,6 +302,7 @@ describe('#61 — the drop and paste plugins', () => {
       getFilePath: () => state.filePath,
       requestSaveAs: pickerReturning('/doc/notes.md'),
       confirmAssetsDir: askForAssetsDir,
+      canWriteCompanions: async () => true,
       report,
     });
   }

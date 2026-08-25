@@ -55,6 +55,7 @@ async function insert(name: string, seed: number, origin: 'clipboard' | 'file' =
     () => '/doc/notes.md',
     async () => '/doc/notes.md',
     async () => '/doc/assets',
+    async () => true,
     origin,
     // The dedup tests are about what lands in assets/, not about what is
     // said; the outcome is recorded so nothing is dropped (#61).
@@ -158,6 +159,8 @@ describe('the same image inserted twice (#52)', () => {
     const written: string[] = [];
     const io = {
       supportsMultiFile: true,
+      // Desktop-shaped: every path carries a directory (#46).
+      canWriteCompanions: async () => true,
       saveFile: vi.fn(async () => {}),
       mkdir: vi.fn(async () => {}),
       writeBinary: vi.fn(async (path: string) => {

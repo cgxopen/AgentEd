@@ -30,6 +30,8 @@ import { AppState } from './state';
 
 const io: PlatformIO = {
   supportsMultiFile: true,
+  // Desktop-shaped: every path carries a directory (#46).
+  canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,
   readText: async () => '',
@@ -134,6 +136,7 @@ function wiredEditor(report: (outcome: ImageInsertOutcome) => void): EditorInsta
       if (!path) return null;
       return confirmAssetsDir(path, io, state);
     },
+    canWriteCompanions: async () => true,
     report,
   });
 }
@@ -329,6 +332,7 @@ describe('a gesture in a document that has never been saved', () => {
         if (!path) return null;
         return confirmAssetsDir(path, io, state);
       },
+      canWriteCompanions: async () => true,
       report: (outcome) => reported.push(outcome),
     });
 
@@ -373,6 +377,7 @@ describe('the gesture loop itself', () => {
       () => state.filePath,
       async () => state.filePath,
       async () => (state.filePath ? confirmAssetsDir(state.filePath, io, state) : null),
+      async () => true,
       'clipboard',
       (outcome) => outcomes.push(outcome),
     );
@@ -387,6 +392,7 @@ describe('the gesture loop itself', () => {
       () => state.filePath,
       async () => null,
       async () => null,
+      async () => true,
       'clipboard',
       (outcome) => afterCancel.push(outcome),
     );

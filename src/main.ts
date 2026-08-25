@@ -77,6 +77,15 @@ const { editor, getMarkdown, setMarkdown } = createEditor(
       const io = await getPlatformIO();
       return confirmAssetsDir(path, io, ctx.state);
     },
+    // Asked by the insert flow *after* the destination step, never before
+    // (#46) — on the web build that step is what grants the access this
+    // answers about.
+    canWriteCompanions: async () => {
+      const path = ctx.state.filePath;
+      if (!path) return false;
+      const io = await getPlatformIO();
+      return io.canWriteCompanions(path);
+    },
     report: reportImageInsert,
   },
 );

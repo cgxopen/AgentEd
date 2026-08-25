@@ -9,6 +9,10 @@ import { detectContextCluster, MAX_CHILDREN, MAX_RESULTS } from './detector';
  */
 class FakeIO implements PlatformIO {
   readonly supportsMultiFile = false;
+
+  async canWriteCompanions(): Promise<boolean> {
+    return false;
+  }
   readonly files: Set<string>;
   readonly dirs: Map<string, FileEntry[]>;
   readonly listDirCalls: string[] = [];

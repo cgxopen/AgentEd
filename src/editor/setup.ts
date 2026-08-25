@@ -12,6 +12,7 @@ import Underline from '@tiptap/extension-underline';
 import { DOMParser as ProseMirrorDOMParser, type Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import {
+  type CanWriteCompanions,
   type ConfirmAssetsDir,
   createImageDropPlugin,
   type GetFilePath,
@@ -146,7 +147,12 @@ export interface ImageInsertWiring {
   readonly getFilePath: GetFilePath;
   readonly requestSaveAs: RequestSaveAs;
   readonly confirmAssetsDir: ConfirmAssetsDir;
-  /** How every insert — landed, cancelled or refused — is reported (#61). */
+  /** Whether a companion file can be written for this document now (#46). */
+  readonly canWriteCompanions: CanWriteCompanions;
+  /**
+   * How every insert is reported (#61) — landed, cancelled, refused, or
+   * unavailable because this document cannot hold an image here at all.
+   */
   readonly report: ReportImageInsert;
 }
 
@@ -161,6 +167,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
           images.getFilePath,
           images.requestSaveAs,
           images.confirmAssetsDir,
+          images.canWriteCompanions,
           images.report,
         ),
       ];

@@ -12,6 +12,10 @@ import { AppState } from './state';
  */
 class SlowIO implements PlatformIO {
   readonly supportsMultiFile = false;
+
+  async canWriteCompanions(): Promise<boolean> {
+    return false;
+  }
   private readonly hits: Set<string>;
   private readonly delayMs: number;
 
