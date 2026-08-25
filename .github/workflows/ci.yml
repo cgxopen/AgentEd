@@ -74,7 +74,15 @@ jobs:
             # This list and the guard's own must not drift. `ci.test.ts`
             # reads both and fails when a document the guard reads is matched
             # by neither filter, which is the failure this issue exists for.
-            guarded-docs:
+            #
+            # Spelled with an underscore, and it is the same spelling in all
+            # three places it appears — the filter name here, the expression
+            # that reads it, and the job output. A hyphen reads correctly in
+            # an expression (measured on this branch: `false`, not `NaN`), so
+            # this is not a fix; it is this pull request's own argument
+            # applied to itself. Two spellings of one name, transliterated by
+            # hand between two files, is the shape that produced #118.
+            guarded_docs:
               - 'CLAUDE.md'
               - 'CONTRIBUTING.md'
               - 'README.md'
@@ -89,7 +97,7 @@ jobs:
         env:
           FILTER_OUTCOME: ${{ steps.filter.outcome }}
           FILTER_CODE: ${{ steps.filter.outputs.code }}
-          FILTER_DOCS: ${{ steps.filter.outputs.guarded-docs }}
+          FILTER_DOCS: ${{ steps.filter.outputs.guarded_docs }}
         run: |
           set -euo pipefail
           # Fail open, deliberately: a push with no usable comparison point —

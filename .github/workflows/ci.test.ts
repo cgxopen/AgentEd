@@ -236,11 +236,11 @@ describe('the documents the round-trip guard reads can start the job that runs i
     expect(documents).toContain('REQUIREMENTS.md');
     expect(documents).toContain('docs/internal/STATUS.md');
     expect(filterPaths('code').length).toBeGreaterThanOrEqual(8);
-    expect(filterPaths('guarded-docs').length).toBeGreaterThanOrEqual(5);
+    expect(filterPaths('guarded_docs').length).toBeGreaterThanOrEqual(5);
   });
 
   it('matches every document under the guard to a filter that starts the frontend job', () => {
-    const guardedDocs = filterPaths('guarded-docs');
+    const guardedDocs = filterPaths('guarded_docs');
     // `src/**` in `code:` is the only pattern doing work here — the four
     // template documents live under it. Stated as the one prefix rather than
     // by re-implementing glob matching, which would be a second thing that
@@ -262,7 +262,7 @@ describe('the documents the round-trip guard reads can start the job that runs i
     // tests any more — a filter entry for a document the guard dropped costs
     // a frontend run on every change to it, forever, for nothing.
     const documents = documentsUnderGuard();
-    const stale = filterPaths('guarded-docs').filter((p) => !documents.includes(p));
+    const stale = filterPaths('guarded_docs').filter((p) => !documents.includes(p));
     expect(stale, `filter entries no document under the guard needs: ${stale.join(', ')}`).toEqual(
       [],
     );
@@ -283,6 +283,18 @@ describe('the documents the round-trip guard reads can start the job that runs i
     );
     expect(gate('rust')).toBe("needs.changes.outputs.code == 'true'");
     expect(gate('build-windows')).toBe("needs.changes.outputs.code == 'true'");
+  });
+
+  it('spells the filter one way, in all three places it appears', () => {
+    // The filter's name, the expression that reads it, and the job output.
+    // A hyphenated output name reads correctly in an expression — measured
+    // on this branch, `false` rather than `NaN` — so this is not guarding a
+    // bug. It is guarding against two spellings of one name, transliterated
+    // by hand between two files, which is the shape that produced #118.
+    expect(CI).toMatch(/^ {12}guarded_docs:$/m);
+    expect(CI).toMatch(/steps\.filter\.outputs\.guarded_docs/);
+    expect(CI).toMatch(/^ {6}guarded_docs: \$\{\{ steps\.decide\.outputs\.guarded_docs \}\}$/m);
+    expect(CI).not.toMatch(/guarded-docs/);
   });
 
   it('fails open on both questions together', () => {
