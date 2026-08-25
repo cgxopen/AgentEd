@@ -663,7 +663,53 @@ interface Normaliser {
   readonly apply: (text: string) => string;
 }
 
+/** A line that opens a list item: `- x`, `* x`, `+ x`, `1. x`, `1) x`. */
+const OPENS_LIST_ITEM = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]/;
+/** A line that is indented and not blank — the continuation of an item above. */
+const CONTINUES_LIST_ITEM = /^[ \t]+\S/;
+
 const NORMALISERS: readonly Normaliser[] = [
+  {
+    // R-C2, the first exception recorded there: a loose list — blank lines
+    // between its items — is written back tight, because TipTap's list nodes
+    // carry no loose/tight distinction and the editor has no node for a blank
+    // line. Rendering differs (loose items are wrapped in `<p>`), which is why
+    // it is tracked as #28 rather than merely accepted; the bytes are what this
+    // guard is about, and they are recorded.
+    //
+    // **It runs before the soft-break normaliser and that is not incidental.**
+    // Once soft breaks have become spaces the blank line is no longer a line —
+    // it is an extra space in a sentence, and a normaliser that collapsed
+    // *those* would erase every doubled space anywhere in any document. Here
+    // the structure is still visible, so the claim can be made about the
+    // structure: a blank line, between two items of one list.
+    //
+    // Narrow on **both** sides deliberately. It claims the blank line only
+    // when the line after it opens an item and the line before it belongs to
+    // one — an item itself, or an indented continuation of one. So the blank
+    // line that *separates a paragraph from a list beneath it* is not claimed:
+    // that one is preserved on save, and a day it stops being preserved this
+    // guard still has to say so.
+    //
+    // Added on #117, after a blank line in `docs/internal/STATUS.md` turned
+    // `main` red for a difference R-C2 already accepts. Removed again, with
+    // the shape-table row above it, if #28 is ever fixed.
+    name: 'a loose list written back tight',
+    apply: (text) => {
+      const lines = text.split('\n');
+      const kept: string[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const previous = kept[kept.length - 1];
+        const isBlankBetweenItems =
+          lines[i].trim().length === 0 &&
+          OPENS_LIST_ITEM.test(lines[i + 1] ?? '') &&
+          previous !== undefined &&
+          (OPENS_LIST_ITEM.test(previous) || CONTINUES_LIST_ITEM.test(previous));
+        if (!isBlankBetweenItems) kept.push(lines[i]);
+      }
+      return kept.join('\n');
+    },
+  },
   {
     // R-C2: a soft line break becomes a space. A wrapped paragraph arrives as
     // several lines and leaves as one. Both sides are joined, so a *list* that
@@ -847,5 +893,76 @@ describe('the repository, opened and saved unedited (R-C2)', () => {
     }
     console.info(`R-C2 census\n  ${census.join('\n  ')}`);
     expect(census).toHaveLength(DOCUMENTS.length);
+  });
+});
+
+/**
+ * The loose-list normaliser, held to the property that makes it worth having
+ * rather than to the document that occasioned it (#117).
+ *
+ * A normaliser is only as good as what it still refuses, and that half cannot
+ * be read off the repository: every document here is expected to pass, so a
+ * normaliser drawn too widely passes too, silently. These drive `isClaimed`
+ * on regions built by hand — the difference the exception describes, and the
+ * differences it must not be able to swallow.
+ */
+describe('the loose-list normaliser claims one exception and no more (#117)', () => {
+  /** The two sides a difference has, as `differenceRegions` would hand them over. */
+  const region = (removed: readonly string[], added: readonly string[]): Region => ({
+    removed,
+    added,
+    at: 1,
+  });
+
+  it('claims a loose list written back tight', () => {
+    expect(isClaimed(region(['- one', '', '- two'], ['- one', '- two']), [])).toBe(true);
+  });
+
+  it('claims it under an item that wraps onto continuation lines', () => {
+    // The shape `docs/internal/STATUS.md` actually held: the blank line sits
+    // under an indented continuation, not under the item marker itself.
+    expect(
+      isClaimed(
+        region(['- one', '  more about one', '', '- two'], ['- one more about one', '- two']),
+        [],
+      ),
+    ).toBe(true);
+  });
+
+  it('claims an ordered list too — the exception is about the blank line', () => {
+    expect(isClaimed(region(['1. one', '', '2. two'], ['1. one', '2. two']), [])).toBe(true);
+  });
+
+  // ── and now what it must still refuse ──
+
+  it('does NOT claim a list that lost an item', () => {
+    // The floor this normaliser could most plausibly have broken. `- one` and
+    // `- two` joined is `- one - two`, which a one-item list does not match —
+    // and it must keep not matching now that blank lines can be erased.
+    expect(isClaimed(region(['- one', '', '- two'], ['- one']), [])).toBe(false);
+  });
+
+  it('does NOT claim an item whose text changed while a blank line went', () => {
+    expect(isClaimed(region(['- one', '', '- two'], ['- one', '- three']), [])).toBe(false);
+  });
+
+  it('does NOT claim the blank line between a paragraph and the list below it', () => {
+    // Preserved on save today. The day it stops being preserved, this guard
+    // has to report it rather than absorb it into the loose-list exception.
+    expect(isClaimed(region(['text', '', '- one'], ['text', '- one']), [])).toBe(false);
+  });
+
+  it('does NOT claim a blank line that goes from between two paragraphs', () => {
+    expect(isClaimed(region(['one', '', 'two'], ['one', 'two']), [])).toBe(false);
+  });
+
+  it('names itself in the census when a document meets it', () => {
+    expect(normalisersUsed(sideText(['- one', '', '- two']))).toContain(
+      'a loose list written back tight',
+    );
+    // And stays out of it when nothing loose is there to claim.
+    expect(normalisersUsed(sideText(['- one', '- two']))).not.toContain(
+      'a loose list written back tight',
+    );
   });
 });
