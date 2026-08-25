@@ -43,22 +43,53 @@ export type ImageInsertRefusal =
     };
 
 /**
+ * Why the environment cannot store an image for this document at all
+ * (#46). Facts only, as everywhere else here — the sentence belongs to
+ * the app layer.
+ *
+ * `no-folder-access` is the web build without a granted directory
+ * handle. It is not a property of the *file* being inserted and not an
+ * answer the user gave; it is a property of the document and the
+ * environment it is being edited in.
+ */
+export type ImageInsertUnavailableReason = 'no-folder-access';
+
+/**
  * How one call to `handleImageFile` ended. Every exit produces one,
- * and the three kinds are the distinction the flow turns on:
+ * and the four kinds are the distinction the flow turns on:
  *
  * - `inserted` — the image is in the document and nothing is on disk yet;
  *   the insert's only success signal, unchanged from #48.
  * - `cancelled` — the user refused something they were asked. They know
- *   what they refused, so the app layer says nothing (#46 depends on this
- *   staying a separate kind from `refused`).
- * - `refused` — the application could not continue. It speaks.
+ *   what they refused, so the app layer says nothing.
+ * - `refused` — the application could not continue **with this file**. It
+ *   speaks, and the gesture carries on: three oversized files rightly
+ *   produce three messages.
+ * - `unavailable` — the application cannot store an image **for this
+ *   document, here, at all** (#46).
+ *
+ * That last kind is neither of the two shapes this contract had, and it
+ * is a kind of its own for that reason. It **speaks**, like a refusal,
+ * because nobody told the user anything. It **ends the gesture**, like a
+ * cancellation, because the cause is not a property of one file — every
+ * image of a three-image paste would fail identically, and three
+ * identical toasts about one fact is noise.
+ *
+ * Expressed as a `kind` rather than as a reason under `refused` on
+ * purpose: `insertImageGesture`'s terminal rule reads `kind`, so a
+ * terminal *reason* would push the loop into the reason taxonomy and
+ * make every future reason a thing to classify there. And `refused`
+ * means "this file" by construction — the messages under it are about a
+ * file's size or a file's name — so a cause about the environment does
+ * not belong beneath it.
  *
  * This module names the reason and never the wording (#61).
  */
 export type ImageInsertOutcome =
   | { readonly kind: 'inserted' }
   | { readonly kind: 'cancelled'; readonly at: ImageInsertCancelledAt }
-  | ({ readonly kind: 'refused' } & ImageInsertRefusal);
+  | ({ readonly kind: 'refused' } & ImageInsertRefusal)
+  | { readonly kind: 'unavailable'; readonly reason: ImageInsertUnavailableReason };
 
 /**
  * The insert's only channel out. Pushed rather than returned: the drop and

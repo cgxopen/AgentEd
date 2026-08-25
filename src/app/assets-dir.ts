@@ -25,12 +25,20 @@ export async function resolveAssetsDir(
   filePath: string,
   io: PlatformIO,
 ): Promise<AssetsDirInfo | null> {
-  const parent = dirname(filePath);
-  // Reject empty parent (bare filename) and the filesystem root —
-  // mkdir('/assets') is permission-denied on Linux and meaningless on
-  // Windows / macOS.
-  if (parent.length === 0 || parent === '/') return null;
-  const dir = joinPath(parent, 'assets');
+  // The platform decides whether a companion can go next to this document
+  // (#46). It used to be decided here, by rejecting an empty parent and
+  // the filesystem root — but those are facts about *desktop* paths, and
+  // applying them everywhere is what kept the web build's images dead:
+  // every web path is a bare name, so every web insert was refused a
+  // directory it could in fact have written to.
+  //
+  // Both rejections still happen, in `TauriIO.canWriteCompanions`, where
+  // they are true. `WebIO` answers from its directory handle instead.
+  if (!(await io.canWriteCompanions(filePath))) return null;
+  // `joinPath` drops an empty segment, so a bare name yields the relative
+  // `assets` — which is what the web build's directory handle resolves
+  // against, and a shape no desktop path reaches.
+  const dir = joinPath(dirname(filePath), 'assets');
   return { dir, exists: await io.exists(dir) };
 }
 

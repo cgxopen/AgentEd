@@ -83,8 +83,31 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
   const assetImages = bundle.images.filter((img) => img.relativePath.startsWith('assets/'));
   if (assetImages.length === 0) return { assetsError: null, writtenText };
 
+  // **No silent drop** (#46). This used to return `assetsError: null`
+  // whenever the document's path carried no directory — reporting a
+  // complete save over images that never reached the disk, which is the
+  // one thing R-C5 says must not happen: if the folder cannot be made,
+  // the document is still saved *and the failure is reported*.
+  //
+  // It was unreachable while it stood, because every web insert died
+  // earlier and every desktop path carries a directory. Offering the
+  // destination step on web is what would have made it live, so it is
+  // closed in the same change rather than left as a trap that this one
+  // arms.
+  //
+  // The platform answers, for the same reason it answers in
+  // `resolveAssetsDir`: a bare name is malformed on desktop and ordinary
+  // on web, and only the platform knows which it is holding.
+  if (!(await io.canWriteCompanions(bundle.rootPath))) {
+    return {
+      assetsError: new Error('This document has nowhere to put its images.'),
+      writtenText,
+    };
+  }
+
+  // Empty for a web document, whose `assets/` is resolved against the
+  // granted directory handle; `joinPath` drops the empty segment.
   const parent = dirname(bundle.rootPath);
-  if (parent.length === 0) return { assetsError: null, writtenText };
 
   try {
     await io.mkdir(joinPath(parent, 'assets'));

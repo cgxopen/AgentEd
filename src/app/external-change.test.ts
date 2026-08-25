@@ -37,6 +37,8 @@ let mkdirFails: boolean;
 
 const io: PlatformIO = {
   supportsMultiFile: true,
+  // Desktop-shaped: every path carries a directory (#46).
+  canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,
   readText: async (path: string) => {

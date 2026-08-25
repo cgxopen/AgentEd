@@ -1,7 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
-import { isTauri } from '../platform/detect';
 import { getPlatformIO } from '../platform/index';
 import { basename, joinPath } from '../platform/paths';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
@@ -19,6 +18,15 @@ export type RequestSaveAs = () => Promise<string | null>;
  * create the folder — the save flow does that (#14).
  */
 export type ConfirmAssetsDir = () => Promise<string | null>;
+
+/**
+ * Whether a companion file can be written for the current document right
+ * now (#46). Wired to `PlatformIO.canWriteCompanions`, and asked **after**
+ * the destination step rather than before: on the web build the save
+ * picker is what acquires the folder access, so an answer taken earlier
+ * is stale in exactly the case the step just repaired.
+ */
+export type CanWriteCompanions = () => Promise<boolean>;
 
 // Reject paste/drop of images past this size to prevent OOM. file.arrayBuffer()
 // allocates the whole buffer up front, and the registry then keeps a copy alive
@@ -129,6 +137,7 @@ export async function handleImageFile(
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
+  canWriteCompanions: CanWriteCompanions,
   origin: ImageOrigin,
   report: ReportImageInsert,
 ): Promise<void> {
@@ -143,12 +152,32 @@ export async function handleImageFile(
   }
 
   // Need a file path before we can decide where assets/ goes.
-  if (isTauri && !getFilePath()) {
+  //
+  // **Offered on every platform** (#46). It used to be gated on `isTauri`,
+  // so the web build never asked — and `assets/` then had nowhere to go,
+  // which came out as the same silent early return a user cancellation
+  // takes. On web this step is also what *acquires* the folder access:
+  // `pickSavePath` calls the directory picker straight after the save
+  // picker, so offering it is what makes everything below possible.
+  if (!getFilePath()) {
     const saved = await requestSaveAs();
     if (!saved) {
       report({ kind: 'cancelled', at: 'destination' });
       return;
     }
+  }
+
+  // Asked here and not one line earlier (#46). The step above is what
+  // grants the access on the web build, so an answer taken before it
+  // would tell the user it cannot be done a moment after they granted it.
+  //
+  // A separate kind from both neighbours, deliberately: it speaks, unlike
+  // the cancellation below, and it ends the whole gesture, unlike a
+  // refusal — the cause belongs to the document and the environment, so
+  // every image of this paste would fail the same way.
+  if (!(await canWriteCompanions())) {
+    report({ kind: 'unavailable', reason: 'no-folder-access' });
+    return;
   }
 
   // Settle where assets/ will go, and get the user's agreement to create
@@ -161,19 +190,16 @@ export async function handleImageFile(
     // about it (#66). Since #68 this kind also ends the gesture it
     // belongs to — the files behind this one are not asked again.
     //
-    // One other cause reaches this same null and is *not* a
-    // cancellation — a web build that never asks (#46) — and it now
-    // costs a whole gesture rather than one image, which raises what it
-    // is worth without changing what it is. It is not fixed here; it
-    // becomes a new outcome kind on this contract, which the app layer
-    // has to word before it compiles. The second false cancellation, a
-    // dialog guard answering null under a concurrent insert, is gone:
-    // the gesture is sequenced (#68).
+    // **This branch is now only ever a cancellation** (#46). The web
+    // build's missing folder access used to arrive here too, silently,
+    // wearing a user's answer — it is reported above as `unavailable`
+    // before this line can be reached, and it says so out loud. The
+    // other false cancellation, a dialog guard answering null under a
+    // concurrent insert, went with #68's sequencing.
     //
-    // #51 used to be listed here and never belonged: an agreement that
+    // #51 was listed here once and never belonged: an agreement that
     // outlives its document returns a directory, not null, so it could
-    // not reach this branch. It is now the deliberate promise of R-C5
-    // rather than a defect at all.
+    // not reach this branch. It is the deliberate promise of R-C5.
     report({ kind: 'cancelled', at: 'assets-folder' });
     return;
   }
@@ -353,15 +379,21 @@ export async function insertImageGesture(
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
+  canWriteCompanions: CanWriteCompanions,
   origin: ImageOrigin,
   report: ReportImageInsert,
 ): Promise<void> {
   const budget = applyGestureBudget(files);
 
-  let cancelled = false;
+  // Two kinds end the run, for two different reasons (#46). A
+  // `cancelled` ends it because asking the files behind this one is
+  // asking the same question again; an `unavailable` ends it because the
+  // answer is a property of the document and the environment, so every
+  // file left would fail identically and say so identically.
+  let ended = false;
   let inserted = 0;
   const watch: ReportImageInsert = (outcome) => {
-    if (outcome.kind === 'cancelled') cancelled = true;
+    if (outcome.kind === 'cancelled' || outcome.kind === 'unavailable') ended = true;
     if (outcome.kind === 'inserted') inserted++;
     report(outcome);
   };
@@ -373,10 +405,11 @@ export async function insertImageGesture(
       getFilePath,
       requestSaveAs,
       confirmAssetsDir,
+      canWriteCompanions,
       origin,
       watch,
     );
-    if (cancelled) return;
+    if (ended) return;
   }
 
   if (budget.refused === 0) return;
@@ -387,10 +420,11 @@ export async function insertImageGesture(
   // that counted it would be wrong about the one thing it exists to be
   // exact about.
   //
-  // Not reported at all when the user cancelled: they stopped the
-  // gesture themselves and hear nothing about it (#61), and a budget
-  // message on top of that deliberate silence would explain something
-  // that never happened.
+  // Not reported at all when the run ended early: a user who cancelled
+  // stopped the gesture themselves and hears nothing about it (#61), and
+  // a document that cannot hold images has already been told the one
+  // thing that matters. A budget message on top of either would explain
+  // something that never happened.
   report({
     kind: 'refused',
     reason: 'gesture-too-large',
@@ -418,6 +452,7 @@ export function createImageDropPlugin(
   getFilePath: GetFilePath,
   requestSaveAs: RequestSaveAs,
   confirmAssetsDir: ConfirmAssetsDir,
+  canWriteCompanions: CanWriteCompanions,
   report: ReportImageInsert,
 ): Plugin {
   return new Plugin({
@@ -435,6 +470,7 @@ export function createImageDropPlugin(
           getFilePath,
           requestSaveAs,
           confirmAssetsDir,
+          canWriteCompanions,
           'file',
           report,
         ).catch(console.error);
@@ -451,6 +487,7 @@ export function createImageDropPlugin(
           getFilePath,
           requestSaveAs,
           confirmAssetsDir,
+          canWriteCompanions,
           'clipboard',
           report,
         ).catch(console.error);

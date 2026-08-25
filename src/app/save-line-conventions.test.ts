@@ -35,6 +35,8 @@ const PATH = '/doc/notes.md';
 function recordingIO(disk: Map<string, string>): PlatformIO {
   return {
     supportsMultiFile: true,
+    // Desktop-shaped: every path carries a directory (#46).
+    canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => null,
     readText: async (path: string) => {

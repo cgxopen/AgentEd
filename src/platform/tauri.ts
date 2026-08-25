@@ -18,6 +18,22 @@ import type { CloseGuard, FileEntry, FileResult, FileSnapshot, PlatformIO } from
 export class TauriIO implements PlatformIO {
   readonly supportsMultiFile = true;
 
+  /**
+   * Always, for any document whose path carries a directory — which on
+   * this platform is every document, since the OS pickers return absolute
+   * paths.
+   *
+   * The two rejections are the ones `resolveAssetsDir` used to make in the
+   * app layer (#46). They are facts about desktop paths, so they live
+   * here: a bare name has no parent to put `assets/` beside, and the
+   * filesystem root is not somewhere AgentEd creates folders — `mkdir
+   * ('/assets')` is permission-denied on Linux and meaningless elsewhere.
+   */
+  async canWriteCompanions(documentPath: string): Promise<boolean> {
+    const parent = dirname(documentPath);
+    return parent.length > 0 && parent !== '/';
+  }
+
   async openFile(path?: string): Promise<FileResult | null> {
     let filePath = path;
     if (!filePath) {

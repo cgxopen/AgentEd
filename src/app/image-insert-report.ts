@@ -1,6 +1,7 @@
 import type {
   ImageInsertOutcome,
   ImageInsertRefusal,
+  ImageInsertUnavailableReason,
   ReportImageInsert,
 } from '../editor/image-insert-outcome';
 import { showToast } from '../ui/toast';
@@ -54,6 +55,29 @@ export function imageGestureTooLargeMessage(
   return `Inserted ${landed}, ${refused} left out. Max ${budgetMb} MB of images at once.`;
 }
 
+/**
+ * What the user reads when this document cannot hold an image here at
+ * all (#46).
+ *
+ * **It names the step, because the step exists.** Measured on the web
+ * build: `pickSavePath` calls the directory picker straight after the
+ * save picker, and with that handle `mkdir`, `writeBinary` and `exists`
+ * all work on `assets/`. So "use Save As" is advice that leads somewhere
+ * — which is the whole test a message like this has to pass, and the
+ * reason the wording could not be written before the measurement.
+ *
+ * **No `NO_DIR_HANDLE`.** That string is in four throw sites in
+ * `web.ts` and none of it is written for a person; a message quoting it
+ * would be an error code wearing a sentence. "Folder access" is what the
+ * browser itself calls the thing the user granted or did not.
+ */
+export function imageInsertUnavailableMessage(reason: ImageInsertUnavailableReason): string {
+  switch (reason) {
+    case 'no-folder-access':
+      return 'AgentEd needs access to this document\u2019s folder to save images. Use Save As to choose where it lives, then insert the image again.';
+  }
+}
+
 function refusalMessage(refusal: ImageInsertRefusal): string {
   switch (refusal.reason) {
     case 'too-large':
@@ -98,6 +122,16 @@ export function createImageInsertReporter(state: AppState): ReportImageInsert {
       case 'refused':
         // The application stopped, not the user. It says why (#13).
         showToast(refusalMessage(outcome), 'warn');
+        return;
+
+      case 'unavailable':
+        // The application cannot do it here at all, and nobody has told
+        // the user anything — so it speaks, like a refusal. It reaches
+        // this branch once per gesture rather than once per file,
+        // because `insertImageGesture` treats the kind as terminal
+        // (#46): the cause belongs to the document and the environment,
+        // and three identical toasts about one fact is noise.
+        showToast(imageInsertUnavailableMessage(outcome.reason), 'warn');
         return;
 
       default: {

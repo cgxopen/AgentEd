@@ -65,6 +65,14 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
         if (!path) return null;
         return confirmAssetsDir(path, io, state);
       },
+      // #46, and the order matters: `handleImageFile` asks this only once
+      // the destination step has settled, which on web is what grants the
+      // folder access it reports on.
+      async () => {
+        const path = state.filePath;
+        if (!path) return false;
+        return io.canWriteCompanions(path);
+      },
       // The picked file carries the name the user knows it by (R-C5).
       'file',
       report,

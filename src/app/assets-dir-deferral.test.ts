@@ -23,6 +23,8 @@ let calls: string[] = [];
 
 const io: PlatformIO = {
   supportsMultiFile: true,
+  // Desktop-shaped: every path carries a directory (#46).
+  canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,
   readText: async () => '',
@@ -90,6 +92,7 @@ async function pasteIntoFreshDocument(state: AppState, seed = 1) {
       if (!path) return null;
       return confirmAssetsDir(path, io, state);
     },
+    async () => true,
     'file',
     // #14 measures what reaches the disk, not what is said: the outcome
     // (#61) is deliberately ignored here and asserted in

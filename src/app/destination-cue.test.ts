@@ -6,17 +6,7 @@ import { DESTINATION_CUE } from './destination-cue';
 import { createImageInsertReporter } from './image-insert-report';
 import { AppState } from './state';
 
-/**
- * Whether the current test runs as the desktop build. A getter rather
- * than a literal so a single test can speak for the web build, where the
- * destination picker never appears (#46).
- */
-let onDesktop = true;
-vi.mock('../platform/detect', () => ({
-  get isTauri() {
-    return onDesktop;
-  },
-}));
+vi.mock('../platform/detect', () => ({ isTauri: true }));
 
 vi.mock('../platform/index', () => ({
   getPlatformIO: vi.fn(async () => ({
@@ -55,6 +45,7 @@ async function insertImage(
     () => state.filePath,
     requestSaveAs,
     confirmAssetsDir,
+    async () => true,
     'clipboard',
     // The cue is reached through the app-layer reporter, exactly as
     // main.ts wires it: the cue answers one outcome, not every exit (#61).
@@ -75,7 +66,6 @@ const assetsDeclined = async () => null;
 
 describe('destination cue on image insert (#48)', () => {
   beforeEach(() => {
-    onDesktop = true;
     state = new AppState();
     clearImages();
     for (const toast of document.querySelectorAll('.toast')) toast.remove();
@@ -130,17 +120,22 @@ describe('destination cue on image insert (#48)', () => {
     expect(toastTexts()).toEqual([]);
   });
 
-  it('promises no save on the web build, where the insert never gets that far', async () => {
-    // The web build asks for no destination (#46): with no path, the
-    // assets/ wiring in main.ts returns null and the insert stops there.
-    onDesktop = false;
-    const neverAsked = vi.fn(async () => null);
-    const webAssetsDir = async () => (state.filePath ? '/doc/assets' : null);
+  it('is shown on every platform, because every platform now asks (#46)', async () => {
+    // This test used to say the opposite: that the web build asked for
+    // no destination and the insert stopped there, silently. #46 removed
+    // the `isTauri` gate, so the step is offered everywhere — and the
+    // cue, which explains the silence after a destination is named, is
+    // reached everywhere too. The test is inverted rather than deleted,
+    // because the behaviour it pinned is the behaviour that changed.
+    const asked = vi.fn(async () => {
+      state.filePath = '/doc/notes.md';
+      return state.filePath;
+    });
 
-    await insertImage(neverAsked, webAssetsDir);
+    await insertImage(asked, assetsAgreed);
 
-    expect(neverAsked).not.toHaveBeenCalled();
-    expect(instance.editor.getHTML()).not.toContain('<img');
-    expect(toastTexts()).toEqual([]);
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(instance.editor.getHTML()).toContain('<img');
+    expect(toastTexts()).toEqual([DESTINATION_CUE]);
   });
 });

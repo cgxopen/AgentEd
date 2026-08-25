@@ -38,6 +38,37 @@ export interface CloseGuard {
 export interface PlatformIO {
   /** Whether this platform can write to multiple file paths (directories, attachments) */
   readonly supportsMultiFile: boolean;
+  /**
+   * Whether a companion file — `assets/` next to `documentPath` — can be
+   * written **right now** (#46).
+   *
+   * This is a question about *state*, which is what separates it from
+   * `supportsMultiFile` above: that one is a declaration about the build,
+   * a constant, and it cannot answer this. On the web build the answer
+   * turns on whether a directory handle has been granted in this session,
+   * which changes the moment the user completes a Save As.
+   *
+   * **It takes the document's path because only the platform knows what
+   * its own paths look like.** A desktop path always carries a directory,
+   * so a bare name there is malformed and gets a `false`; a web path never
+   * carries one, because `assets/` is resolved against the granted
+   * directory rather than against a parent. Asking here keeps that
+   * knowledge inside `src/platform`, where CLAUDE.md puts it — the app
+   * layer would otherwise have to branch on `isTauri` to know which shape
+   * it is holding.
+   *
+   * A boolean, deliberately: the *fact* belongs to the platform layer and
+   * the *words* belong to the app layer, which is the seam #61 drew.
+   *
+   * **Async even though no implementation awaits anything today.** The
+   * honest check for File System Access is `queryPermission({ mode:
+   * 'readwrite' })`, which is asynchronous. It is not needed yet, because
+   * the handle lives in memory and its permission was granted in this same
+   * session — it becomes needed the day handles are persisted to
+   * IndexedDB. `Promise<boolean>` makes that change free; a synchronous
+   * getter would close the door.
+   */
+  canWriteCompanions(documentPath: string): Promise<boolean>;
   openFile(path?: string): Promise<FileResult | null>;
   /** Show a file picker with custom filter; returns absolute path or null if cancelled */
   pickFile(filterName: string, extensions: string[]): Promise<string | null>;

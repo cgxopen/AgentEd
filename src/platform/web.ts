@@ -5,6 +5,30 @@ export class WebIO implements PlatformIO {
   readonly supportsMultiFile = true;
   private fileHandle: FileSystemFileHandle | null = null;
   private dirHandle: FileSystemDirectoryHandle | null = null;
+
+  /**
+   * Whether a directory handle has been granted in this session (#46).
+   *
+   * `documentPath` is deliberately unused here, and that is the whole
+   * difference between this platform and the desktop one: a web path is a
+   * bare file name — `pickSavePath` returns `handle.name` and `openFile`
+   * returns the same — so it carries no parent to answer from. `assets/`
+   * is resolved against `dirHandle`, so the handle is the entire answer.
+   *
+   * `pickSavePath` is what acquires that handle, which is why the insert
+   * flow asks this **after** the destination step rather than before: ask
+   * it first and the answer is stale in exactly the case the step just
+   * repaired.
+   *
+   * Nothing is awaited today. The honest check is `queryPermission({ mode:
+   * 'readwrite' })` on the handle, and it becomes necessary the day these
+   * handles are persisted to IndexedDB and survive the session that
+   * granted them; today the permission and the handle were granted in this
+   * one. The signature is async so that day costs nothing here.
+   */
+  async canWriteCompanions(_documentPath: string): Promise<boolean> {
+    return this.dirHandle !== null;
+  }
   /** Transient file handles from pickFile(), keyed by the returned pseudo-path */
   private pickedFiles = new Map<string, FileSystemFileHandle>();
 

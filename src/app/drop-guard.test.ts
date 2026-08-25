@@ -46,6 +46,7 @@ function wiredEditor(): EditorInstance {
     getFilePath: () => '/doc/notes.md',
     requestSaveAs: async () => '/doc/notes.md',
     confirmAssetsDir: async () => '/doc/assets',
+    canWriteCompanions: async () => true,
     report: vi.fn(),
   });
 }
