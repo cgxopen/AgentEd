@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { getPlatformIO } from '../platform/index';
 import { basename, joinPath } from '../platform/paths';
+import type { FileEntry } from '../platform/types';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { buildImageName, type ImageOrigin, keptFileName } from './image-names';
@@ -69,30 +70,74 @@ interface TakenNames {
 }
 
 /**
- * Every name already spoken for in the assets folder: what is on disk, plus
- * what this session has claimed but not yet written. Nothing may be
- * overwritten, so a folder we cannot read still yields the session's names
- * rather than an empty set (R-C5).
+ * What the assets folder was able to say about the names in it.
+ *
+ * `unreadable` is a fourth thing the naming step can end in, and it is
+ * not an empty set of names (#58). The set is what stands between a new
+ * image and one already in the folder, so *"I could not read it"*
+ * delivered as *"nothing is taken"* is the sentence that ends in an
+ * overwrite. It is answered rather than thrown because the caller has to
+ * report it, and an exception here would leave through the same door the
+ * old `catch` did.
+ */
+type AssetsFolderNames =
+  | { readonly kind: 'names'; readonly taken: TakenNames }
+  | { readonly kind: 'unreadable' };
+
+/**
+ * Read the assets folder, and report either every name already spoken
+ * for in it — what is on disk, plus what this session has claimed but
+ * not yet written — or that it could not be read.
  *
  * The two are kept apart because only a name that is genuinely *on disk*
  * has a file behind it to compare bytes against (#52); a name this session
  * claimed has already been compared, in memory, by `findIdenticalImage`.
+ *
+ * **A failed read is settled by a second question, never by reading the
+ * error** (#58). Two states arrive here as one rejection — the folder is
+ * not there yet, which is the ordinary state of every never-saved
+ * document since #14 and #45, and the folder is there and could not be
+ * listed, which is the defect this whole path exists for. What tells
+ * them apart is `exists`, exactly as `readSnapshot` has told `absent`
+ * from `unreadable` since #55. Not the text of the error: on the desktop
+ * build that text is written by the operating system and translated into
+ * its language, so a check that read it would work in one locale and
+ * fail silently in the next.
  */
-async function takenNames(assetsDir: string): Promise<TakenNames> {
+async function readAssetsFolder(assetsDir: string): Promise<AssetsFolderNames> {
   const onDisk = new Set<string>();
   const all = new Set<string>();
   for (const image of getAllImages()) all.add(basename(image.relativePath));
+
+  const io = await getPlatformIO();
+  let entries: readonly FileEntry[];
   try {
-    const io = await getPlatformIO();
-    for (const entry of await io.listDir(assetsDir)) {
-      if (entry.isDirectory) continue;
-      onDisk.add(entry.name);
-      all.add(entry.name);
+    entries = await io.listDir(assetsDir);
+  } catch (readFailed) {
+    let folderIsThere: boolean;
+    try {
+      folderIsThere = await io.exists(assetsDir);
+    } catch (probeFailed) {
+      // The second question failed too, so we now know less than when we
+      // asked the first. Less is not permission to guess a name (R-C5).
+      console.warn('[agented] could not tell whether the assets folder is there:', probeFailed);
+      folderIsThere = true;
     }
-  } catch (e) {
-    console.warn('[agented] could not read the assets folder for naming:', e);
+    if (folderIsThere) {
+      console.warn('[agented] the assets folder is there and could not be read:', readFailed);
+      return { kind: 'unreadable' };
+    }
+    // Not there yet. Nothing on disk holds a name, nothing is said, and
+    // the insert carries on exactly as it always has.
+    return { kind: 'names', taken: { onDisk, all } };
   }
-  return { onDisk, all };
+
+  for (const entry of entries) {
+    if (entry.isDirectory) continue;
+    onDisk.add(entry.name);
+    all.add(entry.name);
+  }
+  return { kind: 'names', taken: { onDisk, all } };
 }
 
 /**
@@ -219,7 +264,22 @@ export async function handleImageFile(
     return;
   }
 
-  const taken = await takenNames(assetsDir);
+  const folder = await readAssetsFolder(assetsDir);
+  if (folder.kind === 'unreadable') {
+    // The folder is there and AgentEd could not list it, so every name
+    // in it is unknown — and a name picked against an unknown folder is
+    // a name that may already have a file behind it, which the save
+    // would then write over (#58, R-C5). Refusing is what the
+    // requirement already implies: nothing is ever overwritten.
+    //
+    // `unavailable` rather than a refusal, for the two reasons that kind
+    // exists (#46): the cause is the document's folder rather than this
+    // file, so every image of the gesture would meet it identically, and
+    // nobody has told the user anything yet.
+    report({ kind: 'unavailable', reason: 'assets-folder-unreadable' });
+    return;
+  }
+  const taken = folder.taken;
 
   // Or already in assets/ from an earlier session, under the very name
   // this one wants.

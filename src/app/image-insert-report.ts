@@ -57,24 +57,43 @@ export function imageGestureTooLargeMessage(
 
 /**
  * What the user reads when this document cannot hold an image here at
- * all (#46).
+ * all (#46). One reason, one sentence — which is why they are written
+ * here and not in the editor layer, and why a new reason cannot be added
+ * without this switch refusing to compile.
  *
- * **It names the step, because the step exists.** Measured on the web
- * build: `pickSavePath` calls the directory picker straight after the
- * save picker, and with that handle `mkdir`, `writeBinary` and `exists`
- * all work on `assets/`. So "use Save As" is advice that leads somewhere
- * — which is the whole test a message like this has to pass, and the
- * reason the wording could not be written before the measurement.
+ * **`no-folder-access` names the step, because the step exists.**
+ * Measured on the web build: `pickSavePath` calls the directory picker
+ * straight after the save picker, and with that handle `mkdir`,
+ * `writeBinary` and `exists` all work on `assets/`. So "use Save As" is
+ * advice that leads somewhere — which is the whole test a message like
+ * this has to pass, and the reason the wording could not be written
+ * before the measurement.
  *
- * **No `NO_DIR_HANDLE`.** That string is in four throw sites in
- * `web.ts` and none of it is written for a person; a message quoting it
- * would be an error code wearing a sentence. "Folder access" is what the
- * browser itself calls the thing the user granted or did not.
+ * **`assets-folder-unreadable` states what happened, because no step in
+ * AgentEd fixes it** (#58). The measurement found no in-app action that
+ * changes the answer: the folder is there and something outside the
+ * editor is keeping it shut. So the sentence says the image was not
+ * added, and then names the two causes a user can actually go and look
+ * at — a program holding the folder, or the permission to read it.
+ * "Permission" rather than "the folder's permissions" on purpose: on
+ * the desktop build it is the operating system's, on the web build it is
+ * the access granted in the browser, and one reason carries one sentence
+ * for every platform. It offers no advice it cannot keep, and in
+ * particular it does not send the user to Save As, which is the other
+ * reason's answer and would move the document to fix a folder.
+ *
+ * **No `NO_DIR_HANDLE`, no `listDir`, no error code.** `NO_DIR_HANDLE`
+ * is in four throw sites in `web.ts` and none of it is written for a
+ * person; a message quoting any of that would be a mechanism wearing a
+ * sentence. "Folder access" is what the browser itself calls the thing
+ * the user granted or did not.
  */
 export function imageInsertUnavailableMessage(reason: ImageInsertUnavailableReason): string {
   switch (reason) {
     case 'no-folder-access':
       return 'AgentEd needs access to this document\u2019s folder to save images. Use Save As to choose where it lives, then insert the image again.';
+    case 'assets-folder-unreadable':
+      return 'Can\u2019t read the assets folder next to this document, so the image wasn\u2019t added. Check whether another program has it open, or whether AgentEd still has permission to read it.';
   }
 }
 
