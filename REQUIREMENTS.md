@@ -104,6 +104,6 @@ Not a note-taking or knowledge-management app, not a wiki, not a word processor,
 - **D1 — Numbered lists restart at 1** across separated paragraphs instead of numbering continuously. (Bug: list serialization/splitting.)
 - **D2 — Paste artifacts**: stray `http` link fragments; paste generally not plain-text-predictable. (Covered by R-C13.)
 - **D3 — Closing without saving overwrites the file on disk** — no confirmation dialog. **Severity: critical** — violates R-C3/Q4. First fix after conversion.
-- **D4 — Selection flicker + dropped characters** when selecting with the mouse in one direction (L→R or R→L); the other direction works. (Bug: needs reproduction details — direction, desktop vs web.)
+- **D4 — Selection flicker + dropped characters** when selecting with the mouse in one direction (L→R or R→L); the other direction works. **Closed 2026-08-25 as unreproducible on the post-reset build (#4) — not as fixed.** Nothing was localised and no targeted fix landed, so the closure rests on the absence of evidence rather than on a cause: the likeliest reading is that it left with the machinery the reset removed, and that is a reading. The bar for reopening is deliberately low — one reproduction, with the direction, the platform, and the build commit from About. **No suite covers it**: it is a timing effect at input rather than a byte the round-trip guard can see, so a regression here reaches a person before it reaches CI.
 
-These are **not** fixed in the conversion PR (which is pure removal); they are issues #1..#4 and are fixed pre-public per §8.
+These are **not** fixed in the conversion PR (which is pure removal); they are issues #1..#4. D1, D2 and D3 are fixed; D4 is closed as recorded above. Anything still open here is fixed pre-public per §8.
