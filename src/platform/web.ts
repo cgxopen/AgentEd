@@ -1,6 +1,23 @@
 import { joinPath } from './paths';
 import type { CloseGuard, FileEntry, FileResult, FileSnapshot, PlatformIO } from './types';
 
+/**
+ * Whether a File System Access rejection means *there is nothing there*.
+ *
+ * **The name, never the message.** `DOMException.name` is part of the
+ * API and reads the same in every locale; the message beside it is prose
+ * the browser writes and translates. `readSnapshot` has asked the
+ * question this way since #55, and #58 gave it two more askers — which
+ * is what turned it into a function.
+ *
+ * Everything that is not a `NotFoundError` is a read that did not
+ * happen. That is not the same answer as an empty folder, and this file
+ * used to deliver it as one.
+ */
+function isNotFound(e: unknown): boolean {
+  return e instanceof DOMException && e.name === 'NotFoundError';
+}
+
 export class WebIO implements PlatformIO {
   readonly supportsMultiFile = true;
   private fileHandle: FileSystemFileHandle | null = null;
@@ -108,7 +125,7 @@ export class WebIO implements PlatformIO {
         const dir = await this.navigateToDirByParts(parts, false);
         handle = await dir.getFileHandle(name);
       } catch (e) {
-        if (e instanceof DOMException && e.name === 'NotFoundError') return { kind: 'absent' };
+        if (isNotFound(e)) return { kind: 'absent' };
         return { kind: 'unreadable', cause: e };
       }
     } else if (this.fileHandle && name === this.fileHandle.name) {
@@ -129,7 +146,7 @@ export class WebIO implements PlatformIO {
       const file = await handle.getFile();
       return { kind: 'file', text: await file.text() };
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'NotFoundError') return { kind: 'absent' };
+      if (isNotFound(e)) return { kind: 'absent' };
       return { kind: 'unreadable', cause: e };
     }
   }
@@ -203,19 +220,47 @@ export class WebIO implements PlatformIO {
     await writable.close();
   }
 
-  // Reads return safe defaults — absent file and missing dirHandle are
-  // indistinguishable at read level and both have the same legitimate
-  // fallback; writes must be loud to prevent silent data loss.
+  /**
+   * Whether something is at `path`.
+   *
+   * Reads here answer what they know and no more. Writes have always
+   * been loud; what changed with #58 is that a read which did not happen
+   * no longer wears the answer of one that did.
+   *
+   * **`false` means "nothing is there", and only a `NotFoundError` says
+   * that** (#58). Any other rejection is a lookup this platform could
+   * not perform, and answering it `false` is how the naming rule came to
+   * hand out a name it had never checked — the folder said "empty" and
+   * the save wrote into it. Where the question cannot be answered, the
+   * answer that protects the file already there is `true`.
+   */
   async exists(path: string): Promise<boolean> {
     if (!this.dirHandle) return false;
     try {
       await this.navigateTo(path);
       return true;
-    } catch {
-      return false;
+    } catch (e) {
+      return !isNotFound(e);
     }
   }
 
+  /**
+   * The names in `path`.
+   *
+   * **A folder that cannot be read is not an empty folder** (#58, R-C5).
+   * This used to return `[]` for every failure, so a directory the
+   * browser refused to enumerate arrived at the naming rule as a folder
+   * with nothing in it — worse than the desktop build, which at least
+   * threw. Now only a folder that is genuinely not there lists as
+   * nothing; everything else is raised, and the caller decides what it
+   * means with a second question (`exists`) rather than by reading the
+   * error.
+   *
+   * A missing directory handle stays `[]`: no folder has been granted,
+   * so there is no folder to be wrong about. The image insert never
+   * reaches here in that state — `canWriteCompanions` answers one step
+   * earlier (#46).
+   */
   async listDir(path: string): Promise<FileEntry[]> {
     if (!this.dirHandle) return [];
     try {
@@ -229,8 +274,9 @@ export class WebIO implements PlatformIO {
         });
       }
       return entries;
-    } catch {
-      return [];
+    } catch (e) {
+      if (isNotFound(e)) return [];
+      throw e;
     }
   }
 

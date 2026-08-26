@@ -51,8 +51,17 @@ export type ImageInsertRefusal =
  * handle. It is not a property of the *file* being inserted and not an
  * answer the user gave; it is a property of the document and the
  * environment it is being edited in.
+ *
+ * `assets-folder-unreadable` is an `assets/` folder that **is there**
+ * and could not be listed (#58). It belongs here rather than under
+ * `refused` for the same two reasons the kind exists at all: it is not a
+ * property of the file being inserted — every image of the gesture would
+ * meet the identical folder — and the user has been told nothing, so
+ * something has to speak. A folder that does not exist **yet** is not
+ * this reason: it is the ordinary state of every never-saved document
+ * since #14 and #45, and it stays silent and successful.
  */
-export type ImageInsertUnavailableReason = 'no-folder-access';
+export type ImageInsertUnavailableReason = 'no-folder-access' | 'assets-folder-unreadable';
 
 /**
  * How one call to `handleImageFile` ended. Every exit produces one,
