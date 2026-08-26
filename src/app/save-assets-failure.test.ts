@@ -41,7 +41,7 @@ const io: PlatformIO = {
   writeBinary: async (path: string) => {
     written.push(path);
   },
-  exists: async () => false,
+  entryPresence: async () => 'absent' as const,
   listDir: async (): Promise<FileEntry[]> => [],
   mkdir: async (path: string) => {
     if (mkdirFails) throw new Error('EACCES: permission denied');

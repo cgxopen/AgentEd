@@ -31,15 +31,20 @@ export async function shouldShowSidebar(
 ): Promise<SidebarDecision> {
   if (!filePath) return { show: false };
 
+  // Both of these are positive claims — *this folder is there, and the
+  // sidebar is rooted at it* — so only `present` may make them (#126).
+  // They used to be made from a boolean that, after #58, answered `true`
+  // for a lookup that never happened, which would root the panel at a
+  // folder nobody had seen.
   const sibling = stripExtension(filePath);
-  if (await io.exists(sibling)) {
+  if ((await io.entryPresence(sibling)) === 'present') {
     return { show: true, root: sibling };
   }
 
   const parent = dirname(filePath);
   if (parent.length > 0 && parent !== '/') {
     const assetsDir = joinPath(parent, 'assets');
-    if (await io.exists(assetsDir)) {
+    if ((await io.entryPresence(assetsDir)) === 'present') {
       return { show: true, root: assetsDir };
     }
   }

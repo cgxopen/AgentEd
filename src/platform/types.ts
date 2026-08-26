@@ -35,6 +35,18 @@ export interface CloseGuard {
   confirmClose(): Promise<boolean>;
 }
 
+/**
+ * What a platform could observe about an entry at a given path.
+ *
+ * `present` and `absent` are facts. `unknown` is an admission: the
+ * lookup did not happen — a permission that is gone, a component of the
+ * path that is not the kind of thing it was walked as, a platform with
+ * nothing granted to look inside. It is deliberately not spelled
+ * `unreadable`, which `FileSnapshot` already uses for a file whose
+ * *contents* could not be read; this one is about the lookup itself.
+ */
+export type EntryPresence = 'present' | 'absent' | 'unknown';
+
 export interface PlatformIO {
   /** Whether this platform can write to multiple file paths (directories, attachments) */
   readonly supportsMultiFile: boolean;
@@ -96,7 +108,41 @@ export interface PlatformIO {
   installCloseGuard(guard: CloseGuard): Promise<void>;
   readBinary(path: string): Promise<Uint8Array>;
   writeBinary(path: string, data: Uint8Array): Promise<void>;
-  exists(path: string): Promise<boolean>;
+  /**
+   * Whether something is at `path`, as three answers rather than two.
+   *
+   * **`unknown` is not `absent`** — the distinction #55 drew for
+   * `FileSnapshot` and #126 had to draw again here. A lookup that could
+   * not be performed is not a lookup that found nothing, and a boolean
+   * has nowhere to put the difference: whichever way it leans, it lies
+   * to the callers that need the other one.
+   *
+   * That is not hypothetical. This was a `boolean`, and #58 leaned it
+   * toward *there might be something there* so that an unreadable
+   * `assets/` folder could not be mistaken for an empty one. It was the
+   * right answer for one caller out of five, and it made the context
+   * indicator report six files nobody could open (#126). The direction
+   * was never the defect; having a direction at all was.
+   *
+   * So the primitive states what it observed and every caller says what
+   * it wants done about `unknown`, in its own code:
+   *
+   * - `readAssetsFolder` (`src/editor/image-handler.ts`) refuses the
+   *   insert on anything but `absent` — nothing may be overwritten, so
+   *   an unanswered lookup is not permission to claim a name (R-C5).
+   * - `probeOne` (`src/cluster/detector.ts`) counts only `present` — the
+   *   indicator names files that were found to be there (R-A2).
+   * - `shouldShowSidebar` (`src/app/sidebar-sync.ts`), twice, likewise:
+   *   a root is shown only when it was found.
+   * - `resolveAssetsDir` (`src/app/assets-dir.ts`) treats anything but
+   *   `absent` as already there, which is what keeps it from offering to
+   *   create a folder it cannot see.
+   *
+   * **Never rejects.** A failure is one of its answers, so a caller
+   * cannot be written that forgets to handle it — the `catch` that used
+   * to stand for this is where the two states were merged.
+   */
+  entryPresence(path: string): Promise<EntryPresence>;
   listDir(path: string): Promise<FileEntry[]>;
   mkdir(path: string): Promise<void>;
   remove(path: string): Promise<void>;

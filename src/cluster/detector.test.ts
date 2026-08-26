@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { FileEntry, FileResult, FileSnapshot, PlatformIO } from '../platform/types';
+import type {
+  EntryPresence,
+  FileEntry,
+  FileResult,
+  FileSnapshot,
+  PlatformIO,
+} from '../platform/types';
 import { detectContextCluster, MAX_CHILDREN, MAX_RESULTS } from './detector';
 
 /**
  * In-memory `PlatformIO` for cluster tests. Only the methods the
- * detector touches (`exists`, `listDir`) are wired up; the rest throw
- * so accidental coupling shows up loudly.
+ * detector touches (`entryPresence`, `listDir`) are wired up; the rest
+ * throw so accidental coupling shows up loudly.
  */
 class FakeIO implements PlatformIO {
   readonly supportsMultiFile = false;
@@ -34,9 +40,13 @@ class FakeIO implements PlatformIO {
     }
   }
 
-  async exists(path: string): Promise<boolean> {
+  /** When set, any path under one of these prefixes cannot be looked up. */
+  readonly unknownPrefixes: string[] = [];
+
+  async entryPresence(path: string): Promise<EntryPresence> {
     this.existsCalls.push(path);
-    return this.files.has(path);
+    if (this.unknownPrefixes.some((p) => path.startsWith(p))) return 'unknown';
+    return this.files.has(path) ? 'present' : 'absent';
   }
 
   async listDir(path: string): Promise<FileEntry[]> {
@@ -309,18 +319,18 @@ describe('detectContextCluster — error tolerance', () => {
     io.forbiddenDirPrefixes.push('/');
     const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
     // The /repo listing is forbidden but we still find the parent's
-    // AGENTS.md via direct exists() probing of ancestors.
+    // AGENTS.md by probing the ancestors directly.
     expect(cluster.entries.some((e) => e.path === '/repo/AGENTS.md')).toBe(true);
   });
 
-  it('does not throw when exists() rejects on one probe', async () => {
+  it('does not throw when a probe rejects', async () => {
     const io = new FakeIO(['/repo/AGENTS.md'], {
       '/repo': [],
     });
-    const originalExists = io.exists.bind(io);
-    io.exists = async (p) => {
+    const original = io.entryPresence.bind(io);
+    io.entryPresence = async (p: string) => {
       if (p === '/repo/CLAUDE.md') throw new Error('boom');
-      return originalExists(p);
+      return original(p);
     };
     await expect(detectContextCluster('/repo/notes.md', io)).resolves.toBeDefined();
   });
@@ -328,14 +338,14 @@ describe('detectContextCluster — error tolerance', () => {
 
 describe('detectContextCluster — edge cases (M3)', () => {
   it('returns partial results when probes exceed the timeout', async () => {
-    // Simulate a slow exists() that always takes longer than the timeout.
+    // Simulate a slow probe that always takes longer than the timeout.
     const io = new FakeIO(['/repo/AGENTS.md', '/repo/CLAUDE.md', '/repo/.cursorrules'], {
       '/repo': [],
     });
-    const slowExists = io.exists.bind(io);
-    io.exists = async (p) => {
+    const slow = io.entryPresence.bind(io);
+    io.entryPresence = async (p: string) => {
       await new Promise((resolve) => setTimeout(resolve, 20));
-      return slowExists(p);
+      return slow(p);
     };
     const cluster = await detectContextCluster('/repo/notes.md', io, { timeoutMs: 5 });
     // We may end up with 0 entries (timeout fires first) — the

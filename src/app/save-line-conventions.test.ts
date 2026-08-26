@@ -55,7 +55,7 @@ function recordingIO(disk: Map<string, string>): PlatformIO {
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
-    exists: async () => false,
+    entryPresence: async () => 'absent' as const,
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
     remove: async () => {},

@@ -29,7 +29,7 @@ function ioReturning(snapshot: FileSnapshot): PlatformIO & { reads: string[] } {
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
-    exists: async () => false,
+    entryPresence: async () => 'absent' as const,
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
     remove: async () => {},

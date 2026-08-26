@@ -1,5 +1,5 @@
 import { collapseDotSegments, dirname, joinPath, normalize } from '../platform/paths';
-import type { PlatformIO } from '../platform/types';
+import type { EntryPresence, PlatformIO } from '../platform/types';
 import { getCanonicalFilenames, getKindForFilename } from './registry';
 import { type ClusterDirection, ContextCluster, type ContextFileEntry } from './types';
 
@@ -67,7 +67,8 @@ interface ScanDir {
  *      + ancestors (up to MAX_DEPTH_UP)
  *      + immediate children of currentDir
  *      + siblings (children of the immediate parent)
- *   2. For each directory, probe each canonical filename via `io.exists`
+ *   2. For each directory, probe each canonical filename via
+ *      `io.entryPresence`, and name only the ones found `present` (#126)
  *   3. Skip the open document itself
  *   4. Sort + cap at MAX_RESULTS
  *
@@ -182,13 +183,24 @@ async function probeOne(
   const fullPath = joinPath(scan.path, filename);
   if (fullPath === currentPath) return null;
 
-  let exists: boolean;
+  // Only a file *found* to be there is named in the indicator (R-A2).
+  // `absent` and `unknown` are both "do not claim this", and keeping
+  // them apart matters only to whoever asked: here they lead to the same
+  // silence. Under #58's boolean an unanswered lookup counted as a hit,
+  // and a revoked folder grant produced six context files nobody could
+  // open (#126).
+  //
+  // The guard stays even though `entryPresence` is contracted never to
+  // reject: one probe taking the whole scan down with it is the opposite
+  // of the graceful degradation this module promises, and a contract is
+  // not a reason to let a rejection travel.
+  let presence: EntryPresence;
   try {
-    exists = await io.exists(fullPath);
+    presence = await io.entryPresence(fullPath);
   } catch {
     return null;
   }
-  if (!exists) return null;
+  if (presence !== 'present') return null;
 
   const kind = getKindForFilename(filename);
   if (kind === null) return null; // Defensive: registry desync.

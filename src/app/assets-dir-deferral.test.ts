@@ -38,7 +38,7 @@ const io: PlatformIO = {
   writeBinary: async (path: string) => {
     calls.push(`writeBinary ${path}`);
   },
-  exists: async () => false,
+  entryPresence: async () => 'absent' as const,
   listDir: async (): Promise<FileEntry[]> => [],
   mkdir: async (path: string) => {
     calls.push(`mkdir ${path}`);

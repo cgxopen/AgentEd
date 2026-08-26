@@ -53,7 +53,7 @@ function buildIO(): PlatformIO {
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
-    exists: async (p: string) => existing.has(p),
+    entryPresence: async (p: string) => (existing.has(p) ? 'present' : 'absent'),
     listDir: async (p: string) => tree[p] ?? [],
     mkdir: async () => {},
     remove: async () => {},

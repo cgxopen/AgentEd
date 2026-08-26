@@ -98,8 +98,8 @@ type AssetsFolderNames =
  * not there yet, which is the ordinary state of every never-saved
  * document since #14 and #45, and the folder is there and could not be
  * listed, which is the defect this whole path exists for. What tells
- * them apart is `exists`, exactly as `readSnapshot` has told `absent`
- * from `unreadable` since #55. Not the text of the error: on the desktop
+ * them apart is `entryPresence`, exactly as `readSnapshot` has told
+ * `absent` from `unreadable` since #55. Not the text of the error: on the desktop
  * build that text is written by the operating system and translated into
  * its language, so a check that read it would work in one locale and
  * fail silently in the next.
@@ -114,22 +114,23 @@ async function readAssetsFolder(assetsDir: string): Promise<AssetsFolderNames> {
   try {
     entries = await io.listDir(assetsDir);
   } catch (readFailed) {
-    let folderIsThere: boolean;
-    try {
-      folderIsThere = await io.exists(assetsDir);
-    } catch (probeFailed) {
-      // The second question failed too, so we now know less than when we
-      // asked the first. Less is not permission to guess a name (R-C5).
-      console.warn('[agented] could not tell whether the assets folder is there:', probeFailed);
-      folderIsThere = true;
+    // Only a folder found to be *absent* is the ordinary state. Both of
+    // the others refuse: one because there is something there we could
+    // not read, the other because we could not tell — and less than we
+    // knew a moment ago is not permission to guess a name (R-C5).
+    //
+    // `entryPresence` reports its own failure as `unknown` rather than
+    // raising, so there is no second `catch` here to merge the states in
+    // (#126). That merging is exactly what this function was fixing one
+    // level up.
+    if ((await io.entryPresence(assetsDir)) === 'absent') {
+      // Not there yet: the ordinary state of every never-saved document
+      // since #14 and #45. Nothing on disk holds a name, nothing is
+      // said, and the insert carries on exactly as it always has.
+      return { kind: 'names', taken: { onDisk, all } };
     }
-    if (folderIsThere) {
-      console.warn('[agented] the assets folder is there and could not be read:', readFailed);
-      return { kind: 'unreadable' };
-    }
-    // Not there yet. Nothing on disk holds a name, nothing is said, and
-    // the insert carries on exactly as it always has.
-    return { kind: 'names', taken: { onDisk, all } };
+    console.warn('[agented] the assets folder could not be read:', readFailed);
+    return { kind: 'unreadable' };
   }
 
   for (const entry of entries) {

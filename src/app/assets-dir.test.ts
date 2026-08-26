@@ -32,7 +32,7 @@ function mockIO(existsPredicate: (path: string) => boolean): PlatformIO {
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
-    exists: async (p: string) => existsPredicate(p),
+    entryPresence: async (p: string) => (existsPredicate(p) ? 'present' : 'absent'),
     listDir: async () => [],
     mkdir: async (p: string) => {
       mkdirCalls.push(p);

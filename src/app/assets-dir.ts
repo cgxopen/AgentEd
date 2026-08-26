@@ -39,7 +39,12 @@ export async function resolveAssetsDir(
   // `assets` — which is what the web build's directory handle resolves
   // against, and a shape no desktop path reaches.
   const dir = joinPath(dirname(filePath), 'assets');
-  return { dir, exists: await io.exists(dir) };
+  // Anything but `absent` counts as already there (#126). The field
+  // decides one thing — whether to offer to create the folder — and
+  // offering to create one that could not be looked at is the offer this
+  // cannot keep. A folder that is there and shut is then refused by
+  // `readAssetsFolder`, with a message of its own (#58).
+  return { dir, exists: (await io.entryPresence(dir)) !== 'absent' };
 }
 
 /**

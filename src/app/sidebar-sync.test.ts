@@ -3,7 +3,7 @@ import type { FileEntry, PlatformIO } from '../platform/types';
 import { shouldShowSidebar } from './sidebar-sync';
 
 interface MockIOOptions {
-  /** Paths whose `exists` should return true. */
+  /** Paths whose `entryPresence` answers `present`. */
   existing?: ReadonlyArray<string>;
   /** Map from directory → entries returned by listDir. */
   entries?: Readonly<Record<string, FileEntry[]>>;
@@ -24,7 +24,7 @@ function mockIO(options: MockIOOptions = {}): PlatformIO {
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
-    exists: async (p: string) => existing.has(p),
+    entryPresence: async (p: string) => (existing.has(p) ? 'present' : 'absent'),
     listDir: async (p: string) => options.entries?.[p] ?? [],
     mkdir: async () => {},
     remove: async () => {},

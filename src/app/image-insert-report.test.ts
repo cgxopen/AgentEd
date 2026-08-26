@@ -58,7 +58,7 @@ const io: PlatformIO = {
   writeBinary: async (path: string) => {
     calls.push(`writeBinary ${path}`);
   },
-  exists: async () => false,
+  entryPresence: async () => 'absent' as const,
   listDir: async (path: string): Promise<FileEntry[]> => {
     calls.push(`listDir ${path}`);
     return filesOnDisk.map((name) => ({ name, path: `${path}/${name}`, isDirectory: false }));
