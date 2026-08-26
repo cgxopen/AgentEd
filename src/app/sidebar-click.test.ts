@@ -31,7 +31,7 @@ function makeIO(): PlatformIO {
     installCloseGuard: async () => {},
     readBinary: async () => new Uint8Array(),
     writeBinary: async () => {},
-    exists: async () => false,
+    entryPresence: async () => 'absent' as const,
     listDir: async () => [],
     mkdir: async () => {},
     remove: async () => {},

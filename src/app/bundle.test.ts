@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { ContextCluster } from '../cluster/types';
-import type { FileEntry, FileResult, FileSnapshot, PlatformIO } from '../platform/types';
+import type {
+  EntryPresence,
+  FileEntry,
+  FileResult,
+  FileSnapshot,
+  PlatformIO,
+} from '../platform/types';
 import { scheduleClusterDetection } from './bundle';
 import type { AppContext } from './context';
 import { AppState } from './state';
 
 /**
- * Stub IO that resolves `exists` after a configurable delay so we can
+ * Stub IO that resolves `entryPresence` after a configurable delay so we can
  * orchestrate rapid scan succession deterministically. Only the
  * methods touched by the detector are real; the rest throw.
  */
@@ -24,9 +30,9 @@ class SlowIO implements PlatformIO {
     this.delayMs = delayMs;
   }
 
-  async exists(path: string): Promise<boolean> {
+  async entryPresence(path: string): Promise<EntryPresence> {
     await wait(this.delayMs);
-    return this.hits.has(path);
+    return this.hits.has(path) ? 'present' : 'absent';
   }
 
   async listDir(_path: string): Promise<FileEntry[]> {

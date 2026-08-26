@@ -44,7 +44,7 @@ function stubIO(files: Record<string, string>): PlatformIO & {
     writeBinary: async (path: string, data: Uint8Array) => {
       binaries.set(path, data);
     },
-    exists: async () => false,
+    entryPresence: async () => 'absent' as const,
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async (path: string) => {
       dirs.push(path);

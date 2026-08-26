@@ -1,5 +1,12 @@
 import { joinPath } from './paths';
-import type { CloseGuard, FileEntry, FileResult, FileSnapshot, PlatformIO } from './types';
+import type {
+  CloseGuard,
+  EntryPresence,
+  FileEntry,
+  FileResult,
+  FileSnapshot,
+  PlatformIO,
+} from './types';
 
 /**
  * Whether a File System Access rejection means *there is nothing there*.
@@ -221,26 +228,26 @@ export class WebIO implements PlatformIO {
   }
 
   /**
-   * Whether something is at `path`.
+   * The three states this platform can observe, told apart by
+   * `DOMException.name` and never by message text (#126).
    *
-   * Reads here answer what they know and no more. Writes have always
-   * been loud; what changed with #58 is that a read which did not happen
-   * no longer wears the answer of one that did.
+   * `NotFoundError` is the only rejection that means nothing is there.
+   * Everything else — a grant that is gone, a component of the path that
+   * turned out to be a file — is a lookup that did not happen, and
+   * saying so is the whole point: this used to answer `false` for all of
+   * them and then, after #58, `true` for all of them, and both were a
+   * guess wearing a fact.
    *
-   * **`false` means "nothing is there", and only a `NotFoundError` says
-   * that** (#58). Any other rejection is a lookup this platform could
-   * not perform, and answering it `false` is how the naming rule came to
-   * hand out a name it had never checked — the folder said "empty" and
-   * the save wrote into it. Where the question cannot be answered, the
-   * answer that protects the file already there is `true`.
+   * With no directory handle the answer is `unknown` rather than
+   * `absent`: nothing has been granted, so nothing was looked at.
    */
-  async exists(path: string): Promise<boolean> {
-    if (!this.dirHandle) return false;
+  async entryPresence(path: string): Promise<EntryPresence> {
+    if (!this.dirHandle) return 'unknown';
     try {
       await this.navigateTo(path);
-      return true;
+      return 'present';
     } catch (e) {
-      return !isNotFound(e);
+      return isNotFound(e) ? 'absent' : 'unknown';
     }
   }
 

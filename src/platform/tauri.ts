@@ -13,7 +13,14 @@ import {
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
 import { dirname, joinPath } from './paths';
-import type { CloseGuard, FileEntry, FileResult, FileSnapshot, PlatformIO } from './types';
+import type {
+  CloseGuard,
+  EntryPresence,
+  FileEntry,
+  FileResult,
+  FileSnapshot,
+  PlatformIO,
+} from './types';
 
 export class TauriIO implements PlatformIO {
   readonly supportsMultiFile = true;
@@ -141,8 +148,20 @@ export class TauriIO implements PlatformIO {
     await writeFile(path, data);
   }
 
-  async exists(path: string): Promise<boolean> {
-    return await fsExists(path);
+  /**
+   * `fsExists` answers the two ordinary states; anything it raises is
+   * the third (#126). Nothing here reads the text of that error — on
+   * this platform it is written by the operating system and translated
+   * into its language, so a check that read it would work in one locale
+   * and fail silently in the next (#58).
+   */
+  async entryPresence(path: string): Promise<EntryPresence> {
+    try {
+      return (await fsExists(path)) ? 'present' : 'absent';
+    } catch (e) {
+      console.warn('[agented] could not tell whether a path is there:', path, e);
+      return 'unknown';
+    }
   }
 
   async listDir(path: string): Promise<FileEntry[]> {

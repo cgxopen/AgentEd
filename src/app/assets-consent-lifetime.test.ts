@@ -61,7 +61,7 @@ const io: PlatformIO = {
   // inferred from the disk and has to come from what was remembered.
   // R-C5 uses an existing folder without asking at all, which would
   // hide the behaviour under test.
-  exists: async () => false,
+  entryPresence: async () => 'absent' as const,
   listDir: async (): Promise<FileEntry[]> => [],
   mkdir: async () => {},
   remove: async () => {},

@@ -9,6 +9,12 @@
  * about a folder nobody had looked into — which is how a save comes to
  * write over a file it never saw (R-C5).
  *
+ * The `exists` half of that fix leaned the boolean the other way, and
+ * #126 is what that cost: it was the right answer for one caller out of
+ * five and it made the context indicator name six files nobody could
+ * open. `entryPresence` replaces it and states what was observed, so the
+ * pins below are three-valued rather than two.
+ *
  * These pin the reads against handles that fail the way the File System
  * Access API fails: by `DOMException.name`, never by message text. The
  * name is part of the API and reads the same in every locale; the
@@ -131,39 +137,62 @@ describe('#58 — WebIO.listDir tells "nothing there" from "could not read"', ()
   });
 });
 
-describe('#58 — WebIO.exists says false only when nothing is there', () => {
-  it('true for a folder it can open', async () => {
+describe('#126 — WebIO.entryPresence states what it observed', () => {
+  it('present, for a folder it can open', async () => {
     io = webIO(handleWithAssets([]));
 
-    await expect(io.exists('assets')).resolves.toBe(true);
+    await expect(io.entryPresence('assets')).resolves.toBe('present');
   });
 
-  it('false for a folder that is not there', async () => {
+  it('absent, for a folder that is not there', async () => {
     io = webIO(handleRejecting('NotFoundError'));
 
-    await expect(io.exists('assets')).resolves.toBe(false);
+    // The only rejection that means nothing is there — and the ordinary
+    // state of every never-saved document since #14 and #45.
+    await expect(io.entryPresence('assets')).resolves.toBe('absent');
   });
 
-  it('true for a folder it may not open — an unanswered question is not a "no"', async () => {
+  it('unknown, for a grant that is gone', async () => {
     io = webIO(handleRejecting('NotAllowedError'));
 
-    // This is the pair that makes the distinction work: `listDir` says
-    // it could not read, and this says the folder is nonetheless there.
-    // Answering `false` here is what made an unreadable folder wear the
-    // ordinary never-saved state.
-    await expect(io.exists('assets')).resolves.toBe(true);
+    // This is the state that produced six invented context files while
+    // it was answering `true` (#126), and a folder nobody had seen while
+    // it was answering `false` (#58). It is neither.
+    await expect(io.entryPresence('assets')).resolves.toBe('unknown');
   });
 
-  it('true for a folder that opens but cannot be enumerated', async () => {
+  it('unknown, for a component of the path that is a file', async () => {
+    io = webIO(handleRejecting('TypeMismatchError'));
+
+    await expect(io.entryPresence('assets')).resolves.toBe('unknown');
+  });
+
+  it('present, for a folder that opens but cannot be enumerated', async () => {
+    // The 0311 shape: the lookup succeeded, so this one is a fact. What
+    // cannot be read is its contents, which is `listDir`'s answer to
+    // give and not this one's.
     io = webIO(handleWithUnenumerableAssets());
 
-    await expect(io.exists('assets')).resolves.toBe(true);
+    await expect(io.entryPresence('assets')).resolves.toBe('present');
   });
 
-  it('false with no directory handle at all', async () => {
+  it('unknown, with no directory handle at all', async () => {
     io = webIO(null);
 
-    await expect(io.exists('assets')).resolves.toBe(false);
+    // Nothing has been granted, so nothing was looked at. `absent` here
+    // would be a claim about a folder this platform cannot see.
+    await expect(io.entryPresence('assets')).resolves.toBe('unknown');
+  });
+
+  it('never rejects, whatever the handle raises', async () => {
+    // The contract the callers are written against: a failure is one of
+    // the answers, so no caller can be written that forgets to handle
+    // it. The `catch` that used to stand for this is where the states
+    // were merged.
+    for (const name of ['NotFoundError', 'NotAllowedError', 'TypeMismatchError', 'SecurityError']) {
+      io = webIO(handleRejecting(name));
+      await expect(io.entryPresence('assets')).resolves.toMatch(/^(present|absent|unknown)$/);
+    }
   });
 });
 
@@ -188,7 +217,7 @@ describe('#58 — the two web states that reach the unreadable exit', () => {
     io = webIO(handleRejecting('NotAllowedError'));
 
     await expect(io.listDir('assets')).rejects.toBeInstanceOf(DOMException);
-    await expect(io.exists('assets')).resolves.toBe(true);
+    await expect(io.entryPresence('assets')).resolves.toBe('unknown');
     // Nothing could have been written in this state either, so the
     // refusal costs the user nothing they had.
     await expect(io.writeBinary('assets/photo.png', new Uint8Array([1]))).rejects.toBeInstanceOf(
@@ -225,7 +254,7 @@ describe('#58 — the two web states that reach the unreadable exit', () => {
     });
 
     await expect(io.listDir('assets')).rejects.toBeInstanceOf(DOMException);
-    await expect(io.exists('assets')).resolves.toBe(true);
+    await expect(io.entryPresence('assets')).resolves.toBe('present');
     // This is the state the refusal exists for: the write goes through,
     // so without it a name picked against an unread folder lands on
     // whatever was already there.

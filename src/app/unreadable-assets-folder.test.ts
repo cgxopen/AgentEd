@@ -40,8 +40,15 @@ import { DESTINATION_CUE } from './destination-cue';
 import { createImageInsertReporter, imageInsertUnavailableMessage } from './image-insert-report';
 import { AppState } from './state';
 
-/** How the `assets/` folder behaves in the case under test. */
-type FolderState = 'readable' | 'absent' | 'unreadable';
+/**
+ * How the `assets/` folder behaves in the case under test.
+ *
+ * `revoked` is web-only and arrived with #126: the folder grant is gone,
+ * so nothing on the handle answers. It is a second way to reach the
+ * unreadable exit, and it is the one a boolean `exists` could not tell
+ * from an empty folder in either of the two directions it was leaned.
+ */
+type FolderState = 'readable' | 'absent' | 'unreadable' | 'revoked';
 
 let folder: FolderState = 'readable';
 /** The assets folder as it really is: name → bytes. */
@@ -143,8 +150,12 @@ async function webIO(): Promise<PlatformIO> {
       }),
     }),
   };
+  const revoked = async (): Promise<never> => {
+    throw new DOMException('stub: grant revoked', 'NotAllowedError');
+  };
   (io as unknown as { dirHandle: unknown }).dirHandle = {
     getFileHandle: async (name: string) => {
+      if (folder === 'revoked') return revoked();
       // `assets` is a directory, and asking a browser for it as a file
       // is a type mismatch — which is the step `navigateTo` walks past
       // before it asks for the directory.
@@ -159,6 +170,7 @@ async function webIO(): Promise<PlatformIO> {
       };
     },
     getDirectoryHandle: async (name: string) => {
+      if (folder === 'revoked') return revoked();
       if (name !== 'assets') throw new DOMException('stub: no entry', 'NotFoundError');
       if (folder === 'absent') throw new DOMException('stub: no entry', 'NotFoundError');
       return assets;
@@ -412,6 +424,21 @@ describe('#58 — the web build, over the real WebIO', () => {
     expect(reported).toEqual([{ kind: 'inserted' }]);
     expect(toastTexts()).toEqual([DESTINATION_CUE]);
     expect(getAllImages().map((i) => i.relativePath)).toEqual(['assets/photo.png']);
+  });
+
+  it('refuses the insert when the folder grant is gone (#126)', async () => {
+    // The second route to the unreadable exit, and the one that decides
+    // which way `entryPresence` must answer `unknown`. Lean it toward
+    // `absent` and this insert proceeds silently against a folder nobody
+    // looked at — #58 reopened. Lean it toward `present` and the context
+    // indicator invents files — #126.
+    folder = 'revoked';
+
+    await insert(imageFile('photo.png', [2, 2, 2, 2]));
+
+    expect(reported).toEqual([{ kind: 'unavailable', reason: 'assets-folder-unreadable' }]);
+    expect(toastTexts()).toEqual([UNREADABLE_MESSAGE]);
+    expect(getAllImages()).toEqual([]);
   });
 
   it('names around the file already there while the folder is readable', async () => {

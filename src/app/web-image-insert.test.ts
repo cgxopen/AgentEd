@@ -68,7 +68,7 @@ function platform(options: {
       if (!options.folderAccess) throw new Error('NO_DIR_HANDLE: no directory access');
       writes.push(path);
     },
-    exists: async () => false,
+    entryPresence: async () => 'absent' as const,
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async (path: string) => {
       if (!options.folderAccess) throw new Error('NO_DIR_HANDLE: no directory access');
