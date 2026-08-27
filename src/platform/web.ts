@@ -5,6 +5,7 @@ import type {
   FileEntry,
   FileResult,
   FileSnapshot,
+  PickedFile,
   PlatformIO,
 } from './types';
 
@@ -127,7 +128,7 @@ export class WebIO implements PlatformIO {
     }
   }
 
-  async pickFile(filterName: string, extensions: string[]): Promise<string | null> {
+  async pickFile(filterName: string, extensions: string[]): Promise<PickedFile | null> {
     try {
       const accept: Record<string, string[]> = {
         'application/octet-stream': extensions.map((e) => `.${e}`),
@@ -135,9 +136,14 @@ export class WebIO implements PlatformIO {
       const [handle] = await window.showOpenFilePicker({
         types: [{ description: filterName, accept }],
       });
+      // The token is this platform's own spelling and stays inside it
+      // (#145). It used to be the whole answer, so the caller's only
+      // route to a name was `basename` of it — and `picked:` then
+      // reached a file written into `assets/`, which R-C5 says keeps the
+      // name the user knows the file by.
       const pseudoPath = `picked:${handle.name}`;
       this.pickedFiles.set(pseudoPath, handle);
-      return pseudoPath;
+      return { ref: pseudoPath, name: handle.name };
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return null;
       console.error('pickFile failed:', e);
@@ -192,12 +198,13 @@ export class WebIO implements PlatformIO {
     const granted = this.grantedFileFor(path);
     let handle: FileSystemFileHandle;
     if (opened) {
-      // The file File → Open was handed, under the path answered for it
-      // (#141). It is exactly the file `saveFile` writes for this path,
-      // so it is exactly the file R-C14 has to compare against — asking
-      // the granted folder instead answers about a different file, and
-      // then the user is shown a conflict about a document they never
-      // opened.
+      // The document this platform is holding, under the path answered
+      // for it (#141) — by either picker since #147, not File → Open
+      // alone, which is what this sentence used to say. It is exactly
+      // the file `saveFile` writes for this path, so it is exactly the
+      // file R-C14 has to compare against: asking the granted folder
+      // instead answers about a different file, and then the user is
+      // shown a conflict about a document they never chose.
       handle = opened;
     } else if (this.dirHandle) {
       try {

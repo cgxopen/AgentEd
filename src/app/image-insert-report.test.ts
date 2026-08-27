@@ -17,7 +17,7 @@ import { handleImageFile, MAX_IMAGE_SIZE } from '../editor/image-handler';
 import type { ImageInsertOutcome } from '../editor/image-insert-outcome';
 import { clearImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
-import type { FileEntry, PlatformIO } from '../platform/types';
+import type { FileEntry, PickedFile, PlatformIO } from '../platform/types';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import { confirmAssetsDir } from './assets-dir';
 import { DESTINATION_CUE } from './destination-cue';
@@ -33,8 +33,8 @@ import { AppState } from './state';
 let filesOnDisk: string[] = [];
 /** Every filesystem call the flow made, in order. */
 let calls: string[] = [];
-/** The path the native picker returns to Insert Media, if it is used. */
-let pickedFile: string | null = null;
+/** What the native picker answers to Insert Media, if it is used (#145). */
+let pickedFile: PickedFile | null = null;
 
 const io: PlatformIO = {
   supportsMultiFile: true,
@@ -364,7 +364,7 @@ describe('#61 — the third entry point', () => {
   }
 
   it('reports an Insert Media through the same channel as paste and drop', async () => {
-    pickedFile = '/pictures/diagram.png';
+    pickedFile = { ref: '/pictures/diagram.png', name: 'diagram.png' };
 
     await pickAndInsert();
 
@@ -373,7 +373,7 @@ describe('#61 — the third entry point', () => {
   });
 
   it('reports a declined folder from Insert Media as the same cancellation', async () => {
-    pickedFile = '/pictures/diagram.png';
+    pickedFile = { ref: '/pictures/diagram.png', name: 'diagram.png' };
     vi.mocked(showConfirmDialog).mockResolvedValue('cancel');
 
     await pickAndInsert();
