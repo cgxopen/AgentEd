@@ -1,3 +1,4 @@
+import { DocumentIdentity, type GrantedHandles } from './document-identity';
 import { joinPath } from './paths';
 import type {
   CloseGuard,
@@ -30,6 +31,21 @@ export class WebIO implements PlatformIO {
   readonly supportsMultiFile = true;
   private fileHandle: FileSystemFileHandle | null = null;
   private dirHandle: FileSystemDirectoryHandle | null = null;
+
+  /**
+   * Which file this platform is holding, and the only way to establish
+   * it (#149). The rules and the registration live in
+   * `document-identity.ts`; the handles above stay here, because they
+   * are the platform's grant rather than the document's identity — and
+   * because `acquireDirectoryHandle` replaces one of them mid-gesture,
+   * so every question wants the value in force at the moment of asking.
+   */
+  private readonly identity = new DocumentIdentity();
+
+  /** The two handles, as they stand right now, for the identity rules. */
+  private handles(): GrantedHandles {
+    return { dirHandle: this.dirHandle, fileHandle: this.fileHandle };
+  }
 
   /**
    * Whether the granted folder can hold a companion **beside this
@@ -76,50 +92,10 @@ export class WebIO implements PlatformIO {
    */
   async canWriteCompanions(documentPath: string): Promise<boolean> {
     if (!this.dirHandle) return false;
-    return this.documentFileFor(documentPath) === null;
+    return this.identity.heldFor(documentPath) === null;
   }
   /** Transient file handles from pickFile(), keyed by the returned pseudo-path */
   private pickedFiles = new Map<string, FileSystemFileHandle>();
-
-  /**
-   * The document this platform is holding, under the exact path it
-   * answered for it — and **only** when the granted folder cannot name
-   * that file itself (#141, #144).
-   *
-   * On the web a path is not an identity: both pickers used to answer
-   * `handle.name`, and every later lookup by that bare name was
-   * addressed to something that does not identify the file the user
-   * picked. Against a grant it either missed, or found a same-named
-   * neighbour at the grant root and answered with that instead —
-   * silently, for reads and for writes.
-   *
-   * Two answers, in this order:
-   *
-   * **A path the grant can name.** `pathWithinGrant` asks the granted
-   * folder where the file is; when it says `doc/report.md`, that path
-   * already resolves to this very file through the existing navigation,
-   * with the read-write permission the grant carries. Nothing is
-   * registered — there is nothing here the ordinary lookup gets wrong,
-   * and the path carries a parent, which is what everything built with
-   * `dirname` needs (`assets/`, the sidebar root, the context scan).
-   *
-   * **No such path.** Either no folder was granted, or the file is
-   * outside the one that was. Then the name is all there is, and it is
-   * this handle's name: it is registered so that name reaches this file
-   * and no other. A same-named file inside the grant is shadowed for as
-   * long as this document is held, which is the deliberate half of the
-   * trade — the alternative is the user's document written into a file
-   * they never chose.
-   *
-   * **One field, not one per picker.** There is exactly one document at
-   * a time, and which picker produced it is not a property of it; two
-   * fields would need a precedence rule between them for a state that
-   * cannot exist. `takeDocument` both sets and clears it, so the
-   * re-anchoring #142 established — a Save As never leaving a stale
-   * registration to shadow the destination it just picked — holds by
-   * construction rather than by a separate line remembering to.
-   */
-  private documentFile: { path: string; handle: FileSystemFileHandle } | null = null;
 
   async openFile(_path?: string): Promise<FileResult | null> {
     try {
@@ -143,7 +119,7 @@ export class WebIO implements PlatformIO {
       //
       // Nothing changes the grant on this route, so there is no ordering
       // question here — unlike `pickSavePath`, which acquires one.
-      return { content, path: await this.takeDocument(handle) };
+      return { content, path: await this.identity.take(handle, this.handles()) };
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return null;
       console.error('openFile failed:', e);
@@ -188,13 +164,13 @@ export class WebIO implements PlatformIO {
    * focus to *that* file).
    *
    * The legitimate half of that fallback is kept and is now the only
-   * half — see `grantedFileFor`.
+   * half — see `grantedFor` in `document-identity.ts`.
    */
   async readText(path: string): Promise<string> {
     const handle =
-      this.documentFileFor(path) ??
+      this.identity.heldFor(path) ??
       (await this.resolveFileHandle(path)) ??
-      this.grantedFileFor(path);
+      this.identity.grantedFor(path, this.handles());
     if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
     const file = await handle.getFile();
     return await file.text();
@@ -217,8 +193,8 @@ export class WebIO implements PlatformIO {
   async readSnapshot(path: string): Promise<FileSnapshot> {
     const parts = path.split('/').filter(Boolean);
     const name = parts.pop() ?? '';
-    const opened = this.documentFileFor(path);
-    const granted = this.grantedFileFor(path);
+    const opened = this.identity.heldFor(path);
+    const granted = this.identity.grantedFor(path, this.handles());
     let handle: FileSystemFileHandle;
     if (opened) {
       // The document this platform is holding, under the path answered
@@ -239,7 +215,7 @@ export class WebIO implements PlatformIO {
       }
     } else if (granted) {
       // The one file this platform was granted, named by itself — the
-      // rule `grantedFileFor` holds for all four sites (#127). It is
+      // rule `grantedFor` holds for all four sites (#127). It is
       // exactly the file a save would write.
       handle = granted;
     } else {
@@ -283,10 +259,10 @@ export class WebIO implements PlatformIO {
       // answers with a bare name for a file the application is about to
       // be able to name in full.
       //
-      // `takeDocument` also re-anchors: Save As replaces the document, and
+      // `take` also re-anchors: Save As replaces the document, and
       // a registration left from File → Open would otherwise go on
       // shadowing the destination just picked (#142).
-      return await this.takeDocument(handle);
+      return await this.identity.take(handle, this.handles());
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return null;
       console.error('pickSavePath failed:', e);
@@ -318,9 +294,9 @@ export class WebIO implements PlatformIO {
       return new Uint8Array(await file.arrayBuffer());
     }
     const handle =
-      this.documentFileFor(path) ??
+      this.identity.heldFor(path) ??
       (await this.resolveFileHandle(path)) ??
-      this.grantedFileFor(path);
+      this.identity.grantedFor(path, this.handles());
     if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
     const file = await handle.getFile();
     return new Uint8Array(await file.arrayBuffer());
@@ -477,112 +453,6 @@ export class WebIO implements PlatformIO {
     }
   }
 
-  /**
-   * Where the granted folder says `handle` is, as a path relative to it
-   * — or `null` when it cannot say (#141).
-   *
-   * `resolve` is the only member of the File System Access API that
-   * answers the question this platform kept getting wrong: *which file
-   * is this*. When it answers, the path it gives already works with
-   * every lookup in this class, and it carries the grant's read-write
-   * permission, so the file needs no registration of its own.
-   *
-   * `null` for all three ways of not knowing: no folder was granted, the
-   * file is outside the one that was, and the browser does not implement
-   * `resolve`. The caller treats them identically — it falls back to the
-   * handle's own name — so telling them apart here would buy nothing.
-   */
-  private async pathWithinGrant(handle: FileSystemFileHandle): Promise<string | null> {
-    const dir = this.dirHandle;
-    if (!dir || typeof dir.resolve !== 'function') return null;
-    try {
-      const parts = await dir.resolve(handle);
-      return parts && parts.length > 0 ? parts.join('/') : null;
-    } catch {
-      // A grant that has lapsed, or a handle from another file system.
-      // Either way this platform cannot name the file from here.
-      return null;
-    }
-  }
-
-  /**
-   * Take `handle` as the document this platform now holds, and answer
-   * with the path it will be known by (#141, #144).
-   *
-   * **The one place a document's identity is established.** Both pickers
-   * come through here, which is the whole of what #144 was: `openFile`
-   * was taught this in #142 and `pickSavePath` was not, so one producer
-   * answered a path that identified the file and the other answered a
-   * name that did not. A producer that skipped this step reproduced the
-   * defect in silence; there is now one step to skip and it returns the
-   * value the caller needs, so skipping it is not a thing a caller can
-   * quietly do.
-   */
-  private async takeDocument(handle: FileSystemFileHandle): Promise<string> {
-    const within = await this.pathWithinGrant(handle);
-    this.documentFile = within === null ? { path: handle.name, handle } : null;
-    return within ?? handle.name;
-  }
-
-  /**
-   * The document this platform is holding, when `path` is exactly the
-   * path it answered for it (#141, #144).
-   *
-   * **The whole path, and the one this class produced** — the same
-   * narrowness `grantedFileFor` is written to, and for the same reason.
-   * Nothing matches by basename, nothing matches because a lookup
-   * elsewhere failed, and nothing matches a path AgentEd did not itself
-   * hand out for this handle.
-   *
-   * It is asked before the granted folder on the **write** path as well
-   * as the read path, and that is the point of #144 rather than a
-   * side-effect of it: the file this names is the file the bytes must
-   * land in. It stays one registry with one rule for both, and it is a
-   * rule about identity — never a fallback for a lookup that failed,
-   * which is the shape #127 removed.
-   */
-  private documentFileFor(path: string): FileSystemFileHandle | null {
-    if (!this.documentFile) return null;
-    return path === this.documentFile.path ? this.documentFile.handle : null;
-  }
-
-  /**
-   * The one file this platform was granted, when `path` names **that**
-   * file and nothing else.
-   *
-   * Two conditions, and both are load-bearing (#127):
-   *
-   * **No directory handle.** A granted folder is the authority on what
-   * is inside it; nothing falls back past it. The fallback exists for
-   * the session that has only ever been handed a single file — the user
-   * picked one, and it is the only thing this platform can see.
-   *
-   * **The name matches.** Reaching that file under any *other* name is
-   * the defect: a read of `notes/AGENTS.md` answering with the document
-   * already open, successfully, and the editor then wearing a name the
-   * application made up.
-   *
-   * The rule was written twice before this, in `readSnapshot` and in
-   * `resolveOrCreateFileHandle`, the second with a comment saying why —
-   * the write path was hardened against exactly this hazard and the read
-   * path never was. It lives here now and those two delegate to it,
-   * rather than a third copy joining them.
-   */
-  private grantedFileFor(path: string): FileSystemFileHandle | null {
-    if (this.dirHandle) return null;
-    if (!this.fileHandle) return null;
-    // The whole path, not its last segment. Both earlier copies of this
-    // rule compared basenames, which answers `assets/notes.md` with the
-    // document called `notes.md` — the very clobber the comment on
-    // `resolveOrCreateFileHandle` says it prevents. Nothing reaches that
-    // today, because `writeBinary` refuses a path with a folder in it
-    // before this is asked; the rule should not depend on a guard
-    // somewhere else being there.
-    const segments = path.split('/').filter(Boolean);
-    if (segments.length !== 1) return null;
-    return segments[0] === this.fileHandle.name ? this.fileHandle : null;
-  }
-
   private async resolveFileHandle(path: string): Promise<FileSystemFileHandle | null> {
     if (!this.dirHandle) return null;
     try {
@@ -603,7 +473,7 @@ export class WebIO implements PlatformIO {
     // write that lands somewhere else is not an improvement. Asked
     // before the granted folder because this path is precisely the one
     // the folder cannot name.
-    const opened = this.documentFileFor(path);
+    const opened = this.identity.heldFor(path);
     if (opened) return opened;
     if (this.dirHandle) {
       const parts = path.split('/').filter(Boolean);
@@ -614,9 +484,9 @@ export class WebIO implements PlatformIO {
     // Fileless fallback: without a dirHandle, the only file we can write
     // to is the one the user picked, and only under its own name —
     // otherwise a companion write (e.g. an image under assets/) would
-    // clobber the document itself. That rule is `grantedFileFor`, which
+    // clobber the document itself. That rule is `grantedFor`, which
     // this comment used to be the only statement of (#127).
-    const own = this.grantedFileFor(path);
+    const own = this.identity.grantedFor(path, this.handles());
     if (own) return own;
     throw new Error(
       'NO_DIR_HANDLE: web mode requires directory access to write files ' +
