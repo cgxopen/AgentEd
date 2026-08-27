@@ -171,11 +171,12 @@ describe('the popover with a grant in place — the floor', () => {
     );
     expect(r.popover.querySelector('.cluster-entry-filename')?.textContent).toBe('CLAUDE.md');
     expect(r.popover.querySelector('.cluster-popover-footer')?.textContent).toContain('1 found');
-    // The snippet extractor skips the heading and shows the first line
-    // of real text — what is in the file, not what it is called.
-    expect(r.popover.querySelector('[data-snippet-for]')?.textContent).toBe(
-      'The line a reader actually wants.',
-    );
+    // The preview is the first line of the file that carries text, and
+    // this one is a heading, so it is the heading's text without the
+    // marks (#138). Asserted here as well as in `snippet.test.ts`
+    // because this is the only place the rule is observed arriving on
+    // screen from a real read rather than from a string.
+    expect(r.popover.querySelector('[data-snippet-for]')?.textContent).toBe('Project rules');
     expect(r.onNothingToShow).not.toHaveBeenCalled();
   });
 
