@@ -32,19 +32,41 @@ export class WebIO implements PlatformIO {
   private dirHandle: FileSystemDirectoryHandle | null = null;
 
   /**
-   * Whether a directory handle has been granted in this session (#46).
+   * Whether the granted folder can hold a companion **beside this
+   * document** (#46, #148).
    *
-   * `documentPath` is deliberately unused here, and that is the whole
-   * difference between this platform and the desktop one: a web path
-   * carries no root — `pickSavePath` returns `handle.name`, and `openFile`
-   * returns at best a path relative to the granted folder (#141) — so
-   * there is no parent to answer from. `assets/` is resolved against
-   * `dirHandle`, so the handle is the entire answer.
+   * It used to answer about the session — *is any folder granted* — and
+   * ignore the path it was given. That was right while every web
+   * document lived at the grant root, which is what #147 stopped being
+   * true: a Save As into a folder the grant cannot reach leaves the
+   * document there and the grant here, and `assets/` built from
+   * `dirname` of a bare name then resolves against the **grant**. The
+   * image landed in one tree and the markdown referencing it in another.
    *
-   * `pickSavePath` is what acquires that handle, which is why the insert
-   * flow asks this **after** the destination step rather than before: ask
-   * it first and the answer is stale in exactly the case the step just
-   * repaired.
+   * **The registration is what separates them, and `dirname` is not.**
+   * Measured over the four states this platform has: a document in a
+   * subfolder answers `doc/report.md`, and the other three all answer a
+   * bare name — the grant root included, because `resolve` returns one
+   * segment for it. So an empty parent does not mean the document is
+   * unreachable. What means it is `documentFile`: a path is registered
+   * exactly when the granted folder could not name the file, which is
+   * the question being asked here, and only this class can answer it.
+   *
+   * With no grant at all the answer stays `false`, unchanged — that is
+   * the #46 state and it reaches the same report.
+   *
+   * **The conservative direction, deliberately.** A browser that does
+   * not implement `resolve` registers every document, including ones
+   * inside the grant, so companions would be refused where the write
+   * would have been correct. That is a real cost and it is the safe
+   * side: without `resolve` this platform genuinely cannot tell where
+   * the document is, and refusing beats writing into a folder the user
+   * did not mean (R-C5).
+   *
+   * `pickSavePath` is what acquires the handle and what registers the
+   * document, which is why the insert flow asks this **after** the
+   * destination step rather than before: ask it first and the answer is
+   * stale in exactly the case the step just repaired.
    *
    * Nothing is awaited today. The honest check is `queryPermission({ mode:
    * 'readwrite' })` on the handle, and it becomes necessary the day these
@@ -52,8 +74,9 @@ export class WebIO implements PlatformIO {
    * granted them; today the permission and the handle were granted in this
    * one. The signature is async so that day costs nothing here.
    */
-  async canWriteCompanions(_documentPath: string): Promise<boolean> {
-    return this.dirHandle !== null;
+  async canWriteCompanions(documentPath: string): Promise<boolean> {
+    if (!this.dirHandle) return false;
+    return this.documentFileFor(documentPath) === null;
   }
   /** Transient file handles from pickFile(), keyed by the returned pseudo-path */
   private pickedFiles = new Map<string, FileSystemFileHandle>();
