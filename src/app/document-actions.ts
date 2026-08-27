@@ -1,6 +1,12 @@
 import { clearImages } from '../editor/image-registry';
 import { splitFrontmatter } from '../formats/frontmatter';
-import { detectExternalChange, loadDocument, saveDocument } from '../formats/index';
+import {
+  detectExternalChange,
+  type LoadResult,
+  loadDocument,
+  parseDocument,
+  saveDocument,
+} from '../formats/index';
 import { getPlatformIO } from '../platform/index';
 import { basename, dirname } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
@@ -32,6 +38,18 @@ export interface DocumentActions {
   confirmWindowClose(): Promise<boolean>;
 }
 
+/**
+ * How a failed load is reported. Grouped because the loader now also
+ * takes the document's text — see `preloaded` — and four positional
+ * arguments, three of them optional, is the shape a wrong one slips
+ * into.
+ */
+interface LoadFailureReport {
+  readonly label: string;
+  readonly title?: string;
+  readonly detail?: 'append' | 'omit';
+}
+
 export function createDocumentActions(ctx: AppContext): DocumentActions {
   const requestSaveAs = createRequestSaveAs(ctx);
 
@@ -46,15 +64,24 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.state.setModified(false);
   }
 
+  /**
+   * Put the document at `path` into the editor, with everything that
+   * hangs off it: the last opened folder, the sidebar, the close state.
+   *
+   * `preloaded` is the document's text already read, which is what File
+   * → Open has: the platform read the file from the handle the user
+   * picked before it answered (#141). Given it, nothing here reads the
+   * file again — the lookup by name that this replaces is the one that
+   * could reach a different file on the web.
+   */
   async function loadBundleFromPath(
     path: string,
-    errorLabel: string,
-    errorTitle?: string,
-    errorDetail?: 'append' | 'omit',
+    failure: LoadFailureReport,
+    preloaded?: LoadResult,
   ): Promise<void> {
     const io = await getPlatformIO();
     try {
-      const loaded = await loadDocument(path, io);
+      const loaded = preloaded ?? (await loadDocument(path, io));
       await applyBundle(loaded, path, ctx, io);
 
       const folder = dirname(path);
@@ -63,12 +90,21 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       await ctx.refreshSidebar();
       ctx.updateCloseEnabled();
     } catch (e) {
-      // Nothing above this line has touched the document: `loadDocument`
-      // throws before `applyBundle` runs, and this path never clears the
-      // editor. So the editor, `filePath` and the R-C14 baseline are all
-      // still the ones the user had — which is what the message is
-      // allowed to say (#127).
-      await ctx.reporter.dialog(errorLabel, e, errorTitle, errorDetail);
+      // **Where the read happens here**, nothing above this line has
+      // touched the document: `loadDocument` throws before `applyBundle`
+      // runs, and this path never clears the editor. So the editor,
+      // `filePath` and the R-C14 baseline are all still the ones the
+      // user had — which is what `openFailedMessage` is allowed to say
+      // in as many words (#127).
+      //
+      // **Where `preloaded` was given**, that read is already behind us
+      // and only `applyBundle` and the state it syncs are left, so a
+      // failure here has replaced part of the document. That is why File
+      // → Open does not pass `openFailedMessage`: its last sentence
+      // would be false on the only failure that route can still reach
+      // (#141). It reports the mechanism instead, which is the useful
+      // thing to show for a fault with no user action behind it.
+      await ctx.reporter.dialog(failure.label, e, failure.title, failure.detail);
     }
   }
 
@@ -113,7 +149,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
         // baseline with it, so the write below lands there instead.
         return (await requestSaveAs()) ? 'write' : 'stop';
       case 'reload':
-        await loadBundleFromPath(path, `Failed to reload document: ${path}`);
+        await loadBundleFromPath(path, { label: `Failed to reload document: ${path}` });
         return 'stop';
       case 'cancel':
         return 'stop';
@@ -285,7 +321,14 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     }
     if (!result) return;
 
-    await loadBundleFromPath(result.path, `Failed to open document: ${result.path}`);
+    // The text came back with the path, read from the handle the user
+    // picked — so it is used, rather than the file being looked up again
+    // by a name that on the web may not identify it (#141).
+    await loadBundleFromPath(
+      result.path,
+      { label: `Failed to open document: ${result.path}` },
+      parseDocument(result.content, result.path),
+    );
   }
 
   async function openFilePath(path: string): Promise<void> {
@@ -298,7 +341,11 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     // should read here. The reporter's usual second line would put
     // `Could not resolve a file handle for: …` under it — a mechanism,
     // and the path a second time (#127).
-    await loadBundleFromPath(path, openFailedMessage(path), OPEN_FAILED_TITLE, 'omit');
+    await loadBundleFromPath(path, {
+      label: openFailedMessage(path),
+      title: OPEN_FAILED_TITLE,
+      detail: 'omit',
+    });
   }
 
   return {

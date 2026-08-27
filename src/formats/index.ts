@@ -1,5 +1,11 @@
 import type { PlatformIO } from '../platform/types';
-import { type LoadResult, loadMarkdown, type SaveResult, saveMarkdown } from './plain';
+import {
+  type LoadResult,
+  loadMarkdown,
+  parseMarkdown,
+  type SaveResult,
+  saveMarkdown,
+} from './plain';
 import type { DocumentBundle } from './types';
 
 export { detectExternalChange, type ExternalChange } from './external-change';
@@ -21,6 +27,15 @@ export type { DocumentBundle, DocumentImage } from './types';
  */
 export async function loadDocument(path: string, io: PlatformIO): Promise<LoadResult> {
   return loadMarkdown(path, io);
+}
+
+/**
+ * The same result, for a caller that already holds the file's text —
+ * `openFile` hands back what it read from the picked handle (#141). No
+ * read happens here.
+ */
+export function parseDocument(text: string, path: string): LoadResult {
+  return parseMarkdown(text, path);
 }
 
 export async function saveDocument(bundle: DocumentBundle, io: PlatformIO): Promise<SaveResult> {

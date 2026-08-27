@@ -19,6 +19,13 @@ interface FileSystemDirectoryHandle extends FileSystemHandle {
   ): Promise<FileSystemDirectoryHandle>;
   values(): AsyncIterableIterator<FileSystemHandle>;
   removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
+  /**
+   * The path components from this directory down to `descendant`, or
+   * `null` when it is not inside this directory. Declared optional
+   * because it is the one member here a browser may not have shipped,
+   * and the caller degrades rather than throwing (#141).
+   */
+  resolve?(descendant: FileSystemHandle): Promise<string[] | null>;
 }
 
 interface FileSystemWritableFileStream extends WritableStream {
