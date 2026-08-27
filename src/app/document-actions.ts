@@ -12,6 +12,7 @@ import { applyBundle, buildBundle } from './bundle';
 import type { AppContext } from './context';
 import { createDiscardGate } from './discard-gate';
 import { askAboutExternalChange } from './external-change-prompt';
+import { OPEN_FAILED_TITLE, openFailedMessage } from './open-failure';
 import { createRequestSaveAs } from './save-as-flow';
 
 export interface DocumentActions {
@@ -45,7 +46,12 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.state.setModified(false);
   }
 
-  async function loadBundleFromPath(path: string, errorLabel: string): Promise<void> {
+  async function loadBundleFromPath(
+    path: string,
+    errorLabel: string,
+    errorTitle?: string,
+    errorDetail?: 'append' | 'omit',
+  ): Promise<void> {
     const io = await getPlatformIO();
     try {
       const loaded = await loadDocument(path, io);
@@ -57,7 +63,12 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       await ctx.refreshSidebar();
       ctx.updateCloseEnabled();
     } catch (e) {
-      await ctx.reporter.dialog(errorLabel, e);
+      // Nothing above this line has touched the document: `loadDocument`
+      // throws before `applyBundle` runs, and this path never clears the
+      // editor. So the editor, `filePath` and the R-C14 baseline are all
+      // still the ones the user had — which is what the message is
+      // allowed to say (#127).
+      await ctx.reporter.dialog(errorLabel, e, errorTitle, errorDetail);
     }
   }
 
@@ -279,7 +290,15 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
 
   async function openFilePath(path: string): Promise<void> {
     if (!(await discardCurrentDocument('open'))) return;
-    await loadBundleFromPath(path, `Failed to open file: ${path}`);
+    // The route the sidebar and the context popover both take, and the
+    // one #127 was about: a file listed a moment ago may be gone, or no
+    // longer reachable, by the time it is clicked. It used to answer
+    // with the document already open; now it says so.
+    // `omit`, because `openFailedMessage` is the whole of what the user
+    // should read here. The reporter's usual second line would put
+    // `Could not resolve a file handle for: …` under it — a mechanism,
+    // and the path a second time (#127).
+    await loadBundleFromPath(path, openFailedMessage(path), OPEN_FAILED_TITLE, 'omit');
   }
 
   return {
