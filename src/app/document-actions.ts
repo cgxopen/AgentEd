@@ -50,6 +50,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     path: string,
     errorLabel: string,
     errorTitle?: string,
+    errorDetail?: 'append' | 'omit',
   ): Promise<void> {
     const io = await getPlatformIO();
     try {
@@ -67,7 +68,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       // editor. So the editor, `filePath` and the R-C14 baseline are all
       // still the ones the user had — which is what the message is
       // allowed to say (#127).
-      await ctx.reporter.dialog(errorLabel, e, errorTitle);
+      await ctx.reporter.dialog(errorLabel, e, errorTitle, errorDetail);
     }
   }
 
@@ -293,7 +294,11 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     // one #127 was about: a file listed a moment ago may be gone, or no
     // longer reachable, by the time it is clicked. It used to answer
     // with the document already open; now it says so.
-    await loadBundleFromPath(path, openFailedMessage(path), OPEN_FAILED_TITLE);
+    // `omit`, because `openFailedMessage` is the whole of what the user
+    // should read here. The reporter's usual second line would put
+    // `Could not resolve a file handle for: …` under it — a mechanism,
+    // and the path a second time (#127).
+    await loadBundleFromPath(path, openFailedMessage(path), OPEN_FAILED_TITLE, 'omit');
   }
 
   return {

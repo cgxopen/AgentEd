@@ -29,7 +29,7 @@ import { WebIO } from '../platform/web';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import type { AppContext } from './context';
 import { createDocumentActions, type DocumentActions } from './document-actions';
-import type { ErrorReporter } from './error-reporter';
+import { createErrorReporter } from './error-reporter';
 import { OPEN_FAILED_TITLE, openFailedMessage } from './open-failure';
 import { AppState } from './state';
 
@@ -48,8 +48,6 @@ function dom(name: string): DOMException {
 let agents: 'there' | 'gone' | 'unreachable';
 /** Everything written through the platform, in order. */
 let writes: string[];
-/** Every message the reporter was asked to show, as `title: message`. */
-let reported: string[];
 let io: PlatformIO;
 
 function makeIO(): PlatformIO {
@@ -105,13 +103,27 @@ function makeIO(): PlatformIO {
 let state: AppState;
 let markdown: string;
 
-const reporter: ErrorReporter = {
-  silent: () => {},
-  toast: () => {},
-  dialog: async (message: string, _e: unknown, title?: string) => {
-    reported.push(`${title}: ${message}`);
-  },
-};
+/**
+ * The **real** reporter, not a fake that records its first argument.
+ *
+ * `ErrorReporter.dialog` composes the body from two pieces — the message
+ * and, by default, the error's own text under it — and a fake that keeps
+ * only the message asserts half of what the user reads. That is how the
+ * decided paragraph came to ship with `Could not resolve a file handle
+ * for: notes/AGENTS.md` beneath it while this file stayed green.
+ *
+ * So the dialog is read where it is actually assembled: at
+ * `showConfirmDialog`, which is what puts words on the screen.
+ */
+const reporter = createErrorReporter();
+
+/** Every dialog raised, as the user would read it: title, then body. */
+function dialogsRaised(): Array<{ title: string; message: string }> {
+  return vi.mocked(showConfirmDialog).mock.calls.map((call) => {
+    const options = call[0] as { title?: string; message: string };
+    return { title: options.title ?? '', message: options.message };
+  });
+}
 
 function makeActions(): DocumentActions {
   const ctx = {
@@ -135,12 +147,12 @@ function makeActions(): DocumentActions {
 beforeEach(() => {
   agents = 'there';
   writes = [];
-  reported = [];
   markdown = '';
   clearImages();
   state = new AppState();
   io = makeIO();
   vi.mocked(showConfirmDialog).mockReset();
+  vi.mocked(showConfirmDialog).mockResolvedValue('ok');
 });
 
 /** The document the user actually has open, opened the way they open it. */
@@ -158,9 +170,11 @@ describe('#127 — clicking a file that has gone since the sidebar listed it', (
 
     await actions.openFilePath('notes/AGENTS.md');
 
-    // What the user reads. The string is imported rather than copied, so
-    // this asserts what they actually see (the #50 precedent).
-    expect(reported).toEqual([`${OPEN_FAILED_TITLE}: ${openFailedMessage('notes/AGENTS.md')}`]);
+    // The whole body, not the half the reporter composes first. Nothing
+    // follows the paragraph — no error text, no second copy of the path.
+    expect(dialogsRaised()).toEqual([
+      { title: OPEN_FAILED_TITLE, message: openFailedMessage('notes/AGENTS.md') },
+    ]);
     // And the sentence at the end of it is a measurement, so it is
     // measured here: all three of these are what they were.
     expect(state.filePath).toBe('notes.md');
@@ -175,7 +189,12 @@ describe('#127 — clicking a file that has gone since the sidebar listed it', (
 
     await actions.openFilePath('notes/AGENTS.md');
 
-    expect(reported[0]).toContain('notes/AGENTS.md');
+    const body = dialogsRaised()[0].message;
+    expect(body).toContain('notes/AGENTS.md');
+    // Once, and only inside the sentence that names it.
+    expect(body.split('notes/AGENTS.md').length - 1).toBe(1);
+    // And nothing from the platform layer's vocabulary reaches the user.
+    expect(body).not.toContain('file handle');
   });
 
   it('the same, when the file is there but no longer reachable', async () => {
@@ -187,7 +206,9 @@ describe('#127 — clicking a file that has gone since the sidebar listed it', (
 
     await actions.openFilePath('notes/AGENTS.md');
 
-    expect(reported).toEqual([`${OPEN_FAILED_TITLE}: ${openFailedMessage('notes/AGENTS.md')}`]);
+    expect(dialogsRaised()).toEqual([
+      { title: OPEN_FAILED_TITLE, message: openFailedMessage('notes/AGENTS.md') },
+    ]);
     expect(state.filePath).toBe('notes.md');
     expect(state.knownDiskText).toBe(NOTES);
   });
@@ -198,7 +219,7 @@ describe('#127 — clicking a file that has gone since the sidebar listed it', (
 
     await actions.openFilePath('notes/AGENTS.md');
 
-    expect(reported).toEqual([]);
+    expect(dialogsRaised()).toEqual([]);
     expect(state.filePath).toBe('notes/AGENTS.md');
     expect(state.knownDiskText).toBe(AGENTS);
     expect(markdown).toBe(AGENTS);
@@ -217,12 +238,16 @@ describe('#127 — the R-C14 dialog goes because the state that raised it cannot
     agents = 'gone';
 
     await actions.openFilePath('notes/AGENTS.md');
+    // That click raised its own dialog, asserted above. What this test is
+    // about is the save that follows.
+    expect(dialogsRaised()).toHaveLength(1);
+    vi.mocked(showConfirmDialog).mockClear();
     markdown = `${NOTES}an edit\n`;
     state.setModified(true);
     await actions.handleSave();
 
     // No dialog of any kind: not the conflict, not the "could not check".
-    expect(showConfirmDialog).not.toHaveBeenCalled();
+    expect(dialogsRaised()).toEqual([]);
     // And the write went to the document the user actually had open.
     expect(writes).toEqual(['notes.md <- the Notes document']);
   });
@@ -236,12 +261,14 @@ describe('#127 — the R-C14 dialog goes because the state that raised it cannot
     agents = 'unreachable';
 
     await actions.openFilePath('notes/AGENTS.md');
+    expect(dialogsRaised()).toHaveLength(1);
+    vi.mocked(showConfirmDialog).mockClear();
     agents = 'there'; // the transient failure passes before the save
     markdown = `${NOTES}an edit\n`;
     state.setModified(true);
     await actions.handleSave();
 
-    expect(showConfirmDialog).not.toHaveBeenCalled();
+    expect(dialogsRaised()).toEqual([]);
     expect(writes).toEqual(['notes.md <- the Notes document']);
   });
 
@@ -258,7 +285,6 @@ describe('#127 — the R-C14 dialog goes because the state that raised it cannot
     await actions.handleSave();
 
     expect(showConfirmDialog).toHaveBeenCalledTimes(1);
-    const asked = vi.mocked(showConfirmDialog).mock.calls[0][0] as { title: string };
-    expect(asked.title).toBe('File changed on disk');
+    expect(dialogsRaised()[0].title).toBe('File changed on disk');
   });
 });
