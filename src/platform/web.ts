@@ -98,14 +98,26 @@ export class WebIO implements PlatformIO {
     }
   }
 
+  /**
+   * The text at `path`, or a rejection — never the text of some other
+   * document (#127).
+   *
+   * This used to fall back to the open document whenever
+   * `resolveFileHandle` answered `null`, which it does on **every**
+   * failure and not only on not-found. So a read of a path that could
+   * not be resolved returned a different file's contents, successfully,
+   * and `applyBundle` then set `filePath` and the R-C14 baseline from
+   * it: the user was looking at their own document under a name the
+   * application had invented (R-C6, which says the sidebar switches
+   * focus to *that* file).
+   *
+   * The legitimate half of that fallback is kept and is now the only
+   * half — see `grantedFileFor`.
+   */
   async readText(path: string): Promise<string> {
-    const handle = await this.resolveFileHandle(path);
-    if (handle) {
-      const file = await handle.getFile();
-      return await file.text();
-    }
-    if (!this.fileHandle) throw new Error('No file handle available');
-    const file = await this.fileHandle.getFile();
+    const handle = (await this.resolveFileHandle(path)) ?? this.grantedFileFor(path);
+    if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
+    const file = await handle.getFile();
     return await file.text();
   }
 
@@ -126,6 +138,7 @@ export class WebIO implements PlatformIO {
   async readSnapshot(path: string): Promise<FileSnapshot> {
     const parts = path.split('/').filter(Boolean);
     const name = parts.pop() ?? '';
+    const granted = this.grantedFileFor(path);
     let handle: FileSystemFileHandle;
     if (this.dirHandle) {
       try {
@@ -135,11 +148,11 @@ export class WebIO implements PlatformIO {
         if (isNotFound(e)) return { kind: 'absent' };
         return { kind: 'unreadable', cause: e };
       }
-    } else if (this.fileHandle && name === this.fileHandle.name) {
-      // Same fallback rule as resolveOrCreateFileHandle: without a
-      // directory handle the only file we can see is the one the user
-      // picked — which is exactly the file a save would write.
-      handle = this.fileHandle;
+    } else if (granted) {
+      // The one file this platform was granted, named by itself — the
+      // rule `grantedFileFor` holds for all four sites (#127). It is
+      // exactly the file a save would write.
+      handle = granted;
     } else {
       return {
         kind: 'unreadable',
@@ -205,13 +218,9 @@ export class WebIO implements PlatformIO {
       this.pickedFiles.delete(path); // transient, clean up
       return new Uint8Array(await file.arrayBuffer());
     }
-    const handle = await this.resolveFileHandle(path);
-    if (handle) {
-      const file = await handle.getFile();
-      return new Uint8Array(await file.arrayBuffer());
-    }
-    if (!this.fileHandle) throw new Error('No file handle available');
-    const file = await this.fileHandle.getFile();
+    const handle = (await this.resolveFileHandle(path)) ?? this.grantedFileFor(path);
+    if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
+    const file = await handle.getFile();
     return new Uint8Array(await file.arrayBuffer());
   }
 
@@ -366,6 +375,43 @@ export class WebIO implements PlatformIO {
     }
   }
 
+  /**
+   * The one file this platform was granted, when `path` names **that**
+   * file and nothing else.
+   *
+   * Two conditions, and both are load-bearing (#127):
+   *
+   * **No directory handle.** A granted folder is the authority on what
+   * is inside it; nothing falls back past it. The fallback exists for
+   * the session that has only ever been handed a single file — the user
+   * picked one, and it is the only thing this platform can see.
+   *
+   * **The name matches.** Reaching that file under any *other* name is
+   * the defect: a read of `notes/AGENTS.md` answering with the document
+   * already open, successfully, and the editor then wearing a name the
+   * application made up.
+   *
+   * The rule was written twice before this, in `readSnapshot` and in
+   * `resolveOrCreateFileHandle`, the second with a comment saying why —
+   * the write path was hardened against exactly this hazard and the read
+   * path never was. It lives here now and those two delegate to it,
+   * rather than a third copy joining them.
+   */
+  private grantedFileFor(path: string): FileSystemFileHandle | null {
+    if (this.dirHandle) return null;
+    if (!this.fileHandle) return null;
+    // The whole path, not its last segment. Both earlier copies of this
+    // rule compared basenames, which answers `assets/notes.md` with the
+    // document called `notes.md` — the very clobber the comment on
+    // `resolveOrCreateFileHandle` says it prevents. Nothing reaches that
+    // today, because `writeBinary` refuses a path with a folder in it
+    // before this is asked; the rule should not depend on a guard
+    // somewhere else being there.
+    const segments = path.split('/').filter(Boolean);
+    if (segments.length !== 1) return null;
+    return segments[0] === this.fileHandle.name ? this.fileHandle : null;
+  }
+
   private async resolveFileHandle(path: string): Promise<FileSystemFileHandle | null> {
     if (!this.dirHandle) return null;
     try {
@@ -387,14 +433,13 @@ export class WebIO implements PlatformIO {
       const dir = await this.navigateToDirByParts(parts, true);
       return await dir.getFileHandle(name, { create: true });
     }
-    // Fileless fallback: without a dirHandle, the only file we can write to
-    // is the one the user picked. Require the requested name to match the
-    // active file's name — otherwise a companion write (e.g. an image
-    // under assets/) would clobber the document itself.
-    if (this.fileHandle) {
-      const requested = path.split('/').filter(Boolean).pop() ?? '';
-      if (requested === this.fileHandle.name) return this.fileHandle;
-    }
+    // Fileless fallback: without a dirHandle, the only file we can write
+    // to is the one the user picked, and only under its own name —
+    // otherwise a companion write (e.g. an image under assets/) would
+    // clobber the document itself. That rule is `grantedFileFor`, which
+    // this comment used to be the only statement of (#127).
+    const own = this.grantedFileFor(path);
+    if (own) return own;
     throw new Error(
       'NO_DIR_HANDLE: web mode requires directory access to write files ' +
         'other than the one initially opened; use Save As to acquire',
