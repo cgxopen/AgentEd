@@ -26,11 +26,24 @@ import NIGHTLY from './nightly.yml?raw';
  * sit at eight. That indentation is what tells the two levels apart below.
  */
 
-/** The `${{ … }}` expression a single-line `key: value` pair carries. */
-function expressionAfter(source: string, pattern: RegExp): string {
-  const match = source.match(pattern);
-  expect(match, `no match for ${pattern}`).not.toBeNull();
-  return (match as RegExpMatchArray)[1].trim();
+/**
+ * Every `${{ … }}` expression the `key: value` pairs matching `pattern`
+ * carry — all of them, never the first.
+ *
+ * It used to answer with `source.match(pattern)`, which stops at the
+ * first hit. That was correct while each of these keys appeared once,
+ * and it silently stopped being correct the moment #131 gave
+ * `AGENTED_BUILD_COMMIT` a second consumer: the assertion below kept
+ * passing over a line it had never looked at. A test that checks one of
+ * two things and reports on both is the failure this file exists to
+ * prevent, so it now collects every occurrence and the caller says how
+ * many it expects.
+ */
+function expressionsAfter(source: string, pattern: RegExp): string[] {
+  const global = new RegExp(pattern.source, `${pattern.flags.replace('g', '')}g`);
+  const found = [...source.matchAll(global)].map((match) => match[1].trim());
+  expect(found.length, `no match for ${pattern}`).toBeGreaterThan(0);
+  return found;
 }
 
 /** Job blocks, keyed by job id — everything from `  <id>:` to the next one. */
@@ -49,13 +62,55 @@ function jobs(source: string): Map<string, string> {
 }
 
 describe('ci.yml — the artifact and About name the same build (#64)', () => {
-  it('feeds one value into the installer name and into the build', () => {
-    const artifactName = expressionAfter(CI, /^\s*name: AgentEd-windows-\$\{\{(.+?)\}\}\s*$/m);
-    const bakedIn = expressionAfter(CI, /^\s*AGENTED_BUILD_COMMIT: \$\{\{(.+?)\}\}\s*$/m);
-    // Not "both look right" — the same string. Two expressions that happen to
-    // agree today are what #64 is about: they move apart and nothing fails.
-    expect(artifactName).toBe(bakedIn);
-    expect(artifactName).toBe('needs.changes.outputs.build_sha');
+  it('feeds one value into every artifact name and every build', () => {
+    const artifactNames = expressionsAfter(CI, /^\s*name: AgentEd-\w+-\$\{\{(.+?)\}\}\s*$/m);
+    const bakedIn = expressionsAfter(CI, /^\s*AGENTED_BUILD_COMMIT: \$\{\{(.+?)\}\}\s*$/m);
+
+    // Two platforms since #131 — the Windows installer and the web build —
+    // and the count is asserted so that losing one of them is a failure
+    // rather than a quieter version of this test.
+    expect(artifactNames).toHaveLength(2);
+    expect(bakedIn).toHaveLength(2);
+
+    // Not "they all look right" — the same string, everywhere. Expressions
+    // that happen to agree today are what #64 is about: they move apart and
+    // nothing fails.
+    for (const expression of [...artifactNames, ...bakedIn]) {
+      expect(expression).toBe('needs.changes.outputs.build_sha');
+    }
+  });
+
+  it('publishes a web build a person can serve, and ships what starts it (#131)', () => {
+    const frontend = jobs(CI).get('frontend') ?? '';
+    expect(frontend).toMatch(/name: AgentEd-web-\$\{\{ needs\.changes\.outputs\.build_sha \}\}/);
+    expect(frontend).toMatch(/path: dist/);
+    expect(frontend).toMatch(/retention-days: 7/);
+    // The build alone is inert: it is loaded as ES modules and needs a
+    // secure context, so a folder opened from the filesystem does nothing.
+    // The starter travels inside the artifact, which is also what stops it
+    // drifting away from the build it starts.
+    expect(frontend).toMatch(/web-artifact\/serve\.ps1/);
+    expect(frontend).toMatch(/web-artifact\/HOW-TO-RUN\.txt/);
+  });
+
+  it('does not publish a web build for a documentation-only change (#118, #131)', () => {
+    const frontend = jobs(CI).get('frontend') ?? '';
+    // The job itself runs for `guarded_docs` — the eight documents the
+    // round-trip guard reads. The two steps that make the artifact are
+    // narrower than the job around them, on `code` alone.
+    const artifactSteps = [
+      ...frontend.matchAll(/^ {6}- name: (Bundle the starter.*|Upload web build)$/gm),
+    ];
+    expect(artifactSteps).toHaveLength(2);
+    for (const step of artifactSteps) {
+      const from = step.index as number;
+      const body = frontend.slice(from, from + 400);
+      expect(body).toMatch(/if: needs\.changes\.outputs\.code == 'true'/);
+    }
+    // And the job around them is still the wider one, unchanged by #131.
+    expect(frontend).toMatch(
+      /if: needs\.changes\.outputs\.code == 'true' \|\| needs\.changes\.outputs\.guarded_docs == 'true'/,
+    );
   });
 
   it('takes the head of the pull request, not the merge commit it is built on', () => {
