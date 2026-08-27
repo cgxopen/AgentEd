@@ -159,6 +159,46 @@ jobs:
         timeout-minutes: 15
       - run: npm run build
         timeout-minutes: 15
+        env:
+          # The same single value the Windows job bakes in and names its
+          # artifact with (#64). Without it `vite.config.ts` falls back to
+          # `GITHUB_SHA`, which on a `pull_request` event is the ephemeral
+          # merge commit — so this build reported seven characters nobody
+          # could match against the pull request page. That cost nothing
+          # while no one published it; #131 publishes it.
+          AGENTED_BUILD_COMMIT: ${{ needs.changes.outputs.build_sha }}
+
+      # A web build a person can download, serve and open, so a defect
+      # that only exists on this platform can be met by hand (#131). Two
+      # of them in a row — #126 and #129 — could not be, and the second
+      # was reached only through a port-forwarded dev server, which has no
+      # artifact and therefore no sha to compare.
+      #
+      # Storage and packaging only: `npm run build` above already runs on
+      # every pull request that reaches this job. Measured on this branch:
+      # the output is 1.7 MB across 14 files, 0.70 MB once packed, and the
+      # existing 2.58 MB Windows upload takes 9 seconds. The frontend job
+      # has run 77-100 seconds over its last twelve runs, all of which bill
+      # as 2 minutes, and the next boundary is 120 — so this adds no
+      # billable minute at all.
+      - name: Bundle the starter with the build
+        if: needs.changes.outputs.code == 'true'
+        run: cp .github/web-artifact/serve.ps1 .github/web-artifact/HOW-TO-RUN.txt dist/
+
+      # **Narrower than the job it sits in, deliberately.** This job also
+      # runs for `guarded_docs` — the eight documents the round-trip guard
+      # reads as test input (#118) — and a web build published on a STATUS
+      # edit is seconds spent on something nobody will download. The build
+      # is what those documents change; the artifact is not.
+      - name: Upload web build
+        if: needs.changes.outputs.code == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        timeout-minutes: 10
+        with:
+          name: AgentEd-web-${{ needs.changes.outputs.build_sha }}
+          path: dist
+          retention-days: 7
+          if-no-files-found: error
 
   rust:
     name: Rust (fmt + clippy + test)

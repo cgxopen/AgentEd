@@ -1,0 +1,57 @@
+AgentEd — web build
+===================
+
+This is the browser build of AgentEd, taken from the pull request whose
+number and commit are in the name of the zip you downloaded.
+
+Check you are running the build you think you are
+-------------------------------------------------
+
+The zip is named AgentEd-web-<sha>, where <sha> is seven characters. The
+same seven characters appear on the pull request page, and again inside
+the application under the kebab menu (the three dots) -> About.
+
+Three places, one value. If any of them disagree, this is not the build
+under review, and whatever you find will be about something else. Most
+reports of "the fix does not work" in this project have been a stale
+download.
+
+Opening index.html directly does not work
+-----------------------------------------
+
+It has to be served over http://localhost. Two reasons, both hard:
+
+  - The browser refuses to load the application's modules over file://.
+  - Image support needs a secure context, which localhost is and a plain
+    file is not.
+
+So use one of the two below. Neither needs an installation, a copy of
+the repository, or npm.
+
+Option 1 — the script in this folder (nothing to install)
+---------------------------------------------------------
+
+Right-click serve.ps1 and choose "Run with PowerShell". It picks a free
+port, prints the address and opens your browser.
+
+If Windows blocks it, open PowerShell in this folder and run:
+
+    powershell -ExecutionPolicy Bypass -File .\serve.ps1
+
+Press Ctrl+C in that window to stop it.
+
+Option 2 — Python, if you have it
+----------------------------------
+
+Open a terminal in this folder and run:
+
+    python -m http.server 8123
+
+Then open http://localhost:8123 yourself.
+
+Which browser
+-------------
+
+Chrome or Edge. Image support on the web build depends on the browser's
+File System Access API, which today means a Chromium browser
+(REQUIREMENTS section 7). The desktop build depends on none of this.
