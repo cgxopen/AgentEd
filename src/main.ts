@@ -1,6 +1,6 @@
 import { confirmAssetsDir } from './app/assets-dir';
-import { scheduleClusterDetection } from './app/bundle';
 import { installCloseGuard } from './app/close-guard';
+import { refreshClusterDetection, reportNothingRelated } from './app/cluster-scan';
 import { createContext } from './app/context';
 import { createDocumentActions, type DocumentActions } from './app/document-actions';
 import { installDropGuard } from './app/drop-guard';
@@ -163,11 +163,15 @@ docActions = createDocumentActions(ctx);
 ctx.clusterPopover = setupClusterPopover({
   getIO: getPlatformIO,
   onOpenEntry: (path) => docActions.openFilePath(path),
+  // Refresh is a question the user asked, so its scan answers even when
+  // the answer is nothing (#130). The automatic scans behind `applyBundle`
+  // use `scheduleClusterDetection` instead and stay silent.
   onRefresh: async () => {
     if (!ctx.state.filePath) return;
     const io = await getPlatformIO();
-    scheduleClusterDetection(ctx.state.filePath, ctx, io);
+    await refreshClusterDetection(ctx.state.filePath, ctx, io);
   },
+  onNothingToShow: reportNothingRelated,
 });
 
 // Phase 8 — wiring that needs docActions.

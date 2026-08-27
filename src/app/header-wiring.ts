@@ -75,13 +75,43 @@ function setupOverflowPopover(): void {
   popover.addEventListener('click', (e) => e.stopPropagation());
 }
 
+/**
+ * Whether the overflow menu offers `ind`.
+ *
+ * Two different facts, and this menu used to know only the second (#130):
+ *
+ * **Has its own module withdrawn it?** `aria-hidden="true"` is that
+ * statement — *this is not part of the interface right now*. The cluster
+ * indicator says it whenever a scan finds nothing, and an indicator that
+ * has taken itself out has nothing to offer: its text is whatever it
+ * last said, and its click reaches a handler with nothing to show. It is
+ * not offered, at any width.
+ *
+ * **Did the collapse breakpoint take it out of the bar?**
+ * `offsetParent === null` is that one — and it is the whole reason this
+ * menu exists. Such an indicator is live and its text is current.
+ *
+ * The old single test read `offsetParent === null` alone, which is true
+ * of both, so a withdrawn indicator was cloned with its stale label and
+ * a dead click. Below 600px that clone is the only route to the popover,
+ * so fixing the bar alone would have fixed nothing where this was found.
+ *
+ * Exported for its test: `offsetParent` is layout, and happy-dom has no
+ * layout — it answers `undefined` for every element. The predicate can
+ * be driven with both facts set; the menu as a whole cannot.
+ */
+export function isOfferedInOverflow(ind: HTMLElement): boolean {
+  if (ind.getAttribute('aria-hidden') === 'true') return false;
+  return ind.offsetParent === null;
+}
+
 function renderOverflowPopover(popover: HTMLElement): void {
   popover.innerHTML = '';
   const indicators = Array.from(
     document.querySelectorAll<HTMLElement>('#header-indicators .indicator'),
   );
   for (const ind of indicators) {
-    if (ind.offsetParent !== null) continue; // visible at current breakpoint
+    if (!isOfferedInOverflow(ind)) continue;
     const clone = document.createElement('span');
     clone.className = 'indicator';
     clone.textContent = ind.textContent;
