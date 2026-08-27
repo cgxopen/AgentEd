@@ -12,13 +12,14 @@ import {
 } from '@tauri-apps/plugin-fs';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
-import { dirname, joinPath } from './paths';
+import { basename, dirname, joinPath } from './paths';
 import type {
   CloseGuard,
   EntryPresence,
   FileEntry,
   FileResult,
   FileSnapshot,
+  PickedFile,
   PlatformIO,
 } from './types';
 
@@ -57,14 +58,20 @@ export class TauriIO implements PlatformIO {
     return { content, path: filePath };
   }
 
-  async pickFile(filterName: string, extensions: string[]): Promise<string | null> {
+  async pickFile(filterName: string, extensions: string[]): Promise<PickedFile | null> {
     const lastFolder = loadLastOpenedFolder();
     const selected = await open({
       multiple: false,
       filters: [{ name: filterName, extensions }],
       ...(lastFolder ? { defaultPath: lastFolder } : {}),
     });
-    return (selected as string | null) ?? null;
+    const path = (selected as string | null) ?? null;
+    if (path === null) return null;
+    // The desktop reference is a real path, so the name is its last
+    // segment — which is what the caller used to compute for itself, and
+    // computed correctly here and wrongly on the web (#145). It is taken
+    // here now, where the shape of the value is known.
+    return { ref: path, name: basename(path) };
   }
 
   async readText(path: string): Promise<string> {

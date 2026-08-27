@@ -4,6 +4,7 @@ import type {
   FileEntry,
   FileResult,
   FileSnapshot,
+  PickedFile,
   PlatformIO,
 } from '../platform/types';
 import { detectContextCluster, MAX_CHILDREN, MAX_RESULTS } from './detector';
@@ -60,7 +61,7 @@ class FakeIO implements PlatformIO {
   async openFile(): Promise<FileResult | null> {
     throw new Error('not implemented');
   }
-  async pickFile(): Promise<string | null> {
+  async pickFile(): Promise<PickedFile | null> {
     throw new Error('not implemented');
   }
   async readText(): Promise<string> {

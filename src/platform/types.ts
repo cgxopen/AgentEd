@@ -10,6 +10,38 @@ export interface FileResult {
 }
 
 /**
+ * A file the user picked from a dialog: how to reach its bytes, and what
+ * it is called.
+ *
+ * **Two fields because they are two different things**, which a single
+ * string could not say (#145). On the desktop the reference is an
+ * absolute path and the name is its last segment; on the web there is no
+ * path at all — `WebIO` keeps the handle in a registry and answers a
+ * token that finds it again. A caller given only that token had no way
+ * to recover the name, and the one that tried took `basename` of it,
+ * which on a value with no slash returns the whole thing, prefix
+ * included. That prefix then reached a file written to disk.
+ *
+ * So the platform says both, and nothing above `src/platform` has to
+ * know what either looks like on a given target — the same reasoning
+ * `canWriteCompanions` is written to (#46, #123).
+ */
+export interface PickedFile {
+  /**
+   * What `readBinary` resolves to these bytes. **Opaque**: it is a path
+   * on one platform and a registry token on another, and no caller may
+   * parse it, display it, or derive a name from it.
+   */
+  readonly ref: string;
+  /**
+   * The file's own name, as the user knows it — `Diagramă finală.png`.
+   * This is what R-C5 says an inserted image keeps, and it is the only
+   * value a caller should name the file by.
+   */
+  readonly name: string;
+}
+
+/**
  * What a platform could observe about a file at a given moment (R-C14).
  *
  * The three cases are deliberately distinct. `absent` is a fact — the
@@ -82,8 +114,13 @@ export interface PlatformIO {
    */
   canWriteCompanions(documentPath: string): Promise<boolean>;
   openFile(path?: string): Promise<FileResult | null>;
-  /** Show a file picker with custom filter; returns absolute path or null if cancelled */
-  pickFile(filterName: string, extensions: string[]): Promise<string | null>;
+  /**
+   * Show a file picker with a custom filter. Answers the picked file's
+   * reference **and** its name (#145), or `null` if cancelled — never a
+   * bare string, because on the web the two are not recoverable from
+   * each other.
+   */
+  pickFile(filterName: string, extensions: string[]): Promise<PickedFile | null>;
   readText(path: string): Promise<string>;
   saveFile(path: string, content: string): Promise<void>;
   /**

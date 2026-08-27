@@ -2,7 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { handleImageFile } from '../editor/image-handler';
 import type { ReportImageInsert } from '../editor/image-insert-outcome';
 import { getPlatformIO } from '../platform/index';
-import { basename } from '../platform/paths';
+import type { PickedFile } from '../platform/types';
 import { confirmAssetsDir } from './assets-dir';
 import type { ErrorReporter } from './error-reporter';
 import type { AppState } from './state';
@@ -39,18 +39,25 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
   const { state, editor, requestSaveAs, reporter, report } = deps;
 
   const io = await getPlatformIO();
-  let pickedPath: string | null = null;
+  let picked: PickedFile | null = null;
   try {
-    pickedPath = await io.pickFile('Images', IMAGE_EXTENSIONS);
+    picked = await io.pickFile('Images', IMAGE_EXTENSIONS);
   } catch (e) {
     await reporter.dialog('Failed to open image picker', e);
     return;
   }
-  if (!pickedPath) return;
+  if (!picked) return;
 
   try {
-    const data = await io.readBinary(pickedPath);
-    const filename = basename(pickedPath);
+    // The reference finds the bytes; the name is what the file is
+    // called. Both come from the platform, because only it knows the
+    // shape of either (#145). This used to be one string and a
+    // `basename` of it, which is a path operation applied to something
+    // that is a path on one target and a registry token on the other —
+    // so the web build wrote `picked-<name>` into `assets/` while the
+    // desktop build wrote the name.
+    const data = await io.readBinary(picked.ref);
+    const filename = picked.name;
     const ext = (filename.split('.').pop() || 'png').toLowerCase();
     const mime = mimeFromExt(ext);
     const blob = new Blob([data.slice().buffer as ArrayBuffer], { type: mime });
@@ -78,6 +85,9 @@ export async function insertMedia(deps: MediaPickerDeps): Promise<void> {
       report,
     );
   } catch (e) {
-    await reporter.dialog(`Failed to insert image: ${pickedPath}`, e);
+    // The name, never the reference: this sentence is read by a person,
+    // and on the web the reference carries a spelling that belongs to
+    // the platform (#145).
+    await reporter.dialog(`Failed to insert image: ${picked.name}`, e);
   }
 }
