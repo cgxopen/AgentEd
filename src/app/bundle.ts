@@ -1,11 +1,10 @@
-import { detectContextCluster } from '../cluster/detector';
-import { ContextCluster } from '../cluster/types';
 import { clearImages, getAllImages } from '../editor/image-registry';
 import type { LoadResult } from '../formats/index';
 import type { DocumentBundle } from '../formats/types';
 import { basename } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
+import { scheduleClusterDetection } from './cluster-scan';
 import type { AppContext } from './context';
 import { prepareMarkdownForDisplay } from './image-loader';
 import type { AppState } from './state';
@@ -61,26 +60,4 @@ export async function applyBundle(
   // Cluster detection runs after the document is rendered so the user
   // sees content immediately; the popover appears once results land.
   scheduleClusterDetection(path, ctx, io);
-}
-
-/**
- * Kick off a cluster scan and commit the result to state when it
- * resolves. The scan generation guards against rapid Open succession:
- * a stale resolution finds a bumped generation and bails silently.
- *
- * Errors are logged and produce an empty cluster — the indicator just
- * stays hidden, no toast or banner ("graceful disabled").
- */
-export function scheduleClusterDetection(path: string, ctx: AppContext, io: PlatformIO): void {
-  const myGeneration = ctx.state.beginClusterScan();
-  void detectContextCluster(path, io)
-    .then((cluster) => {
-      if (myGeneration !== ctx.state.clusterScanGeneration) return;
-      ctx.state.setCluster(cluster);
-    })
-    .catch((e) => {
-      console.warn('cluster detection failed:', e);
-      if (myGeneration !== ctx.state.clusterScanGeneration) return;
-      ctx.state.setCluster(ContextCluster.empty(path));
-    });
 }

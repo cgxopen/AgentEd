@@ -12,6 +12,14 @@ export interface ClusterPopoverCallbacks {
   onOpenEntry: (path: string) => Promise<void>;
   /** Re-run cluster detection for the current document. */
   onRefresh: () => Promise<void>;
+  /**
+   * Called when the popover is asked to open and has nothing to show.
+   *
+   * A callback rather than a message written here, because the wording
+   * lives in the app layer (#61) and this module renders. Required, not
+   * optional: the whole point is that this branch cannot be silent.
+   */
+  onNothingToShow: () => void;
 }
 
 export interface ClusterPopover {
@@ -66,7 +74,25 @@ export function setupClusterPopover(callbacks: ClusterPopoverCallbacks): Cluster
       close();
       return;
     }
-    if (cluster && cluster.relatedCount > 0) open(cluster);
+    if (cluster && cluster.relatedCount > 0) {
+      open(cluster);
+      return;
+    }
+    // **Unreachable by arrangement, and it answers anyway** (#130). At
+    // count 0 the indicator is withdrawn completely and the overflow
+    // menu does not offer it, so nothing is left to click. That was also
+    // true of the arrangement this replaced — the indicator was hidden
+    // then too — and the menu quietly handed the user a copy of it. A
+    // branch that is unreachable by arrangement and silent by
+    // construction is how the next arrangement gets away with it.
+    //
+    // Anti-regression, same shape as `hydrateSnippets` below: nothing
+    // should route a click here, so in dev this is an error, while the
+    // user is told the same thing either way.
+    if (import.meta.env.DEV) {
+      console.error('cluster popover: asked to open with nothing to show');
+    }
+    callbacks.onNothingToShow();
   }
 
   // Click outside / Escape to close.
