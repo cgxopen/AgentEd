@@ -34,10 +34,11 @@ export class WebIO implements PlatformIO {
    * Whether a directory handle has been granted in this session (#46).
    *
    * `documentPath` is deliberately unused here, and that is the whole
-   * difference between this platform and the desktop one: a web path is a
-   * bare file name — `pickSavePath` returns `handle.name` and `openFile`
-   * returns the same — so it carries no parent to answer from. `assets/`
-   * is resolved against `dirHandle`, so the handle is the entire answer.
+   * difference between this platform and the desktop one: a web path
+   * carries no root — `pickSavePath` returns `handle.name`, and `openFile`
+   * returns at best a path relative to the granted folder (#141) — so
+   * there is no parent to answer from. `assets/` is resolved against
+   * `dirHandle`, so the handle is the entire answer.
    *
    * `pickSavePath` is what acquires that handle, which is why the insert
    * flow asks this **after** the destination step rather than before: ask
@@ -56,6 +57,36 @@ export class WebIO implements PlatformIO {
   /** Transient file handles from pickFile(), keyed by the returned pseudo-path */
   private pickedFiles = new Map<string, FileSystemFileHandle>();
 
+  /**
+   * The document File → Open was handed, under the exact path this
+   * platform answered for it — and **only** when the granted folder
+   * cannot name that file itself (#141).
+   *
+   * On the web a path is not an identity: `openFile` used to answer
+   * `handle.name`, and every later lookup by that bare name was
+   * addressed to something that does not identify the file the user
+   * picked. Against a grant it either missed — the reported failure —
+   * or found a same-named neighbour at the grant root and answered with
+   * that instead, silently, for reads *and* for the save that followed.
+   *
+   * Two answers, in this order:
+   *
+   * **A path the grant can name.** `pathWithinGrant` asks the granted
+   * folder where the file is; when it says `doc/notes.md`, that path
+   * already resolves to this very file through the existing navigation,
+   * with the read-write permission the grant carries. Nothing is
+   * registered — there is nothing here the ordinary lookup gets wrong.
+   *
+   * **No such path.** Either no folder was granted, or the file is
+   * outside the one that was. Then the name is all there is, and it is
+   * this handle's name: it is registered so that name reaches this file
+   * and no other. A same-named file inside the grant is shadowed for as
+   * long as this document is open, which is the deliberate half of the
+   * trade — the alternative is the user's document written into a file
+   * they never opened.
+   */
+  private openedFile: { path: string; handle: FileSystemFileHandle } | null = null;
+
   async openFile(_path?: string): Promise<FileResult | null> {
     try {
       const [handle] = await window.showOpenFilePicker({
@@ -72,7 +103,15 @@ export class WebIO implements PlatformIO {
       this.fileHandle = handle;
       const file = await handle.getFile();
       const content = await file.text();
-      return { content, path: handle.name };
+      // The path the grant can name this file by, when there is one;
+      // otherwise its bare name, and then the handle is registered under
+      // it so the name reaches this file (#141). The content goes back
+      // with it: the caller has been handed the text this platform read
+      // from the picked handle itself, and re-reading it by name is the
+      // lookup that went wrong.
+      const within = await this.pathWithinGrant(handle);
+      this.openedFile = within === null ? { path: handle.name, handle } : null;
+      return { content, path: within ?? handle.name };
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return null;
       console.error('openFile failed:', e);
@@ -115,7 +154,8 @@ export class WebIO implements PlatformIO {
    * half — see `grantedFileFor`.
    */
   async readText(path: string): Promise<string> {
-    const handle = (await this.resolveFileHandle(path)) ?? this.grantedFileFor(path);
+    const handle =
+      this.openedFileFor(path) ?? (await this.resolveFileHandle(path)) ?? this.grantedFileFor(path);
     if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
     const file = await handle.getFile();
     return await file.text();
@@ -138,9 +178,18 @@ export class WebIO implements PlatformIO {
   async readSnapshot(path: string): Promise<FileSnapshot> {
     const parts = path.split('/').filter(Boolean);
     const name = parts.pop() ?? '';
+    const opened = this.openedFileFor(path);
     const granted = this.grantedFileFor(path);
     let handle: FileSystemFileHandle;
-    if (this.dirHandle) {
+    if (opened) {
+      // The file File → Open was handed, under the path answered for it
+      // (#141). It is exactly the file `saveFile` writes for this path,
+      // so it is exactly the file R-C14 has to compare against — asking
+      // the granted folder instead answers about a different file, and
+      // then the user is shown a conflict about a document they never
+      // opened.
+      handle = opened;
+    } else if (this.dirHandle) {
       try {
         const dir = await this.navigateToDirByParts(parts, false);
         handle = await dir.getFileHandle(name);
@@ -185,6 +234,12 @@ export class WebIO implements PlatformIO {
       // which would destroy an existing document the moment the user picks
       // it in the dialog — before any save decision (R-C3).
       this.fileHandle = handle;
+      // Save As re-anchors the document, so whatever File → Open
+      // registered no longer describes it (#141). Left in place, an
+      // opened file registered under a bare name would go on shadowing
+      // that same name at the folder granted a moment later — including
+      // the destination just picked.
+      this.openedFile = null;
       // Acquire directory handle for multi-file operations
       await this.acquireDirectoryHandle();
       return handle.name;
@@ -218,7 +273,8 @@ export class WebIO implements PlatformIO {
       this.pickedFiles.delete(path); // transient, clean up
       return new Uint8Array(await file.arrayBuffer());
     }
-    const handle = (await this.resolveFileHandle(path)) ?? this.grantedFileFor(path);
+    const handle =
+      this.openedFileFor(path) ?? (await this.resolveFileHandle(path)) ?? this.grantedFileFor(path);
     if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
     const file = await handle.getFile();
     return new Uint8Array(await file.arrayBuffer());
@@ -376,6 +432,51 @@ export class WebIO implements PlatformIO {
   }
 
   /**
+   * Where the granted folder says `handle` is, as a path relative to it
+   * — or `null` when it cannot say (#141).
+   *
+   * `resolve` is the only member of the File System Access API that
+   * answers the question this platform kept getting wrong: *which file
+   * is this*. When it answers, the path it gives already works with
+   * every lookup in this class, and it carries the grant's read-write
+   * permission, so the file needs no registration of its own.
+   *
+   * `null` for all three ways of not knowing: no folder was granted, the
+   * file is outside the one that was, and the browser does not implement
+   * `resolve`. The caller treats them identically — it falls back to the
+   * handle's own name — so telling them apart here would buy nothing.
+   */
+  private async pathWithinGrant(handle: FileSystemFileHandle): Promise<string | null> {
+    const dir = this.dirHandle;
+    if (!dir || typeof dir.resolve !== 'function') return null;
+    try {
+      const parts = await dir.resolve(handle);
+      return parts && parts.length > 0 ? parts.join('/') : null;
+    } catch {
+      // A grant that has lapsed, or a handle from another file system.
+      // Either way this platform cannot name the file from here.
+      return null;
+    }
+  }
+
+  /**
+   * The file File → Open was handed, when `path` is exactly the path
+   * this platform answered for it (#141).
+   *
+   * **The whole path, and the one this class produced** — the same
+   * narrowness `grantedFileFor` is written to, and for the same reason.
+   * Nothing matches by basename, nothing matches because a lookup
+   * elsewhere failed, and nothing matches a path AgentEd did not itself
+   * hand out for this handle. `openedFile` is set in one place and
+   * cleared in one other, both of them the moment a document's identity
+   * changes.
+   */
+  private openedFileFor(path: string): FileSystemFileHandle | null {
+    if (!this.openedFile) return null;
+    return path === this.openedFile.path ? this.openedFile.handle : null;
+  }
+
+  /**
    * The one file this platform was granted, when `path` names **that**
    * file and nothing else.
    *
@@ -427,6 +528,13 @@ export class WebIO implements PlatformIO {
   // Note: without a directory handle the web build can only write the
   // file the user picked; Save As is what upgrades the access.
   private async resolveOrCreateFileHandle(path: string): Promise<FileSystemFileHandle> {
+    // The opened file first, and this is the half of #141 that makes the
+    // open worth fixing: a read that answers with the picked file and a
+    // write that lands somewhere else is not an improvement. Asked
+    // before the granted folder because this path is precisely the one
+    // the folder cannot name.
+    const opened = this.openedFileFor(path);
+    if (opened) return opened;
     if (this.dirHandle) {
       const parts = path.split('/').filter(Boolean);
       const name = parts.pop()!;

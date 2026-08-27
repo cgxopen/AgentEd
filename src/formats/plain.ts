@@ -21,7 +21,24 @@ export interface LoadResult {
 }
 
 export async function loadMarkdown(path: string, io: PlatformIO): Promise<LoadResult> {
-  const text = await io.readText(path);
+  return parseMarkdown(await io.readText(path), path);
+}
+
+/**
+ * The same `LoadResult`, from text that has already been read (#141).
+ *
+ * `loadMarkdown` is one read followed by this split, and the split is
+ * pure. It is separate so a caller that was *handed* the file's text —
+ * `openFile` reads it from the picked handle before it answers — can
+ * build the bundle from that text instead of asking the platform to
+ * find the file a second time by name. On the web that second lookup is
+ * what went wrong; on the desktop it is one read of a file already in
+ * memory.
+ *
+ * `diskText` means the same thing either way: exactly the text that was
+ * on disk, and therefore the R-C14 baseline.
+ */
+export function parseMarkdown(text: string, path: string): LoadResult {
   const { raw, body } = splitFrontmatter(text);
   return {
     bundle: {
