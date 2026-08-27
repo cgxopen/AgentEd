@@ -61,26 +61,50 @@ export function imageGestureTooLargeMessage(
  * here and not in the editor layer, and why a new reason cannot be added
  * without this switch refusing to compile.
  *
- * **`no-folder-access` names the step, because the step exists.**
- * Measured on the web build: `pickSavePath` calls the directory picker
- * straight after the save picker, and with that handle `mkdir`,
- * `writeBinary` and `exists` all work on `assets/`. So "use Save As" is
- * advice that leads somewhere — which is the whole test a message like
- * this has to pass, and the reason the wording could not be written
- * before the measurement.
+ * **`no-folder-access` is about *this document's* folder, and names a
+ * step, because the step exists.** Two states reach it and the sentence
+ * is true of both without telling them apart, which is the rule (#58,
+ * #127): the web build with no folder granted at all, and — since #148 —
+ * a document saved somewhere the granted folder cannot reach. The fact
+ * they share is the one `canWriteCompanions` now asks about, so the
+ * sentence states it and asserts no cause beyond it.
  *
- * **`assets-folder-unreadable` states what happened, because no step in
- * AgentEd fixes it** (#58). The measurement found no in-app action that
- * changes the answer: the folder is there and something outside the
- * editor is keeping it shut. So the sentence says the image was not
- * added, and then names the two causes a user can actually go and look
- * at — a program holding the folder, or the permission to read it.
- * "Permission" rather than "the folder's permissions" on purpose: on
- * the desktop build it is the operating system's, on the web build it is
- * the access granted in the browser, and one reason carries one sentence
- * for every platform. It offers no advice it cannot keep, and in
- * particular it does not send the user to Save As, which is the other
- * reason's answer and would move the document to fix a folder.
+ * **The step was measured from both** (#46, #148). From the first,
+ * `pickSavePath` calls the directory picker straight after the save
+ * picker, and with that handle `mkdir`, `writeBinary` and `entryPresence`
+ * all work on `assets/`. From the second, two routes were measured and
+ * both come back working: a Save As into the granted folder, and a Save
+ * As that grants the folder the document is in. So "Use Save As" leads
+ * somewhere from either state — the whole test a message like this has
+ * to pass. It says *allow access to that folder* rather than *choose
+ * where it lives*, because the document in the second state already
+ * lives somewhere; what it lacks is the access.
+ *
+ * **It says the image was not added**, because nothing happened at all:
+ * the insert refuses before the image is placed, so the document is
+ * exactly as it was. The save-time twin of this state says the other
+ * half — the document reached disk and its images did not — and lives in
+ * `document-actions.ts`, where the save can say it.
+ *
+ * **`assets-folder-unreadable` states what happened, and names the one
+ * step measured to change it** (#58, #125, #129). The folder is there
+ * and could not be listed, and two causes arrive at this same exit with
+ * no way to tell them apart here — so neither is asserted as fact.
+ *
+ * This sentence used to name *another program has it open* as one of
+ * two things to check. That cause was never measured: #125 records that
+ * no reliable way to arrange it was found on Windows, and a message is a
+ * promise about where to look. It is gone rather than left standing.
+ *
+ * It also used to offer no step at all, on the grounds that nothing in
+ * AgentEd changes the answer. #129 measured a state where something
+ * does: a folder grant revoked mid-session leaves the handle in memory,
+ * `canWriteCompanions` answers from the handle rather than from a
+ * permission, and the insert reaches here — where a Save As re-acquires
+ * the grant. So the step is named, and the sentence is honest that it
+ * may not be enough: what is left when it changes nothing is a folder
+ * being kept shut from outside, which is the other cause without
+ * claiming to have identified it.
  *
  * **No `NO_DIR_HANDLE`, no `listDir`, no error code.** `NO_DIR_HANDLE`
  * is in four throw sites in `web.ts` and none of it is written for a
@@ -91,9 +115,9 @@ export function imageGestureTooLargeMessage(
 export function imageInsertUnavailableMessage(reason: ImageInsertUnavailableReason): string {
   switch (reason) {
     case 'no-folder-access':
-      return 'AgentEd needs access to this document\u2019s folder to save images. Use Save As to choose where it lives, then insert the image again.';
+      return 'AgentEd doesn\u2019t have access to the folder this document is in, so the image wasn\u2019t added. Use Save As to allow access to that folder, then insert the image again.';
     case 'assets-folder-unreadable':
-      return 'Can\u2019t read the assets folder next to this document, so the image wasn\u2019t added. Check whether another program has it open, or whether AgentEd still has permission to read it.';
+      return 'Can\u2019t read the assets folder next to this document, so the image wasn\u2019t added. Use Save As to grant folder access again; if that changes nothing, the folder is being kept shut from outside AgentEd.';
   }
 }
 
