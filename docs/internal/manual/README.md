@@ -19,6 +19,18 @@ Each fixture belongs to the issue in its name, is referred to by its exact byte 
 
 **`110-regression.md` writes the same bytes on both builds, deliberately.** It is the half that catches a fix that went too far, and on its own it proves nothing about whether the fix landed. The script says so on every run.
 
+## Checking the build before checking anything else
+
+`Test-BuildIdentity.ps1` answers the question every manual pass depends on and none of the byte checks can see: **is this the build the pull request names?** It takes the seven characters as a parameter, so it does not go stale between commits.
+
+```
+powershell -ExecutionPolicy Bypass -File Test-BuildIdentity.ps1 -Commit 0000000
+```
+
+It checks the two artifact zips are here under the names the run gave them, and then reads the commit **out of the web bundle** rather than off the file name — `vite.config.ts` bakes it in as `__BUILD_COMMIT__` and About reads it from there, so a zip renamed by hand fails even though its name looked right. The Windows installer cannot be checked this way: its commit is only readable from the running application, which is what About is for.
+
+No network, and the only thing it writes is a temporary folder it removes again.
+
 ## Checking a run
 
 `Test-104.ps1` does the comparing — it covers #104 and #110, and keeps its name because that is what the owner has a shortcut to, so a manual step is a run with a verdict rather than an eyeball over a text file. It takes two stages, with the editor in between:

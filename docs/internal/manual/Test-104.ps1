@@ -283,9 +283,9 @@ function Invoke-Before {
     # just cover this shape -- a silent truncation here would come back as a
     # confusing After stage rather than as an error.
     $state | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $StateFile -Encoding UTF8
-    Write-Host 'All three fixtures are the right bytes, and a copy of each was kept as *.before.' -ForegroundColor Green
+    Write-Host "All $($FIXTURES.Count) fixtures are the right bytes, and a copy of each was kept as *.before." -ForegroundColor Green
     Write-Host ''
-    Write-Host 'Now, in AgentEd, for each of the three files in turn:' -ForegroundColor Cyan
+    Write-Host "Now, in AgentEd, for each of the $($FIXTURES.Count) files in turn:" -ForegroundColor Cyan
     Write-Host '  1. File > Open, and pick the file from this folder.'
     Write-Host '  2. Check About reports the commit the pull request names.'
     Write-Host '  3. Type nothing. Click nothing in the document.'
@@ -386,10 +386,13 @@ function Invoke-After {
         Write-Host "$unsaved file(s) were never written. Save them and run -Stage After again." -ForegroundColor Yellow
     }
     if ($failed -eq 0 -and $unsaved -eq 0) {
-        Write-Host 'All three behaved exactly as this build should. #104 checks out.' -ForegroundColor Green
+        Write-Host "All $($FIXTURES.Count) behaved exactly as this build should. #104 and #110 check out." -ForegroundColor Green
         Write-Host ''
-        Write-Host 'One thing this script cannot see: whether the boxes were on screen while' -ForegroundColor Cyan
-        Write-Host 'the file was open. Say so separately -- the bytes are only half of it.'
+        Write-Host 'Two things this script cannot see. Whether each block was drawn INSIDE its' -ForegroundColor Cyan
+        Write-Host 'item, beside the bullet, rather than on the line after it with the bullet'
+        Write-Host 'left empty -- that is the #110 defect, and it is visible before any save.'
+        Write-Host 'And whether an ordinary list still edits: Enter, Tab, Shift-Tab. Say both'
+        Write-Host 'separately -- the bytes are only half of it.'
     }
     elseif ($failed -gt 0) {
         Write-Host "$failed file(s) did not behave as expected. The lines above say how." -ForegroundColor Red
