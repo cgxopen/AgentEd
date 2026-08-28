@@ -208,19 +208,88 @@ describe('a fence alone in its container survives with it (#104)', () => {
     );
   });
 
-  it('is never consulted for a task item, because a checkbox is a void element', () => {
-    // The `LI` entry in the container table has to make the same split the two
-    // list rules make between them — rule *precedence* is what keeps those two
-    // filters apart, and a blank node never reaches the rule array to be
-    // ordered by it. That split is written for correctness, not for a shape
-    // this pipeline can produce: turndown counts a node holding a **void**
-    // element as non-blank, and every task item `marked` makes holds a
-    // checkbox `<input>`. So a task item is never blank, its fence is reached
-    // by the fence rule as any other is, and the hook is not consulted for the
-    // item at all — which is why nothing here asserts how one is spelled.
-    const markdown = '- [ ] todo\n\n  ```\n  ```';
-    expect(markdownToHtml(markdown)).toContain('<input');
-    expect(roundtrip(markdown)).toContain('```\n  ```');
+  it('is reached, for a task item, by an empty fence and by nothing else (#104, amended by #160)', () => {
+    // ── The premise this row used to pin, and why it was right ──
+    //
+    // It read *is never consulted for a task item, because a checkbox is a
+    // void element*, and that was true when it was written. turndown counts a
+    // node holding a **void** element as non-blank, `INPUT` is on its void
+    // list, and every task item `marked` produced held a checkbox `<input>` —
+    // so the `LI` entry in the container table was written for correctness and
+    // could not be reached by a task item at all.
+    //
+    // **#160 made the premise false, deliberately.** The checkbox rewrite in
+    // `parse.ts` now matches the loose spelling too — `<li><p><input>`, which
+    // is what a list with blank lines between its items produces — and removes
+    // that input. From then on a task item can be blank. Before it, a loose
+    // task list lost every marker it had.
+    //
+    // ── What reaches the branch, stated as a rule and not as a list ──
+    //
+    // A task item whose content, under turndown's own `isBlank`, is an **empty
+    // fenced block** — with or without a language — wrapped in **zero or more
+    // containers that are themselves blank**, drawn from the container table's
+    // own keys. Nothing else reaches it: the fence is the only blank node this
+    // repository writes anything for, so every other blank item arrives with
+    // an empty `content` and turndown's own blank rule keeps it, exactly as
+    // before. Five shapes were measured on #160 and all five are that one
+    // sentence; the rows here are its evidence, not its statement.
+    //
+    // ── That it is correct there, and why it is not luck ──
+    //
+    // **#157 rewrote `taskListItemReplacement` to work from the node rather
+    // than from `content`.** On the blank path `content` is empty while the
+    // node still holds the blocks, so the marker and the fence are both
+    // written. Before #157 the branch would have written an empty marker.
+    // Whoever moves that replacement back to reading `content` takes this with
+    // it.
+    //
+    // ── What cannot reach it, and whose exclusion that is ──
+    //
+    // A table, a horizontal rule, an image and a link with no text are **not
+    // blank for turndown at all**: `TABLE` and `A` are on its
+    // `meaningfulWhenBlank` list, `HR` and `IMG` on its void list, and a node
+    // holding any of them is non-blank by the same rule. So a task item whose
+    // whole body is one of those never reaches this hook. **That exclusion is
+    // turndown's rather than ours**, and it is asserted below against a
+    // service that has never heard of this repository — a reader must not have
+    // to infer the domain from the cases someone happened to measure.
+    const stock = () => new TurndownService({ codeBlockStyle: 'fenced', fence: '```' });
+    const taskItemHolding = (inner: string) =>
+      `<ul data-type="taskList"><li data-type="taskItem" data-checked="false">${inner}</li></ul>`;
+
+    // The line that used to assert the opposite, kept in that shape so the
+    // amendment is legible as one.
+    expect(markdownToHtml('- [ ] todo\n\n  ```\n  ```')).not.toContain('<input');
+
+    // Reached, and correct: the closure's shapes, at depth zero and one.
+    expect(roundtrip('- [ ] ```\n  ```')).toBe('- [ ] ```\n  ```');
+    expect(roundtrip('- [ ] ```js\n  ```')).toBe('- [ ] ```js\n  ```');
+    expect(roundtrip('- [ ] > ```\n  > ```')).toBe('- [ ] > ```\n  > ```');
+    expect(roundtrip('- [ ] - ```\n    ```')).toBe('- [ ] - ```\n    ```');
+    expect(roundtrip('> - [ ] ```\n>   ```')).toBe('> - [ ] ```\n>   ```');
+
+    // Blank under turndown's rule — a stock service drops the whole item, which
+    // is the loss this branch exists to prevent.
+    for (const inner of [
+      '<pre><code></code></pre>',
+      '<pre><code class="language-js"></code></pre>',
+      '<blockquote><pre><code></code></pre></blockquote>',
+      '<ul><li><pre><code></code></pre></li></ul>',
+    ]) {
+      expect(stock().turndown(taskItemHolding(inner))).toBe('');
+    }
+
+    // Not blank under that same rule, so unreachable here whatever this
+    // repository does: a stock service keeps the item.
+    for (const inner of [
+      '<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>',
+      '<hr>',
+      '<img src="x.png">',
+      '<a href="x"></a>',
+    ]) {
+      expect(stock().turndown(taskItemHolding(inner))).not.toBe('');
+    }
   });
 
   it('writes what turndown itself writes for every container but the one holding a fence', () => {

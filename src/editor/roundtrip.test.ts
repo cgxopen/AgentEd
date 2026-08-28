@@ -137,6 +137,8 @@ const SINGLE_TILDE = 'R-C2: single-tilde strikethrough is written with two';
 const TABLE_SPELLINGS = 'R-C2: five table spellings AgentEd cannot hold';
 const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
 const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
+/** Two recorded exceptions meeting on one document, not a third one. */
+const LOOSE_ORDERED_MARKER = `${LOOSE_LISTS} + ${ORDERED_TASK_MARKER}`;
 
 /**
  * Every shape `markdown/roundtrip.test.ts` covers, plus the six shapes of #84,
@@ -228,10 +230,13 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   // saved as `- [ ] a`, and so did the blockquote and the fence.
   //
   // They are pinned **tight** — one newline between the item's blocks, never a
-  // blank line — because that is the only spelling that reads back as the same
-  // item. A blank line inside a task item puts the `<input>` inside the first
-  // paragraph, which is not a task item any more, so a loose spelling would
-  // trade the block this fixed for the checkbox.
+  // blank line — because that is the spelling a saved file settles on. A blank
+  // line inside a task item puts the `<input>` inside the item's first
+  // paragraph, and **until #160 that spelling was not read as a task item at
+  // all**, so a loose row here would have traded the block this fixed for the
+  // checkbox. It is read as one now and written back tight, under the
+  // loose-list exception; the tight rows are still what a save produces, which
+  // is what they assert.
   ['a list nested under a task item', '- [ ] a\n  - b', 'identical'],
   ['an ordered list nested under a task item', '- [ ] a\n  1. b', 'identical'],
   ['a task list nested under a task item', '- [ ] a\n  - [x] b', 'identical'],
@@ -323,6 +328,110 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['a task list nested under an ordered item', '1. a\n   - [ ] b', 'identical'],
   ['an ordered list nested inside a bullet item', '- a\n  1. b', 'identical'],
   ['a bullet list nested inside an ordered item', '1. a\n   - b', 'identical'],
+
+  // ── A loose task list (#160, member 3a) ──
+  //
+  // A list written with blank lines between its items — the way people write
+  // a to-do list, because it reads better — **lost every marker it had**:
+  // `- [ ] a`⏎⏎`- [ ] b`, sixteen bytes, was written `- a`⏎`- b`, seven. The
+  // words survived and the checkboxes did not, so a to-do list became a plain
+  // list on the first save.
+  //
+  // The cause was one selector. `marked` puts the checkbox directly in the
+  // item for a tight list and inside the item's first `<p>` for a loose one,
+  // and the rewrite in `parse.ts` matched only the first spelling; the second
+  // reached ProseMirror as an `<input>` no schema node can hold, and was
+  // dropped with the marker it stood for. The rewrite matches both now.
+  //
+  // **What is left is the loose-list exception and nothing else**: the blank
+  // line goes, the markers stay. That exception is recorded, and it needed one
+  // clause to say plainly that a task list is a list — `taskList` carries no
+  // loose/tight distinction any more than `bulletList` does, which is the
+  // exception's own stated mechanism.
+  //
+  // The last row is the shape that made this a gate rather than a footnote:
+  // removing the `<input>` is what lets a task item be **blank** for turndown,
+  // which is the premise `empty-fence.test.ts` pins from #104. It is amended
+  // in the same pull request, and the branch is correct where it is reached —
+  // see that file for the rule and for what cannot reach it.
+  ['a loose task list', '- [ ] a\n\n- [ ] b', { writes: '- [ ] a\n- [ ] b', because: LOOSE_LISTS }],
+  [
+    'a loose task list, both ticked',
+    '- [x] a\n\n- [x] b',
+    { writes: '- [x] a\n- [x] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task list, one of each',
+    '- [x] a\n\n- [ ] b',
+    { writes: '- [x] a\n- [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task list of three items',
+    '- [ ] a\n\n- [x] b\n\n- [ ] c',
+    { writes: '- [ ] a\n- [x] b\n- [ ] c', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose list of a task item and a plain one',
+    '- [ ] a\n\n- b',
+    { writes: '- [ ] a\n- b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task list with a task list nested in it',
+    '- [ ] a\n\n  - [ ] n\n\n- [ ] b',
+    { writes: '- [ ] a\n  - [ ] n\n- [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task list inside a blockquote',
+    '> - [ ] a\n>\n> - [ ] b',
+    { writes: '> - [ ] a\n> - [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task list with an empty item',
+    '- [ ] \n\n- [ ] b',
+    { writes: '- [ ] \n- [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task item whose whole content is an empty fence',
+    '- [ ] \n\n  ```\n  ```\n\n- [ ] b',
+    { writes: '- [ ] ```\n  ```\n- [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task item whose whole content is an empty fence with a language',
+    '- [ ] \n\n  ```js\n  ```\n\n- [ ] b',
+    { writes: '- [ ] ```js\n  ```\n- [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task item holding a blockquote holding an empty fence',
+    '- [ ] \n\n  > ```\n  > ```\n\n- [ ] b',
+    { writes: '- [ ] > ```\n  > ```\n- [ ] b', because: LOOSE_LISTS },
+  ],
+  [
+    'a loose task item holding a nested list holding an empty fence',
+    '- [ ] \n\n  - ```\n    ```\n\n- [ ] b',
+    { writes: '- [ ] - ```\n    ```\n- [ ] b', because: LOOSE_LISTS },
+  ],
+
+  // ── A loose *ordered* list of markers (#160, members 3a and 3b together) ──
+  //
+  // The same selector, so the same widening reaches it, and it lands where
+  // #165 already put the tight spelling: the marker is given back as text and
+  // turndown escapes the brackets. Until this it lost the marker outright —
+  // `1. [ ] a`⏎⏎`2. [ ] b` wrote `1. a`⏎`2. b` — which is a loss rather than a
+  // respelling, and is why it travels with member 3a rather than waiting.
+  //
+  // **Two recorded exceptions meet on one document here**, and that is all
+  // that happens: the blank line goes by the loose-list one, the brackets are
+  // escaped by the ordered-marker one. Neither is new.
+  [
+    'a loose ordered list of markers',
+    '1. [ ] a\n\n2. [ ] b',
+    { writes: '1. \\[ \\] a\n2. \\[ \\] b', because: LOOSE_ORDERED_MARKER },
+  ],
+  [
+    'a loose ordered list of markers, one ticked',
+    '1. [x] a\n\n2. [ ] b',
+    { writes: '1. \\[x\\] a\n2. \\[ \\] b', because: LOOSE_ORDERED_MARKER },
+  ],
 
   // ── A task item whose whole body is a block (#157) ──
   //
@@ -649,6 +758,43 @@ describe('an empty task item keeps the space GFM needs (#160)', () => {
     expect(saveUntrimmed('- [x] done')).toBe('- [x] done');
   });
 
+  it('keeps the space when the empty item ends a loose list (#160, member 3a)', () => {
+    // The one loose shape the table above cannot carry, for the reason this
+    // whole block exists: `openAndSave` trims, and the byte in question is the
+    // document's last one. Two differences, both recorded and neither new —
+    // the blank line goes by the loose-list exception, and the space after the
+    // marker stays because member 1 put it there. Before member 3a this whole
+    // item left the file: `- [ ] a`⏎⏎`- [ ] ` was written `- a`.
+    expect(saveUntrimmed('- [ ] a\n\n- [ ] ')).toBe('- [ ] a\n- [ ] ');
+    expect(saveUntrimmed('- [ ] \n\n- [ ] b')).toBe('- [ ] \n- [ ] b');
+
+    const once = saveUntrimmed('- [ ] a\n\n- [ ] ');
+    expect(saveUntrimmed(once)).toBe(once);
+    expect(saveUntrimmed(saveUntrimmed(once))).toBe(once);
+  });
+
+  it('LABELLED GAP: a nested empty task item still loses its marker (#160)', () => {
+    // **This asserts the loss, on purpose**, the way #103 left one for #104:
+    // whoever repairs it meets a decision here rather than a surprise, and a
+    // shape recorded only in a pull request description is a shape nobody
+    // finds again.
+    //
+    // An empty task item at the end of a **nested** list is written
+    // `- \[ \]` — literal brackets in a plain bullet, the checkbox gone — in
+    // one save, and then holds still. The cause is not the one member 3a
+    // repaired: `marked` never reads the nested item as a task item at all, so
+    // there is no `<input>` for the rewrite in `parse.ts` to find, whichever
+    // spelling it matches. **Measured on this branch, identical before the
+    // widening and after it**, which is what says the widening does not reach
+    // it.
+    //
+    // Recorded on #165 and again on #160 rather than opened as its own thread.
+    expect(saveUntrimmed('- [ ] a\n  - [ ] ')).toBe('- [ ] a\n  - \\[ \\]');
+
+    const once = saveUntrimmed('- [ ] a\n  - [ ] ');
+    expect(saveUntrimmed(once)).toBe(once);
+  });
+
   it('leaves a document that ends in anything else exactly as it was', () => {
     // The other half of the same claim, and the one #160 called a hazard: the
     // repair must not reach the end of every document. It cannot — it fires
@@ -692,34 +838,36 @@ describe('two adjacent lists of the same kind keep their blank line (#160)', () 
 });
 
 /**
- * What #160 still owns, asserted as the property rather than as bytes.
+ * The third save, for the shapes #160 used to leave open (#160).
  *
- * Two members are open, and neither is recorded as an R-C2 exception: an
- * exception is a statement that a difference is accepted, and these are not.
+ * This block asserted a *property* while three members were unbuilt: whatever
+ * they did, they had to do it once. All four are built now and every shape is
+ * in the table above as bytes — so what is left here is the one assertion the
+ * table does not make. It runs **two** saves after the first; two members of
+ * this issue used to be correct after the first and wrong after the second,
+ * settling only on the third, and a check that stops at two would have passed
+ * on both.
  *
- *  - **A loose task list is not read as one** (member 3a). Widening the
- *    checkbox rewrite in `parse.ts` to the `<li><p><input` shape a loose list
- *    produces is cheap in lines and turns `empty-fence.test.ts` red, because
- *    it removes the `<input>` that #104's reasoning rests on — a task item is
- *    never blank *because* it holds a void element. That premise gets its own
- *    measurement rather than riding along here.
- *  - **An ordered task list gains a bullet** (member 3b). Measured on this
- *    branch: leaving the input alone inside an `<ol>`, which is what would
- *    make `parse.ts` agree with `task-list.ts`, writes `1. a` — the marker
- *    gone rather than kept as text, because ProseMirror has no node for an
- *    `<input>`. Writing it back as literal text cannot be byte-identical
- *    either, since turndown escapes `[` and `]` wherever they appear.
- *
- * So what is pinned is the half of R-C2 that has no exceptions: **whatever
- * these two do, they do it once**. That is the assertion that was missing when
- * both members were met rather than caught, and it now runs against them from
- * here on, whichever way they are eventually decided.
+ * The loose rows are the ones that carried it furthest. Before member 3a a
+ * loose task list went 16 bytes → 9 → 7 at the pair level: the first save
+ * wrote two spaces after each marker and only the second settled, with the
+ * checkboxes already gone. That is the half of R-C2 which has never carried an
+ * exception, and it is the half a single save cannot see.
  */
-describe('the shapes #160 leaves open still settle after one save (#160)', () => {
+describe('the shapes #160 owned settle after one save, checked to the third (#160)', () => {
   it.each([
     ['a loose task list', '- [ ] a\n\n- [ ] b'],
+    ['a loose task list, both ticked', '- [x] a\n\n- [x] b'],
+    ['a loose task list of three items', '- [ ] a\n\n- [x] b\n\n- [ ] c'],
+    ['a loose task list with a nested one', '- [ ] a\n\n  - [ ] n\n\n- [ ] b'],
+    ['a loose task list inside a blockquote', '> - [ ] a\n>\n> - [ ] b'],
+    ['a loose task item holding an empty fence', '- [ ] \n\n  ```\n  ```\n\n- [ ] b'],
+    ['a loose list of a task item and a plain one', '- [ ] a\n\n- b'],
+    ['a loose ordered list of markers', '1. [ ] a\n\n2. [ ] b'],
     ['an ordered task list', '1. [ ] a'],
     ['an ordered task list of two items', '1. [ ] a\n2. [ ] b'],
+    ['a mixed list', '- [ ] a\n- b'],
+    ['a tight task list', '- [ ] a\n- [x] b'],
   ])('%s', (_label, markdown) => {
     const first = openAndSave(markdown);
     const second = openAndSave(first);

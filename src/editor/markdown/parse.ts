@@ -72,7 +72,7 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   });
 }
 
-// ── The two lists a task marker can appear in (#160) ──
+// ── The two lists a task marker can appear in, and the two spellings (#160) ──
 //
 // GFM puts a task marker in an ordered list as readily as in a bullet one, and
 // `marked` writes the same `<input>` for both. This used to be a pair of
@@ -86,6 +86,23 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
 //
 // The rewrite is a DOM pass now, because the decision needs the parent and a
 // regular expression over a string does not have one.
+//
+// ── The two spellings, and the one that used to be missed ──
+//
+// The same marker is written two ways depending on how the list is spaced:
+// `<li><input> a` for a tight list, `<li><p><input> a</p>` for a loose one —
+// blank lines between the items, which is how a to-do list is often written
+// because it reads better. Only the tight spelling was matched, so a loose
+// task list reached ProseMirror with an `<input>` no schema node can hold and
+// **lost every marker it had**: `- [ ] a`⏎⏎`- [ ] b` was written `- a`⏎`- b`,
+// sixteen bytes to seven, the words kept and the checkboxes gone. What is left
+// now is the blank line, which is the loose-list exception R-C2 records.
+//
+// **That widening has a cost outside this file**, and it is written down where
+// it lands: removing the `<input>` is what lets a task item be *blank* for
+// turndown, which is the premise #104 rests on. See the amendment in
+// `empty-fence.test.ts` for the rule, for why the branch is correct where it
+// is now reached, and for what cannot reach it.
 //
 // ── Why the two branches differ, and why the `<ol>` one writes text ──
 //
@@ -114,9 +131,13 @@ function isChecked(input: Element): boolean {
  * text. A task item drops both the input and that space, the way the regular
  * expressions here used to with `\s*`; an ordered item keeps the space,
  * because the marker it is being given back ends where the text begins.
+ *
+ * The element passed is whatever held the checkbox — the item itself in a
+ * tight list, the item's first paragraph in a loose one — because that is
+ * where the space is.
  */
-function dropLeadingSpace(li: Element): void {
-  const first = li.firstChild;
+function dropLeadingSpace(holder: Element): void {
+  const first = holder.firstChild;
   if (first !== null && first.nodeType === Node.TEXT_NODE) {
     first.textContent = (first.textContent ?? '').replace(/^\s+/, '');
   }
@@ -126,29 +147,38 @@ export function rewriteCheckboxes(html: string): string {
   const container = document.createElement('div');
   container.innerHTML = html;
 
-  // Only a checkbox that is the item's own child, which is the shape a tight
-  // list produces. A loose list puts it inside a paragraph instead, and that
-  // shape is deliberately not matched here — it is the open member of #160,
-  // and reaching it removes an element #104's reasoning rests on.
-  const checkboxes = Array.from(container.querySelectorAll('li > input[type="checkbox"]'));
+  // The two shapes `marked` writes a task marker in. A **tight** list puts the
+  // checkbox directly in the item; a **loose** one — blank lines between the
+  // items — wraps every item body in a `<p>`, and the checkbox goes inside it.
+  // It is the same marker in the same position of the same item, so both are
+  // matched. Only the tight one used to be, and a loose task list therefore
+  // arrived at ProseMirror with an `<input>` no schema node can hold: every
+  // marker was dropped, `- [ ] a`⏎⏎`- [ ] b` saving as `- a`⏎`- b`.
+  const checkboxes = Array.from(
+    container.querySelectorAll(
+      'li > input[type="checkbox"], li > p:first-child > input[type="checkbox"]',
+    ),
+  );
   if (checkboxes.length === 0) return html;
 
   for (const input of checkboxes) {
-    // The selector guarantees the parent is an `<li>`; what holds *that* is
-    // the question this pass exists to answer.
-    const item = input.parentElement as HTMLElement;
-    const list = item.parentElement;
+    // The selector guarantees the parent is an `<li>` or the item's first
+    // `<p>`; the marker belongs to the item either way, and it is what holds
+    // *that* which this pass exists to answer.
+    const holder = input.parentElement as HTMLElement;
+    const item = (holder.nodeName === 'LI' ? holder : holder.parentElement) as HTMLElement | null;
+    const list = item?.parentElement;
 
-    if (list?.nodeName === 'UL') {
+    if (item && list?.nodeName === 'UL') {
       item.setAttribute('data-type', 'taskItem');
       item.setAttribute('data-checked', isChecked(input) ? 'true' : 'false');
-      item.removeChild(input);
-      dropLeadingSpace(item);
+      holder.removeChild(input);
+      dropLeadingSpace(holder);
       continue;
     }
 
-    if (list?.nodeName === 'OL') {
-      item.replaceChild(
+    if (item && list?.nodeName === 'OL') {
+      holder.replaceChild(
         container.ownerDocument.createTextNode(isChecked(input) ? '[x]' : '[ ]'),
         input,
       );
