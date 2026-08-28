@@ -9,8 +9,8 @@
     measurements. This script does the comparing, so the manual step is a run
     with a verdict rather than an eyeball over a text file.
 
-    It covers #104 and #110. The name is still Test-104.ps1 because that is
-    what the owner has a shortcut to; renaming it, its state file and every
+    It covers #104, #110 and #157. The name is still Test-104.ps1 because that
+    is what the owner has a shortcut to; renaming it, its state file and every
     reference is worth one line in whichever pull request next has a reason to
     touch this folder, and is not worth widening a fix's diff for.
 
@@ -155,6 +155,63 @@ $FIXTURES = @(
         # about whether the fix landed. Said out loud on every run.
         Stale      = ''
         Note       = 'this file writes the same bytes on the old build too -- it checks for overreach, not for the fix'
+    },
+    [pscustomobject]@{
+        Name       = '157-task-item.md'
+        Size       = 886
+        Hash       = 'A71F310E1174B295B43E505785F3AF93CBCF70595507D9656C2F140EFBA18BA7'
+        AfterSize  = 886
+        AfterHash  = 'A71F310E1174B295B43E505785F3AF93CBCF70595507D9656C2F140EFBA18BA7'
+        StaleSize  = 890
+        StaleHash  = '953F925E18FB60A37C8C40A0749CE6E3FCA3D9CB7A8C2700890DB5F60CB80D36'
+        Expect     = 'must not change at all -- 886 bytes, same digest'
+        Note       = ''
+        Stale      = 'every box was emptied and its block written on the line below, at the margin -- that is the build before #157'
+    },
+    [pscustomobject]@{
+        Name       = '157-nested.md'
+        Size       = 1039
+        Hash       = '4981B17CEBC030613F55AAC0C12037C87AF6A47942FE8B7221A5667F8C8EEEE1'
+        AfterSize  = 1039
+        AfterHash  = '4981B17CEBC030613F55AAC0C12037C87AF6A47942FE8B7221A5667F8C8EEEE1'
+        StaleSize  = 917
+        StaleHash  = '89647C9C40BAABF0B368645F88E39BC87F6B44B3CD52C19D84955756B3AB5F7A'
+        Expect     = 'must not change at all -- 1039 bytes, same digest'
+        # The only fixture in this folder whose stale build loses *text*: 122
+        # bytes of it, the nested list, the heading, the quote and the fence.
+        Note       = ''
+        Stale      = 'every second block was dropped, 122 bytes of text gone -- that is the build before #157'
+    },
+    [pscustomobject]@{
+        Name       = '157-regression.md'
+        Size       = 876
+        Hash       = '2A6B9DCAA02A4E27156F5D381329E559DC81CB422276C7E8C3C79160E421160B'
+        AfterSize  = 876
+        AfterHash  = '2A6B9DCAA02A4E27156F5D381329E559DC81CB422276C7E8C3C79160E421160B'
+        StaleSize  = 876
+        StaleHash  = '2A6B9DCAA02A4E27156F5D381329E559DC81CB422276C7E8C3C79160E421160B'
+        Expect     = 'must not change at all -- 876 bytes, same digest'
+        # The same half 110-regression.md is: #157 rewrites how *every* task
+        # item in every document is written, so an ordinary one is where a fix
+        # that went too far shows up. Proves nothing about whether it landed.
+        Stale      = ''
+        Note       = 'this file writes the same bytes on the old build too -- it checks for overreach, not for the fix'
+    },
+    [pscustomobject]@{
+        Name       = '157-mixed.md'
+        Size       = 1034
+        Hash       = 'A5A168141D0F0B5D4D7B46F049734D791424D909C6F259E27EDC1192378DFC27'
+        AfterSize  = 1035
+        AfterHash  = '86A4CF1B4889AA5BD74B76916F0C36C744546109A230B9F8E1AE6E4E33B4D84C'
+        StaleSize  = 1035
+        StaleHash  = '86A4CF1B4889AA5BD74B76916F0C36C744546109A230B9F8E1AE6E4E33B4D84C'
+        Expect     = 'gains exactly one blank line -- 1034 bytes in, 1035 out'
+        # The one fixture here a correct save changes, and the one whose After
+        # bytes are the *same* on both builds: a mixed list is split, which is
+        # #156, and #157 must not have moved it. Because the save changes it,
+        # a repeat run needs a fresh download rather than the saved copy.
+        Stale      = ''
+        Note       = 'the only file here a correct save changes, and it changes the same way on the old build -- download it again before repeating this check'
     }
 )
 
@@ -386,13 +443,15 @@ function Invoke-After {
         Write-Host "$unsaved file(s) were never written. Save them and run -Stage After again." -ForegroundColor Yellow
     }
     if ($failed -eq 0 -and $unsaved -eq 0) {
-        Write-Host "All $($FIXTURES.Count) behaved exactly as this build should. #104 and #110 check out." -ForegroundColor Green
+        Write-Host "All $($FIXTURES.Count) behaved exactly as this build should. #104, #110 and #157 check out." -ForegroundColor Green
         Write-Host ''
-        Write-Host 'Two things this script cannot see. Whether each block was drawn INSIDE its' -ForegroundColor Cyan
-        Write-Host 'item, beside the bullet, rather than on the line after it with the bullet'
-        Write-Host 'left empty -- that is the #110 defect, and it is visible before any save.'
-        Write-Host 'And whether an ordinary list still edits: Enter, Tab, Shift-Tab. Say both'
-        Write-Host 'separately -- the bytes are only half of it.'
+        Write-Host 'Three things this script cannot see. Whether each block was drawn INSIDE its' -ForegroundColor Cyan
+        Write-Host 'item, beside the bullet or beside the checkbox, rather than on the line after'
+        Write-Host 'it with the marker left empty -- that is the #110 and #157 defect, and it is'
+        Write-Host 'visible before any save. Whether every checkbox still TICKS when it is clicked,'
+        Write-Host 'including the ones whose item begins with a heading or a quote. And whether an'
+        Write-Host 'ordinary list still edits: Enter, Tab, Shift-Tab. Say all three separately --'
+        Write-Host 'the bytes are only part of it.'
     }
     elseif ($failed -gt 0) {
         Write-Host "$failed file(s) did not behave as expected. The lines above say how." -ForegroundColor Red
