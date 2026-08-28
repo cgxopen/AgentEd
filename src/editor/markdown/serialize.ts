@@ -75,7 +75,7 @@ const CONTAINERS: ContainerReplacements = {
   // apart, and a blank node never reaches the rule array to be ordered by it.
   LI: (content, node, options) =>
     isTaskListItem(node)
-      ? taskListItemReplacement(content, node)
+      ? taskListItemReplacement(node)
       : listItemReplacement(content, node, options),
 };
 
@@ -168,25 +168,160 @@ turndown.addRule('heading', {
     builtinHeading.replacement(withoutLeadingListEscape(content), node, options),
 });
 
-// Task list support.
+// ── Task list serialization (#157) ──
 //
+// A task item used to be written as one line of text: the first paragraph's
+// `textContent`, and nothing else. Everything a task item held besides that
+// paragraph left the user's file on save — a list nested under it, a heading,
+// a blockquote, a fenced block. This writes **every block the item holds**,
+// each one through the same rules that write it anywhere else.
+//
+// ── Why the blocks are written one at a time ──
+//
+// The separator between them is not turndown's to choose here. turndown puts
+// a blank line between two blocks, and **a blank line anywhere inside a task
+// item ends the checkbox**: `marked` reads a task item only when the item's
+// first block is a paragraph opening with the marker, and a blank line makes
+// the `<input>` part of that paragraph instead. Measured — `- [ ] a` followed
+// by a blank line and `  ## h` comes back as a plain bullet whose text begins
+// with a checkbox character, so writing an item loosely would trade the lost
+// block for a lost checkbox. Every block of a task item is therefore joined
+// to the next by exactly one newline, which is the tight spelling `marked`
+// reads back as the same item.
+//
+// The recursion this costs is over the document's own nesting — one further
+// call for each task list nested inside a task item, each on a strictly
+// smaller subtree — and it is the same recursive call `cellContent` further
+// down already makes for a table cell, for the same reason: a container whose
+// children need writing on terms the surrounding walk cannot express.
+
+/**
+ * The indent a task item's continuation lines carry.
+ *
+ * Two, the width of the `- ` list marker — **not** the six characters of
+ * `- [ ] `. The `[ ] ` is GFM's task marker, which lives in the item's first
+ * paragraph rather than in the list marker, so the item's content column is
+ * the same as any bullet's. Measured rather than eyeballed: at an indent of
+ * two and of four `- [ ] a` followed by `- b` reads back as a nested list, and
+ * at six it reads back as two lines of text in one item.
+ */
+const TASK_ITEM_INDENT = 2;
+
+/**
+ * The elements that stand on their own line in the markdown this writes.
+ *
+ * Enumerated in this direction on purpose. An element missing from the list is
+ * treated as inline and joins the paragraph around it, which at worst writes a
+ * block where a paragraph would do; an inline element wrongly counted as a
+ * block would break a sentence into pieces.
+ */
+const BLOCK_ELEMENTS: ReadonlySet<string> = new Set([
+  'P',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'UL',
+  'OL',
+  'BLOCKQUOTE',
+  'PRE',
+  'TABLE',
+  'HR',
+  'DIV',
+  'FIGURE',
+  'DL',
+]);
+
+function isBlockElement(node: Node): boolean {
+  return node.nodeType === Node.ELEMENT_NODE && BLOCK_ELEMENTS.has(node.nodeName);
+}
+
+/**
+ * Where a task item keeps its blocks.
+ *
+ * The two halves of the pipeline hand this rule two different shapes and both
+ * are real: `marked` writes a tight item's content straight into the `<li>`,
+ * and TipTap renders `<li><label>…checkbox…</label><div>…content…</div></li>`.
+ * The wrapper is recognised by that exact shape rather than by a tag name
+ * anywhere in the item, so a `<div>` a document of its own brought along is
+ * not mistaken for it — and so that a future release of the extension which
+ * renders the item differently falls back to the `<li>` and fails in the
+ * round-trip table rather than quietly writing the wrong thing.
+ */
+function taskItemContent(li: HTMLElement): HTMLElement {
+  const children = li.children;
+  if (children.length === 2 && children[0].nodeName === 'LABEL' && children[1].nodeName === 'DIV') {
+    return children[1] as HTMLElement;
+  }
+  return li;
+}
+
+/**
+ * The item's content as a list of blocks, with any bare inline run wrapped in
+ * a paragraph so that the two shapes above become one.
+ *
+ * Works on a detached copy: nothing here may disturb the tree turndown is
+ * walking. The loop is bounded by the item's own children, and each of them is
+ * visited once — the snapshot is taken before the first move, so a node that
+ * is moved into a paragraph is not visited again.
+ */
+function taskItemBlocks(host: HTMLElement): HTMLElement[] {
+  const scratch = host.ownerDocument.createElement('div');
+  scratch.innerHTML = host.innerHTML;
+
+  let paragraph: HTMLElement | null = null;
+  for (const child of Array.from(scratch.childNodes)) {
+    if (isBlockElement(child)) {
+      paragraph = null;
+      continue;
+    }
+    // The newlines `marked` leaves between elements are not content, and a
+    // paragraph made of them would write a blank line into the item.
+    if (child.nodeType === Node.TEXT_NODE && (child.textContent ?? '').trim() === '') {
+      scratch.removeChild(child);
+      continue;
+    }
+    if (!paragraph) {
+      paragraph = scratch.ownerDocument.createElement('p');
+      scratch.insertBefore(paragraph, child);
+    }
+    paragraph.appendChild(child);
+  }
+
+  return Array.from(scratch.children) as HTMLElement[];
+}
+
+/** Leading blank lines and trailing whitespace off one written block. */
+function trimBlock(markdown: string): string {
+  return markdown.replace(/^\n+/, '').replace(/\s+$/, '');
+}
+
 // A function declaration rather than an inline replacement because the
 // container table above delegates to this same function for a blank task item
 // (#104) — one definition, two callers, no restatement.
-function taskListItemReplacement(content: string, node: Node): string {
+function taskListItemReplacement(node: Node): string {
   const li = node as HTMLLIElement;
-  const checkbox = li.querySelector('input[type="checkbox"]');
-  const checked = checkbox?.hasAttribute('checked') ? 'x' : ' ';
-  const textNode = li.querySelector('[data-node-view-content] p') || li.querySelector('p');
-  const text = textNode?.textContent || content.trim();
-  return `- [${checked}] ${text}\n`;
+  // Read off the item rather than off a checkbox somewhere inside it. Both
+  // halves of the pipeline write this attribute — `parse.ts` puts it there and
+  // TipTap renders it — while the `<input>` element exists only in the
+  // editor's HTML, so a `querySelector` for one used to lose the tick on every
+  // save that did not come from an editor. It is also the only reading that
+  // cannot be answered by the *nested* item's checkbox instead of this one's.
+  const checked = li.getAttribute('data-checked') === 'true' ? 'x' : ' ';
+  const body = taskItemBlocks(taskItemContent(li))
+    .map((block) => trimBlock(turndown.turndown(block.outerHTML)))
+    .filter((block) => block.length > 0)
+    .join('\n');
+  return `- [${checked}] ${indentContinuation(body, TASK_ITEM_INDENT)}\n`;
 }
 
 turndown.addRule('taskListItem', {
   filter: (node) => {
     return node.nodeName === 'LI' && node.parentElement?.getAttribute('data-type') === 'taskList';
   },
-  replacement: taskListItemReplacement,
+  replacement: (_content, node) => taskListItemReplacement(node),
 });
 
 // ── List serialization ──

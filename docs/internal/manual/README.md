@@ -14,10 +14,16 @@ Each fixture belongs to the issue in its name, is referred to by its exact byte 
 | `110-list-item.md` | #110 | 740 | nothing — byte-identical |
 | `110-family.md` | #110 | 650 | nothing — byte-identical |
 | `110-regression.md` | #110 | 524 | nothing — byte-identical, on **both** builds |
+| `157-task-item.md` | #157 | 886 | nothing — byte-identical |
+| `157-nested.md` | #157 | 1039 | nothing — byte-identical |
+| `157-regression.md` | #157 | 876 | nothing — byte-identical, on **both** builds |
+| `157-mixed.md` | #157 | 1034 | **adds one blank line** — 1035 bytes out, on **both** builds |
 
 **Two of the #104 rows changed, and #104 did not move.** Both were measured to lose their bullets, and that was the #110 defect showing through fixtures written for a different issue — the same schema fact, met by a file that was not looking for it. #110 removed it, so both now come back unchanged and their old measurements are carried in the script as the stale build. It is worth keeping in view that a fixture can fail for a reason that has nothing to do with the issue it was written for; here it took a second issue to explain the number.
 
-**`110-regression.md` writes the same bytes on both builds, deliberately.** It is the half that catches a fix that went too far, and on its own it proves nothing about whether the fix landed. The script says so on every run.
+**`110-regression.md` and `157-regression.md` write the same bytes on both builds, deliberately.** They are the half that catches a fix that went too far, and on their own they prove nothing about whether the fix landed. The script says so on every run. `157-regression.md` earns its place because #157 rewrites how **every** task item in **every** document is written, so an ordinary task list is exactly where a fix that reached slightly too wide would show.
+
+**`157-mixed.md` is the one file here a correct save changes, and that is what it is for.** A list whose items are not all task items cannot be held as one list, so it is split into a run of each and written with a blank line between them — #156's decision, unchanged by #157. It writes the same 1035 bytes on both builds. Because a correct save changes it, a repeat run needs a fresh download rather than the saved copy; the `Before` stage says so by failing on the bytes.
 
 ## Checking the build before checking anything else
 
@@ -56,4 +62,9 @@ Measured by the owner on `05d727d`, and written down because a fixture that says
 
 Every file here now comes back byte-identical. The two that did not — `104-list-item.md` and `104-mixed.md` — were meeting a separate TipTap schema limit that took the bullet off any list item whose whole body was a heading, an ordered list or a fenced block, full or empty alike. That limit was #110 and it is gone; the paragraph that used to stand here, saying those two were not failures of the fix they were written for, has no subject any more.
 
-What is **not** gone, and is worth knowing before a fixture is written against it: a **task item** carries the same restriction, and it is not repaired by the same change — widening it loses content rather than keeping it. That is #157, and no fixture here exercises it yet.
+**A task item used to carry the same restriction, and it was not repaired by the same change.** Widening it while the serializer still wrote one line per item lost content rather than keeping it, so #157 fixed the serializer first and widened the node last. Four fixtures exercise it now, and the two halves are worth telling apart before a result is read:
+
+- `157-task-item.md` and `157-nested.md` are the **fix**. On the build before #157 the first comes back 890 bytes with every box emptied and its block written at the margin, and the second comes back **917 bytes — 122 bytes of the owner's text simply gone**, which is the stronger half: a nested list, a heading, a quote and a fence dropped out of the file rather than merely displaced.
+- `157-regression.md` and `157-mixed.md` are the **guard**, and neither of them can tell the two builds apart. That is deliberate: read them only as *nothing else moved*.
+
+On screen, the #157 defect looks like the #110 one and is visible before any save: an empty checkbox with its heading, quote or fence drawn on the line below it, outside the item. What the byte checks cannot see at all is whether the checkbox still **ticks** when it is clicked in an item that begins with a heading rather than with text — worth a click on each of the five items in `157-task-item.md`.

@@ -70,11 +70,13 @@ import { createSearchExtension } from './search-extension';
  * admits a leading block. Neither change may be removed while reading only the
  * other; the reason is written out in `markdown/task-list.ts`.
  *
- * **`taskItem` is deliberately left alone.** It carries the same
- * `paragraph block*` restriction and is *not* fixed by the same edit: widening
- * it loses content instead of keeping it, because `taskListItemReplacement` in
- * `serialize.ts` cannot write a block into a task item — measured, `- [ ] 1. a`
- * saves as `- [ ] a` and `- [ ] > q` as `- [ ] q`. That is its own issue.
+ * **`taskItem` was deliberately left alone here, and is widened below.** It
+ * carries the same `paragraph block*` restriction and was *not* fixed by the
+ * same edit: widening it while `taskListItemReplacement` in `serialize.ts`
+ * could not write a block into a task item lost content instead of keeping it
+ * — measured on #110, `- [ ] 1. a` saved as `- [ ] a` and `- [ ] > q` as
+ * `- [ ] q`. That was its own issue, #157, which fixed the serializer first
+ * and then widened the node; `TaskItemHoldingABlock` below is that widening.
  *
  * ── The `Code` mark (#84) ──
  *
@@ -163,6 +165,59 @@ function starterKitWithLocalSchemaRules() {
     },
   });
 }
+
+/**
+ * The task item, widened the way `listItem` was in #110 — and, unlike that
+ * one, only after the serializer could write the result (#157).
+ *
+ * The shipped node takes `paragraph block*` when it is configured to nest, so
+ * an item whose **whole body** is a block could not be held: on open,
+ * ProseMirror lifted the block out of the list and left an empty item behind,
+ * and `- [ ] ## 1. x` came back as an empty checkbox with the heading below
+ * it. Measured on `63568bc` at both levels — byte-identical through parse +
+ * serialize, lossy through the document model — which is the same split #110
+ * was named by, and it says the cause is the schema rather than `marked` or
+ * turndown.
+ *
+ * **The order is the reverse of #110's, and the issue is right about why.**
+ * Widening this node while `taskListItemReplacement` still wrote one line per
+ * item turns a visible lift into silent content loss: measured on `63568bc`
+ * with this edit alone, `- [ ] 1. a` saved as `- [ ] a` and `- [ ] > q` as
+ * `- [ ] q` — a marker and a quote gone out of the file rather than merely
+ * displaced. So the serializer landed first, with the shapes it repairs proven
+ * under the *unwidened* schema, and this is the last step.
+ *
+ * **`content` is overridden as a method, not as a string.** The shipped
+ * declaration is `content() { return this.options.nested ? 'paragraph block*'
+ * : 'paragraph+' }` — read off `@tiptap/extension-task-item` 2.27.2, the
+ * version this repository locks. Replacing it with `'block+'` would drop the
+ * `nested` distinction along with it: nothing would break today, because
+ * `nested: true` is configured on the very next line, but the value would have
+ * quietly stopped depending on the option, which is a defect waiting for
+ * whoever changes it. The method keeps the distinction and widens exactly the
+ * branch this repository uses.
+ *
+ * **What `block+` newly admits, the serializer can write back**, measured the
+ * way #110 measured `listItem`: a heading, an ordered or bullet list, a
+ * blockquote, a fence empty or full, a table and a horizontal rule as the
+ * whole body of a task item all round-trip byte-identically, and an image
+ * cannot arise, because `image` is an inline node and `block+` cannot hold one
+ * bare. `defaultType` stays `paragraph`, so `splitListItem` — which builds the
+ * node after Enter from `contentMatchAt(0).defaultType` — goes on making a
+ * paragraph. Enter, Backspace, Tab and Shift-Tab were measured in every
+ * position before and after and none of them moved.
+ *
+ * **The checkbox does not move either**, which is the check `listItem` did not
+ * have to pass: `renderHTML` and the node view both build the item as
+ * `<li><label>…checkbox…</label><div>…content…</div></li>`, so the label is a
+ * sibling of the content rather than part of its first paragraph, whatever
+ * that first block turns out to be.
+ */
+const TaskItemHoldingABlock = TaskItem.extend({
+  content() {
+    return this.options.nested ? 'block+' : 'paragraph+';
+  },
+}).configure({ nested: true });
 
 /**
  * The table node, plus the one attribute #93 needs: the spelling the file
@@ -279,7 +334,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
     TaskList,
-    TaskItem.configure({ nested: true }),
+    TaskItemHoldingABlock,
     Image.configure({ inline: true, allowBase64: false }),
     // resizable: false — GFM markdown has no column width syntax.
     // Enabling resize produces UX inconsistency (widths reset at save).
