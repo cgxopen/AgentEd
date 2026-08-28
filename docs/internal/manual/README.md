@@ -9,12 +9,19 @@ Each fixture belongs to the issue in its name, is referred to by its exact byte 
 | File | Issue | Bytes | What an unbroken save does to it |
 | --- | --- | --- | --- |
 | `104-blockquote.md` | #104 | 445 | nothing — byte-identical |
-| `104-list-item.md` | #104 | 405 | drops the two bullets and their indentation, keeping both boxes: 397 bytes |
-| `104-mixed.md` | #104 | 749 | drops one bullet and its indentation, keeping every box: 745 bytes |
+| `104-list-item.md` | #104 | 405 | nothing — byte-identical **since #110** |
+| `104-mixed.md` | #104 | 749 | nothing — byte-identical **since #110** |
+| `110-list-item.md` | #110 | 740 | nothing — byte-identical |
+| `110-family.md` | #110 | 650 | nothing — byte-identical |
+| `110-regression.md` | #110 | 524 | nothing — byte-identical, on **both** builds |
+
+**Two of the #104 rows changed, and #104 did not move.** Both were measured to lose their bullets, and that was the #110 defect showing through fixtures written for a different issue — the same schema fact, met by a file that was not looking for it. #110 removed it, so both now come back unchanged and their old measurements are carried in the script as the stale build. It is worth keeping in view that a fixture can fail for a reason that has nothing to do with the issue it was written for; here it took a second issue to explain the number.
+
+**`110-regression.md` writes the same bytes on both builds, deliberately.** It is the half that catches a fix that went too far, and on its own it proves nothing about whether the fix landed. The script says so on every run.
 
 ## Checking a run
 
-`Test-104.ps1` does the comparing, so a manual step is a run with a verdict rather than an eyeball over a text file. It takes two stages, with the editor in between:
+`Test-104.ps1` does the comparing — it covers #104 and #110, and keeps its name because that is what the owner has a shortcut to, so a manual step is a run with a verdict rather than an eyeball over a text file. It takes two stages, with the editor in between:
 
 ```
 powershell -ExecutionPolicy Bypass -File Test-104.ps1 -Stage Before
@@ -33,6 +40,8 @@ It reads. The only things it writes are a `.before` copy of each fixture and a s
 Measured by the owner on `05d727d`, and written down because a fixture that says only what its bytes do sends the next reader looking for the wrong thing:
 
 - **A fence with a language looks exactly like one without.** Nothing draws a language label — R-C15 commits to one pre-public precisely because the two are indistinguishable on screen today. A manual step that asks for that label is asking for something the build cannot show; it has now been written twice, on #103 and on #104.
-- **An empty box in a list item is drawn on the line after the bullet, not beside it**, with the bullet left empty. TipTap's `listItem` schema does not admit a code block as an item's first child, so the block is lifted out of the item on open. It is the same schema fact that takes the bullet off on save, and it is visible before any save happens.
+- **An empty box in a list item used to be drawn on the line after the bullet, not beside it**, with the bullet left empty — because TipTap's `listItem` schema did not admit a block as an item's first child, so the block was lifted out of the item on open. That is the observation this file recorded on `05d727d`, it is what made the cost visible before any save, and it is what got the behaviour filed as #110. **It is fixed**: `listItem` takes `block+`, and the box is now drawn inside the item with the bullet beside it. The sentence is kept rather than deleted, because it is the before-state the owner is checking against.
 
-The two files that do not come back byte-identical are not failures of the fix they were written for. They meet a separate TipTap schema limit, recorded in STATUS §4, that takes the bullet off any list item whose whole body is a heading, an ordered list or a fenced block — full or empty alike. The pull request for #104 says so in the same words.
+Every file here now comes back byte-identical. The two that did not — `104-list-item.md` and `104-mixed.md` — were meeting a separate TipTap schema limit that took the bullet off any list item whose whole body was a heading, an ordered list or a fenced block, full or empty alike. That limit was #110 and it is gone; the paragraph that used to stand here, saying those two were not failures of the fix they were written for, has no subject any more.
+
+What is **not** gone, and is worth knowing before a fixture is written against it: a **task item** carries the same restriction, and it is not repaired by the same change — widening it loses content rather than keeping it. That is #157, and no fixture here exercises it yet.
