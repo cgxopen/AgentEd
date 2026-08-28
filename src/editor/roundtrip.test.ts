@@ -55,15 +55,18 @@
  * bytes, and the row further down that asserted no list survived asserts the
  * bullet surviving instead.
  *
- * Two things that were true when that paragraph was written are still true
- * and are worth keeping in front of whoever reads this next. **The task item
- * is not fixed**: `taskItem` carries the same `paragraph block*` restriction,
- * and widening it does not repair the shape but loses content — measured on
- * #110, `- [ ] 1. a` saves as `- [ ] a` and `- [ ] > q` as `- [ ] q`, because
- * `taskListItemReplacement` in `serialize.ts` cannot write a block into a
- * task item. It is its own issue for that reason. And **a nested list under a
- * task item is dropped entirely** — `- [ ] a\n  - b` saves as `- [ ] a`, on
- * `7d6cb13` and after — which is older than #110 and untouched by it.
+ * Two things that were true when that paragraph was written have since been
+ * fixed by **#157**, and the order they were fixed in is the part worth
+ * keeping. `taskItem` carried the same `paragraph block*` restriction, and
+ * widening it the way #110 widened `listItem` did not repair the shape but
+ * lost content — measured on #110, `- [ ] 1. a` saved as `- [ ] a` and
+ * `- [ ] > q` as `- [ ] q`, because `taskListItemReplacement` in
+ * `serialize.ts` could not write a block into a task item at all. The same
+ * function is why **a nested list under a task item was dropped entirely** —
+ * `- [ ] a\n  - b` saved as `- [ ] a`, on `7d6cb13` and after — which was
+ * older than #110 and untouched by it. So #157 fixed the serializer first,
+ * proved it against the nested list under the *unwidened* schema, and widened
+ * the node last; both families are in the table below, as bytes.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import claudeMd from '../../CLAUDE.md?raw';
@@ -238,6 +241,40 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['a nested list under the second task item', '- [ ] a\n- [x] c\n  - d', 'identical'],
   ['a task item with a nested list, then another item', '- [ ] a\n  - b\n- [x] c', 'identical'],
   ['a task list nested under a bullet', '- a\n  - [ ] b', 'identical'],
+
+  // ── A task item whose whole body is a block (#157) ──
+  //
+  // The `listItem` family above, one node over — and it needed the work in the
+  // opposite order. `taskItem` carried the same `paragraph block*` restriction,
+  // so every one of these lost its checkbox on open and its block on save; but
+  // widening the node *first*, as #110 did, turns that visible lift into
+  // silent content loss, because the serializer could not write a block into a
+  // task item at all. Measured on `63568bc` with the widening alone and the
+  // suite still green: `- [ ] 1. a` saved as `- [ ] a`, `- [ ] > q` as
+  // `- [ ] q`, and `- [ ] ```⏎  ``` ` as `- [ ]` — the fence gone entirely.
+  //
+  // So the rows above landed first, under the unwidened schema, and these
+  // followed. The last two are what the widening newly admits and #110 checked
+  // in the same way: a table and a horizontal rule as an item's whole body.
+  ['a task item whose whole body is a heading', '- [ ] ## 1. x', 'identical'],
+  ['a task item whose whole body is an H1', '- [ ] # h1', 'identical'],
+  ['a task item whose whole body is an ordered list', '- [ ] 1. a', 'identical'],
+  ['a task item whose whole body is a bullet list', '- [ ] - a', 'identical'],
+  ['a task item whose whole body is a task list', '- [ ] - [x] a', 'identical'],
+  ['a task item whose whole body is a blockquote', '- [ ] > q', 'identical'],
+  ['a task item whose whole body is a fence', '- [ ] ```\n  code\n  ```', 'identical'],
+  ['a task item whose whole body is an empty fence', '- [ ] ```\n  ```', 'identical'],
+  ['an empty fence with a language as a task item body', '- [ ] ```js\n  ```', 'identical'],
+  ['a checked item whose whole body is a heading', '- [x] ## h', 'identical'],
+  ['a checked item whose whole body is a fence', '- [x] ```\n  code\n  ```', 'identical'],
+  ['a task item whose body is a heading, then a paragraph', '- [ ] ## h\n  text', 'identical'],
+  ['a block as the whole body of a nested task item', '- [ ] - [ ] ## q', 'identical'],
+  [
+    'a task item whose whole body is a table',
+    '- [ ] | a | b |\n  | --- | --- |\n  | 1 | 2 |',
+    'identical',
+  ],
+  ['a task item whose whole body is a horizontal rule', '- [ ] ---', 'identical'],
 
   // ── Soft line breaks (#89) ──
   [
