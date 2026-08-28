@@ -86,6 +86,7 @@ import meetingNoteMd from '../templates/meeting-note.md?raw';
 import projectDocumentMd from '../templates/project-document.md?raw';
 import templateReadmeMd from '../templates/readme.md?raw';
 import { markdownToHtml } from './markdown/parse';
+import { htmlToMarkdown } from './markdown/serialize';
 import { createEditor, type EditorInstance } from './setup';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -241,6 +242,34 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['a nested list under the second task item', '- [ ] a\n- [x] c\n  - d', 'identical'],
   ['a task item with a nested list, then another item', '- [ ] a\n  - b\n- [x] c', 'identical'],
   ['a task list nested under a bullet', '- a\n  - [ ] b', 'identical'],
+
+  // ── Two adjacent lists of different kinds (#160, member 2) ──
+  //
+  // A mixed list is **two** lists in the document model, because a `taskList`
+  // takes `taskItem+` and nothing else, and two adjacent blocks used to be
+  // written a line apart. That blank line made the two runs one *loose* list
+  // on the way back in, where no task marker is read at all: `- [ ] a`⏎`- b`
+  // saved as `- [ ] a`⏎⏎`- b` and then as `- a`⏎`- b`, the checkbox gone on
+  // the **second** save and the file settling only on the third. Every one of
+  // the fifteen recorded R-C2 exceptions changes a file once and then holds
+  // still; this did not, which is why it was not one.
+  //
+  // The last four have nothing to do with task lists. Two adjacent lists of
+  // any two different kinds gained the same blank line, in ordinary markdown,
+  // and were found by measuring the family rather than the shape the issue
+  // named. They lost nothing and held still, so they were a byte difference
+  // rather than a loss — and the same rule repairs them.
+  //
+  // The refusal half is asserted separately, further down: a rule that joins
+  // two lists it should not is worse than one that joins nothing.
+  ['a task item and a bullet after it', '- [ ] a\n- b', 'identical'],
+  ['a bullet and a task item after it', '- a\n- [ ] b', 'identical'],
+  ['task, plain, task in one list', '- [ ] a\n- b\n- [x] c', 'identical'],
+  ['plain, task, plain in one list', '- a\n- [ ] b\n- c', 'identical'],
+  ['a bullet list and an ordered list', '- a\n1. b', 'identical'],
+  ['an ordered list and a bullet list', '1. a\n- b', 'identical'],
+  ['an ordered list and a task list', '1. a\n- [ ] b', 'identical'],
+  ['a task list and an ordered list', '- [ ] a\n1. b', 'identical'],
 
   // ── A task item whose whole body is a block (#157) ──
   //
@@ -503,6 +532,146 @@ describe('the editor-level round-trip table (#84)', () => {
     // at all: a first save may normalise, the next one may not drift.
     const first = openAndSave(markdown);
     expect(openAndSave(first)).toBe(first);
+  });
+});
+
+/**
+ * The space GFM requires after an empty task marker (#160, member 1).
+ *
+ * These cannot live in the table above, and the reason is worth naming rather
+ * than working around: `openAndSave` **trims**, which erases the one byte
+ * every case here is about. That trim is a convenience of the harness and not
+ * something the save path does — measured, a file holding `- [ ] ` is written
+ * back with the space through the real assembly — so these go through an
+ * untrimmed save instead.
+ *
+ * **Six positions, and only one of them was ever wrong.** The space was lost
+ * when the empty item was the last block of the document, and nowhere else,
+ * because turndown's `postProcess` trims the finished document once. So five
+ * of these rows are a guard on behaviour that was already correct, and they
+ * are here because the fix had to leave them alone: a repair that reached
+ * further would have reached the end of every document AgentEd saves.
+ */
+const EMPTY_TASK_ITEM: ReadonlyArray<readonly [string, string]> = [
+  ['alone in the document', '- [ ] '],
+  ['first, with an item after it', '- [ ] \n- [x] b'],
+  ['in the middle of the list', '- [ ] a\n- [ ] \n- [x] b'],
+  ['last, after another item', '- [ ] a\n- [ ] '],
+  ['ticked, and last', '- [ ] a\n- [x] '],
+  ['followed by a paragraph', '- [ ] \n\ntext'],
+  ['between two paragraphs', 'text\n\n- [ ] \n\nmore'],
+  ['alone inside a blockquote', '> - [ ] '],
+];
+
+describe('an empty task item keeps the space GFM needs (#160)', () => {
+  /** The save above, without the trim that would hide the byte in question. */
+  function saveUntrimmed(markdown: string): string {
+    const editor = editorWith(markdown);
+    const saved = editor.getMarkdown();
+    editor.destroy();
+    instance = null;
+    return saved;
+  }
+
+  it.each(EMPTY_TASK_ITEM)('%s', (_label, markdown) => {
+    expect(saveUntrimmed(markdown)).toBe(markdown);
+  });
+
+  it.each(EMPTY_TASK_ITEM)('%s — and the next two saves move nothing', (_label, markdown) => {
+    // Three saves rather than two, because this shape used to settle only on
+    // the third: `- [ ] ` lost its space, and the file that left became
+    // `- \[ \]` on the save after that — literal brackets in a plain bullet,
+    // the checkbox gone.
+    const first = saveUntrimmed(markdown);
+    const second = saveUntrimmed(first);
+    expect(second).toBe(first);
+    expect(saveUntrimmed(second)).toBe(second);
+  });
+
+  it('does not put a space after an item that has content', () => {
+    // The pattern the fix tests for is `- [ ]` at the very end of the output,
+    // and this is the assertion that it cannot match anything else: an item
+    // with content has that content after the marker.
+    expect(saveUntrimmed('- [ ] a')).toBe('- [ ] a');
+    expect(saveUntrimmed('- [x] done')).toBe('- [x] done');
+  });
+
+  it('leaves a document that ends in anything else exactly as it was', () => {
+    // The other half of the same claim, and the one #160 called a hazard: the
+    // repair must not reach the end of every document. It cannot — it fires
+    // only on an unescaped empty marker in the final position, and literal
+    // brackets in text are escaped wherever they appear.
+    expect(saveUntrimmed('text')).toBe('text');
+    expect(saveUntrimmed('- a')).toBe('- a');
+    expect(saveUntrimmed('x \\[ \\] y')).toBe('x \\[ \\] y');
+  });
+});
+
+/**
+ * The narrow rule refuses as reliably as it joins (#160, member 2).
+ *
+ * The table above pins the joining half. This is the other one, and it is the
+ * whole safety argument: two adjacent lists of the **same** kind must keep the
+ * blank line between them, because writing them tightly would merge them when
+ * the file is read again — two bullet lists become one list, two ordered lists
+ * lose the second one's start, two task lists become one.
+ *
+ * Asserted on the HTML rather than through a document, deliberately. That
+ * shape cannot be reached from a file — `- a`⏎⏎`- b` opens as a single list,
+ * which is the loose-list exception — and it was not reached by the editing
+ * gestures that were tried either. Handing the serializer the DOM directly is
+ * what makes the refusal testable at all, and a rule that is only correct
+ * because its input is unreachable is not one worth relying on.
+ */
+describe('two adjacent lists of the same kind keep their blank line (#160)', () => {
+  it.each([
+    ['two bullet lists', '<ul><li>a</li></ul><ul><li>b</li></ul>', '- a\n\n- b'],
+    ['two ordered lists', '<ol><li>a</li></ol><ol><li>b</li></ol>', '1. a\n\n1. b'],
+    [
+      'two task lists',
+      '<ul data-type="taskList"><li data-type="taskItem" data-checked="false">a</li></ul>' +
+        '<ul data-type="taskList"><li data-type="taskItem" data-checked="true">b</li></ul>',
+      '- [ ] a\n\n- [x] b',
+    ],
+  ])('%s', (_label, html, expected) => {
+    expect(htmlToMarkdown(html)).toBe(expected);
+  });
+});
+
+/**
+ * What #160 still owns, asserted as the property rather than as bytes.
+ *
+ * Two members are open, and neither is recorded as an R-C2 exception: an
+ * exception is a statement that a difference is accepted, and these are not.
+ *
+ *  - **A loose task list is not read as one** (member 3a). Widening the
+ *    checkbox rewrite in `parse.ts` to the `<li><p><input` shape a loose list
+ *    produces is cheap in lines and turns `empty-fence.test.ts` red, because
+ *    it removes the `<input>` that #104's reasoning rests on — a task item is
+ *    never blank *because* it holds a void element. That premise gets its own
+ *    measurement rather than riding along here.
+ *  - **An ordered task list gains a bullet** (member 3b). Measured on this
+ *    branch: leaving the input alone inside an `<ol>`, which is what would
+ *    make `parse.ts` agree with `task-list.ts`, writes `1. a` — the marker
+ *    gone rather than kept as text, because ProseMirror has no node for an
+ *    `<input>`. Writing it back as literal text cannot be byte-identical
+ *    either, since turndown escapes `[` and `]` wherever they appear.
+ *
+ * So what is pinned is the half of R-C2 that has no exceptions: **whatever
+ * these two do, they do it once**. That is the assertion that was missing when
+ * both members were met rather than caught, and it now runs against them from
+ * here on, whichever way they are eventually decided.
+ */
+describe('the shapes #160 leaves open still settle after one save (#160)', () => {
+  it.each([
+    ['a loose task list', '- [ ] a\n\n- [ ] b'],
+    ['an ordered task list', '1. [ ] a'],
+    ['an ordered task list of two items', '1. [ ] a\n2. [ ] b'],
+  ])('%s', (_label, markdown) => {
+    const first = openAndSave(markdown);
+    const second = openAndSave(first);
+    expect(second).toBe(first);
+    expect(openAndSave(second)).toBe(second);
   });
 });
 
