@@ -4,11 +4,16 @@ import { describe, expect, it } from 'vitest';
 // files and different languages, and reading one of them is the only way to
 // check it against the other.
 import ROUNDTRIP_GUARD from '../../src/editor/roundtrip.test.ts?raw';
+// The other side of the build-identity contract (#41): the workflows pass the
+// value and this file is what receives it, so the assertion that there is no
+// second source for it belongs beside the assertions about the senders.
+import VITE_CONFIG from '../../vite.config.ts?raw';
 // The workflows are read as text, not parsed: `?raw` is Vite's own way of
 // asking for a file's bytes, so the test needs no filesystem access and no
 // dependency to reach them.
 import CI from './ci.yml?raw';
 import NIGHTLY from './nightly.yml?raw';
+import RELEASE from './release.yml?raw';
 
 /**
  * What CI promises, pinned as text.
@@ -44,6 +49,11 @@ function expressionsAfter(source: string, pattern: RegExp): string[] {
   const found = [...source.matchAll(global)].map((match) => match[1].trim());
   expect(found.length, `no match for ${pattern}`).toBeGreaterThan(0);
   return found;
+}
+
+/** Every step of a workflow, as text — steps start at six spaces in all three files. */
+function steps(source: string): string[] {
+  return source.split(/^ {6}- /m).slice(1);
 }
 
 /** Job blocks, keyed by job id — everything from `  <id>:` to the next one. */
@@ -218,10 +228,9 @@ describe('nothing runs unbounded (#47)', () => {
     });
 
     it(`${label}: every step that downloads or compiles carries its own`, () => {
-      const steps = source.split(/^ {6}- /m).slice(1);
       const needsOne =
         /actions\/checkout|setup-node|rust-toolchain|actions\/cache|upload-artifact|npm ci|npm run tauri build|npm test|npm run build|cargo clippy|cargo test|apt-get|paths-filter/;
-      for (const step of steps) {
+      for (const step of steps(source)) {
         if (!needsOne.test(step)) continue;
         const first = step.split('\n')[0];
         expect(step, `step "${first}" has no timeout-minutes`).toMatch(
@@ -360,5 +369,142 @@ describe('the documents the round-trip guard reads can start the job that runs i
     const fallback = block.slice(block.indexOf('else'));
     expect(fallback).toMatch(/echo "code=true"/);
     expect(fallback).toMatch(/echo "guarded_docs=true"/);
+  });
+});
+
+/**
+ * Every workflow that builds the application names the commit it is building
+ * (#41).
+ *
+ * `vite.config.ts` used to carry a middle rung — `AGENTED_BUILD_COMMIT`, then
+ * `GITHUB_SHA`, then `dev` — so a build step that lost its `env:` line still
+ * produced seven plausible characters. On a push, in nightly and in a release
+ * those characters are right. On a `pull_request` event `GITHUB_SHA` is the
+ * ephemeral merge commit, so they matched nothing anyone could see, and the
+ * three-places-one-value rule that every manual pass in this project rests on
+ * was defeated silently. **That rung is gone**: a build with no variable now
+ * reports `dev`, on every event.
+ *
+ * Which moves the whole question here. The bundler cannot know which commit an
+ * event means; the workflow can, and now has to say. So this is the guard, and
+ * it is written in two halves that fail for opposite reasons:
+ *
+ *  - **sound** — every line that is present reads the right expression for its
+ *    file. A line that names the wrong value is worse than none, because it
+ *    looks correct.
+ *  - **complete** — every step that builds the application carries a line.
+ *    This is the half that catches what this issue is about, and the half a
+ *    hurried version leaves out: **a count of the lines that exist cannot see
+ *    a build step that has none.** Measured by mutation on `ffb890c`, deleting
+ *    the frontend line from `ci.yml`: exactly one test of 1761 went red, the
+ *    count assertion above, and it covered nothing in the other two files.
+ *
+ * `ci.yml` reads a different expression from the other two **on purpose**, and
+ * unifying the three for symmetry would reintroduce this very defect in the
+ * file that gets it right: its `changes` job computes the pull-request head,
+ * because `github.sha` is the wrong commit on the event `ci.yml` runs on.
+ */
+describe('every workflow that builds the application names its commit (#41)', () => {
+  /**
+   * The steps that build the application, and the expression each file's must
+   * carry. Written as *which step*, not as *how many lines* — that difference
+   * is the whole of the "complete" half.
+   */
+  const BUILDERS: ReadonlyArray<{
+    readonly file: string;
+    readonly source: string;
+    readonly isBuild: RegExp;
+    readonly expression: string;
+    readonly count: number;
+  }> = [
+    {
+      file: 'ci.yml',
+      source: CI,
+      // The web bundle and the Windows installer.
+      isBuild: /^run: npm run (tauri )?build$/m,
+      expression: 'needs.changes.outputs.build_sha',
+      count: 2,
+    },
+    {
+      file: 'nightly.yml',
+      source: NIGHTLY,
+      isBuild: /^run: npm run tauri build$/m,
+      expression: 'github.sha',
+      count: 1,
+    },
+    {
+      file: 'release.yml',
+      source: RELEASE,
+      // The action runs the frontend build internally, so the value has to
+      // reach it through this step's `env:`. That it does is a **reading**:
+      // third-party code, and no tag has ever been built here. This assertion
+      // is what stands in for the run.
+      isBuild: /^uses: tauri-apps\/tauri-action@/m,
+      expression: 'github.sha',
+      count: 1,
+    },
+  ];
+
+  it.each(
+    BUILDERS.map((b) => [b.file, b] as const),
+  )('%s: every step that builds carries the line', (_file, builder) => {
+    const buildSteps = steps(builder.source).filter((step) => builder.isBuild.test(step));
+    // The guard on the guard, the shape this file already uses for the
+    // round-trip documents: a rename that defeated the pattern would make
+    // the loop below pass over an empty list, which is the same silent green
+    // the whole file exists to prevent.
+    expect(buildSteps, `no build step matched in ${builder.file}`).toHaveLength(builder.count);
+    for (const step of buildSteps) {
+      expect(step, `a build step in ${builder.file} carries no AGENTED_BUILD_COMMIT`).toMatch(
+        /^ {10}AGENTED_BUILD_COMMIT: \$\{\{ .+? \}\}$/m,
+      );
+    }
+  });
+
+  it.each(
+    BUILDERS.map((b) => [b.file, b] as const),
+  )('%s: every line present reads the right expression', (_file, builder) => {
+    const found = [
+      ...builder.source.matchAll(/^\s*AGENTED_BUILD_COMMIT: \$\{\{(.+?)\}\}\s*$/gm),
+    ].map((match) => match[1].trim());
+    // Deliberately **not** a count. Counting here would make this half fail
+    // for a missing line as well, and the two halves are only worth having
+    // separately if they fail for opposite reasons: a line that is gone is
+    // "complete" above, a line that names the wrong value is this one. The
+    // lower bound is the guard on the guard — a pattern that matched nothing
+    // would otherwise pass over an empty list.
+    //
+    // Measured: with `ci.yml`'s two lines, deleting one leaves this half
+    // green and only "complete" red, which is the separation. With the one
+    // line `nightly.yml` and `release.yml` each carry, deleting it trips
+    // this lower bound as well — *no line* and *the pattern found nothing*
+    // are the same observation when there is only one, and the guard on the
+    // guard is worth more than the separation in that case.
+    expect(found.length, `no AGENTED_BUILD_COMMIT in ${builder.file}`).toBeGreaterThan(0);
+    for (const expression of found) {
+      expect(expression).toBe(builder.expression);
+    }
+  });
+
+  it('does not let ci.yml drift onto github.sha', () => {
+    // The narrow half, and the one a tidy pass unifying the three files would
+    // break. `github.sha` on a `pull_request` event is the merge commit — the
+    // exact value this issue is about — so in this file it is the wrong
+    // answer, however symmetrical it looks beside the other two.
+    expect(CI).not.toMatch(/AGENTED_BUILD_COMMIT: \$\{\{ github\.sha \}\}/);
+    expect(CI).toMatch(/build_sha=\$\{sha:0:7\}/);
+  });
+
+  it('leaves the bundler with one variable and no fallback', () => {
+    // The other side of the contract, in the file the workflows are passing
+    // to. A returned `GITHUB_SHA` rung here would make every assertion above
+    // decorative: a workflow could forget its line and still bake a sha.
+    // The *read*, not the name: the comment above the code explains at length
+    // why this rung was removed, and a test that forbade the word would forbid
+    // the explanation with it.
+    expect(VITE_CONFIG).not.toMatch(/process\.env\.GITHUB_SHA/);
+    expect(VITE_CONFIG).toMatch(
+      /const buildCommit = \(process\.env\.AGENTED_BUILD_COMMIT \?\? ''\)\.trim\(\)\.slice\(0, 7\) \|\| 'dev';/,
+    );
   });
 });

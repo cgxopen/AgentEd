@@ -53,6 +53,19 @@ jobs:
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The commit this release is of, passed explicitly (#41). The action
+          # runs the frontend build internally, and `vite.config.ts` no longer
+          # falls back to `GITHUB_SHA` — so without this a released installer
+          # would report `local development build (not from CI)` under About,
+          # which is visibly wrong to a user rather than quietly wrong. On a
+          # tag push `github.sha` is the tagged commit, which is the commit
+          # anyone means.
+          #
+          # **That this `env:` reaches the build the action starts is a
+          # reading, not a measurement.** It is third-party code and no tag
+          # has ever been built here, so what covers it is the contract
+          # assertion in ci.test.ts rather than a run.
+          AGENTED_BUILD_COMMIT: ${{ github.sha }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'AgentEd ${{ github.ref_name }}'

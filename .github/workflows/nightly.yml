@@ -130,6 +130,16 @@ jobs:
         timeout-minutes: 10
       - run: npm run tauri build
         timeout-minutes: 45
+        env:
+          # The commit this build is of, passed explicitly (#41). It used to
+          # be left to `vite.config.ts`, which fell back to `GITHUB_SHA` when
+          # nothing set this — right here, and wrong on a `pull_request`
+          # event, where `GITHUB_SHA` is the ephemeral merge commit. That rung
+          # is gone, so a build with no value here reports `dev` rather than a
+          # sha it cannot substantiate. `github.sha` is the commit anyone
+          # means on this workflow's events: `schedule` and
+          # `workflow_dispatch`, neither of which builds a merge commit.
+          AGENTED_BUILD_COMMIT: ${{ github.sha }}
 
       - name: Upload bundle artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
