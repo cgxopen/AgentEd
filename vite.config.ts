@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 // https://v2.tauri.app/start/frontend/vite/
@@ -8,29 +9,59 @@ const host = process.env.TAURI_DEV_HOST;
 // Build identity, baked in at build time so the app can name itself in a bug
 // report without a network call (Q3) or a new dependency.
 //
-// The version is read from package.json — one source of truth, no second place
-// to forget to bump.
+// ── The version, and why the path is not relative (#41) ──
 //
-// The commit comes from AGENTED_BUILD_COMMIT when CI sets it, and from
-// GITHUB_SHA otherwise. Those are the same commit; they are two variables
-// because GITHUB_SHA is not always the commit anyone means. On a
-// `pull_request` event it is the ephemeral merge commit, not the head of the
-// branch the pull request page shows — so ci.yml computes the head sha once
-// and passes it here under its own name, using that same one value to name
-// the installer artifact (`AgentEd-windows-<sha>`). The build shown inside
-// the app and the artifact downloaded from the run are then literally the
-// same string, which is the only form of that comparison a human performs
-// reliably (#64). On a push, and in nightly and release builds, nothing sets
-// AGENTED_BUILD_COMMIT and GITHUB_SHA is already the right commit.
+// One source of truth, no second place to forget to bump. Resolved against
+// **this file** rather than against the working directory: `./package.json`
+// is resolved by `process.cwd()`, and the tool that finds this config does
+// not necessarily change it. `vitest` walks up the tree until it finds this
+// file, loads it, and leaves the working directory where it was — so running
+// the suite from `src-tauri` failed with `ENOENT ./package.json`, which is
+// how this was met. Every route through npm is immune, because npm moves to
+// the package root before running a script, so no build path meets it; the
+// route that does is a direct `vite` or `vitest` invocation from a
+// subdirectory.
+//
+// `import.meta.url` is the config file's own location even though Vite
+// bundles this file into `node_modules/.vite-temp/` before loading it.
+// Measured rather than assumed, on both routes: the path resolves to the
+// repository root under `npm run build` from the root and under
+// `npx vitest run` from `src-tauri`.
+//
+// ── The commit, and why there is only one variable (#41) ──
+//
+// AGENTED_BUILD_COMMIT, or `dev`. **There is deliberately no fallback to
+// `GITHUB_SHA`.** It used to be the middle rung, on the reasoning that a CI
+// build without the variable may as well name the commit it is running on.
+// That is true of a push, of nightly and of a release, and false on a
+// `pull_request` event, where `GITHUB_SHA` is the ephemeral merge commit and
+// not the head the pull request page shows: a consumer that lost its `env:`
+// line did not fall through to an honest `dev` but baked seven characters
+// that look like a commit and match nothing anyone can see.
+//
+// The rung was removed rather than made event-aware. Skipping it for
+// `pull_request` alone would be an answer about the one event somebody
+// thought of — `merge_group` and `pull_request_target` were named and never
+// measured — where removing it is an answer about the space. And it puts the
+// knowledge where it can exist: *which commit this event means* is a fact the
+// workflow has and this file cannot have by construction.
+//
+// So every workflow that builds the application passes the value it means:
+// `ci.yml` passes the pull-request head its `changes` job computes, and
+// `nightly.yml` and `release.yml` pass `github.sha`, which on their events is
+// the commit anyone means. The contract is asserted across all three in
+// `.github/workflows/ci.test.ts` — a workflow that forgets the line is a red
+// test rather than a wrong build.
 //
 // Outside CI there is no honest commit to show — a local tree can sit on top
 // of any number of uncommitted changes — so it says `dev` rather than a sha
-// that would be a guess.
-const packageVersion = JSON.parse(readFileSync('./package.json', 'utf8')).version as string;
-const buildCommit =
-  (process.env.AGENTED_BUILD_COMMIT ?? '').trim().slice(0, 7) ||
-  (process.env.GITHUB_SHA ?? '').trim().slice(0, 7) ||
-  'dev';
+// that would be a guess. That is now also what a **CI** build with no
+// variable says, which is the failure mode this whole change is for: a build
+// that cannot name its commit says so.
+const packageVersion = JSON.parse(
+  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
+).version as string;
+const buildCommit = (process.env.AGENTED_BUILD_COMMIT ?? '').trim().slice(0, 7) || 'dev';
 
 export default defineConfig({
   define: {
