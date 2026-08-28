@@ -28,6 +28,12 @@
  * can hold and what `7d6cb13` already wrote for such a list anyway: measured,
  * `- [ ] a\n- b` saved as `- [ ] a\n\n- b` before this change and after it.
  *
+ * Whitespace between the items of a split list is dropped with the list that
+ * held it — `marked` puts a newline there, and ProseMirror ignores a
+ * whitespace-only text node outside inline context anyway. Measured rather
+ * than assumed: a mixed list saves the same bytes before this change and
+ * after it.
+ *
  * Only `<ul>` is considered. A checkbox inside an ordered list is left
  * exactly as it was, because `TaskList` renders as a `<ul>` and marking an
  * `<ol>` would claim a shape this cannot honestly write back.
@@ -49,6 +55,13 @@ function isTaskItem(element: Element): boolean {
  * nested lists included — travels with them untouched.
  */
 function splitMixedList(list: Element, items: readonly Element[]): void {
+  // Every list reached here came from `querySelectorAll` on a container this
+  // function built, so it has a parent by construction. The check is a type
+  // narrowing rather than a handled error path, and it returns instead of
+  // throwing on purpose: this runs while a document is being opened, and an
+  // impossible DOM state is not worth refusing to open a file over. If it
+  // ever fires, the list is left unmarked and the leftover empty item comes
+  // back — visible, not silent.
   const parent = list.parentNode;
   if (!parent) return;
 
