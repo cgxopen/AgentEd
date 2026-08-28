@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { attachTableStyles, TABLE_STYLE_ATTRIBUTE } from './table-style';
+import { markTaskLists } from './task-list';
 
 // Configure marked for GFM compatibility
 marked.setOptions({
@@ -54,6 +55,12 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
       '<li data-type="taskItem" data-checked="false">',
     );
 
+  // Which of those lists is a task list, in the spelling TipTap reads (#110).
+  // It has to happen after the rewrite above and before sanitization, because
+  // it is that rewrite's other half: marking the items without marking the
+  // list around them leaves an empty `listItem` before every task list.
+  const withTaskLists = markTaskLists(processed);
+
   // Sanitize HTML to prevent XSS from malicious markdown.
   // blob: URIs must be allowed — image-registry.ts creates blob URLs
   // for all image display (both Tauri and Web).
@@ -65,7 +72,7 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // would choose how its table is written — the two lines are load-bearing
   // together and they live in different files, so neither may be removed while
   // reading only the other. `decodeTableStyle` validates the value regardless.
-  return DOMPurify.sanitize(processed, {
+  return DOMPurify.sanitize(withTaskLists, {
     ADD_ATTR: ['data-type', 'data-checked', TABLE_STYLE_ATTRIBUTE],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,

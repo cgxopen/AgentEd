@@ -45,18 +45,25 @@
  * the **list of link destinations**. Between them, no normaliser can hide a lost
  * word or a lost href however broadly it is written.
  *
- * ── What is deliberately not here ──
+ * ── What used to be deliberately not here ──
  *
- * A list item whose entire body is a heading loses its bullet at the editor
- * level (`- ## 1. x` → `## 1. x`), as does one whose body is an ordered list —
- * and, #104 measured, as does one whose body is a fenced block, empty or not.
- * All three are the same TipTap schema fact, reported on #99 and left unpinned
- * by an explicit decision recorded in STATUS §4 — pinning them would enshrine
- * them. They are left out of the table for that reason and no other; they are
- * not fixed here and they are not claimed to be absent. The third one does
- * appear further down, asserted as the property #104 owns rather than as
- * bytes, because two of that issue's four shapes would otherwise be missing
- * from this guard with no reason given.
+ * A list item whose entire body is a block lost its bullet at this level
+ * (`- ## 1. x` → `## 1. x`) while being byte-identical at the pair level, and
+ * the family was left out of this table on purpose: pinning the bytes would
+ * have enshrined the defect. **#110 fixed it** — `listItem` takes `block+`
+ * rather than `paragraph block*` — so the shapes are in the table now, as
+ * bytes, and the row further down that asserted no list survived asserts the
+ * bullet surviving instead.
+ *
+ * Two things that were true when that paragraph was written are still true
+ * and are worth keeping in front of whoever reads this next. **The task item
+ * is not fixed**: `taskItem` carries the same `paragraph block*` restriction,
+ * and widening it does not repair the shape but loses content — measured on
+ * #110, `- [ ] 1. a` saves as `- [ ] a` and `- [ ] > q` as `- [ ] q`, because
+ * `taskListItemReplacement` in `serialize.ts` cannot write a block into a
+ * task item. It is its own issue for that reason. And **a nested list under a
+ * task item is dropped entirely** — `- [ ] a\n  - b` saves as `- [ ] a`, on
+ * `7d6cb13` and after — which is older than #110 and untouched by it.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import claudeMd from '../../CLAUDE.md?raw';
@@ -183,6 +190,28 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['a bullet list next to an ordered list', '- one\n- two\n\ntext\n\n1. a\n2. b', 'identical'],
   ['numbering read from the ol start attribute', '5. five\n6. six', 'identical'],
   ['a loose list', '- one\n\n- two', { writes: '- one\n- two', because: LOOSE_LISTS }],
+
+  // ── An item whose whole body is a block (#110) ──
+  //
+  // Every one of these lost its bullet at this level until `listItem` was
+  // widened from `paragraph block*` to `block+`, and every one of them was
+  // byte-identical at the pair level while it did — which is what said the
+  // cause was the schema rather than `marked` or turndown.
+  //
+  // The issue names three members. Measuring the family rather than the three
+  // found **five**: a blockquote and a nested task list behave identically,
+  // for the same reason and with the same cost, and they are pinned here so a
+  // narrowing of the content expression cannot quietly drop them. The two
+  // fenced members are pinned as bytes in the #104 block below, where the
+  // shapes already live, rather than restated here.
+  ['an item whose whole body is a heading', '- ## 1. x', 'identical'],
+  ['an item whose whole body is an ordered list', '- 1. a', 'identical'],
+  ['an item whose whole body is a blockquote', '- > q', 'identical'],
+  ['an item whose whole body is a task list', '- - [ ] q', 'identical'],
+  ['an item whose whole body is a bullet list', '- - a', 'identical'],
+  ['two levels, a block as the whole body of the inner item', '- - ## q', 'identical'],
+  ['an item whose body is a heading, then a paragraph', '- ## h\n\n  text', 'identical'],
+  ['a heading as the whole body of an ordered item', '1. ## 1. x', 'identical'],
 
   // ── Soft line breaks (#89) ──
   [
@@ -426,15 +455,14 @@ describe('the editor-level round-trip table (#84)', () => {
  * exactly the same way for a fence that is **full**, which is what says the
  * cause is the schema and not the emptiness.
  *
- * That is the third member of the family reported on #99 — an item whose whole
- * body is a heading, or an ordered list — recorded in STATUS §4 as one schema
- * decision and deliberately left unpinned, because pinning the bytes would
- * enshrine them. So these shapes assert what #104 owns: **the fenced blocks of
- * the document, with their languages and their contents, are unchanged.**
- * Before this fix that was false at the pair level, where the whole item left
- * the file; at this level the block already survived, and the rows are here so
- * the four shapes of #104 are all visible in the guard rather than two of them
- * being absent without a reason.
+ * That was the third member of the family reported on #99 — an item whose
+ * whole body is a heading, or an ordered list — and it is **fixed by #110**,
+ * which widened `listItem` to `block+`. These shapes therefore now assert two
+ * things rather than one: what #104 owns, that **the fenced blocks of the
+ * document, with their languages and their contents, are unchanged**, and
+ * what #110 owns, that the item holding them is still there. The first was
+ * false at the pair level before #104, where the whole item left the file;
+ * the second was false at this level until #110.
  */
 const ALONE_IN_A_LIST_ITEM: ReadonlyArray<readonly [string, string, string]> = [
   ['a bullet item', '- ```\n  ```', '- ```\n  x\n  ```'],
@@ -470,14 +498,16 @@ describe('a fence alone in a list item, at the editor level (#104)', () => {
 
   it.each(
     ALONE_IN_A_LIST_ITEM,
-  )('loses the bullet of %s whether the fence is empty or not (#99 schema fact)', (_label, empty, full) => {
-    // Both, together, are the statement: the item does not survive either
-    // way, so what this costs is not about the fence being empty. Asserted
-    // as "no list survives" rather than as the bytes, so a schema decision
-    // that restored the bullet would move this row without enshrining the
-    // spelling it restores it in.
-    expect(markdownToHtml(openAndSave(empty))).not.toContain('<li>');
-    expect(markdownToHtml(openAndSave(full))).not.toContain('<li>');
+  )('keeps the bullet of %s whether the fence is empty or not (#110)', (_label, empty, full) => {
+    // This row asserted the opposite until #110 — that no list survived —
+    // and it said so as "no `<li>` in the output" rather than as bytes,
+    // deliberately, so that a schema decision restoring the bullet would
+    // move it without enshrining the spelling it restored. That decision is
+    // `listItem` taking `block+`, and this is the move it was written for:
+    // the shapes are now pinned as the bytes they were opened from, which is
+    // the stronger statement and the one R-C2 actually promises.
+    expect(openAndSave(empty)).toBe(empty);
+    expect(openAndSave(full)).toBe(full);
   });
 
   it.each(ALONE_IN_A_LIST_ITEM)('%s — and the second save moves nothing', (_label, empty, full) => {
