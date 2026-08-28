@@ -392,6 +392,82 @@ turndown.addRule('listItemParagraph', {
   },
 });
 
+// ── Two adjacent lists of different kinds (#160) ──
+//
+// A list whose items are not all task items cannot be held as one list — a
+// `taskList` takes `taskItem+` and nothing else — so `- [ ] a` followed by
+// `- b` is **two top-level lists** in the document model, and two adjacent
+// blocks are written a line apart. Reading that back, the blank line makes
+// the two runs one **loose** list, where `marked` sees no task marker at all:
+// measured, `- [ ] a`⏎`- b` saved as `- [ ] a`⏎⏎`- b` and then as `- a`⏎`- b`,
+// the checkbox gone on the second save and the file settling only on the
+// third. R-C2 carries fifteen recorded exceptions and every one of them
+// changes the file once and then holds still; this did not.
+//
+// **Written tightly, the pair is a fixed point.** The tight spelling is what
+// the file already said, and it reads back into exactly the two lists it was
+// written from — so the join is not a normalisation, it is the file's own
+// text.
+//
+// ── Why the rule is different *kinds* rather than adjacency ──
+//
+// Two adjacent lists of the **same** kind would merge if they were written
+// tightly: two `<ul>` become one list, two `<ol>` lose the second one's start,
+// two task lists become one. Measured directly, on the DOM this rule is handed.
+// Different kinds cannot merge, because the marker itself separates them —
+// which is what makes this rule safe without depending on how #28 decides the
+// blank line between items. So the rule refuses exactly as reliably as it
+// joins, and a same-kind pair keeps the blank line it has today.
+//
+// The **filter** is the narrowing, not the replacement: a list with no
+// different-kind list beside it never reaches this rule, and goes on being
+// written by turndown's own, exactly as before. What it repairs is eight
+// shapes, four of which have nothing to do with task lists at all — `- a`⏎`1. b`
+// and its mirror gained a blank line too, in ordinary markdown.
+
+/** Which list this is, as the marker it will be written with. */
+function listKind(list: Element): 'ol' | 'task' | 'ul' {
+  if (list.nodeName === 'OL') return 'ol';
+  return list.getAttribute('data-type') === 'taskList' ? 'task' : 'ul';
+}
+
+/**
+ * Whether `sibling` is a list that this one cannot be merged with on the way
+ * back in — the whole of the safety argument, in one comparison.
+ */
+function isDifferentKindOfList(list: Element, sibling: Element | null): boolean {
+  if (sibling === null) return false;
+  if (sibling.nodeName !== 'UL' && sibling.nodeName !== 'OL') return false;
+  return listKind(list) !== listKind(sibling);
+}
+
+turndown.addRule('adjacentListsOfDifferentKinds', {
+  filter: (node) => {
+    if (node.nodeName !== 'UL' && node.nodeName !== 'OL') return false;
+    const list = node as HTMLElement;
+    return (
+      isDifferentKindOfList(list, list.previousElementSibling) ||
+      isDifferentKindOfList(list, list.nextElementSibling)
+    );
+  },
+  // Delegates, and only changes the newlines on the sides that face another
+  // list — so numbering, indentation and everything else stay turndown's
+  // business, the way the heading rule leaves `headingStyle` to it. turndown
+  // joins two siblings with the *larger* of the newline runs they offer, so
+  // both sides of a join have to be narrowed for the blank line to go.
+  replacement: (content, node, options) => {
+    const list = node as HTMLElement;
+    let written = builtinList.replacement(content, node, options);
+    if (isDifferentKindOfList(list, list.previousElementSibling)) {
+      written = written.replace(/^\n+/, '\n');
+    }
+    if (isDifferentKindOfList(list, list.nextElementSibling)) {
+      written = written.replace(/\n+$/, '\n');
+    }
+    return written;
+  },
+});
+
 // Preserve underline as <u> tag (not standard MD, but round-trips)
 turndown.addRule('underline', {
   filter: ['u'],
@@ -609,6 +685,47 @@ turndown.addRule('tableSection', {
   replacement: () => '',
 });
 
+// ── The space GFM requires after an empty task marker (#160) ──
+//
+// A document that **ends** with an empty task item lost the space after its
+// marker, and `- [ ]` without it is not a task item at all: GFM reads the
+// marker only when whitespace follows, so the next save wrote `- \[ \]` —
+// literal brackets in a plain bullet, the checkbox gone from the user's file.
+// It is the state the editor itself makes: press Enter at the end of a task
+// list and stop typing.
+//
+// **The cause is not in this repository and is not narrowed here.** turndown's
+// `postProcess` ends with `output.replace(/^[\t\r\n]+/, '').replace(/[\t\r\n\s]+$/, '')`
+// — the trailing class carries `\s` where the leading one does not — and it
+// runs **once, over the whole document**. That is exactly why only the final
+// position is affected: measured in six positions, an empty item first, in the
+// middle, or followed by a paragraph is byte-identical today and always was.
+// Loosening that trim would reach the end of every document AgentEd saves,
+// where a recorded R-C2 exception already decides what happens to a run of
+// blank lines and #79 decides how a file ends. So the space is put back after
+// the trim rather than withheld from it.
+//
+// **The test is on the output because that is where the context is.** An
+// unescaped `- [ ]` at the very end of the document can only have been written
+// by the task-item rule: an item with content has that content after the
+// marker, and literal brackets in text are escaped by turndown wherever they
+// appear — measured, `x [ ] y` is written `x \[ \] y`. A fenced block cannot
+// impersonate one either, because its closing fence is written after it. So
+// the pattern cannot match a line the user typed, and a document that does not
+// end in an empty task item is byte-identical before and after this change, by
+// construction rather than by hope — measured on the twelve documents the
+// guard already reads, digest for digest.
+//
+// The `[>\s]*` reaches the same item inside a blockquote or an indented list,
+// where the marker is written with a prefix. **It does not reach every empty
+// item at the end of a document**, and the ones it misses are not this
+// defect: `- a`⏎`  - [ ] ` loses its marker in *one* save rather than two,
+// because `marked` never read the nested item as a task item at all. That is a
+// parse-level shape, measured identical before and after this change, and it
+// belongs to whoever picks up member 3a.
+const EMPTY_TASK_ITEM_AT_THE_END = /(?:^|\n)[>\s]*- \[[ x]\]$/;
+
 export function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html);
+  const markdown = turndown.turndown(html);
+  return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
 }
