@@ -28,8 +28,55 @@ import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 
 /**
- * StarterKit, with its `Code` mark re-declared so that a code span can sit
- * *inside* another mark instead of cancelling it (#84).
+ * StarterKit, with the two declarations this project overrides: the `Code`
+ * mark, so a code span can sit *inside* another mark instead of cancelling it
+ * (#84), and the `listItem` node, so an item may begin with a block (#110).
+ *
+ * ── `listItem` content: `block+` rather than `paragraph block*` (#110) ──
+ *
+ * The shipped node takes `paragraph block*` — a paragraph **first**, then any
+ * blocks. CommonMark puts no such restriction on a list item, so an item whose
+ * whole body was a block could not be held: on open, ProseMirror lifted the
+ * block out of the list and left an **empty item** behind, which the save then
+ * dropped. Measured on `7d6cb13`, at both levels: `- ## 1. x` is byte-identical
+ * through parse + serialize and comes back as `## 1. x` through the document
+ * model. That split — the pair clean, the editor lossy — is what said the cause
+ * was the schema rather than `marked` or turndown, and it held for every member
+ * of the family: a heading, an ordered list, a fence empty or full, a
+ * blockquote, and a nested list.
+ *
+ * **`block+` was measured, not assumed, on the two counts that decide it.**
+ *
+ *  - **Enter still makes a paragraph.** `splitListItem` builds the node after
+ *    Enter from `grandParent.contentMatchAt(0).defaultType`, so a widening that
+ *    moved `defaultType` would change what every Enter in every list produces.
+ *    It does not move: `paragraph` is declared first in the `block` group, so
+ *    `block+` resolves to it. `blockquote` in this same schema already takes
+ *    `block+` and already reports `defaultType: paragraph` — the fact is read
+ *    off this build rather than off an isolated rig.
+ *  - **What `block+` newly admits, the serializer can write back.** A table and
+ *    a horizontal rule as an item's whole body both round-trip; an image cannot
+ *    arise, because `image` is an `inline` node and `block+` cannot hold one
+ *    bare. Enter, Backspace, Tab and Shift-Tab were measured in every position
+ *    before and after and none moved — Backspace is worth naming, because it is
+ *    not this extension's: it comes from TipTap core's `Keymap`, whose chain is
+ *    `undoInputRule → clearNodes → deleteSelection → joinBackward →
+ *    selectNodeBackward`.
+ *
+ * **It has a second half, and they are load-bearing together.** `parse.ts` must
+ * mark a task list as one (`markTaskLists`), because an unmarked one left an
+ * empty `listItem` in front of every task list — invisible while an empty item
+ * could hold nothing, and `- [ ] a` saving as `- - [ ] a` the moment this node
+ * admits a leading block. Neither change may be removed while reading only the
+ * other; the reason is written out in `markdown/task-list.ts`.
+ *
+ * **`taskItem` is deliberately left alone.** It carries the same
+ * `paragraph block*` restriction and is *not* fixed by the same edit: widening
+ * it loses content instead of keeping it, because `taskListItemReplacement` in
+ * `serialize.ts` cannot write a block into a task item — measured, `- [ ] 1. a`
+ * saves as `- [ ] a` and `- [ ] > q` as `- [ ] q`. That is its own issue.
+ *
+ * ── The `Code` mark (#84) ──
  *
  * Two facts of the shipped extension, both measured on `@tiptap/extension-code`
  * 2.27.2 rather than read from a changelog:
@@ -87,7 +134,7 @@ import { createSearchExtension } from './search-extension';
  * wrong reading asked him for a border the application never draws. Whether
  * dead configuration should be removed is its own question, not this one's.
  */
-function starterKitWithNestableCode() {
+function starterKitWithLocalSchemaRules() {
   return StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
     codeBlock: { HTMLAttributes: { class: 'code-block' } },
@@ -101,9 +148,18 @@ function starterKitWithNestableCode() {
         // would be the only thing that noticed.
         throw new Error('StarterKit no longer registers a mark named "code" (see #84)');
       }
-      return registered.map((extension) =>
-        extension.name === 'code' ? extension.extend({ excludes: '', priority: 1 }) : extension,
-      );
+      if (!registered.some((extension) => extension.name === 'listItem')) {
+        // Same reasoning as the `code` guard above, and the same failure mode:
+        // the day the kit stops registering `listItem` under that name, every
+        // bullet this fix restored would quietly go back to being dropped, and
+        // nothing would say so.
+        throw new Error('StarterKit no longer registers a node named "listItem" (see #110)');
+      }
+      return registered.map((extension) => {
+        if (extension.name === 'code') return extension.extend({ excludes: '', priority: 1 });
+        if (extension.name === 'listItem') return extension.extend({ content: 'block+' });
+        return extension;
+      });
     },
   });
 }
@@ -175,7 +231,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
   });
 
   return [
-    starterKitWithNestableCode(),
+    starterKitWithLocalSchemaRules(),
     Underline,
     Link.configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link

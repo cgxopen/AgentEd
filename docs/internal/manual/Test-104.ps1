@@ -1,13 +1,24 @@
 <#
 .SYNOPSIS
-    Checks the #104 manual fixtures before and after an unedited save in AgentEd.
+    Checks the manual fixtures before and after an unedited save in AgentEd.
 
 .DESCRIPTION
-    The three fixtures beside this script are bytes, not pixels: what a correct
-    save does to each of them was measured through the real save assembly at the
+    The fixtures beside this script are bytes, not pixels: what a correct save
+    does to each of them was measured through the real save assembly at the
     branch under test, and the sizes and SHA-256 digests below are those
     measurements. This script does the comparing, so the manual step is a run
     with a verdict rather than an eyeball over a text file.
+
+    It covers #104 and #110. The name is still Test-104.ps1 because that is
+    what the owner has a shortcut to; renaming it, its state file and every
+    reference is worth one line in whichever pull request next has a reason to
+    touch this folder, and is not worth widening a fix's diff for.
+
+    The #104 fixtures changed here, and not because #104 moved. Two of them
+    were measured to lose their bullets, which was the #110 defect showing
+    through a fixture written for a different issue. #110 fixed it, so both now
+    come back byte-identical and their old measurements are carried below as
+    the stale build.
 
     It reads. The only things it writes are a `.before` copy of each fixture and
     a small state file, both in the same folder, both only so that the After
@@ -81,29 +92,69 @@ $FIXTURES = @(
         Name       = '104-list-item.md'
         Size       = 405
         Hash       = 'BCF5823E12D3F4998AE2D6ED46E83F7EC69D7A31EB5D429D627DBEEDE243D160'
-        AfterSize  = 397
-        AfterHash  = '88C72999608F79D2765D299E0523A8F6F7062B1B2E3522B9AD6854B3A5D6C20E'
+        AfterSize  = 405
+        AfterHash  = 'BCF5823E12D3F4998AE2D6ED46E83F7EC69D7A31EB5D429D627DBEEDE243D160'
         StaleSize  = 397
         StaleHash  = '88C72999608F79D2765D299E0523A8F6F7062B1B2E3522B9AD6854B3A5D6C20E'
-        Expect     = 'must become 397 bytes -- both boxes kept, both bullets and their indentation gone'
-        # This fixture writes the same bytes before and after the fix: it is
-        # here to check the schema limit, not the repair. Said out loud on
-        # every run, because a green line that proves nothing is worse than
-        # no line at all.
-        Stale      = ''
-        Note       = 'this file writes the same bytes on the old build too -- it checks the limit, not the fix'
+        Expect     = 'must not change at all -- 405 bytes, same digest'
+        # Until #110 this file was expected to lose both bullets, and it said
+        # so on every run: it checked the schema limit rather than the #104
+        # repair. #110 removed the limit, so it now checks both.
+        Stale      = 'both bullets and their indentation were dropped -- that is the build before #110'
+        Note       = ''
     },
     [pscustomobject]@{
         Name       = '104-mixed.md'
         Size       = 749
         Hash       = '3DDA065746A9C0C4699B345B3C9E8F4BBE5FDE6E4BE76FC320203A6565BD72B4'
-        AfterSize  = 745
-        AfterHash  = '8E4FCC18D1F037DC215EBB3E57CBDB6A2D14CE5299EF8A06E7E570255777D262'
-        StaleSize  = 732
-        StaleHash  = '88378842A52E2121F65A781ED6AD5EEA8909AF65D7101BE028173B2F26F58D71'
-        Expect     = 'must become 745 bytes -- one bullet and its indentation, nothing else'
+        AfterSize  = 749
+        AfterHash  = '3DDA065746A9C0C4699B345B3C9E8F4BBE5FDE6E4BE76FC320203A6565BD72B4'
+        StaleSize  = 745
+        StaleHash  = '8E4FCC18D1F037DC215EBB3E57CBDB6A2D14CE5299EF8A06E7E570255777D262'
+        Expect     = 'must not change at all -- 749 bytes, same digest'
+        # The stale digest is the build before #110, not the one before #104:
+        # that older build wrote 732 bytes and nobody has it installed now.
         Note       = ''
-        Stale      = 'the quoted box was dropped from the file'
+        Stale      = 'one bullet and its indentation were dropped -- that is the build before #110'
+    },
+    [pscustomobject]@{
+        Name       = '110-list-item.md'
+        Size       = 740
+        Hash       = 'C0DAC9D9C68425976053C3EB98CAD4C586786BFF968BC57A53C3264D5C5A5286'
+        AfterSize  = 740
+        AfterHash  = 'C0DAC9D9C68425976053C3EB98CAD4C586786BFF968BC57A53C3264D5C5A5286'
+        StaleSize  = 726
+        StaleHash  = 'F7543A2DAF9B115F29A22FE85F3AD89B60D84F06E2A60CC4BDFDFC6F6C945832'
+        Expect     = 'must not change at all -- 740 bytes, same digest'
+        Note       = ''
+        Stale      = 'all four bullets were dropped and the blocks written at the margin -- that is the build before #110'
+    },
+    [pscustomobject]@{
+        Name       = '110-family.md'
+        Size       = 650
+        Hash       = 'E4EF89C08BD6A67C9289043999B3077A74AEBD2C42C230EF725003482B1366E6'
+        AfterSize  = 650
+        AfterHash  = 'E4EF89C08BD6A67C9289043999B3077A74AEBD2C42C230EF725003482B1366E6'
+        StaleSize  = 640
+        StaleHash  = '9EE42E769DE814F5A4D0A6A30BE31606A119A3C9C85BAE902BB3646E9053AB71'
+        Expect     = 'must not change at all -- 650 bytes, same digest'
+        Note       = ''
+        Stale      = 'the bullets were dropped -- that is the build before #110'
+    },
+    [pscustomobject]@{
+        Name       = '110-regression.md'
+        Size       = 524
+        Hash       = '9116EE0A61B28AF9C4F7DF8BFBBF33E03420F3992078D6A50AC79C3DE0B84E01'
+        AfterSize  = 524
+        AfterHash  = '9116EE0A61B28AF9C4F7DF8BFBBF33E03420F3992078D6A50AC79C3DE0B84E01'
+        StaleSize  = 524
+        StaleHash  = '9116EE0A61B28AF9C4F7DF8BFBBF33E03420F3992078D6A50AC79C3DE0B84E01'
+        Expect     = 'must not change at all -- 524 bytes, same digest'
+        # This one writes the same bytes on both builds, deliberately: it is
+        # the half that catches a fix that went too far, and it proves nothing
+        # about whether the fix landed. Said out loud on every run.
+        Stale      = ''
+        Note       = 'this file writes the same bytes on the old build too -- it checks for overreach, not for the fix'
     }
 )
 
@@ -232,9 +283,9 @@ function Invoke-Before {
     # just cover this shape -- a silent truncation here would come back as a
     # confusing After stage rather than as an error.
     $state | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $StateFile -Encoding UTF8
-    Write-Host 'All three fixtures are the right bytes, and a copy of each was kept as *.before.' -ForegroundColor Green
+    Write-Host "All $($FIXTURES.Count) fixtures are the right bytes, and a copy of each was kept as *.before." -ForegroundColor Green
     Write-Host ''
-    Write-Host 'Now, in AgentEd, for each of the three files in turn:' -ForegroundColor Cyan
+    Write-Host "Now, in AgentEd, for each of the $($FIXTURES.Count) files in turn:" -ForegroundColor Cyan
     Write-Host '  1. File > Open, and pick the file from this folder.'
     Write-Host '  2. Check About reports the commit the pull request names.'
     Write-Host '  3. Type nothing. Click nothing in the document.'
@@ -335,10 +386,13 @@ function Invoke-After {
         Write-Host "$unsaved file(s) were never written. Save them and run -Stage After again." -ForegroundColor Yellow
     }
     if ($failed -eq 0 -and $unsaved -eq 0) {
-        Write-Host 'All three behaved exactly as this build should. #104 checks out.' -ForegroundColor Green
+        Write-Host "All $($FIXTURES.Count) behaved exactly as this build should. #104 and #110 check out." -ForegroundColor Green
         Write-Host ''
-        Write-Host 'One thing this script cannot see: whether the boxes were on screen while' -ForegroundColor Cyan
-        Write-Host 'the file was open. Say so separately -- the bytes are only half of it.'
+        Write-Host 'Two things this script cannot see. Whether each block was drawn INSIDE its' -ForegroundColor Cyan
+        Write-Host 'item, beside the bullet, rather than on the line after it with the bullet'
+        Write-Host 'left empty -- that is the #110 defect, and it is visible before any save.'
+        Write-Host 'And whether an ordinary list still edits: Enter, Tab, Shift-Tab. Say both'
+        Write-Host 'separately -- the bytes are only half of it.'
     }
     elseif ($failed -gt 0) {
         Write-Host "$failed file(s) did not behave as expected. The lines above say how." -ForegroundColor Red
