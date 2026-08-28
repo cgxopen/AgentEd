@@ -136,6 +136,7 @@ const INLINE_ELEMENT_NUMBER =
 const SINGLE_TILDE = 'R-C2: single-tilde strikethrough is written with two';
 const TABLE_SPELLINGS = 'R-C2: five table spellings AgentEd cannot hold';
 const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
+const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
 
 /**
  * Every shape `markdown/roundtrip.test.ts` covers, plus the six shapes of #84,
@@ -270,6 +271,58 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['an ordered list and a bullet list', '1. a\n- b', 'identical'],
   ['an ordered list and a task list', '1. a\n- [ ] b', 'identical'],
   ['a task list and an ordered list', '- [ ] a\n1. b', 'identical'],
+
+  // ── A task marker inside an ordered list (#160, member 3b) ──
+  //
+  // GFM puts a task marker in an ordered list as readily as in a bullet one,
+  // and `marked` writes the same `<input>` for both. AgentEd cannot hold one:
+  // a `taskList` renders as a `<ul>`, so marking an `<ol>` would claim a shape
+  // the serializer cannot honestly write back. What it used to do instead was
+  // worse than admitting that — `1. [ ] a`⏎`2. [ ] b` came back as
+  // `1. - [ ] a`⏎`   - [ ] b`: a bullet nobody typed, **the second number
+  // gone, and two items collapsed into one**, which is a loss rather than a
+  // respelling and is why an exception on it was refused.
+  //
+  // The marker is now given back as the text it was in the file before
+  // `marked` read it, and the escape turndown puts on a bracket is what these
+  // rows carry. Both numbers survive, both items survive, and the file holds
+  // still after the first save — which is the property that makes this an
+  // exception rather than a defect. Two other routes were measured and both
+  // lose the marker outright: leaving the `<input>` alone writes `1. a`,
+  // because ProseMirror has no node for one.
+  //
+  // The rows below the exception are the fixed point itself: a file that
+  // already spells it escaped is byte-identical, which is what says the first
+  // save is the only one that moves.
+  [
+    'a task marker in an ordered list',
+    '1. [ ] a',
+    { writes: '1. \\[ \\] a', because: ORDERED_TASK_MARKER },
+  ],
+  [
+    'two task markers in an ordered list',
+    '1. [ ] a\n2. [ ] b',
+    { writes: '1. \\[ \\] a\n2. \\[ \\] b', because: ORDERED_TASK_MARKER },
+  ],
+  [
+    'a ticked marker in an ordered list',
+    '1. [x] a',
+    { writes: '1. \\[x\\] a', because: ORDERED_TASK_MARKER },
+  ],
+  [
+    'an ordered list of markers starting past 1',
+    '3. [ ] a\n4. [x] b',
+    { writes: '3. \\[ \\] a\n4. \\[x\\] b', because: ORDERED_TASK_MARKER },
+  ],
+  [
+    'a task marker in an ordered list nested under a bullet',
+    '- a\n  1. [ ] b',
+    { writes: '- a\n  1. \\[ \\] b', because: ORDERED_TASK_MARKER },
+  ],
+  ['an ordered list already spelled with escaped brackets', '1. \\[ \\] a', 'identical'],
+  ['a task list nested under an ordered item', '1. a\n   - [ ] b', 'identical'],
+  ['an ordered list nested inside a bullet item', '- a\n  1. b', 'identical'],
+  ['a bullet list nested inside an ordered item', '1. a\n   - b', 'identical'],
 
   // ── A task item whose whole body is a block (#157) ──
   //
