@@ -746,14 +746,66 @@ button.indicator-search:hover {
   padding-left: 0;
 }
 
-.tiptap ul[data-type="taskList"] li {
+/*
+ * A task item is a flex row: the checkbox on one side, everything the item
+ * holds on the other.
+ *
+ * `> li`, not `li`, and the child combinator is the whole of #164's first
+ * member. As a descendant selector this reached every `<li>` inside a task
+ * list, including the items of an *ordinary* list nested inside a task item —
+ * and `display: flex` replaces `display: list-item`, so those items drew no
+ * bullet and no number. Measured on the live editor DOM: three levels of
+ * plain list under a task item put three items in the wrong set, and the
+ * screenshot showed them as indented text with nothing in front.
+ *
+ * **A nested task list is still reached**, which is the half that decides the
+ * narrowing is not too narrow: its own `<ul>` carries `data-type="taskList"`,
+ * so it reaches its own items through it. `task-item-rendering.test.ts` reads
+ * this selector out of this file and asserts both halves against a real
+ * document, so the two cannot drift.
+ *
+ * The label rule is narrowed with it. The two describe the same element, and a
+ * reader should not have to work out why one is `>` and the other is not.
+ */
+.tiptap ul[data-type="taskList"] > li {
   display: flex;
   align-items: flex-start;
   gap: 8px;
 }
 
-.tiptap ul[data-type="taskList"] li label {
+.tiptap ul[data-type="taskList"] > li > label {
   margin-top: 3px;
+}
+
+/*
+ * The item's first block starts at the top of the row, beside the checkbox.
+ *
+ * #164's second member. A flex item opens its own block formatting context, so
+ * the first block's top margin cannot collapse out of the content wrapper: it
+ * pushes the text down while the label stays at the top of the row, and the
+ * checkbox ends up a line above what it belongs to — the picture #110 and #157
+ * were filed to remove.
+ *
+ * **This is the rule `.tiptap li p` above already applies, extended to
+ * whatever the first block is.** That rule is why an ordinary task item looks
+ * right today and why nothing else does: measured, it reaches the paragraph
+ * and none of the ten other blocks #157 admits as a first child. Their
+ * declared top margins run from 0.5em to 2em once the heading font sizes are
+ * counted — a horizontal rule at 1.5em and an H1 at 2em are further out than
+ * the H2 in the screenshot, so a fix tuned on that one heading would have left
+ * both wrong.
+ *
+ * It is **not** `margin-top: 3px` on the label: that is three pixels against
+ * more than an em, #159 suspected it and #164 measured otherwise, and moving
+ * it would shift every ordinary task item to compensate for something that is
+ * not its fault.
+ *
+ * `> div >` is the wrapper the extension renders, which `serialize.ts` already
+ * depends on by the same shape; the test pins that structure so this rule
+ * cannot quietly stop matching.
+ */
+.tiptap ul[data-type="taskList"] > li > div > :first-child {
+  margin-top: 0;
 }
 
 /* Blockquote */
