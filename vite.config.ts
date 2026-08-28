@@ -57,6 +57,11 @@ export default defineConfig({
   test: {
     environment: 'happy-dom',
     globals: false,
+    // Stylesheets are processed rather than stubbed, so a test can read one.
+    // Vitest leaves CSS out by default and hands `?raw` and `?inline` an empty
+    // string, which a test asking what a selector reaches would silently pass
+    // on (#164). One test needs it; nothing else imports a stylesheet.
+    css: true,
     setupFiles: ['./vitest.setup.ts'],
     // The workflow contract test lives beside the workflow it pins.
     include: ['src/**/*.test.ts', '.github/workflows/*.test.ts'],
