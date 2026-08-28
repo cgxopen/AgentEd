@@ -213,6 +213,32 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['an item whose body is a heading, then a paragraph', '- ## h\n\n  text', 'identical'],
   ['a heading as the whole body of an ordered item', '1. ## 1. x', 'identical'],
 
+  // ── What a task item holds besides its first paragraph (#157) ──
+  //
+  // Every one of these left the user's file on save. `taskListItemReplacement`
+  // wrote one line — the first paragraph's text — so a task item's second
+  // block was dropped whatever it was, and the issue's "a list nested under a
+  // task item is dropped entirely" is one member of that family rather than
+  // the whole of it: measured on `63568bc`, `- [ ] a` with `  ## h` under it
+  // saved as `- [ ] a`, and so did the blockquote and the fence.
+  //
+  // They are pinned **tight** — one newline between the item's blocks, never a
+  // blank line — because that is the only spelling that reads back as the same
+  // item. A blank line inside a task item puts the `<input>` inside the first
+  // paragraph, which is not a task item any more, so a loose spelling would
+  // trade the block this fixed for the checkbox.
+  ['a list nested under a task item', '- [ ] a\n  - b', 'identical'],
+  ['an ordered list nested under a task item', '- [ ] a\n  1. b', 'identical'],
+  ['a task list nested under a task item', '- [ ] a\n  - [x] b', 'identical'],
+  ['three levels under a task item', '- [ ] a\n  - b\n    - c', 'identical'],
+  ['a heading after a task item paragraph', '- [ ] a\n  ## h', 'identical'],
+  ['a blockquote after a task item paragraph', '- [ ] a\n  > q', 'identical'],
+  ['a fence after a task item paragraph', '- [ ] a\n  ```\n  code\n  ```', 'identical'],
+  ['an empty fence after a task item paragraph', '- [ ] a\n  ```\n  ```', 'identical'],
+  ['a nested list under the second task item', '- [ ] a\n- [x] c\n  - d', 'identical'],
+  ['a task item with a nested list, then another item', '- [ ] a\n  - b\n- [x] c', 'identical'],
+  ['a task list nested under a bullet', '- a\n  - [ ] b', 'identical'],
+
   // ── Soft line breaks (#89) ──
   [
     'a wrapped paragraph',

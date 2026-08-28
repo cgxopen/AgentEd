@@ -194,9 +194,17 @@ describe('a fence alone in its container survives with it (#104)', () => {
     // `data-type="taskList"` on the **parent**, which is what the two `LI`
     // filters read — so the pair is pinned here rather than described
     // somewhere, where the attribute can quietly go missing from the telling.
+    //
+    // **The task item's closing fence used to sit at the margin** — this row
+    // read `'- [ ] ```\n```'` until #157 — and a fence at the margin is not in
+    // the item any more: measured, that spelling comes back as an item holding
+    // an unterminated fence *and* a second, empty one below the list. The two
+    // rules are still a rule apart, and now they indent their continuation
+    // lines the same way, which is the only spelling either container can be
+    // read back from.
     expect(htmlToMarkdown('<ul><li><pre><code></code></pre></li></ul>')).toBe('- ```\n  ```');
     expect(htmlToMarkdown('<ul data-type="taskList"><li><pre><code></code></pre></li></ul>')).toBe(
-      '- [ ] ```\n```',
+      '- [ ] ```\n  ```',
     );
   });
 
