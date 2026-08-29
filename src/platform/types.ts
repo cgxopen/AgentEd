@@ -79,6 +79,42 @@ export interface CloseGuard {
  */
 export type EntryPresence = 'present' | 'absent' | 'unknown';
 
+/**
+ * The two markers a platform puts on a failed read when it **established
+ * which state it was in** (#173).
+ *
+ * Terms of the platform contract rather than messages: the wording layer
+ * reads them to choose a sentence, and `'omit'` at the call site keeps
+ * them off the screen. They are written here and matched in
+ * `app/open-failure.ts`, so each string exists once — the same seam
+ * `NO_DIR_HANDLE` uses, and the reason a shared constant beats the
+ * literal it repeats across a layer boundary.
+ *
+ * **Matching our own marker is not the mistake `entryPresence` refuses
+ * to make.** That rule is about the operating system's or the browser's
+ * own prose, which translates; these strings are written by AgentEd and
+ * do not. The browser's own answer is told apart one layer down, by
+ * `DOMException.name`, and never by its message.
+ *
+ * **The absence of a marker is itself a state, and it is the third
+ * one.** A platform that did not establish which of the two it was in
+ * marks nothing, and the wording layer then claims neither. That is
+ * every failure on the desktop — `TauriIO` has no folder handle to ask —
+ * and every web failure where no folder was ever granted. Marking one
+ * state and leaving the other bare would make *nothing established* and
+ * *the file is gone* the same answer, which is the confident wrong
+ * sentence #127 exists to avoid.
+ *
+ * `READ_REFUSED` claims only what it says: the read did not happen, and
+ * not because the file is absent. Which state the browser was in — a
+ * lapsed grant, a revoked one, a path component that is a file — is not
+ * established here and is not claimed anywhere.
+ */
+export const READ_REFUSED = 'READ_REFUSED';
+
+/** The folder answered, and there is nothing by that name. See above. */
+export const FILE_ABSENT = 'FILE_ABSENT';
+
 export interface PlatformIO {
   /** Whether this platform can write to multiple file paths (directories, attachments) */
   readonly supportsMultiFile: boolean;
