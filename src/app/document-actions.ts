@@ -29,7 +29,18 @@ export interface DocumentActions {
   handleSave(): Promise<void>;
   handleSaveAs(): Promise<void>;
   handleClose(): Promise<void>;
-  openFilePath(path: string): Promise<void>;
+  /**
+   * Open the document at `path`, through the unsaved-changes gate.
+   *
+   * `sidebarRoot` is the listing root the click came from, and only the
+   * sidebar passes it (#178): given, the panel keeps that root when the
+   * new document has no adjacent structure of its own; omitted, the root
+   * is re-derived from the document exactly as before. The context
+   * popover and the file association both omit it deliberately — a
+   * context file usually lives outside the root on screen, and a
+   * document opened from the shell was never in a panel at all.
+   */
+  openFilePath(path: string, sidebarRoot?: string): Promise<void>;
   requestSaveAs(): Promise<string | null>;
   /**
    * Run the unsaved-changes gate for a window close / app quit. Resolves
@@ -49,6 +60,14 @@ interface LoadFailureReport {
   readonly label: string;
   readonly title?: string;
   readonly detail?: 'append' | 'omit';
+}
+
+/** The optional halves of a load, grouped for the reason above. */
+interface LoadOptions {
+  /** The document's text, already read. See `loadBundleFromPath`. */
+  readonly preloaded?: LoadResult;
+  /** The sidebar listing root this open came from (#178). */
+  readonly sidebarRoot?: string;
 }
 
 export function createDocumentActions(ctx: AppContext): DocumentActions {
@@ -74,20 +93,39 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    * picked before it answered (#141). Given it, nothing here reads the
    * file again — the lookup by name that this replaces is the one that
    * could reach a different file on the web.
+   *
+   * **This is the one place the kept sidebar root is written** (#178),
+   * because this function is exactly the set of *a document arrived at a
+   * path* events: File → Open, the sidebar, the context popover, the
+   * file association and a reload after an external change all pass
+   * through here and nothing else does. `options.sidebarRoot` is given
+   * only by the sidebar, so every other route clears the value and
+   * re-derives the root. A save is deliberately **not** one of these
+   * events — `handleSave` refreshes the panel without coming through
+   * here — so Ctrl+S on a document opened from the tree does not
+   * dissolve the tree.
+   *
+   * Written **after** `applyBundle`, not before the read: a load that
+   * throws leaves the document, `filePath` and the R-C14 baseline
+   * exactly as the user had them — the sentence the `catch` below rests
+   * on — and the panel is one more thing that must still be theirs. An
+   * open that failed would otherwise arm the panel to vanish on the next
+   * save, having changed nothing the user can see.
    */
   async function loadBundleFromPath(
     path: string,
     failure: LoadFailureReport,
-    preloaded?: LoadResult,
+    options: LoadOptions = {},
   ): Promise<void> {
     const io = await getPlatformIO();
     try {
-      const loaded = preloaded ?? (await loadDocument(path, io));
+      const loaded = options.preloaded ?? (await loadDocument(path, io));
       await applyBundle(loaded, path, ctx, io);
 
       const folder = dirname(path);
       if (folder.length > 0) saveLastOpenedFolder(folder);
 
+      ctx.state.sidebarRootFromClick = options.sidebarRoot ?? null;
       await ctx.refreshSidebar();
       ctx.updateCloseEnabled();
     } catch (e) {
@@ -358,25 +396,33 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     await loadBundleFromPath(
       result.path,
       { label: `Failed to open document: ${result.path}` },
-      parseDocument(result.content, result.path),
+      { preloaded: parseDocument(result.content, result.path) },
     );
   }
 
-  async function openFilePath(path: string): Promise<void> {
+  async function openFilePath(path: string, sidebarRoot?: string): Promise<void> {
     if (!(await discardCurrentDocument('open'))) return;
-    // The route the sidebar and the context popover both take, and the
-    // one #127 was about: a file listed a moment ago may be gone, or no
-    // longer reachable, by the time it is clicked. It used to answer
-    // with the document already open; now it says so.
+    // The route the sidebar, the context popover and the file
+    // association all take, and the one #127 was about: a file listed a
+    // moment ago may be gone, or no longer reachable, by the time it is
+    // clicked. It used to answer with the document already open; now it
+    // says so.
     // `omit`, because `openFailedMessage` is the whole of what the user
     // should read here. The reporter's usual second line would put
     // `Could not resolve a file handle for: …` under it — a mechanism,
     // and the path a second time (#127).
-    await loadBundleFromPath(path, {
-      label: openFailedMessage(path),
-      title: OPEN_FAILED_TITLE,
-      detail: 'omit',
-    });
+    //
+    // `sidebarRoot` travels straight through: the three callers are told
+    // apart by whether they pass it, and only the sidebar does (#178).
+    await loadBundleFromPath(
+      path,
+      {
+        label: openFailedMessage(path),
+        title: OPEN_FAILED_TITLE,
+        detail: 'omit',
+      },
+      { sidebarRoot },
+    );
   }
 
   return {

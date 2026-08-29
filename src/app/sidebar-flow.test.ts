@@ -14,10 +14,12 @@
  *       └── scripts/
  *           └── helper.py
  */
-import { describe, expect, it, vi } from 'vitest';
-import type { FileEntry, PlatformIO } from '../platform/types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
 import type { Sidebar, TreeNode } from '../ui/sidebar';
-import type { DocumentActions } from './document-actions';
+import type { AppContext } from './context';
+import { createDocumentActions, type DocumentActions } from './document-actions';
+import type { ErrorReporter } from './error-reporter';
 import { createSidebarClickHandler } from './sidebar-click';
 import { refreshSidebar } from './sidebar-sync';
 import { AppState } from './state';
@@ -133,7 +135,10 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
     const handle = createSidebarClickHandler(docActions, async () => io);
     handle('/proj/doc/references/notes.md', '/proj/doc');
     await flush();
-    expect(docActions.openFilePath).toHaveBeenCalledWith('/proj/doc/references/notes.md');
+    expect(docActions.openFilePath).toHaveBeenCalledWith(
+      '/proj/doc/references/notes.md',
+      '/proj/doc',
+    );
     expect(io.openWithSystem).not.toHaveBeenCalled();
   });
 
@@ -164,5 +169,223 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
     await flush();
     expect(docActions.openFilePath).not.toHaveBeenCalled();
     expect(io.openWithSystem).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * #178, driven end to end: the click handler, the real `openFilePath`
+ * and the real `refreshSidebar` over one in-memory disk, shaped like the
+ * folder the owner tests by hand.
+ *
+ *   /proiect.md          ← opened first; roots the panel at /proiect
+ *   /proiect/
+ *     cap1.md            ← no adjacent structure of its own
+ *     cap2.md            ← has cap2/ beside it
+ *     cap3.md
+ *     cap2/note.md
+ *     sub/chapter.md     ← the subfolder case
+ *
+ * Both halves of the decision are here, and they fail for opposite
+ * reasons: the keeping half fails if the root is dropped, the descending
+ * half fails if everything is made sticky. Neither implies the other,
+ * and a fix that satisfies only the first passes half a decision.
+ */
+const flowDisk = new Map<string, string>([
+  ['/proiect.md', '# Proiect\n'],
+  ['/proiect/cap1.md', '# Cap 1\n'],
+  ['/proiect/cap2.md', '# Cap 2\n'],
+  ['/proiect/cap3.md', '# Cap 3\n'],
+  ['/proiect/cap2/note.md', '# Note\n'],
+  ['/proiect/sub/chapter.md', '# Chapter\n'],
+]);
+const flowDirs = new Set(['/proiect', '/proiect/cap2', '/proiect/sub']);
+const flowListing: Record<string, FileEntry[]> = {
+  '/proiect': [
+    { name: 'cap1.md', path: '/proiect/cap1.md', isDirectory: false },
+    { name: 'cap2.md', path: '/proiect/cap2.md', isDirectory: false },
+    { name: 'cap3.md', path: '/proiect/cap3.md', isDirectory: false },
+    { name: 'cap2', path: '/proiect/cap2', isDirectory: true },
+    { name: 'sub', path: '/proiect/sub', isDirectory: true },
+  ],
+  '/proiect/cap2': [{ name: 'note.md', path: '/proiect/cap2/note.md', isDirectory: false }],
+  '/proiect/sub': [{ name: 'chapter.md', path: '/proiect/sub/chapter.md', isDirectory: false }],
+};
+
+const flowIO: PlatformIO = {
+  supportsMultiFile: true,
+  canWriteCompanions: async () => true,
+  openFile: async () => null,
+  pickFile: async () => null,
+  readText: async (path: string) => {
+    const text = flowDisk.get(path);
+    if (text === undefined) throw new Error(`no such file: ${path}`);
+    return text;
+  },
+  saveFile: async () => {},
+  readSnapshot: async (path: string): Promise<FileSnapshot> => {
+    const text = flowDisk.get(path);
+    return text === undefined ? { kind: 'absent' } : { kind: 'file', text };
+  },
+  pickSavePath: async () => null,
+  installCloseGuard: async () => {},
+  readBinary: async () => new Uint8Array(),
+  writeBinary: async () => {},
+  entryPresence: async (path: string) =>
+    flowDirs.has(path) || flowDisk.has(path) ? 'present' : 'absent',
+  listDir: async (path: string) => flowListing[path] ?? [],
+  mkdir: async () => {},
+  remove: async () => {},
+  openWithSystem: async () => {},
+};
+
+vi.mock('../platform/index', () => ({ getPlatformIO: vi.fn(async () => flowIO) }));
+
+describe('#178 — a document opened from the tree, and the tree afterwards', () => {
+  let state: AppState;
+  let panel: SidebarShowCall | null;
+  let actions: DocumentActions;
+  let markdown: string;
+
+  /** What the panel is showing, as the user would describe it. */
+  function panelRoot(): string | null {
+    return panel === null ? null : panel.rootPath;
+  }
+
+  function panelNames(): string[] {
+    return panel === null ? [] : panel.nodes.map((n) => n.name);
+  }
+
+  function click(absPath: string): void {
+    const root = panelRoot();
+    expect(root).not.toBeNull();
+    createSidebarClickHandler(actions, async () => flowIO)(absPath, root!);
+  }
+
+  function settle(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  beforeEach(() => {
+    state = new AppState();
+    panel = null;
+    markdown = '';
+    const sidebar: Sidebar = {
+      showTree: (nodes, rootName, rootPath) => {
+        panel = { nodes, rootName, rootPath };
+      },
+      hide: () => {
+        panel = null;
+      },
+      isVisible: () => panel !== null,
+      toggle: () => {},
+      setOnFileClick: () => {},
+    };
+    const reporter: ErrorReporter = { silent: () => {}, toast: () => {}, dialog: async () => {} };
+    actions = createDocumentActions({
+      state,
+      reporter,
+      getMarkdown: () => markdown,
+      setMarkdown: (md: string) => {
+        markdown = md;
+      },
+      refreshSidebar: async () => {
+        await refreshSidebar(state, sidebar, flowIO);
+      },
+      setFilename: () => {},
+      updateCloseEnabled: () => {},
+      sidebar,
+      statusbar: { refresh: () => {} },
+      frontmatterPanel: { refresh: () => {}, setVisible: () => {} },
+      editor: { commands: { clearContent: () => {} } },
+    } as unknown as AppContext);
+  });
+
+  it('the fixture is a real document rather than an empty file (#166)', () => {
+    for (const [path, text] of flowDisk) {
+      expect(text.length, path).toBeGreaterThan(0);
+    }
+  });
+
+  it('half (a) — a clicked file with no structure of its own leaves the tree standing', async () => {
+    await actions.openFilePath('/proiect.md');
+    expect(panelRoot()).toBe('/proiect');
+
+    click('/proiect/cap1.md');
+    await settle();
+
+    expect(state.filePath).toBe('/proiect/cap1.md');
+    expect(panelRoot()).toBe('/proiect');
+    expect(panelNames()).toContain('cap3.md');
+  });
+
+  it('the two clicks the issue is about — cap1.md and then cap3.md', async () => {
+    await actions.openFilePath('/proiect.md');
+
+    click('/proiect/cap1.md');
+    await settle();
+    click('/proiect/cap3.md');
+    await settle();
+
+    expect(state.filePath).toBe('/proiect/cap3.md');
+    expect(panelRoot()).toBe('/proiect');
+  });
+
+  it('half (b) — a clicked file WITH structure of its own still moves the panel into it', async () => {
+    await actions.openFilePath('/proiect.md');
+
+    click('/proiect/cap2.md');
+    await settle();
+
+    expect(state.filePath).toBe('/proiect/cap2.md');
+    expect(panelRoot()).toBe('/proiect/cap2');
+    expect(panelNames()).toEqual(['note.md']);
+  });
+
+  it('a file clicked in a subfolder keeps the folder being browsed, not its own', async () => {
+    // The click never left `/proiect` — `isPathInsideRoot` in the handler
+    // is what makes that true of every click that gets this far.
+    await actions.openFilePath('/proiect.md');
+
+    click('/proiect/sub/chapter.md');
+    await settle();
+
+    expect(state.filePath).toBe('/proiect/sub/chapter.md');
+    expect(panelRoot()).toBe('/proiect');
+  });
+
+  it('the floor — the same file opened any other way still hides the panel', async () => {
+    // File → Open, the file association and the context popover all call
+    // `openFilePath` with a path and nothing else. Asserted from the
+    // panel that a click had made sticky, so this is the value being
+    // cleared rather than one that was never set.
+    await actions.openFilePath('/proiect.md');
+    click('/proiect/cap1.md');
+    await settle();
+    expect(panelRoot()).toBe('/proiect');
+
+    await actions.openFilePath('/proiect/cap1.md');
+
+    expect(panelRoot()).toBeNull();
+  });
+
+  it('the floor — a save does not dissolve a tree that a click kept', async () => {
+    await actions.openFilePath('/proiect.md');
+    click('/proiect/cap1.md');
+    await settle();
+
+    await actions.handleSave();
+
+    expect(panelRoot()).toBe('/proiect');
+  });
+
+  it('the floor — Close clears the kept root as well as the panel', async () => {
+    await actions.openFilePath('/proiect.md');
+    click('/proiect/cap1.md');
+    await settle();
+
+    await actions.handleClose();
+
+    expect(state.sidebarRootFromClick).toBeNull();
+    expect(panelRoot()).toBeNull();
   });
 });

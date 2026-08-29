@@ -11,7 +11,9 @@ import type { DocumentActions } from './document-actions';
  *      events should not be surfaced or guess-able.
  *   2. Markdown file (`.md` / `.markdown`) → reuse the existing
  *      `openFilePath` flow, which routes through the unsaved-changes
- *      safety gate.
+ *      safety gate, and hand it the listing root this click came from
+ *      (#178) so the panel is not dissolved by the only action it
+ *      offers.
  *   3. Anything else → open with the host OS via Tauri shell. The
  *      current document's editor state stays untouched in the
  *      background. Brief toast confirms the action.
@@ -31,7 +33,15 @@ export function createSidebarClickHandler(
 
     const lower = absPath.toLowerCase();
     if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
-      void docActions.openFilePath(absPath).catch((e) => {
+      // `rootPath` is passed on rather than dropped here (#178). The
+      // panel keeps it only when the new document has no adjacent
+      // structure of its own; one that does still moves the panel into
+      // it, which is a capability rather than an accident. The check
+      // above is what makes keeping it safe to state: a click that got
+      // this far is inside `rootPath`, so the root that is kept always
+      // contains the document that was opened — including the case of a
+      // file clicked in a subfolder of the root.
+      void docActions.openFilePath(absPath, rootPath).catch((e) => {
         console.error('[sidebar] openFilePath failed:', e);
       });
       return;
