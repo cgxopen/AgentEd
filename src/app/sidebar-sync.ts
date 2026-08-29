@@ -80,6 +80,11 @@ async function walkRecursive(
     // sort 0.4 ms. Before that change the same folder cost 277 ms, and every
     // millisecond of the difference was in one line of `buildTree`.
     //
+    // Those figures are **what #177 measured, on one machine**, and not
+    // properties of this code: what carries is the shape — the walk is
+    // linear in the entries and the cost that dominated was quadratic —
+    // rather than any of the numbers.
+    //
     // So a breadth bound would cap what a reader is shown while the
     // enumeration it would be protecting them from has already happened —
     // `listDir` returns the whole level before this loop runs. That is the
@@ -101,8 +106,20 @@ async function walkRecursive(
 
 /**
  * Refresh the sidebar to reflect the current document. Hides the panel
- * when shouldShowSidebar returns false; otherwise lists the resolved
- * root and renders a recursive tree.
+ * when there is no root to list; otherwise lists the resolved root and
+ * renders a recursive tree.
+ *
+ * Two ways to a root, in this order (R-C6, #178). The document's own
+ * adjacent structure comes first and is unchanged, so a document opened
+ * from the tree that carries a folder of its own still moves the panel
+ * into it. Only when `shouldShowSidebar` finds none does the root the
+ * click came from stand in — `state.sidebarRootFromClick`, which is set
+ * on that route and `null` on every other one, so File then Open, the
+ * file association and the context popover all hide exactly as they did.
+ *
+ * **When the panel first appears is not changed by any of this.** A
+ * document that arrives with no adjacent structure and no kept root
+ * hides the panel, which is the trigger R-C6 always had.
  */
 export async function refreshSidebar(
   state: AppState,
@@ -110,12 +127,12 @@ export async function refreshSidebar(
   io: PlatformIO,
 ): Promise<void> {
   const decision = await shouldShowSidebar(state.filePath, io);
-  if (!decision.show || !decision.root) {
+  const root = decision.show && decision.root ? decision.root : state.sidebarRootFromClick;
+  if (!root) {
     sidebar.hide();
     return;
   }
 
-  const root = decision.root;
   const flatEntries = await walkRecursive(io, root);
 
   const tree: TreeNode[] = buildTree(

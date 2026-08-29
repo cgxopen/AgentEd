@@ -44,14 +44,32 @@ function flush(): Promise<void> {
 }
 
 describe('createSidebarClickHandler', () => {
-  it('routes .md clicks through openFilePath', async () => {
+  it('routes .md clicks through openFilePath, with the root they came from', async () => {
     const docActions = makeDocActions();
     const io = makeIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
     handle('/proj/notes/sub/other.md', '/proj/notes');
     await flush();
-    expect(docActions.openFilePath).toHaveBeenCalledWith('/proj/notes/sub/other.md');
+    // The second argument is the whole of this handler's part in #178:
+    // it used to receive `rootPath`, use it for the check above and drop
+    // it. `refreshSidebar` decides what is done with it.
+    expect(docActions.openFilePath).toHaveBeenCalledWith('/proj/notes/sub/other.md', '/proj/notes');
     expect(io.openWithSystem).not.toHaveBeenCalled();
+  });
+
+  it('passes the root a click came from even when the file sits in a subfolder', async () => {
+    // The 0.4 case of #178, at this layer: the root travels unchanged, so
+    // whatever keeps it keeps the folder the user was browsing rather
+    // than the folder the file happens to sit in.
+    const docActions = makeDocActions();
+    const io = makeIO();
+    const handle = createSidebarClickHandler(docActions, async () => io);
+    handle('/proj/notes/sub/deep/chapter.md', '/proj/notes');
+    await flush();
+    expect(docActions.openFilePath).toHaveBeenCalledWith(
+      '/proj/notes/sub/deep/chapter.md',
+      '/proj/notes',
+    );
   });
 
   it('routes non-.md clicks through openWithSystem', async () => {

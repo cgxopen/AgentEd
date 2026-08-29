@@ -158,3 +158,92 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     expect(depth).toBe(7);
   });
 });
+
+/**
+ * The kept root (#178), at the layer that decides what the panel shows.
+ *
+ * `state.sidebarRootFromClick` is set by `loadBundleFromPath` and is
+ * `null` for every route into a document except a sidebar click. These
+ * assert what `refreshSidebar` does with each value; the route that
+ * produces it is asserted in `sidebar-flow.test.ts`, and the handler
+ * that supplies it in `sidebar-click.test.ts`.
+ */
+describe('the root a sidebar click asked to keep (#178)', () => {
+  const tree: Record<string, FileEntry[]> = {
+    '/proj': [
+      { name: 'one.md', path: '/proj/one.md', isDirectory: false },
+      { name: 'two.md', path: '/proj/two.md', isDirectory: false },
+    ],
+    '/proj/two': [{ name: 'note.md', path: '/proj/two/note.md', isDirectory: false }],
+  };
+
+  function capture(): { sidebar: Sidebar; shown: () => string | null } {
+    let root: string | null = null;
+    return {
+      sidebar: {
+        showTree: (_nodes: TreeNode[], _rootName: string, rootPath: string) => {
+          root = rootPath;
+        },
+        hide: () => {
+          root = null;
+        },
+        isVisible: () => root !== null,
+        toggle: () => {},
+        setOnFileClick: () => {},
+      },
+      shown: () => root,
+    };
+  }
+
+  it('with no adjacent structure of its own, the panel keeps the root', async () => {
+    const state = new AppState();
+    state.filePath = '/proj/one.md';
+    state.sidebarRootFromClick = '/proj';
+    const { sidebar, shown } = capture();
+
+    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj'], entries: tree }));
+
+    expect(shown()).toBe('/proj');
+  });
+
+  it('with adjacent structure of its own, the panel still descends into it', async () => {
+    // The half a fix that made everything sticky would break. `two.md`
+    // carries `two/`, so the document's own structure wins over the kept
+    // root exactly as it did before this change.
+    const state = new AppState();
+    state.filePath = '/proj/two.md';
+    state.sidebarRootFromClick = '/proj';
+    const { sidebar, shown } = capture();
+
+    await refreshSidebar(
+      state,
+      sidebar,
+      mockIO({ existing: ['/proj', '/proj/two'], entries: tree }),
+    );
+
+    expect(shown()).toBe('/proj/two');
+  });
+
+  it('with nothing kept, a document with no structure still hides the panel', async () => {
+    // The floor: `null` is every route that is not a sidebar click, and
+    // it is the behaviour R-C6 always had.
+    const state = new AppState();
+    state.filePath = '/proj/one.md';
+    state.sidebarRootFromClick = null;
+    const { sidebar, shown } = capture();
+
+    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj'], entries: tree }));
+
+    expect(shown()).toBeNull();
+  });
+
+  it('resetDocument clears it, so New and Close cannot leak a folder forward', async () => {
+    const state = new AppState();
+    state.filePath = '/proj/one.md';
+    state.sidebarRootFromClick = '/proj';
+
+    state.resetDocument();
+
+    expect(state.sidebarRootFromClick).toBeNull();
+  });
+});

@@ -100,6 +100,34 @@ export class AppState {
    */
   destinationCueShown = false;
 
+  /**
+   * The listing root a sidebar click asked the panel to keep (#178).
+   *
+   * The panel's only action used to dissolve the panel: a document
+   * opened from the tree is almost never a document that carries a
+   * folder of its own, and `shouldShowSidebar` roots at nothing else, so
+   * the tree went with the first click. Owner decision of 2026-08-29:
+   * the document's own adjacent structure still wins and the panel
+   * descends into it; where there is none, the root the click came from
+   * stands in.
+   *
+   * `null` means *this document did not arrive from the panel*, which is
+   * every other route — File then Open, the command line, the file
+   * association, the context popover, a reload after an external change
+   * — and each of them re-derives the root exactly as before. Set and
+   * cleared in one place, `loadBundleFromPath`, because that is the set
+   * of *a document arrived at a path* events; a save is not one of them,
+   * so Ctrl+S on a document opened from the tree does not dissolve it.
+   *
+   * **It never reaches disk**, and nothing here would let it: `AppState`
+   * is in-memory and per window (R-C8), and the only persisted values
+   * are the three in `preferences.ts`. The multi-tab amendment of
+   * 2026-08-24 named persisted state about the user's work as touching
+   * the no-vault, no-account promise, and a folder being browsed is
+   * exactly that kind of state.
+   */
+  sidebarRootFromClick: string | null = null;
+
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
   /**
@@ -200,6 +228,12 @@ export class AppState {
     this.knownDiskText = null;
     this.lineConventions = DEFAULT_LINE_CONVENTIONS;
     this.destinationCueShown = false;
+    // There is no document, so there is no panel and no root it kept.
+    // New, New from Template and Close all reach this through
+    // `clearDocumentForReplacement`, and each hides the panel a line
+    // later — clearing here is what stops the next document opened from
+    // File then Open inheriting a folder from the one before it.
+    this.sidebarRootFromClick = null;
     // Bumping the generation invalidates any in-flight detector so the
     // next document doesn't briefly inherit the previous cluster.
     this._clusterScanGeneration += 1;
