@@ -42,6 +42,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 - Handle every error path explicitly; no silent catch. User-visible failures get a dialog or statusbar note — never data loss.
 - TypeScript strict; `biome` clean; `rustfmt` + `clippy -D warnings` clean.
 - Tests colocated (vitest). Serialization changes require round-trip tests.
+- A comment may not assert a property the code does not have. Comments explaining a mechanism are wanted and this codebase is built on them; what is forbidden is a load-bearing claim — this is bounded, this is guarded, this branch is unreachable — with nothing at the address it names. Where such a claim cannot be checked, write what is true instead.
 
 ## Workflow
 
