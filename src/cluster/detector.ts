@@ -102,6 +102,17 @@ export async function detectContextCluster(
   );
 
   const timeoutMs = options.timeoutMs ?? HARD_TIMEOUT_MS;
+  // The race bounds the wait, not the run. Every collector is already in
+  // flight before it starts and nothing cancels them, so the timeout
+  // decides when the caller stops listening and not when the filesystem
+  // stops being asked. Their *number* is bounded: at most 106 directories
+  // (currentDir, plus MAX_DEPTH_UP ancestors, plus two rounds of
+  // MAX_CHILDREN for children and siblings) times the 6 canonical
+  // filenames in `registry.ts`, so at most 636 probes. Their duration is
+  // not — a slow network share makes each probe slow rather than making
+  // more of them. Probes that land after the timeout push into `hits`
+  // after its slice has been taken and returned; nothing reads those
+  // writes, and the array is unreachable once the last one settles.
   await Promise.race([Promise.all(collectors), wait(timeoutMs)]);
 
   hits.sort((a, b) => a.distance - b.distance);

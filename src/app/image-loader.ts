@@ -16,7 +16,11 @@ const HTML_IMG_REPLACE_RE = /(<img\s+[^>]*src\s*=\s*["'])([^"']+)(["'][^>]*>)/gi
  * create blob URLs, and register them. Handles `![]()` and `<img>` syntax.
  *
  * Missing files are tolerated — the original src is left in place and a warn
- * is logged. Capped at MAX_IMAGES per syntax to defend against pathological docs.
+ * is logged. Capped at MAX_IMAGES per syntax to defend against pathological
+ * docs: the cap is applied to the match list before anything is resolved, so
+ * what it bounds is the disk reads, the blobs and the registry entries. The
+ * `matchAll` pass over the document is not capped, and references past the
+ * cap are left exactly as they were written.
  */
 export async function prepareMarkdownForDisplay(
   bundle: DocumentBundle,

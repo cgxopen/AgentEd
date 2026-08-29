@@ -33,9 +33,12 @@ export interface ClusterPopover {
  * Popover anchored to the cluster indicator. Renders the entry list
  * with snippet previews and a refresh button.
  *
- * Snippet previews are loaded lazily (on open) by reading the first
- * 1KB of each file in parallel with `Promise.all`. The popover stays
- * usable if a read fails — the entry just shows "(unavailable)".
+ * Snippet previews are loaded lazily (on open): each entry's file is
+ * read whole, all of them in parallel with `Promise.all`, and only the
+ * first SNIPPET_READ_BYTES of what came back is handed to the extractor.
+ * The read is not bounded — `readSnippetContent` says why, and what
+ * bounds the work instead. The popover stays usable if a read fails —
+ * the entry just shows "(unavailable)".
  */
 export function setupClusterPopover(callbacks: ClusterPopoverCallbacks): ClusterPopover {
   const popover = document.getElementById('cluster-popover');
@@ -199,8 +202,9 @@ export function setupClusterPopover(callbacks: ClusterPopoverCallbacks): Cluster
   }
 
   /**
-   * Read the first ~1KB of each entry, run the snippet extractor,
-   * and patch the placeholder rows. Errors are swallowed per-entry.
+   * Read each entry, run the snippet extractor over the first
+   * SNIPPET_READ_BYTES of it, and patch the placeholder rows. Errors
+   * are swallowed per-entry.
    */
   async function hydrateSnippets(cluster: ContextCluster, root: HTMLElement): Promise<void> {
     let io: PlatformIO;
@@ -252,8 +256,14 @@ async function readSnippetContent(io: PlatformIO, path: string): Promise<string>
   } catch {
     return '(unavailable)';
   }
-  // Trim to ~1KB before extracting; the extractor doesn't need more
-  // and big files would otherwise sit in memory just to be sliced.
+  // The read above is of the whole file, and this slice bounds only what
+  // the extractor sees. A bounded read is not available at this layer:
+  // `PlatformIO.readText` takes a path and no length, so reaching one is
+  // a change to the platform interface and to both implementations. By
+  // the time control gets here a big file has already been in memory.
+  // What bounds the work is elsewhere — at most MAX_RESULTS entries,
+  // only on a popover open, over files that are context files by
+  // construction.
   const head = raw.length <= SNIPPET_READ_BYTES ? raw : raw.slice(0, SNIPPET_READ_BYTES);
   return extractSnippet(head);
 }
