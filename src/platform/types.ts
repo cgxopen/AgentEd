@@ -79,6 +79,29 @@ export interface CloseGuard {
  */
 export type EntryPresence = 'present' | 'absent' | 'unknown';
 
+/**
+ * The marker on a read that **did not happen for a reason other than
+ * the file being absent** (#173).
+ *
+ * A term of the platform contract rather than a message: the wording
+ * layer reads it to choose a sentence, and `'omit'` at the call site
+ * keeps it off the screen. It is written here and matched in
+ * `app/open-failure.ts`, so the string exists once — the same seam
+ * `NO_DIR_HANDLE` uses, and the reason a shared constant is better than
+ * the literal it repeats.
+ *
+ * **Matching our own marker is not the mistake `entryPresence` refuses
+ * to make.** That rule is about the operating system's or the browser's
+ * own prose, which translates; this string is written by AgentEd and
+ * does not. The browser's own answer is told apart one layer down, by
+ * `DOMException.name`, and never by its message.
+ *
+ * **It claims only what it says.** The read was refused; which state the
+ * browser was in — a lapsed grant, a revoked one, a path component that
+ * is a file — is not established here and is not claimed anywhere.
+ */
+export const READ_REFUSED = 'READ_REFUSED';
+
 export interface PlatformIO {
   /** Whether this platform can write to multiple file paths (directories, attachments) */
   readonly supportsMultiFile: boolean;

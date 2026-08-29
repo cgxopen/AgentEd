@@ -57,7 +57,16 @@ export interface DocumentActions {
  * into.
  */
 interface LoadFailureReport {
-  readonly label: string;
+  /**
+   * The paragraph the user reads, or a function of the rejection that
+   * chooses one (#173).
+   *
+   * A function because the message is composed **before** the load runs
+   * and the state it describes is only known **after** it fails. Every
+   * caller that has one sentence for every outcome passes the string it
+   * always passed.
+   */
+  readonly label: string | ((error: unknown) => string);
   readonly title?: string;
   readonly detail?: 'append' | 'omit';
 }
@@ -143,7 +152,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       // would be false on the only failure that route can still reach
       // (#141). It reports the mechanism instead, which is the useful
       // thing to show for a fault with no user action behind it.
-      await ctx.reporter.dialog(failure.label, e, failure.title, failure.detail);
+      const label = typeof failure.label === 'function' ? failure.label(e) : failure.label;
+      await ctx.reporter.dialog(label, e, failure.title, failure.detail);
     }
   }
 
@@ -417,7 +427,11 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     await loadBundleFromPath(
       path,
       {
-        label: openFailedMessage(path),
+        // A function of the rejection, because which of the two
+        // sentences is true is not known until the read has failed
+        // (#173). `omit` keeps the marker that decides it off the
+        // screen, and the console still gets the error unchanged.
+        label: (e) => openFailedMessage(path, e),
         title: OPEN_FAILED_TITLE,
         detail: 'omit',
       },
