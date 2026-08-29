@@ -41,6 +41,15 @@ export function buildTree(
 ): TreeNode[] {
   const root: TreeNode = { name: '', path: '', kind: 'directory', children: [] };
 
+  // Every node built so far, by its full path (#174). It used to be
+  // `current.children.find(...)`, which rescans the siblings already built
+  // for every segment of every entry: a level holding N entries cost
+  // **N(N-1)/2** comparisons — 49,995,000 for a folder of 10,000, measured.
+  // The full path names one node in the whole tree, since it carries its
+  // own parent chain, so one map answers what a scan of one sibling list
+  // answered and nothing about the tree changes.
+  const byPath = new Map<string, TreeNode>();
+
   for (const entry of flatEntries) {
     const parts = entry.path.split('/').filter(Boolean);
     let current = root;
@@ -48,7 +57,7 @@ export function buildTree(
     for (let i = 0; i < parts.length; i++) {
       const isLast = i === parts.length - 1;
       const partPath = parts.slice(0, i + 1).join('/');
-      let child = current.children.find((c) => c.path === partPath);
+      let child = byPath.get(partPath);
 
       if (!child) {
         child = {
@@ -58,6 +67,7 @@ export function buildTree(
           children: [],
         };
         current.children.push(child);
+        byPath.set(partPath, child);
       }
       current = child;
     }
