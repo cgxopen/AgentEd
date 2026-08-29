@@ -26,7 +26,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearImages } from '../editor/image-registry';
 import tauriSource from '../platform/tauri.ts?raw';
 import type { PlatformIO } from '../platform/types';
-import { READ_REFUSED } from '../platform/types';
+import { FILE_ABSENT, READ_REFUSED } from '../platform/types';
 import { WebIO } from '../platform/web';
 import webSource from '../platform/web.ts?raw';
 import { showConfirmDialog } from '../ui/confirm-dialog';
@@ -130,12 +130,31 @@ const reporter = createErrorReporter();
  * not by copying the sentence.
  */
 function notFoundMessage(path: string): string {
-  return openFailedMessage(path);
+  return openFailedMessage(path, new Error(`${FILE_ABSENT}: stub`));
 }
 
 function refusedMessage(path: string): string {
   return openFailedMessage(path, new Error(`${READ_REFUSED}: stub`));
 }
+
+/** A rejection the platform did not mark — every desktop failure. */
+function unestablishedMessage(path: string): string {
+  return openFailedMessage(path, new Error('ENOENT: no such file or directory'));
+}
+
+/**
+ * The #127 disjunction, written out rather than read from the module.
+ *
+ * **This one literal is deliberate and is the exception to the #50 rule
+ * the rest of this file follows.** Asserting the unmarked case against
+ * whatever `openFailedMessage` happens to return is exactly what let the
+ * first draft of #173 through: the assertion moved with the function and
+ * stayed green while the sentence under it changed from a disjunction
+ * into a claim of absence. Pinning the bytes is what makes it fail.
+ */
+const HISTORICAL_127 =
+  'AgentEd could not open notes/AGENTS.md. It may have been moved, renamed or removed, ' +
+  'or it may no longer be readable from here. The document you had open is unchanged.';
 
 /** Every dialog raised, as the user would read it: title, then body. */
 function dialogsRaised(): Array<{ title: string; message: string }> {
@@ -250,6 +269,7 @@ describe('#127 — clicking a file that has gone since the sidebar listed it', (
 
     const body = dialogsRaised()[0].message;
     expect(body).not.toContain(READ_REFUSED);
+    expect(body).not.toContain(FILE_ABSENT);
     // Nor the platform layer's own vocabulary, as #127 established.
     expect(body).not.toContain('file handle');
   });
@@ -354,24 +374,37 @@ describe('#173 — the desktop path is untouched, and is asserted to be', () => 
     expect(tauriSource).toContain('async readBinary(');
     expect(tauriSource).not.toContain('resolveFileHandle');
     expect(tauriSource).not.toContain(READ_REFUSED);
+    expect(tauriSource).not.toContain(FILE_ABSENT);
   });
 
   it('the branch and the marker exist only in WebIO', () => {
     expect(webSource).toContain('private async resolveFileHandle(');
     expect(webSource).toContain(READ_REFUSED);
+    expect(webSource).toContain(FILE_ABSENT);
   });
 
-  it('a rejection carrying no marker keeps the sentence it always had', () => {
-    // Which is every desktop failure, and every web failure that is not
-    // a refused read.
-    const path = 'notes/AGENTS.md';
-    expect(openFailedMessage(path, new Error('ENOENT: no such file or directory'))).toBe(
-      notFoundMessage(path),
-    );
-    expect(openFailedMessage(path, undefined)).toBe(notFoundMessage(path));
+  it('a rejection carrying no marker claims neither state — the #127 disjunction', () => {
+    // Which is **every** desktop failure: `TauriIO` has no folder handle
+    // to ask, so it establishes nothing and marks nothing. A file locked
+    // by another program, a permission that changed, a disconnected
+    // network drive — ordinary on Windows (#171) — must not be reported
+    // as possibly deleted.
+    //
+    // Pinned to the bytes, not to what the function returns. See
+    // HISTORICAL_127 for why that distinction is the whole test.
+    expect(unestablishedMessage('notes/AGENTS.md')).toBe(HISTORICAL_127);
+    expect(openFailedMessage('notes/AGENTS.md', undefined)).toBe(HISTORICAL_127);
   });
 
-  it('and the two sentences really are different, so neither half passes vacuously', () => {
-    expect(refusedMessage('x.md')).not.toBe(notFoundMessage('x.md'));
+  it('and the not-found claim is reserved for a platform that established it', () => {
+    // The same path, the same failure to open, two different sentences —
+    // separated only by whether anything looked in a folder and got an
+    // answer back.
+    expect(unestablishedMessage('notes/AGENTS.md')).not.toBe(notFoundMessage('notes/AGENTS.md'));
+  });
+
+  it('all three sentences differ from each other, so no assertion passes vacuously', () => {
+    const three = [refusedMessage('x.md'), notFoundMessage('x.md'), unestablishedMessage('x.md')];
+    expect(new Set(three).size).toBe(3);
   });
 });

@@ -7,7 +7,7 @@
  * (the #50 precedent).
  */
 
-import { READ_REFUSED } from '../platform/types';
+import { FILE_ABSENT, READ_REFUSED } from '../platform/types';
 
 /** The dialog's title. */
 export const OPEN_FAILED_TITLE = 'This file could not be opened';
@@ -15,15 +15,27 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
 /**
  * The body, for a document the application could not open at `path`.
  *
- * **Two sentences, because there are two states and the platform can
- * now tell them apart** (#173). Until then `resolveFileHandle` returned
- * the same `null` for a file that was gone and for a read the browser
- * refused, so one sentence had to cover both and offered each as a
- * possibility. That disjunction was honest for what was known; it is
- * not what is known any more, and a user whose file is sitting exactly
- * where they left it was being told it may have been removed.
+ * **Three sentences, because there are three states** (#173). Two of
+ * them are claims and the third is the refusal to make one:
  *
- * **Neither sentence names a step, and that is measured rather than
+ *   1. the folder answered that there is nothing by that name;
+ *   2. the folder refused to answer;
+ *   3. **nothing established which** — and this is the original #127
+ *      disjunction, unchanged, word for word.
+ *
+ * The third is not a leftover. It is every failure on the **desktop**,
+ * where `TauriIO` has no folder handle to ask and so marks nothing, and
+ * every web failure in a session that never granted a folder. A first
+ * draft of this change had two sentences and sent the unmarked case to
+ * the not-found one, which moved the confident wrong sentence #127 was
+ * written to avoid from the platform that can now tell the states apart
+ * to the one that cannot: a file locked by another program, a
+ * permission that changed, a disconnected network drive — all ordinary
+ * on Windows, all established as such on #171 — would have been
+ * reported as possibly deleted. **Not-found is a claim, and a claim is
+ * made only where something established it.**
+ *
+ * **No sentence names a step, and that is measured rather than
  * omitted.** The remedy the original #173 body assumed — Save As, the
  * one R-C5 names for images — was driven from the failed state and does
  * not restore access to the folder the read was about: `pickSavePath`
@@ -35,7 +47,7 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  * nothing acquires what is needed here, so nothing is named. Advice
  * that leads nowhere is worse than none (#148).
  *
- * **The second sentence still claims no cause.** It says the read was
+ * **The refused sentence still claims no cause.** It says the read was
  * refused and that this is not a missing file, which is exactly what
  * `READ_REFUSED` establishes. It does not say the grant lapsed: which
  * `DOMException` a browser raises for a lapsed grant, a revoked one, or
@@ -51,37 +63,38 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  *
  * **The path, not the name.** Two files can share a name, and the path
  * is what was clicked.
- *
- * `cause` is the rejection that stopped the read. Absent or unmarked, the
- * not-found sentence stands: it is what every other platform failure has
- * always produced, and a state nothing established is not a state to
- * announce.
  */
 export function openFailedMessage(path: string, cause?: unknown): string {
-  if (isReadRefused(cause)) {
+  if (marked(cause, READ_REFUSED)) {
     return (
       `AgentEd could not read ${path}. The browser refused the folder rather than ` +
       'reporting the file missing, so the file may well still be there. ' +
       'The document you had open is unchanged.'
     );
   }
+  if (marked(cause, FILE_ABSENT)) {
+    return (
+      `AgentEd could not find ${path}. It may have been moved, renamed or removed. ` +
+      'The document you had open is unchanged.'
+    );
+  }
   return (
-    `AgentEd could not find ${path}. It may have been moved, renamed or removed. ` +
-    'The document you had open is unchanged.'
+    `AgentEd could not open ${path}. It may have been moved, renamed or removed, ` +
+    'or it may no longer be readable from here. The document you had open is unchanged.'
   );
 }
 
 /**
- * Whether the platform marked this rejection as *the read did not
- * happen, and not because the file is absent*.
+ * Whether the platform put `marker` on this rejection — that is, whether
+ * it established the state rather than merely failing.
  *
  * **Matching a marker AgentEd writes is not the mistake `entryPresence`
  * refuses to make.** That rule is about the browser's or the operating
- * system's own prose, which translates. This string is ours and does
+ * system's own prose, which translates. These strings are ours and do
  * not, and the browser's own answer was told apart one layer down by
  * `DOMException.name` — the `isNotFound` helper in `web.ts`, which is
  * the only place that question is asked.
  */
-function isReadRefused(cause: unknown): boolean {
-  return cause instanceof Error && cause.message.startsWith(`${READ_REFUSED}:`);
+function marked(cause: unknown, marker: string): boolean {
+  return cause instanceof Error && cause.message.startsWith(`${marker}:`);
 }

@@ -3,6 +3,7 @@ import { joinPath } from './paths';
 import {
   type CloseGuard,
   type EntryPresence,
+  FILE_ABSENT,
   type FileEntry,
   type FileResult,
   type FileSnapshot,
@@ -455,9 +456,10 @@ export class WebIO implements PlatformIO {
   }
 
   /**
-   * The handle for `path` inside the granted folder, `null` when the
-   * folder says there is nothing there, and a rejection when it did not
-   * answer at all (#173).
+   * The handle for `path` inside the granted folder, `null` when there
+   * is no granted folder to look in, and a marked rejection when the
+   * folder answered — either that there is nothing by that name, or by
+   * refusing (#173).
    *
    * The `catch` used to bind nothing and return `null` for every
    * failure, which is the same value the line above returns for *no
@@ -466,22 +468,33 @@ export class WebIO implements PlatformIO {
    * that sentence offered both as possibilities because the cause had
    * been discarded three functions earlier.
    *
-   * **The branch is `isNotFound` and nothing more.** Absent is the one
-   * state this can establish: `NotFoundError` is what the API answers
-   * for *there is nothing by that name*, and it is what the four other
-   * sites in this file already ask. Everything else is a read that did
-   * not happen, and it is reported as exactly that — **no state is
-   * named**. Which `DOMException` a browser raises for a lapsed grant,
-   * a revoked one, or a path component that is a file has not been
-   * measured, and a branch claiming one of them would trade a vague
-   * truth for a confident guess.
+   * **The branch is `isNotFound` and nothing more.** `NotFoundError` is
+   * what the API answers for *there is nothing by that name*, and it is
+   * what the four other sites in this file already ask. Everything else
+   * is a read that did not happen, and it is reported as exactly that —
+   * **no browser state is named**. Which `DOMException` a browser
+   * raises for a lapsed grant, a revoked one, or a path component that
+   * is a file has not been measured, and a branch claiming one of them
+   * would trade a vague truth for a confident guess.
+   *
+   * **Both outcomes are marked, and that is the point rather than
+   * symmetry.** The first draft marked only the refused one and let
+   * absent fall through to the bare rejection `readText` raises — which
+   * is also what a session with **no granted folder at all** raises,
+   * and what every desktop failure raises. Absence would then have been
+   * claimed about states nothing had established. A marker is put on an
+   * answer this function actually obtained, and on nothing else.
+   *
+   * **The line above stays unmarked on purpose.** With no `dirHandle`
+   * there is no folder to have answered, so the read fails with nothing
+   * established and the wording layer claims neither state.
    *
    * **Both calls in the `try` can raise it**, measured: a bare name
    * throws from `getFileHandle`, a nested path from
    * `getDirectoryHandle` inside `navigateToDirByParts`. So the question
    * is asked of the error rather than of which call produced it.
    *
-   * The rejection skips nothing that could have answered. The `??`
+   * The rejections skip nothing that could have answered. The `??`
    * chains in `readText` and `readBinary` end in `grantedFor`, which
    * returns `null` on its first line whenever a `dirHandle` exists —
    * and this function only enters the `try` when one does.
@@ -494,7 +507,9 @@ export class WebIO implements PlatformIO {
       const dir = await this.navigateToDirByParts(parts, false);
       return await dir.getFileHandle(name);
     } catch (e) {
-      if (isNotFound(e)) return null;
+      if (isNotFound(e)) {
+        throw new Error(`${FILE_ABSENT}: the folder has nothing named ${path}`, { cause: e });
+      }
       throw new Error(`${READ_REFUSED}: the folder did not answer for ${path}`, { cause: e });
     }
   }
