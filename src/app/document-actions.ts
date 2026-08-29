@@ -20,6 +20,7 @@ import { createDiscardGate } from './discard-gate';
 import { askAboutExternalChange } from './external-change-prompt';
 import { OPEN_FAILED_TITLE, openFailedMessage } from './open-failure';
 import { createRequestSaveAs } from './save-as-flow';
+import { SAVE_FAILED_TITLE, saveFailedMessage, saveFailureCause } from './save-failure';
 
 export interface DocumentActions {
   handleNew(): Promise<void>;
@@ -183,7 +184,37 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
         );
         return;
       }
-      throw e;
+      // **None of the document reached the disk**, which is what
+      // separates this from the assets branch below: there, part of it
+      // did. Everything after this `catch` is skipped, so `isFirstSave`,
+      // the R-C14 baseline and `setModified(false)` all keep the values
+      // they had — and the document stays **modified**, which is the
+      // accurate statement and is the point of returning here rather
+      // than a consequence of it (#171). That is what keeps the
+      // unsaved-changes gate (R-C3/Q4) in front of work that now exists
+      // only in the editor.
+      //
+      // Modal rather than a toast, on the same reasoning that made
+      // `reportAssetsFailure` one: the file on disk is not what the user
+      // believes it is. Silence here is what made the close prompt they
+      // meet afterwards look spurious, and Discard the reasonable answer
+      // to it.
+      //
+      // `omit`, because the words are finished by the time they get
+      // here: `saveFailedMessage` has already placed the platform's own
+      // sentence between the statement and the remedy, where it reads.
+      // The reporter's own `append` would put the whole raw string —
+      // English scaffold, the path a second time, `(os error 32)` —
+      // under a paragraph that ends on the remedy (#127). The error
+      // still reaches the console unchanged, so this costs a line on
+      // screen and never a line in the log.
+      await ctx.reporter.dialog(
+        saveFailedMessage(bundle.rootPath, saveFailureCause(e)),
+        e,
+        SAVE_FAILED_TITLE,
+        'omit',
+      );
+      return;
     }
 
     ctx.state.isFirstSave = false;
