@@ -69,12 +69,14 @@ function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall |
     showTree: (nodes, rootName, rootPath) => {
       lastShow = { nodes, rootName, rootPath };
     },
+    showAccessOffer: () => {},
     hide: () => {
       lastShow = null;
     },
     isVisible: () => lastShow !== null,
     toggle: () => {},
     setOnFileClick: () => {},
+    setOnRequestAccess: () => {},
   };
   return { sidebar, lastShow: () => lastShow };
 }
@@ -273,12 +275,14 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       showTree: (nodes, rootName, rootPath) => {
         panel = { nodes, rootName, rootPath };
       },
+      showAccessOffer: () => {},
       hide: () => {
         panel = null;
       },
       isVisible: () => panel !== null,
       toggle: () => {},
       setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
     };
     const reporter: ErrorReporter = { silent: () => {}, toast: () => {}, dialog: async () => {} };
     actions = createDocumentActions({

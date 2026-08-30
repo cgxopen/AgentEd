@@ -1203,6 +1203,29 @@ button.indicator-search:hover {
   background: var(--hover-overlay);
 }
 
+/* The offer drawn where the tree would be, when no folder has been
+   granted and nothing could be looked at (#184). It is an action, so it
+   carries the pointer an inert entry deliberately does not, and it wraps
+   rather than truncating: this one is a sentence to read, where a file
+   entry is a name to scan. */
+.sidebar-access-offer {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+}
+.sidebar-access-offer:hover {
+  background: var(--hover-overlay);
+}
+
 /* An entry present in the tree that nothing can act on (#146). No
    pointer and no hover, so it does not offer a click it will not take;
    the text stays at full contrast because the entry is a real file the

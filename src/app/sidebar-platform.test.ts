@@ -49,10 +49,12 @@ describe('on a desktop build (#146)', () => {
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
         passed = opensNonMarkdown;
       },
+      showAccessOffer: () => {},
       hide: () => {},
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
     };
 
     await refreshSidebar(state, sidebar, mockIO(['/proj/notes']));

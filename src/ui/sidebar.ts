@@ -19,6 +19,11 @@ export interface Sidebar {
     rootPath: string,
     opensNonMarkdown: boolean,
   ) => void;
+  /**
+   * Show the panel holding the offer of folder access instead of a tree
+   * (#184). Only reached where nothing could be looked at.
+   */
+  showAccessOffer: () => void;
   hide: () => void;
   isVisible: () => boolean;
   toggle: () => void;
@@ -29,6 +34,12 @@ export interface Sidebar {
    * the consumer can run path-traversal validation.
    */
   setOnFileClick: (handler: (absPath: string, rootPath: string) => void) => void;
+  /**
+   * Replace the handler run when the user accepts the offer above. It is
+   * called from a click, so whatever it does still holds the transient
+   * user activation `showDirectoryPicker` requires.
+   */
+  setOnRequestAccess: (handler: () => void) => void;
 }
 
 export interface TreeNode {
@@ -50,6 +61,24 @@ type OnFileClick = (absPath: string, rootPath: string) => void;
  * a copy of it (#50).
  */
 export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
+
+/**
+ * The line drawn where the tree would be when nothing could be looked at
+ * (#184). Owner wording of 2026-08-30, and it is also recorded on the
+ * issue — two places that can disagree, which is the gap found at the
+ * #186 review where the shape was pinned and the sentence was not.
+ *
+ * **It names its step, and that is not a departure from #173.** That
+ * rule bans naming a step which does not work; `showDirectoryPicker`
+ * genuinely acquires what this promises, unlike the Save As route
+ * measured and rejected there.
+ *
+ * Exported so a test reads what the user reads rather than a copy of it
+ * (#50).
+ */
+export const NO_FOLDER_ACCESS_OFFER =
+  'AgentEd has not been given access to a folder, so it cannot see what is beside this ' +
+  'document. Choose one.';
 
 function fileIcon(name: string, isDir: boolean): string {
   if (isDir) return '\u{1F4C1}';
@@ -213,6 +242,7 @@ export function setupSidebar(): Sidebar {
   // No-op default — replaced by main.ts via setOnFileClick once
   // the document actions are wired.
   let onFileClick: OnFileClick = () => {};
+  let onRequestAccess: () => void = () => {};
 
   function hidePanel(): void {
     panel.classList.add('hidden');
@@ -254,11 +284,37 @@ export function setupSidebar(): Sidebar {
     onFileClick = handler;
   }
 
+  function setOnRequestAccess(handler: () => void): void {
+    onRequestAccess = handler;
+  }
+
+  /**
+   * The panel, holding the offer rather than a tree (#184).
+   *
+   * Built the same way `showTree` builds: the root element is cleared
+   * first, so the two can replace each other in either direction without
+   * one leaving anything of itself behind.
+   */
+  function showAccessOffer(): void {
+    treeEl.innerHTML = '';
+    const offer = document.createElement('button');
+    offer.type = 'button';
+    offer.className = 'sidebar-access-offer';
+    offer.textContent = NO_FOLDER_ACCESS_OFFER;
+    // A button, not a styled div: the gesture is an action, so it is one
+    // the keyboard and a screen reader can reach on their own terms.
+    offer.addEventListener('click', () => onRequestAccess());
+    treeEl.appendChild(offer);
+    panel.classList.remove('hidden');
+  }
+
   return {
     showTree,
+    showAccessOffer,
     hide: hidePanel,
     isVisible: () => !panel.classList.contains('hidden'),
     toggle,
     setOnFileClick,
+    setOnRequestAccess,
   };
 }

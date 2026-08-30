@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildTree, NON_MARKDOWN_REASON, setupSidebar, type TreeNode } from './sidebar';
+import {
+  buildTree,
+  NO_FOLDER_ACCESS_OFFER,
+  NON_MARKDOWN_REASON,
+  setupSidebar,
+  type TreeNode,
+} from './sidebar';
 
 /**
  * `buildTree` builds the sidebar's tree from the flat listing the walk
@@ -293,5 +299,73 @@ describe('#146 — an entry nothing can act on', () => {
     const desktop = show(true).entries.get('note.txt')!;
     expect(web.title).not.toBe(desktop.title);
     expect(web.className).not.toBe(desktop.className);
+  });
+});
+
+/**
+ * #184 — the offer the panel carries where a tree cannot be built.
+ *
+ * The wording is read from the module rather than restated (#50); it is
+ * also recorded on the issue, which is the second place it can disagree
+ * with — the gap found at the #186 review, where the shape was pinned
+ * and the sentence was not.
+ */
+describe('#184 — the offer of folder access', () => {
+  function mount(): {
+    panel: HTMLElement;
+    tree: HTMLElement;
+    sidebar: ReturnType<typeof setupSidebar>;
+  } {
+    document.body.innerHTML =
+      '<div id="sidebar" class="hidden"><div id="sidebar-tree"></div><button id="sidebar-close"></button></div>';
+    return {
+      panel: document.getElementById('sidebar')!,
+      tree: document.getElementById('sidebar-tree')!,
+      sidebar: setupSidebar(),
+    };
+  }
+
+  it('shows the panel, holding the owner sentence and nothing else', () => {
+    const { panel, tree, sidebar } = mount();
+    sidebar.showAccessOffer();
+
+    expect(panel.classList.contains('hidden')).toBe(false);
+    const offer = tree.querySelector('.sidebar-access-offer');
+    expect(offer?.textContent).toBe(NO_FOLDER_ACCESS_OFFER);
+    expect(tree.querySelectorAll('.sidebar-file-entry')).toHaveLength(0);
+  });
+
+  it('is a button, so the keyboard reaches it on its own terms', () => {
+    const { tree, sidebar } = mount();
+    sidebar.showAccessOffer();
+    const offer = tree.querySelector('.sidebar-access-offer');
+    expect(offer?.tagName).toBe('BUTTON');
+  });
+
+  it('a click runs the handler that asks for the folder', () => {
+    const { tree, sidebar } = mount();
+    let asked = 0;
+    sidebar.setOnRequestAccess(() => {
+      asked += 1;
+    });
+    sidebar.showAccessOffer();
+    tree.querySelector<HTMLElement>('.sidebar-access-offer')!.click();
+    expect(asked).toBe(1);
+  });
+
+  it('a tree drawn afterwards replaces it, leaving nothing of it behind', () => {
+    const { tree, sidebar } = mount();
+    sidebar.showAccessOffer();
+    sidebar.showTree(buildTree([{ path: 'cap1.md', kind: 'file' }]), 'proiect', '/proiect', false);
+    expect(tree.querySelector('.sidebar-access-offer')).toBeNull();
+    expect(tree.querySelectorAll('.sidebar-file-entry')).toHaveLength(1);
+  });
+
+  it('and the offer replaces a tree, in the other direction', () => {
+    const { tree, sidebar } = mount();
+    sidebar.showTree(buildTree([{ path: 'cap1.md', kind: 'file' }]), 'proiect', '/proiect', false);
+    sidebar.showAccessOffer();
+    expect(tree.querySelectorAll('.sidebar-file-entry')).toHaveLength(0);
+    expect(tree.querySelector('.sidebar-access-offer')).not.toBeNull();
   });
 });

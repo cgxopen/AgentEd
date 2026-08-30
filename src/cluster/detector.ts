@@ -201,6 +201,16 @@ async function probeOne(
   // and a revoked folder grant produced six context files nobody could
   // open (#126).
   //
+  // **Deliberate against a case where it is wrong, one module over**
+  // (#184). `shouldShowSidebar` no longer merges these two, because an
+  // absent panel does not merely withhold — it asserts that nothing
+  // sits beside the document, and with no folder granted that assertion
+  // is false. This indicator asserts nothing when it withdraws: #130
+  // decided that a scan nobody asked for stays silent whatever it
+  // finds, so `absent` and `unknown` really do lead to the same place
+  // here. The merge is right for a badge that answers only when asked
+  // and wrong for a panel whose absence speaks.
+  //
   // The guard stays even though `entryPresence` is contracted never to
   // reject: one probe taking the whole scan down with it is the opposite
   // of the graceful degradation this module promises, and a contract is

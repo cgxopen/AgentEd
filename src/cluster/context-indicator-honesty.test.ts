@@ -152,13 +152,20 @@ describe('#126 — the indicator names only what was found', () => {
 });
 
 describe('#126 — the sidebar makes its two claims only from a lookup that happened', () => {
-  it('a revoked grant shows no sidebar', async () => {
+  it('a revoked grant shows no sidebar, and now says which kind of nothing', async () => {
     const io = webIO(grantRevoked());
 
     // Both claims in one call: the sibling folder, then `assets/`. At
     // 4575563 the first one answered `true` and rooted the panel at a
     // folder nobody had seen.
-    await expect(shouldShowSidebar('notes.md', io)).resolves.toEqual({ show: false });
+    //
+    // Still no tree — and since #184 the answer says **why** there is
+    // none. A revoked grant is `unknown` at `entryPresence`, so nothing
+    // was looked at and the panel's absence would be a false statement
+    // about the folder.
+    await expect(shouldShowSidebar('notes.md', io)).resolves.toEqual({
+      kind: 'no-folder-access',
+    });
   });
 
   it('both claims are made for a nested document, and both stay silent', async () => {
@@ -167,7 +174,9 @@ describe('#126 — the sidebar makes its two claims only from a lookup that happ
     // and only ever asks the first.
     const io = webIO(grantRevoked());
 
-    await expect(shouldShowSidebar('notes/doc.md', io)).resolves.toEqual({ show: false });
+    await expect(shouldShowSidebar('notes/doc.md', io)).resolves.toEqual({
+      kind: 'no-folder-access',
+    });
   });
 
   it('a lookup refused for some other reason stays silent too', async () => {
@@ -183,14 +192,16 @@ describe('#126 — the sidebar makes its two claims only from a lookup that happ
       },
     });
 
-    await expect(shouldShowSidebar('notes/doc.md', io)).resolves.toEqual({ show: false });
+    await expect(shouldShowSidebar('notes/doc.md', io)).resolves.toEqual({
+      kind: 'no-folder-access',
+    });
   });
 
   it('an adjacent folder that is really there still shows — the control', async () => {
     const io = webIO(grantedTree(['doc.md']));
 
     await expect(shouldShowSidebar('notes.md', io)).resolves.toEqual({
-      show: true,
+      kind: 'tree',
       root: 'notes',
     });
   });
