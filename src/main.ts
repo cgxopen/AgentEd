@@ -186,7 +186,18 @@ ctx.sidebar.setOnRequestAccess(() => {
   void (async () => {
     // Only on a grant. A cancelled picker changed nothing, so nothing is
     // redrawn and nothing is said (#61).
-    if (await requestFolderAccess()) await ctx.refreshSidebar();
+    if (!(await requestFolderAccess())) return;
+    await ctx.refreshSidebar();
+    // **The user asked, so the answer is theirs even when it is
+    // nothing** (#130). A refresh that leaves the panel hidden means the
+    // granted folder holds nothing beside the document — true, complete,
+    // and silence would answer a question with an absence.
+    //
+    // The check lives here rather than in `refreshSidebar` because this
+    // is the only place that knows a question was put. Every other route
+    // into that state reaches it without anyone asking, and stays
+    // silent.
+    if (!ctx.sidebar.isVisible()) ctx.sidebar.showNothingRelated();
   })().catch(console.error);
 });
 

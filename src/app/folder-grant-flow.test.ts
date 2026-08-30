@@ -23,9 +23,12 @@ import { AppState } from './state';
 function acceptOffer(
   requestFolderAccess: () => Promise<boolean>,
   refresh: () => Promise<void>,
+  sidebar: Sidebar,
 ): () => Promise<void> {
   return async () => {
-    if (await requestFolderAccess()) await refresh();
+    if (!(await requestFolderAccess())) return;
+    await refresh();
+    if (!sidebar.isVisible()) sidebar.showNothingRelated();
   };
 }
 
@@ -58,17 +61,28 @@ function harness() {
   const state = new AppState();
   state.filePath = '/proj/notes.md';
   const seen: string[] = [];
+  // Visibility is tracked rather than stubbed: the rule under test is
+  // "if the refresh left the panel hidden, say so", so a sidebar that
+  // always answers `true` would assert nothing.
+  let visible = false;
   const sidebar: Sidebar = {
     showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
       seen.push(`tree:${rootPath}`);
+      visible = true;
     },
     showAccessOffer: () => {
       seen.push('offer');
+      visible = true;
+    },
+    showNothingRelated: () => {
+      seen.push('nothing-related');
+      visible = true;
     },
     hide: () => {
       seen.push('hidden');
+      visible = false;
     },
-    isVisible: () => true,
+    isVisible: () => visible,
     toggle: () => {},
     setOnFileClick: () => {},
     setOnRequestAccess: () => {},
@@ -76,13 +90,14 @@ function harness() {
   return {
     granted,
     seen,
+    sidebar,
     refresh: () => refreshSidebar(state, sidebar, io),
   };
 }
 
 describe('#184 — accepting the offer', () => {
   it('a grant redraws the panel in the same gesture, with no reload', async () => {
-    const { granted, seen, refresh } = harness();
+    const { granted, seen, sidebar, refresh } = harness();
     await refresh();
     expect(seen).toEqual(['offer']);
 
@@ -90,21 +105,105 @@ describe('#184 — accepting the offer', () => {
       granted.current = true;
       return true;
     });
-    await acceptOffer(request, refresh)();
+    await acceptOffer(request, refresh, sidebar)();
 
     expect(seen).toEqual(['offer', 'tree:/proj/notes']);
   });
 
   it('a cancelled picker changes nothing and says nothing', async () => {
-    const { seen, refresh } = harness();
+    const { seen, sidebar, refresh } = harness();
     await refresh();
     expect(seen).toEqual(['offer']);
 
     const request = vi.fn(async () => false);
-    await acceptOffer(request, refresh)();
+    await acceptOffer(request, refresh, sidebar)();
 
     // Still exactly one call: the panel was not redrawn, so the line the
     // user is looking at is the line that was already there (#61).
     expect(seen).toEqual(['offer']);
+  });
+});
+
+describe('#184 — a folder that was asked for and holds nothing', () => {
+  it('says so, because the user asked and an absence is not an answer', async () => {
+    // The granted folder answers, and there is nothing beside the
+    // document. True, complete — and put to the application by the user
+    // one gesture earlier, so #130 says it gets an answer.
+    const granted = { current: false };
+    const io: PlatformIO = {
+      ...ioWith(granted),
+      entryPresence: async () => (granted.current ? 'absent' : 'unknown'),
+    };
+    const state = new AppState();
+    state.filePath = '/proj/notes.md';
+    const seen: string[] = [];
+    let visible = false;
+    const sidebar: Sidebar = {
+      showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
+        seen.push(`tree:${rootPath}`);
+        visible = true;
+      },
+      showAccessOffer: () => {
+        seen.push('offer');
+        visible = true;
+      },
+      showNothingRelated: () => {
+        seen.push('nothing-related');
+        visible = true;
+      },
+      hide: () => {
+        seen.push('hidden');
+        visible = false;
+      },
+      isVisible: () => visible,
+      toggle: () => {},
+      setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
+    };
+    const refresh = () => refreshSidebar(state, sidebar, io);
+
+    await refresh();
+    expect(seen).toEqual(['offer']);
+
+    await acceptOffer(
+      async () => {
+        granted.current = true;
+        return true;
+      },
+      refresh,
+      sidebar,
+    )();
+
+    // Hidden by the refresh, then answered — and the panel stays open on
+    // the answer rather than closing on the user's own question.
+    expect(seen).toEqual(['offer', 'hidden', 'nothing-related']);
+    expect(sidebar.isVisible()).toBe(true);
+  });
+
+  it('and nobody else is told, which is the whole of the distinction', async () => {
+    // The same state reached without anyone asking: a document whose
+    // granted folder simply holds nothing adjacent. `refreshSidebar`
+    // hides and says nothing, and cannot say anything — the sentence
+    // lives in the handler that ran the picker, not in the decision.
+    const granted = { current: true };
+    const io: PlatformIO = { ...ioWith(granted), entryPresence: async () => 'absent' };
+    const state = new AppState();
+    state.filePath = '/proj/notes.md';
+    const seen: string[] = [];
+    const sidebar: Sidebar = {
+      showTree: () => seen.push('tree'),
+      showAccessOffer: () => seen.push('offer'),
+      showNothingRelated: () => seen.push('nothing-related'),
+      hide: () => seen.push('hidden'),
+      isVisible: () => false,
+      toggle: () => {},
+      setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
+    };
+
+    await refreshSidebar(state, sidebar, io);
+
+    expect(seen).toEqual(['hidden']);
+    expect(seen).not.toContain('nothing-related');
   });
 });

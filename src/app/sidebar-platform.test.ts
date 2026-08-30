@@ -49,6 +49,7 @@ describe('on a desktop build (#146)', () => {
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
         passed = opensNonMarkdown;
       },
+      showNothingRelated: () => {},
       showAccessOffer: () => {},
       hide: () => {},
       isVisible: () => true,
@@ -87,6 +88,7 @@ describe('an unreadable path on the desktop (#184)', () => {
       showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
         seen.push(`tree:${rootPath}`);
       },
+      showNothingRelated: () => {},
       showAccessOffer: () => {
         seen.push('offer');
       },

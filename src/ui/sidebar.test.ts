@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildTree,
   NO_FOLDER_ACCESS_OFFER,
+  NO_RELATED_ITEMS,
   NON_MARKDOWN_REASON,
   setupSidebar,
   type TreeNode,
@@ -416,5 +417,54 @@ describe('#184 — hide empties the panel', () => {
     expect(panel.classList.contains('hidden')).toBe(true);
     sidebar.toggle();
     expect(panel.classList.contains('hidden')).toBe(false);
+  });
+});
+
+describe('#184 — the answer when the folder holds nothing', () => {
+  function mount() {
+    document.body.innerHTML =
+      '<div id="sidebar" class="hidden"><div id="sidebar-tree"></div><button id="sidebar-close"></button></div>';
+    return {
+      panel: document.getElementById('sidebar')!,
+      tree: document.getElementById('sidebar-tree')!,
+      sidebar: setupSidebar(),
+    };
+  }
+
+  it('shows the panel, holding the owner sentence', () => {
+    const { panel, tree, sidebar } = mount();
+    sidebar.showNothingRelated();
+
+    expect(panel.classList.contains('hidden')).toBe(false);
+    expect(tree.querySelector('.sidebar-note')?.textContent).toBe(NO_RELATED_ITEMS);
+  });
+
+  it('takes no click, because nothing here is an action', () => {
+    const { tree, sidebar } = mount();
+    let asked = 0;
+    sidebar.setOnRequestAccess(() => {
+      asked += 1;
+    });
+    sidebar.showNothingRelated();
+
+    const note = tree.querySelector<HTMLElement>('.sidebar-note')!;
+    expect(note.tagName).toBe('DIV');
+    note.click();
+    expect(asked).toBe(0);
+  });
+
+  it('replaces the offer, and is replaced by a tree, leaving nothing behind', () => {
+    const { tree, sidebar } = mount();
+    sidebar.showAccessOffer();
+    sidebar.showNothingRelated();
+    expect(tree.querySelector('.sidebar-access-offer')).toBeNull();
+
+    sidebar.showTree(buildTree([{ path: 'cap1.md', kind: 'file' }]), 'proiect', '/proiect', false);
+    expect(tree.querySelector('.sidebar-note')).toBeNull();
+    expect(tree.querySelectorAll('.sidebar-file-entry')).toHaveLength(1);
+  });
+
+  it('and the three sentences are different from each other', () => {
+    expect(new Set([NO_RELATED_ITEMS, NO_FOLDER_ACCESS_OFFER, NON_MARKDOWN_REASON]).size).toBe(3);
   });
 });

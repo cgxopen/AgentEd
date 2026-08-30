@@ -69,6 +69,7 @@ function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall |
     showTree: (nodes, rootName, rootPath) => {
       lastShow = { nodes, rootName, rootPath };
     },
+    showNothingRelated: () => {},
     showAccessOffer: () => {},
     hide: () => {
       lastShow = null;
@@ -275,6 +276,7 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       showTree: (nodes, rootName, rootPath) => {
         panel = { nodes, rootName, rootPath };
       },
+      showNothingRelated: () => {},
       showAccessOffer: () => {},
       hide: () => {
         panel = null;

@@ -105,6 +105,7 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
 
   const noopSidebar = (): Sidebar => ({
     showTree: (_nodes: TreeNode[]) => {},
+    showNothingRelated: () => {},
     showAccessOffer: () => {},
     hide: () => {},
     isVisible: () => false,
@@ -189,6 +190,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
         showTree: (_nodes: TreeNode[], _rootName: string, rootPath: string) => {
           root = rootPath;
         },
+        showNothingRelated: () => {},
         showAccessOffer: () => {},
         hide: () => {
           root = null;
@@ -276,6 +278,7 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
         passed = opensNonMarkdown;
       },
+      showNothingRelated: () => {},
       showAccessOffer: () => {},
       hide: () => {},
       isVisible: () => true,
@@ -313,6 +316,7 @@ describe('#184 — which kind of nothing the panel is showing', () => {
       showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
         seen.push(`tree:${rootPath}`);
       },
+      showNothingRelated: () => {},
       showAccessOffer: () => {
         seen.push('offer');
       },
