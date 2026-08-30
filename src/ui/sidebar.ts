@@ -136,6 +136,26 @@ function renderFolderNode(
   }
 }
 
+/**
+ * **MEASUREMENT PROBE, not the change (#146).** This commit exists to
+ * put a two-line `title` in front of the Tauri webview so a person can
+ * see whether it renders as two lines, which nothing in the product does
+ * today and no test in this repository can observe: a native tooltip is
+ * drawn outside the DOM and outside the page's rendering surface.
+ *
+ * Measured already in a Chromium browser, which is the web target's own
+ * renderer: a single-line title renders as one line and a `\n` renders
+ * as two, identically whether the newline arrives from JavaScript or
+ * from the HTML attribute. The desktop target is WebView2 and has not
+ * been measured, and *same engine* is a reading rather than a
+ * measurement.
+ *
+ * The second line is on non-markdown entries only, so the same tree
+ * holds a control and a case. **The sentence is not true of this
+ * build** — the desktop opens these files with the OS default app — and
+ * that is why this commit is an instrument and is replaced by the change
+ * itself before any review.
+ */
 function renderFileNode(
   li: HTMLElement,
   node: TreeNode,
@@ -145,7 +165,11 @@ function renderFileNode(
   const entry = document.createElement('div');
   entry.className = 'sidebar-file-entry';
   entry.textContent = `${fileIcon(node.name, false)} ${node.name}`;
-  entry.title = node.path;
+  const lower = node.name.toLowerCase();
+  const isMarkdown = lower.endsWith('.md') || lower.endsWith('.markdown');
+  entry.title = isMarkdown
+    ? node.path
+    : `${node.path}\nOnly markdown files open from this tree in the browser.`;
   entry.addEventListener('click', () => {
     onClick(joinPath(rootPath, node.path), rootPath);
   });
