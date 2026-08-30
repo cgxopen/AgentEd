@@ -464,7 +464,14 @@ export class WebIO implements PlatformIO {
     await this.acquireDirectoryHandle();
     // A cancelled picker leaves the handle as it was, and `false` is
     // what keeps the caller silent about it (#61).
-    return this.dirHandle !== null && this.dirHandle !== before;
+    if (this.dirHandle === null || this.dirHandle === before) return false;
+    // The document may have been registered because the *previous* grant
+    // could not name it — the state a Save As across folders leaves
+    // behind. A new grant is the moment to ask again, and asking here is
+    // what makes the offer repair what it appears in rather than
+    // describe it (#184).
+    await this.identity.reanchor(this.handles());
+    return true;
   }
 
   private async acquireDirectoryHandle(): Promise<void> {

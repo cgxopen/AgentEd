@@ -52,6 +52,30 @@ export async function shouldShowSidebar(
   // nothing: there is no neighbourhood to fail to see.
   if (!filePath) return { kind: 'nothing-adjacent' };
 
+  // **Does the granted folder speak for this document at all** (#184,
+  // and the hole is #147's). On the web a document's path is a name
+  // resolved against the grant, and a Save As can leave the document in
+  // one folder and the grant in another — `acquireDirectoryHandle`
+  // swallows a cancelled picker, so the old grant simply stays.
+  //
+  // Everything below then answers about the wrong folder. Measured: a
+  // document saved as `web.md` into a folder with nothing beside it,
+  // while the grant still held the folder it came from, rooted the panel
+  // at that folder's `web/` and listed four files that are not beside
+  // the document. The entries are clickable, so a click opened a file
+  // from the other tree.
+  //
+  // `canWriteCompanions` is the predicate #147 built for exactly this
+  // split — it asks whether the grant can name a companion **beside
+  // this document**, which is the same question a tree asks. Its name is
+  // about writing and its meaning is about the neighbourhood; that is
+  // worth one sentence rather than a rename.
+  //
+  // `no-folder-access` rather than `nothing-adjacent`, because nothing
+  // about *this document's* neighbourhood was established — and on the
+  // web the offer then hands the user the one act that repairs it.
+  if (!(await io.canWriteCompanions(filePath))) return { kind: 'no-folder-access' };
+
   // Both of these are positive claims — *this folder is there, and the
   // sidebar is rooted at it* — so only `present` may make them (#126).
   // They used to be made from a boolean that, after #58, answered `true`

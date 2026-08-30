@@ -119,6 +119,30 @@ export class DocumentIdentity {
   }
 
   /**
+   * Ask again whether the grant can name the held document, after the
+   * grant itself has changed (#184).
+   *
+   * A registration means *the folder in force could not name this file*.
+   * That was true when it was made and stops being true the moment the
+   * user grants the folder the document is actually in — which is what
+   * the sidebar's offer asks them to do. Without this, accepting that
+   * offer would change nothing the user can see, and a step that does
+   * not work is one this project does not name (#148, #173).
+   *
+   * **Only when the new grant names it at the path already in use.** If
+   * the grant is a folder further up, the document is inside it under a
+   * longer path, and the one the application is holding would be wrong —
+   * so the registration stands and the panel goes on saying it cannot
+   * see. Silently changing a document's path underneath the editor is
+   * the shape #141 and #127 were both about.
+   */
+  async reanchor(handles: GrantedHandles): Promise<void> {
+    if (!this.documentFile) return;
+    const within = await pathWithinGrant(this.documentFile.handle, handles);
+    if (within === this.documentFile.path) this.documentFile = null;
+  }
+
+  /**
    * The document this platform is holding, when `path` is exactly the
    * path it answered for it (#141, #144).
    *
