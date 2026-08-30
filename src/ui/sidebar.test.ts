@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildTree, type TreeNode } from './sidebar';
+import { buildTree, NON_MARKDOWN_REASON, setupSidebar, type TreeNode } from './sidebar';
 
 /**
  * `buildTree` builds the sidebar's tree from the flat listing the walk
@@ -194,5 +194,104 @@ describe('buildTree builds the tree it always built (#174)', () => {
       expect(expected.length, `expected outline for "${label}" is empty`).toBeGreaterThan(0);
       expect(buildTree(entries).length, `"${label}" built no nodes`).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * #146 — a non-markdown entry is actionable only where something can act
+ * on it.
+ *
+ * Both platform answers are driven **in one file**, which is the whole
+ * reason the fact arrives as a parameter rather than being read from
+ * `isTauri`: that is a module-load constant, so the pattern would be
+ * `vi.mock` per file and the two halves could not sit beside each other
+ * and be compared.
+ *
+ * The two halves fail for opposite reasons. A fix too wide makes the
+ * desktop entry inert and breaks the second; a fix too narrow leaves the
+ * web entry clickable and breaks the first. Neither implies the other.
+ */
+describe('#146 — an entry nothing can act on', () => {
+  function show(opensNonMarkdown: boolean): {
+    entries: Map<string, HTMLElement>;
+    clicks: string[][];
+  } {
+    document.body.innerHTML =
+      '<div id="sidebar"><div id="sidebar-tree"></div><button id="sidebar-close"></button></div>';
+    const clicks: string[][] = [];
+    const sidebar = setupSidebar();
+    sidebar.setOnFileClick((absPath, rootPath) => {
+      clicks.push([absPath, rootPath]);
+    });
+    sidebar.showTree(
+      buildTree([
+        { path: 'cap1.md', kind: 'file' },
+        { path: 'note.txt', kind: 'file' },
+      ]),
+      'proiect',
+      '/proiect',
+      opensNonMarkdown,
+    );
+    const entries = new Map<string, HTMLElement>();
+    for (const el of document.querySelectorAll<HTMLElement>('.sidebar-file-entry')) {
+      entries.set(el.textContent?.trim().split(' ').pop() ?? '', el);
+    }
+    return { entries, clicks };
+  }
+
+  describe('in the browser, where nothing can hand a file to the host system', () => {
+    it('the entry is still in the tree — present, not removed', () => {
+      const { entries } = show(false);
+      expect([...entries.keys()].sort()).toEqual(['cap1.md', 'note.txt']);
+    });
+
+    it('a click on it does nothing, because it carries no listener at all', () => {
+      const { entries, clicks } = show(false);
+      entries.get('note.txt')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(clicks).toEqual([]);
+    });
+
+    it('and it offers no affordance suggesting it would', () => {
+      const { entries } = show(false);
+      expect(entries.get('note.txt')!.classList.contains('sidebar-file-inert')).toBe(true);
+    });
+
+    it('the reason is the second line of its tooltip, and the path is still the first', () => {
+      const { entries } = show(false);
+      // Read from the module, not restated (#50). Two lines rather than
+      // one was measured in both targets before this was written.
+      expect(entries.get('note.txt')!.title).toBe(`note.txt\n${NON_MARKDOWN_REASON}`);
+      expect(entries.get('note.txt')!.title.split('\n')).toHaveLength(2);
+    });
+
+    it('a markdown entry is untouched by any of it', () => {
+      const { entries, clicks } = show(false);
+      const md = entries.get('cap1.md')!;
+      expect(md.classList.contains('sidebar-file-inert')).toBe(false);
+      expect(md.title).toBe('cap1.md');
+      md.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(clicks).toEqual([['/proiect/cap1.md', '/proiect']]);
+    });
+  });
+
+  describe('on the desktop, where the OS default app can open it', () => {
+    it('the entry still takes a click, and hands on the path it was built from', () => {
+      const { entries, clicks } = show(true);
+      entries.get('note.txt')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(clicks).toEqual([['/proiect/note.txt', '/proiect']]);
+    });
+
+    it('it is not marked inert, and its tooltip is the path and nothing else', () => {
+      const { entries } = show(true);
+      expect(entries.get('note.txt')!.classList.contains('sidebar-file-inert')).toBe(false);
+      expect(entries.get('note.txt')!.title).toBe('note.txt');
+    });
+  });
+
+  it('the two halves really differ, so neither passes vacuously', () => {
+    const web = show(false).entries.get('note.txt')!;
+    const desktop = show(true).entries.get('note.txt')!;
+    expect(web.title).not.toBe(desktop.title);
+    expect(web.className).not.toBe(desktop.className);
   });
 });

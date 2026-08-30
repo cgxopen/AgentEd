@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { WebIO } from '../platform/web';
 import { installLinkOpener } from './link-open';
 
 let root: HTMLElement;
@@ -186,6 +187,56 @@ describe('when the platform cannot open it', () => {
     await vi.waitFor(() => expect(openSpy).toHaveBeenCalled());
 
     expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+  });
+});
+
+/**
+ * The same fallback, with the rejection coming from `WebIO` itself (#146).
+ *
+ * **The test above satisfies the criterion this replaces and pins
+ * nothing of the thing it is for.** Its rejection comes from
+ * `openExternal.mockRejectedValue`, so it asserts what happens *given* a
+ * rejection; nothing asserted that the web build produces one. Measured
+ * on this branch: making `WebIO.openWithSystem` resolve instead of throw
+ * left the whole suite green — 84 files, 1815 tests — with that test
+ * among them. The repair this issue warns about would have shipped
+ * behind a green run.
+ *
+ * So this one wires the real implementation into `openExternal`, exactly
+ * as `main.ts` does. The throw in `web.ts` is load-bearing and this is
+ * what says so.
+ */
+describe('#146 — the rejection comes from WebIO, not from a stub', () => {
+  it('a Ctrl+click still opens a new tab when the web build is the opener', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const web = new WebIO();
+    const ownRoot = document.createElement('div');
+    document.body.appendChild(ownRoot);
+    const stop = installLinkOpener(ownRoot, {
+      openExternal: (url) => web.openWithSystem(url),
+    });
+
+    const a = document.createElement('a');
+    a.setAttribute('href', 'https://example.com');
+    a.textContent = 'the docs';
+    ownRoot.appendChild(a);
+    a.dispatchEvent(
+      new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ctrlKey: true }),
+    );
+
+    await vi.waitFor(() => expect(openSpy).toHaveBeenCalled());
+    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+
+    stop();
+    ownRoot.remove();
+  });
+
+  it('and the implementation rejects, which is the half the fallback needs', async () => {
+    // Stated separately so a failure says which half moved: the platform
+    // stopped refusing, or the opener stopped falling back.
+    await expect(new WebIO().openWithSystem('https://example.com')).rejects.toBeInstanceOf(Error);
   });
 });
 

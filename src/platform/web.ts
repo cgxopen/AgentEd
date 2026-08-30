@@ -404,9 +404,35 @@ export class WebIO implements PlatformIO {
     }
   }
 
-  // No equivalent for shell.open in the browser File System Access API.
-  // The sidebar's non-.md click flow guards on isTauri before calling
-  // openWithSystem, so this branch should never run in practice.
+  /**
+   * There is no equivalent of a shell open in the File System Access
+   * API, so this rejects. **The rejection is load-bearing** (#146).
+   *
+   * The comment that stood here said the sidebar guards on `isTauri`
+   * before calling this, so the branch never runs. No such guard existed
+   * anywhere in the repository, and the branch ran on every web session.
+   * A comment asserting a protection that is not there is worse than no
+   * comment: it is what stopped anyone looking.
+   *
+   * **Two production callers, and they want opposite things:**
+   *
+   *   - `app/link-open.ts:70`, through the `openExternal` callback wired
+   *     in `main.ts` — catches this and calls `window.open`. **Links
+   *     open on the web because this throws.** Making it resolve would
+   *     break link opening in silence, and the whole suite would stay
+   *     green: measured on this branch, the mutation turned zero tests
+   *     red. `link-open.test.ts` now drives this implementation itself
+   *     rather than a stub that rejects on request, so that mutation is
+   *     red today.
+   *   - `app/sidebar-click.ts:53` — no longer reaches here on the web.
+   *     A non-markdown entry is drawn with no click listener at all
+   *     (#146), so nothing calls it, rather than something calling it
+   *     and swallowing the result.
+   *
+   * The second caller stopping is why the first one is written down. A
+   * reader who sees only the sidebar half could conclude this rejection
+   * is now vestigial and remove it.
+   */
   async openWithSystem(_path: string): Promise<void> {
     throw new Error('openWithSystem is not supported on the web platform');
   }

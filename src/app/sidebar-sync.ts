@@ -1,3 +1,4 @@
+import { isTauri } from '../platform/detect';
 import { basename, dirname, joinPath, stripExtension } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import type { Sidebar } from '../ui/sidebar';
@@ -142,5 +143,18 @@ export async function refreshSidebar(
     })),
   );
 
-  sidebar.showTree(tree, basename(root), root);
+  // **The platform fact is read here and passed down** (#146). A
+  // non-markdown entry is actionable only where something can act on it,
+  // and only the desktop can: `TauriIO.openWithSystem` reaches the host
+  // shell where `WebIO` has nothing to reach. Read in this layer, which
+  // already asks this question in `file-association.ts` and
+  // `image-loader.ts`, and handed to the renderer as a value — so
+  // `src/ui` keeps knowing nothing about the platform, and a test can
+  // drive both answers in one file where a module-load constant would
+  // need one file per answer.
+  //
+  // Not a field on `PlatformIO`, deliberately: that interface is built
+  // by hand in twenty-two test files, and a new member would be
+  // twenty-two edits to state something this layer already knows.
+  sidebar.showTree(tree, basename(root), root, isTauri);
 }

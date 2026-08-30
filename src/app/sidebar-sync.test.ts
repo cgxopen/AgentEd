@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isTauri } from '../platform/detect';
 import type { FileEntry, PlatformIO } from '../platform/types';
 import type { Sidebar, TreeNode } from '../ui/sidebar';
 import { refreshSidebar, shouldShowSidebar } from './sidebar-sync';
@@ -245,5 +246,42 @@ describe('the root a sidebar click asked to keep (#178)', () => {
     state.resetDocument();
 
     expect(state.sidebarRootFromClick).toBeNull();
+  });
+});
+
+/**
+ * #146 — the platform fact reaches the renderer, and is not read there.
+ *
+ * This layer already asks the question in `file-association.ts` and
+ * `image-loader.ts`; `src/ui` asks it nowhere and does not start here.
+ * What the renderer does with each answer is asserted in
+ * `src/ui/sidebar.test.ts`, both answers in one file, which is what
+ * passing a value rather than reading a module-load constant buys.
+ *
+ * The desktop answer is asserted in `sidebar-platform.test.ts`, which
+ * needs its own file because `vi.mock` of `platform/detect` is per file.
+ */
+describe('the sidebar is told whether this build can open a non-markdown file (#146)', () => {
+  it('passes it as the fourth argument, from the one place that knows', async () => {
+    const state = new AppState();
+    state.filePath = '/proj/notes.md';
+    let passed: unknown = 'nothing was passed';
+    const sidebar: Sidebar = {
+      showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
+        passed = opensNonMarkdown;
+      },
+      hide: () => {},
+      isVisible: () => true,
+      toggle: () => {},
+      setOnFileClick: () => {},
+    };
+
+    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/notes'] }));
+
+    expect(passed).toBe(isTauri);
+    // And under this harness that value is the web answer, which is the
+    // platform the change is about. `happy-dom` has no
+    // `__TAURI_INTERNALS__`, so nothing here is a desktop build.
+    expect(passed).toBe(false);
   });
 });
