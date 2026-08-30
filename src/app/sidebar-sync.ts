@@ -159,18 +159,32 @@ export async function refreshSidebar(
 ): Promise<void> {
   const decision = await shouldShowSidebar(state.filePath, io);
 
-  // **The offer, and the one state that earns it** (#184). Nothing was
+  // **The offer, and the two things that earn it** (#184). Nothing was
   // looked at, so the panel's absence would say something false about
-  // this document's neighbourhood. `nothing-adjacent` gets no line: the
-  // folder answered, and on the web the user picked it a moment ago, so
-  // the absence is complete and they already know it — a permanent
-  // notice there would be the shape #58, #61 and #130 refuse.
+  // this document's neighbourhood — and there has to be a grant to
+  // offer.
+  //
+  // `nothing-adjacent` gets no line: the folder answered, and on the web
+  // the user picked it a moment ago, so the absence is complete and they
+  // already know it. A permanent notice there is the shape #58, #61 and
+  // #130 refuse.
+  //
+  // **`!isTauri`, and it is not belt-and-braces.** `unknown` is the same
+  // value on both platforms and does not mean the same thing.
+  // `TauriIO.entryPresence` answers it when `fsExists` throws — a
+  // path that cannot be read, which is #58's family — where `WebIO`
+  // answers it when no folder was ever granted. Only the second has a
+  // grant to offer, and the desktop line would be a sentence about
+  // folder access on a build with no such notion, over a click that
+  // `requestFolderAccess` answers `false` to. An unreadable path on the
+  // desktop keeps the behaviour it had, which is hidden; whether that
+  // silence is right is #58's question and not this one's.
   //
   // Below a kept root, because a root a click asked to hold is a folder
   // that was granted: there is nothing to offer.
   const root = decision.kind === 'tree' ? decision.root : state.sidebarRootFromClick;
   if (!root) {
-    if (decision.kind === 'no-folder-access') {
+    if (decision.kind === 'no-folder-access' && !isTauri) {
       sidebar.showAccessOffer();
       return;
     }
