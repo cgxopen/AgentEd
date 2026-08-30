@@ -1203,6 +1203,17 @@ button.indicator-search:hover {
   background: var(--hover-overlay);
 }
 
+/* An entry present in the tree that nothing can act on (#146). No
+   pointer and no hover, so it does not offer a click it will not take;
+   the text stays at full contrast because the entry is a real file the
+   user should still be able to read the name of. The reason is the
+   second line of its title, on demand and nowhere else. */
+.sidebar-file-entry.sidebar-file-inert {
+  cursor: default;
+}
+.sidebar-file-entry.sidebar-file-inert:hover {
+  background: transparent;
+}
 .sidebar-file-entry.active {
   background: var(--hover-overlay-strong);
   font-weight: 600;

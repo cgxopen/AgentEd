@@ -1,12 +1,24 @@
-import { joinPath } from '../platform/paths';
+import { isMarkdownPath, joinPath } from '../platform/paths';
 
 export interface Sidebar {
   /**
    * Render a recursive tree rooted at `rootPath`. Click handlers
    * registered via `setOnFileClick` receive absolute paths derived
    * from this root.
+   *
+   * `opensNonMarkdown` says whether this build can hand a non-markdown
+   * file to the host system (#146). It arrives as a value rather than
+   * being read here, so this module keeps knowing nothing about which
+   * platform it is drawing on — and so a test can drive both answers in
+   * one file, where `isTauri` is a module-load constant and would need
+   * one file per answer.
    */
-  showTree: (nodes: TreeNode[], rootName: string, rootPath: string) => void;
+  showTree: (
+    nodes: TreeNode[],
+    rootName: string,
+    rootPath: string,
+    opensNonMarkdown: boolean,
+  ) => void;
   hide: () => void;
   isVisible: () => boolean;
   toggle: () => void;
@@ -27,6 +39,17 @@ export interface TreeNode {
 }
 
 type OnFileClick = (absPath: string, rootPath: string) => void;
+
+/**
+ * The second line of an inert entry's tooltip (#146).
+ *
+ * **It states the limit and names no step**, which is the #173 rule: a
+ * message names a step only where the step was measured to work, and on
+ * the web there is none — nothing in the browser can hand a file to the
+ * host system. Exported so a test reads what the user reads rather than
+ * a copy of it (#50).
+ */
+export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
 
 function fileIcon(name: string, isDir: boolean): string {
   if (isDir) return '\u{1F4C1}';
@@ -93,6 +116,7 @@ function renderTreeRecursive(
   onClick: OnFileClick,
   rootPath: string,
   depth: number,
+  opensNonMarkdown: boolean,
 ): void {
   const ul = document.createElement('ul');
   ul.className = depth > 0 ? 'sidebar-tree-children collapsed' : 'sidebar-tree-children';
@@ -101,9 +125,9 @@ function renderTreeRecursive(
     const li = document.createElement('li');
 
     if (node.kind === 'directory') {
-      renderFolderNode(li, node, onClick, rootPath, depth);
+      renderFolderNode(li, node, onClick, rootPath, depth, opensNonMarkdown);
     } else {
-      renderFileNode(li, node, onClick, rootPath);
+      renderFileNode(li, node, onClick, rootPath, opensNonMarkdown);
     }
 
     ul.appendChild(li);
@@ -117,6 +141,7 @@ function renderFolderNode(
   onClick: OnFileClick,
   rootPath: string,
   depth: number,
+  opensNonMarkdown: boolean,
 ): void {
   const toggle = document.createElement('div');
   toggle.className = 'sidebar-folder-toggle';
@@ -132,23 +157,51 @@ function renderFolderNode(
   li.appendChild(toggle);
 
   if (node.children.length > 0) {
-    renderTreeRecursive(node.children, li, onClick, rootPath, depth + 1);
+    renderTreeRecursive(node.children, li, onClick, rootPath, depth + 1, opensNonMarkdown);
   }
 }
 
+/**
+ * One file entry. Actionable, or present and inert (#146).
+ *
+ * **Inert means no listener, not a listener that declines.** On the web
+ * there is no way to hand a file to the host system — the File System
+ * Access API has no equivalent of a shell open — so the click had
+ * nothing to do and did it silently, with an error only in a console
+ * the shipped build has no way to show. A click is a question, and
+ * silence belongs to what the user already knows (#58, #61, #130). So
+ * the question is answered before it is asked: the entry stays in the
+ * tree, carries no pointer and no hover, and takes no click.
+ *
+ * **The reason is on demand and nowhere else.** It is the second line of
+ * the title the entry already had, so the path is still there for every
+ * entry — on the web the tree is the only view of the folder, and
+ * answering an unasked question by removing something the user did ask
+ * for would be a poor trade. That two lines render as two lines was
+ * measured in both targets before this was written: a Chromium browser,
+ * which is the web build's own renderer, and the Tauri webview from the
+ * artifact of the probe build on this branch.
+ */
 function renderFileNode(
   li: HTMLElement,
   node: TreeNode,
   onClick: OnFileClick,
   rootPath: string,
+  opensNonMarkdown: boolean,
 ): void {
   const entry = document.createElement('div');
-  entry.className = 'sidebar-file-entry';
   entry.textContent = `${fileIcon(node.name, false)} ${node.name}`;
-  entry.title = node.path;
-  entry.addEventListener('click', () => {
-    onClick(joinPath(rootPath, node.path), rootPath);
-  });
+
+  const actionable = isMarkdownPath(node.name) || opensNonMarkdown;
+  entry.className = actionable ? 'sidebar-file-entry' : 'sidebar-file-entry sidebar-file-inert';
+  entry.title = actionable ? node.path : `${node.path}\n${NON_MARKDOWN_REASON}`;
+
+  if (actionable) {
+    entry.addEventListener('click', () => {
+      onClick(joinPath(rootPath, node.path), rootPath);
+    });
+  }
+
   li.appendChild(entry);
 }
 
@@ -167,7 +220,12 @@ export function setupSidebar(): Sidebar {
 
   closeBtn.addEventListener('click', hidePanel);
 
-  function showTree(nodes: TreeNode[], rootName: string, rootPath: string): void {
+  function showTree(
+    nodes: TreeNode[],
+    rootName: string,
+    rootPath: string,
+    opensNonMarkdown: boolean,
+  ): void {
     treeEl.innerHTML = '';
     const header = document.createElement('div');
     header.className = 'sidebar-root';
@@ -179,6 +237,7 @@ export function setupSidebar(): Sidebar {
       (absPath, rootPathArg) => onFileClick(absPath, rootPathArg),
       rootPath,
       0,
+      opensNonMarkdown,
     );
     panel.classList.remove('hidden');
   }

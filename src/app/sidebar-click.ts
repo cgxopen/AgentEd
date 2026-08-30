@@ -1,4 +1,4 @@
-import { isPathInsideRoot } from '../platform/paths';
+import { isMarkdownPath, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { showToast } from '../ui/toast';
 import type { DocumentActions } from './document-actions';
@@ -17,6 +17,14 @@ import type { DocumentActions } from './document-actions';
  *   3. Anything else → open with the host OS via Tauri shell. The
  *      current document's editor state stays untouched in the
  *      background. Brief toast confirms the action.
+ *
+ * **This handler knows nothing about the platform, and that is the
+ * shape rather than an omission** (#146). On the web a non-markdown
+ * entry is drawn with no click listener at all, so branch 3 is not
+ * reached there by a route that exists — it is not reached because
+ * nothing calls this. Telling the platforms apart here instead would
+ * put the desktop's behaviour behind a condition, where it is now
+ * behind nothing.
  */
 export function createSidebarClickHandler(
   docActions: DocumentActions,
@@ -31,8 +39,7 @@ export function createSidebarClickHandler(
       return;
     }
 
-    const lower = absPath.toLowerCase();
-    if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+    if (isMarkdownPath(absPath)) {
       // `rootPath` is passed on rather than dropped here (#178). The
       // panel keeps it only when the new document has no adjacent
       // structure of its own; one that does still moves the panel into

@@ -70,6 +70,25 @@ export function collapseDotSegments(path: string): string {
 }
 
 /**
+ * Whether this path names a markdown document, by its extension (#146).
+ *
+ * **One predicate, two askers.** The sidebar's renderer needs it to know
+ * whether an entry is actionable before it draws one, and the click
+ * handler needs it to route a click. Written twice, the two would answer
+ * the same question and could drift into answering it differently — and
+ * `TreeNode.kind` cannot carry it, since it distinguishes only a file
+ * from a directory.
+ *
+ * A pure question about a name: no filesystem access, no platform. Case
+ * is folded because a file called `NOTES.MD` is a markdown document on
+ * every system this runs on.
+ */
+export function isMarkdownPath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return lower.endsWith('.md') || lower.endsWith('.markdown');
+}
+
+/**
  * True iff `target` resolves strictly inside `root` after collapsing
  * `..` segments. Both inputs are treated as forward-slash paths.
  *
