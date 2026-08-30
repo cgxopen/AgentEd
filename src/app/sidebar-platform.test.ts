@@ -49,14 +49,62 @@ describe('on a desktop build (#146)', () => {
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
         passed = opensNonMarkdown;
       },
+      showNothingRelated: () => {},
+      showAccessOffer: () => {},
       hide: () => {},
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
     };
 
     await refreshSidebar(state, sidebar, mockIO(['/proj/notes']));
 
     expect(passed).toBe(true);
+  });
+});
+
+/**
+ * The offer is never drawn on the desktop (#184).
+ *
+ * **`unknown` is the same value on both platforms and not the same
+ * state.** `TauriIO.entryPresence` answers it when `fsExists` throws —
+ * an unreadable path, #58's family — where `WebIO` answers it when no
+ * folder was ever granted. Only the second has a grant to offer.
+ *
+ * Without this, a folder the desktop cannot read draws a line saying
+ * AgentEd has not been given access to a folder, on a build with no such
+ * notion, over a click `requestFolderAccess` answers `false` to. It was
+ * reachable in the first draft of this change: the reversal that covered
+ * it tested only that the capability answers `false`, not that the line
+ * cannot be drawn.
+ */
+describe('an unreadable path on the desktop (#184)', () => {
+  it('hides the panel and offers nothing', async () => {
+    const state = new AppState();
+    state.filePath = '/proj/notes.md';
+    const seen: string[] = [];
+    const sidebar: Sidebar = {
+      showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
+        seen.push(`tree:${rootPath}`);
+      },
+      showNothingRelated: () => {},
+      showAccessOffer: () => {
+        seen.push('offer');
+      },
+      hide: () => {
+        seen.push('hidden');
+      },
+      isVisible: () => true,
+      toggle: () => {},
+      setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
+    };
+
+    const unreadable: PlatformIO = { ...mockIO([]), entryPresence: async () => 'unknown' };
+    await refreshSidebar(state, sidebar, unreadable);
+
+    expect(seen).toEqual(['hidden']);
+    expect(seen).not.toContain('offer');
   });
 });

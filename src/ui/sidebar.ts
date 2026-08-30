@@ -19,6 +19,16 @@ export interface Sidebar {
     rootPath: string,
     opensNonMarkdown: boolean,
   ) => void;
+  /**
+   * Show the panel holding the offer of folder access instead of a tree
+   * (#184). Only reached where nothing could be looked at.
+   */
+  showAccessOffer: () => void;
+  /**
+   * Show the panel holding the answer to a folder request that found
+   * nothing (#184). Only the handler that ran the picker calls it.
+   */
+  showNothingRelated: () => void;
   hide: () => void;
   isVisible: () => boolean;
   toggle: () => void;
@@ -29,6 +39,12 @@ export interface Sidebar {
    * the consumer can run path-traversal validation.
    */
   setOnFileClick: (handler: (absPath: string, rootPath: string) => void) => void;
+  /**
+   * Replace the handler run when the user accepts the offer above. It is
+   * called from a click, so whatever it does still holds the transient
+   * user activation `showDirectoryPicker` requires.
+   */
+  setOnRequestAccess: (handler: () => void) => void;
 }
 
 export interface TreeNode {
@@ -50,6 +66,42 @@ type OnFileClick = (absPath: string, rootPath: string) => void;
  * a copy of it (#50).
  */
 export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
+
+/**
+ * The line drawn where the tree would be when nothing could be looked at
+ * (#184). Owner wording of 2026-08-30, and it is also recorded on the
+ * issue — two places that can disagree, which is the gap found at the
+ * #186 review where the shape was pinned and the sentence was not.
+ *
+ * **It names its step, and that is not a departure from #173.** That
+ * rule bans naming a step which does not work; `showDirectoryPicker`
+ * genuinely acquires what this promises, unlike the Save As route
+ * measured and rejected there.
+ *
+ * Exported so a test reads what the user reads rather than a copy of it
+ * (#50).
+ */
+/**
+ * The answer when the user asked for a folder and it holds nothing
+ * beside the document (#184, #130). Owner wording of 2026-08-30.
+ *
+ * **It names no step, because the question is finished**: the grant was
+ * given, the folder was read, and the answer is complete. That is the
+ * case #148's rule is about — a step is named only where one works, and
+ * here there is nothing left to do.
+ *
+ * **It is shown only to whoever asked.** Every other route into this
+ * state stays silent, because the user picked that folder themselves
+ * and already knows what is in it; a notice there would be the
+ * permanent one #58, #61 and #130 refuse. What separates them is not a
+ * flag on the decision but where the knowledge lives — the handler that
+ * ran the picker is the only thing that knows a question was put.
+ */
+export const NO_RELATED_ITEMS = 'No related files or folders';
+
+export const NO_FOLDER_ACCESS_OFFER =
+  'AgentEd has not been given access to a folder, so it cannot see what is beside this ' +
+  'document. Choose one.';
 
 function fileIcon(name: string, isDir: boolean): string {
   if (isDir) return '\u{1F4C1}';
@@ -213,9 +265,25 @@ export function setupSidebar(): Sidebar {
   // No-op default — replaced by main.ts via setOnFileClick once
   // the document actions are wired.
   let onFileClick: OnFileClick = () => {};
+  let onRequestAccess: () => void = () => {};
 
+  /**
+   * Hide the panel, and empty it (#184).
+   *
+   * **A hidden panel holds nothing, so nothing stale can be revealed.**
+   * It used to add the class and leave the last render in place, which
+   * `toggle` then brought back: after the offer was accepted and the
+   * panel hid, opening it by hand showed the same offer line again —
+   * still clickable, no longer true, and each click hid the panel again.
+   * That was a loop the user could not leave.
+   *
+   * The line and the tree both clear the root before they draw, so this
+   * takes nothing away from either; what it removes is the third state,
+   * where the panel is closed and still holding something.
+   */
   function hidePanel(): void {
     panel.classList.add('hidden');
+    treeEl.innerHTML = '';
   }
 
   closeBtn.addEventListener('click', hidePanel);
@@ -254,11 +322,54 @@ export function setupSidebar(): Sidebar {
     onFileClick = handler;
   }
 
+  /**
+   * The panel, holding the answer rather than a tree or an offer.
+   *
+   * A plain element and not a button: nothing here is an action, so
+   * nothing here takes a click. Built the same way as the other two, so
+   * any of the three replaces any other without leaving itself behind.
+   */
+  function showNothingRelated(): void {
+    treeEl.innerHTML = '';
+    const note = document.createElement('div');
+    note.className = 'sidebar-note';
+    note.textContent = NO_RELATED_ITEMS;
+    treeEl.appendChild(note);
+    panel.classList.remove('hidden');
+  }
+
+  function setOnRequestAccess(handler: () => void): void {
+    onRequestAccess = handler;
+  }
+
+  /**
+   * The panel, holding the offer rather than a tree (#184).
+   *
+   * Built the same way `showTree` builds: the root element is cleared
+   * first, so the two can replace each other in either direction without
+   * one leaving anything of itself behind.
+   */
+  function showAccessOffer(): void {
+    treeEl.innerHTML = '';
+    const offer = document.createElement('button');
+    offer.type = 'button';
+    offer.className = 'sidebar-access-offer';
+    offer.textContent = NO_FOLDER_ACCESS_OFFER;
+    // A button, not a styled div: the gesture is an action, so it is one
+    // the keyboard and a screen reader can reach on their own terms.
+    offer.addEventListener('click', () => onRequestAccess());
+    treeEl.appendChild(offer);
+    panel.classList.remove('hidden');
+  }
+
   return {
     showTree,
+    showAccessOffer,
+    showNothingRelated,
     hide: hidePanel,
     isVisible: () => !panel.classList.contains('hidden'),
     toggle,
     setOnFileClick,
+    setOnRequestAccess,
   };
 }

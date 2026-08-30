@@ -439,6 +439,41 @@ export class WebIO implements PlatformIO {
 
   // ── Private helpers ──
 
+  /**
+   * Ask the user for a folder, and say whether one was given (#184).
+   *
+   * **Public, and reached without a member on `PlatformIO`.** The
+   * contract's two capability members are both recorded as debt —
+   * `supportsMultiFile` is `true` everywhere and dead in production,
+   * `canWriteCompanions` answers from a handle rather than a permission
+   * — and a third that can never be called on the desktop is the shape
+   * both went wrong in. `platform/index.ts` reaches this one instead,
+   * at the address that already owns the dynamic import and the
+   * singleton.
+   *
+   * There is no desktop counterpart and none is wanted: the line that
+   * calls this exists only where a panel is absent for want of a grant,
+   * which is the web. A desktop implementation would be dead code, the
+   * same shape as the inert entry in #146.
+   *
+   * Called straight from a click, so the transient user activation
+   * `showDirectoryPicker` requires is still in hand.
+   */
+  async requestFolderAccess(): Promise<boolean> {
+    const before = this.dirHandle;
+    await this.acquireDirectoryHandle();
+    // A cancelled picker leaves the handle as it was, and `false` is
+    // what keeps the caller silent about it (#61).
+    if (this.dirHandle === null || this.dirHandle === before) return false;
+    // The document may have been registered because the *previous* grant
+    // could not name it — the state a Save As across folders leaves
+    // behind. A new grant is the moment to ask again, and asking here is
+    // what makes the offer repair what it appears in rather than
+    // describe it (#184).
+    await this.identity.reanchor(this.handles());
+    return true;
+  }
+
   private async acquireDirectoryHandle(): Promise<void> {
     try {
       this.dirHandle = await window.showDirectoryPicker({

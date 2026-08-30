@@ -8,11 +8,29 @@ import type { AppState } from './state';
 /** Maximum depth for the recursive directory walk that builds the tree. */
 const MAX_LIST_DEPTH = 6;
 
-export interface SidebarDecision {
-  show: boolean;
-  /** Absolute root for listing. Set only when `show === true`. */
-  root?: string;
-}
+/**
+ * What the panel should be, in three states rather than two (#184).
+ *
+ * A boolean answered *is there a tree* and nothing else, so the two ways
+ * of having no tree arrived as one value. On the web they are not the
+ * same thing: with no folder granted nothing was looked at, and an
+ * absent panel then asserts something false about the document's
+ * neighbourhood — the whole of this issue.
+ *
+ * **A discriminated union rather than a flag beside a boolean.** Two
+ * booleans that have to be read together is how a third state gets lost
+ * again, which is the shape #126 and #173 were both about.
+ *
+ * `no-folder-access` is `unknown` from `entryPresence`, which covers a
+ * grant that was never given and one that lapsed or was revoked. That is
+ * the right condition rather than an accident of it: in every one of
+ * those states the panel's absence is a false statement, and the offer
+ * to grant is the right move.
+ */
+export type SidebarDecision =
+  | { readonly kind: 'tree'; readonly root: string }
+  | { readonly kind: 'nothing-adjacent' }
+  | { readonly kind: 'no-folder-access' };
 
 /**
  * Decide whether the sidebar should be visible for the active document
@@ -30,27 +48,63 @@ export async function shouldShowSidebar(
   filePath: string | null,
   io: PlatformIO,
 ): Promise<SidebarDecision> {
-  if (!filePath) return { show: false };
+  // No document has nothing beside it, and an offer here would be about
+  // nothing: there is no neighbourhood to fail to see.
+  if (!filePath) return { kind: 'nothing-adjacent' };
+
+  // **Does the granted folder speak for this document at all** (#184,
+  // and the hole is #147's). On the web a document's path is a name
+  // resolved against the grant, and a Save As can leave the document in
+  // one folder and the grant in another — `acquireDirectoryHandle`
+  // swallows a cancelled picker, so the old grant simply stays.
+  //
+  // Everything below then answers about the wrong folder. Measured: a
+  // document saved as `web.md` into a folder with nothing beside it,
+  // while the grant still held the folder it came from, rooted the panel
+  // at that folder's `web/` and listed four files that are not beside
+  // the document. The entries are clickable, so a click opened a file
+  // from the other tree.
+  //
+  // `canWriteCompanions` is the predicate #147 built for exactly this
+  // split — it asks whether the grant can name a companion **beside
+  // this document**, which is the same question a tree asks. Its name is
+  // about writing and its meaning is about the neighbourhood; that is
+  // worth one sentence rather than a rename.
+  //
+  // `no-folder-access` rather than `nothing-adjacent`, because nothing
+  // about *this document's* neighbourhood was established — and on the
+  // web the offer then hands the user the one act that repairs it.
+  if (!(await io.canWriteCompanions(filePath))) return { kind: 'no-folder-access' };
 
   // Both of these are positive claims — *this folder is there, and the
   // sidebar is rooted at it* — so only `present` may make them (#126).
   // They used to be made from a boolean that, after #58, answered `true`
   // for a lookup that never happened, which would root the panel at a
   // folder nobody had seen.
+  //
+  // **And what is not `present` is now kept apart** (#184). `absent` is
+  // an answer from the folder; `unknown` is the admission that no folder
+  // was asked. Both used to leave here as one `false`, one line after
+  // `entryPresence` had told them apart.
+  let nothingWasLookedAt = false;
+
   const sibling = stripExtension(filePath);
-  if ((await io.entryPresence(sibling)) === 'present') {
-    return { show: true, root: sibling };
-  }
+  const siblingPresence = await io.entryPresence(sibling);
+  if (siblingPresence === 'present') return { kind: 'tree', root: sibling };
+  nothingWasLookedAt = siblingPresence === 'unknown';
 
   const parent = dirname(filePath);
   if (parent.length > 0 && parent !== '/') {
     const assetsDir = joinPath(parent, 'assets');
-    if ((await io.entryPresence(assetsDir)) === 'present') {
-      return { show: true, root: assetsDir };
-    }
+    const assetsPresence = await io.entryPresence(assetsDir);
+    if (assetsPresence === 'present') return { kind: 'tree', root: assetsDir };
+    // Either probe answering `unknown` means the lookup did not happen.
+    // Tracked rather than defaulted: a second probe that never ran must
+    // not be recorded as having answered `absent`.
+    nothingWasLookedAt = nothingWasLookedAt || assetsPresence === 'unknown';
   }
 
-  return { show: false };
+  return nothingWasLookedAt ? { kind: 'no-folder-access' } : { kind: 'nothing-adjacent' };
 }
 
 /**
@@ -128,8 +182,36 @@ export async function refreshSidebar(
   io: PlatformIO,
 ): Promise<void> {
   const decision = await shouldShowSidebar(state.filePath, io);
-  const root = decision.show && decision.root ? decision.root : state.sidebarRootFromClick;
+
+  // **The offer, and the two things that earn it** (#184). Nothing was
+  // looked at, so the panel's absence would say something false about
+  // this document's neighbourhood — and there has to be a grant to
+  // offer.
+  //
+  // `nothing-adjacent` gets no line: the folder answered, and on the web
+  // the user picked it a moment ago, so the absence is complete and they
+  // already know it. A permanent notice there is the shape #58, #61 and
+  // #130 refuse.
+  //
+  // **`!isTauri`, and it is not belt-and-braces.** `unknown` is the same
+  // value on both platforms and does not mean the same thing.
+  // `TauriIO.entryPresence` answers it when `fsExists` throws — a
+  // path that cannot be read, which is #58's family — where `WebIO`
+  // answers it when no folder was ever granted. Only the second has a
+  // grant to offer, and the desktop line would be a sentence about
+  // folder access on a build with no such notion, over a click that
+  // `requestFolderAccess` answers `false` to. An unreadable path on the
+  // desktop keeps the behaviour it had, which is hidden; whether that
+  // silence is right is #58's question and not this one's.
+  //
+  // Below a kept root, because a root a click asked to hold is a folder
+  // that was granted: there is nothing to offer.
+  const root = decision.kind === 'tree' ? decision.root : state.sidebarRootFromClick;
   if (!root) {
+    if (decision.kind === 'no-folder-access' && !isTauri) {
+      sidebar.showAccessOffer();
+      return;
+    }
     sidebar.hide();
     return;
   }

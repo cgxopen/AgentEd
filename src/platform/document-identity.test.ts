@@ -63,10 +63,32 @@ describe('#149 — the entry point cannot be gone around', () => {
     expect(Object.keys(identityModule)).toEqual(['DocumentIdentity']);
   });
 
-  it('and the identity carries exactly three operations', () => {
+  it('and the identity carries exactly four operations', () => {
     const surface = Object.getOwnPropertyNames(DocumentIdentity.prototype).sort();
 
-    expect(surface).toEqual(['constructor', 'grantedFor', 'heldFor', 'take']);
+    expect(surface).toEqual(['constructor', 'grantedFor', 'heldFor', 'reanchor', 'take']);
+  });
+
+  it('and only `take` answers a path, which is the property that matters', async () => {
+    // **The list above grew by one on #184 and this is why that is not a
+    // weakening.** The four defects this boundary exists for — #126,
+    // #127, #141, #144 — were all *producers*: something took a handle
+    // from a picker and answered a path without declaring what it had
+    // taken. `reanchor` takes no handle and answers no path. It only
+    // asks whether a registration made against a grant that is gone is
+    // still true, and clears it when the new grant names the document at
+    // the path already in use; a different path leaves it standing,
+    // because moving a document underneath the editor is the shape #141
+    // was.
+    //
+    // So the invariant is stated as what it always meant rather than as
+    // a count: a method that returns a path registers what it took, and
+    // there is exactly one of them.
+    const identity = new DocumentIdentity();
+    const doc = fileHandle('notes.md');
+
+    expect(await identity.take(doc, handles(grantHolding(doc)))).toBe('notes.md');
+    expect(await identity.reanchor(handles(grantHolding(doc)))).toBeUndefined();
   });
 
   it('`pathWithinGrant` is not among them, at runtime and not only to the compiler', () => {

@@ -19,7 +19,7 @@ import { AppState } from './app/state';
 import { setupTableDialog } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
 import { createEditor } from './editor/setup';
-import { getPlatformIO } from './platform/index';
+import { getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
@@ -178,6 +178,28 @@ ctx.clusterPopover = setupClusterPopover({
 wireHeaderIndicators(ctx, docActions);
 
 ctx.sidebar.setOnFileClick(createSidebarClickHandler(docActions, getPlatformIO));
+
+// The offer the absent panel carries on the web (#184). The refresh is in
+// the same gesture on purpose: a grant that needed a reload to take effect
+// would answer the user's click with nothing visible.
+ctx.sidebar.setOnRequestAccess(() => {
+  void (async () => {
+    // Only on a grant. A cancelled picker changed nothing, so nothing is
+    // redrawn and nothing is said (#61).
+    if (!(await requestFolderAccess())) return;
+    await ctx.refreshSidebar();
+    // **The user asked, so the answer is theirs even when it is
+    // nothing** (#130). A refresh that leaves the panel hidden means the
+    // granted folder holds nothing beside the document — true, complete,
+    // and silence would answer a question with an absence.
+    //
+    // The check lives here rather than in `refreshSidebar` because this
+    // is the only place that knows a question was put. Every other route
+    // into that state reaches it without anyone asking, and stays
+    // silent.
+    if (!ctx.sidebar.isVisible()) ctx.sidebar.showNothingRelated();
+  })().catch(console.error);
+});
 
 const tableDialog = setupTableDialog(editor);
 linkDialog = setupLinkDialog(editor);

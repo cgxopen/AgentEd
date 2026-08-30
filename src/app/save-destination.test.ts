@@ -346,7 +346,7 @@ describe('#144 — what is computed from the path afterwards', () => {
     await actions.handleSaveAs();
 
     await expect(shouldShowSidebar(state.filePath, io)).resolves.toEqual({
-      show: true,
+      kind: 'tree',
       root: 'doc/assets',
     });
   });

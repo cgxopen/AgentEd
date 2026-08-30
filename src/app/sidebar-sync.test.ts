@@ -38,7 +38,7 @@ function mockIO(options: MockIOOptions = {}): PlatformIO {
 describe('shouldShowSidebar', () => {
   it('hides when filePath is null', async () => {
     const decision = await shouldShowSidebar(null, mockIO());
-    expect(decision.show).toBe(false);
+    expect(decision.kind).toBe('nothing-adjacent');
   });
 
   it('adjacent folder named after the file → root = that folder', async () => {
@@ -46,7 +46,7 @@ describe('shouldShowSidebar', () => {
       '/proj/notes.md',
       mockIO({ existing: ['/proj/notes'] }),
     );
-    expect(decision).toEqual({ show: true, root: '/proj/notes' });
+    expect(decision).toEqual({ kind: 'tree', root: '/proj/notes' });
   });
 
   it('adjacent assets/ → root = <dirname>/assets/', async () => {
@@ -54,7 +54,7 @@ describe('shouldShowSidebar', () => {
       '/proj/notes.md',
       mockIO({ existing: ['/proj/assets'] }),
     );
-    expect(decision).toEqual({ show: true, root: '/proj/assets' });
+    expect(decision).toEqual({ kind: 'tree', root: '/proj/assets' });
   });
 
   it('the named folder wins over assets/ when both exist', async () => {
@@ -62,17 +62,19 @@ describe('shouldShowSidebar', () => {
       '/proj/notes.md',
       mockIO({ existing: ['/proj/notes', '/proj/assets'] }),
     );
-    expect(decision).toEqual({ show: true, root: '/proj/notes' });
+    expect(decision).toEqual({ kind: 'tree', root: '/proj/notes' });
   });
 
   it('no adjacent structure → hidden', async () => {
     const decision = await shouldShowSidebar('/proj/notes.md', mockIO());
-    expect(decision.show).toBe(false);
+    // The folder answered, so this is `absent` rather than `unknown` and
+    // earns no offer (#184).
+    expect(decision.kind).toBe('nothing-adjacent');
   });
 
   it('a file at the filesystem root with no adjacent structure → hidden', async () => {
     const decision = await shouldShowSidebar('/notes.md', mockIO({ existing: ['/'] }));
-    expect(decision.show).toBe(false);
+    expect(decision.kind).toBe('nothing-adjacent');
   });
 });
 
@@ -103,10 +105,13 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
 
   const noopSidebar = (): Sidebar => ({
     showTree: (_nodes: TreeNode[]) => {},
+    showNothingRelated: () => {},
+    showAccessOffer: () => {},
     hide: () => {},
     isVisible: () => false,
     toggle: () => {},
     setOnFileClick: () => {},
+    setOnRequestAccess: () => {},
   });
 
   it('lists seven levels and no eighth, however deep the tree goes', async () => {
@@ -185,12 +190,15 @@ describe('the root a sidebar click asked to keep (#178)', () => {
         showTree: (_nodes: TreeNode[], _rootName: string, rootPath: string) => {
           root = rootPath;
         },
+        showNothingRelated: () => {},
+        showAccessOffer: () => {},
         hide: () => {
           root = null;
         },
         isVisible: () => root !== null,
         toggle: () => {},
         setOnFileClick: () => {},
+        setOnRequestAccess: () => {},
       },
       shown: () => root,
     };
@@ -270,10 +278,13 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
         passed = opensNonMarkdown;
       },
+      showNothingRelated: () => {},
+      showAccessOffer: () => {},
       hide: () => {},
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
     };
 
     await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/notes'] }));
@@ -283,5 +294,76 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
     // platform the change is about. `happy-dom` has no
     // `__TAURI_INTERNALS__`, so nothing here is a desktop build.
     expect(passed).toBe(false);
+  });
+});
+
+/**
+ * #184 — the panel's absence stops being one answer to two questions.
+ *
+ * The four halves below fail for different reasons and none implies
+ * another: an offer shown on `absent` is a permanent notice on a state
+ * the user already knows; an offer never shown leaves the silence this
+ * issue is about; a tree that does not come back after a grant answers a
+ * click with nothing; and the whole thing must stay off the desktop,
+ * where the panel appears on its own.
+ */
+describe('#184 — which kind of nothing the panel is showing', () => {
+  function panelFor(filePath = '/proj/notes.md') {
+    const state = new AppState();
+    state.filePath = filePath;
+    const seen: string[] = [];
+    const sidebar: Sidebar = {
+      showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
+        seen.push(`tree:${rootPath}`);
+      },
+      showNothingRelated: () => {},
+      showAccessOffer: () => {
+        seen.push('offer');
+      },
+      hide: () => {
+        seen.push('hidden');
+      },
+      isVisible: () => true,
+      toggle: () => {},
+      setOnFileClick: () => {},
+      setOnRequestAccess: () => {},
+    };
+    return { state, sidebar, seen };
+  }
+
+  /** Nothing granted: every lookup answers `unknown`. */
+  function nothingGranted(): PlatformIO {
+    return { ...mockIO(), entryPresence: async () => 'unknown' as const };
+  }
+
+  it('nothing was looked at → the offer, where the tree would be', async () => {
+    const { state, sidebar, seen } = panelFor();
+    await refreshSidebar(state, sidebar, nothingGranted());
+    expect(seen).toEqual(['offer']);
+  });
+
+  it('the folder answered and holds nothing adjacent → hidden, and NO offer', async () => {
+    // The half a too-wide fix gets wrong. `absent` is a complete answer
+    // and the user picked the folder themselves, so a line here would be
+    // a permanent notice offering a grant that changes nothing.
+    const { state, sidebar, seen } = panelFor();
+    await refreshSidebar(state, sidebar, mockIO());
+    expect(seen).toEqual(['hidden']);
+    expect(seen).not.toContain('offer');
+  });
+
+  it('a folder that is there → the tree, and no offer', async () => {
+    const { state, sidebar, seen } = panelFor();
+    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/notes'] }));
+    expect(seen).toEqual(['tree:/proj/notes']);
+  });
+
+  it('a root a click asked to keep outranks the offer', async () => {
+    // A kept root is a folder that was granted, so there is nothing to
+    // offer even when this document's own lookups answer `unknown`.
+    const { state, sidebar, seen } = panelFor();
+    state.sidebarRootFromClick = '/proj';
+    await refreshSidebar(state, sidebar, nothingGranted());
+    expect(seen).toEqual(['tree:/proj']);
   });
 });
