@@ -43,6 +43,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 - TypeScript strict; `biome` clean; `rustfmt` + `clippy -D warnings` clean.
 - Tests colocated (vitest). Serialization changes require round-trip tests.
 - A comment may not assert a property the code does not have. Comments explaining a mechanism are wanted and this codebase is built on them; what is forbidden is a load-bearing claim — this is bounded, this is guarded, this branch is unreachable — with nothing at the address it names. Where such a claim cannot be checked, write what is true instead.
+- `isTauri` answers which platform this is, and nothing else. A question about what this build **can do** is answered by whatever owns that capability, not by the platform name. Where the platform flag is the only answer available, the comment beside it says why, and names what would replace it.
 
 ## Workflow
 
