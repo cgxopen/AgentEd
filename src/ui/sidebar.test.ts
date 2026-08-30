@@ -369,3 +369,52 @@ describe('#184 — the offer of folder access', () => {
     expect(tree.querySelector('.sidebar-access-offer')).not.toBeNull();
   });
 });
+
+/**
+ * #184 — a hidden panel holds nothing.
+ *
+ * Found by the owner: accepting the offer granted the folder, the panel
+ * correctly had nothing to show and hid — and opening it by hand brought
+ * the same offer line back, because `hide` had left it in the DOM. It
+ * was still clickable and no longer true, so each click hid the panel
+ * again. A loop with no way out of it.
+ */
+describe('#184 — hide empties the panel', () => {
+  function mount() {
+    document.body.innerHTML =
+      '<div id="sidebar" class="hidden"><div id="sidebar-tree"></div><button id="sidebar-close"></button></div>';
+    return {
+      panel: document.getElementById('sidebar')!,
+      tree: document.getElementById('sidebar-tree')!,
+      sidebar: setupSidebar(),
+    };
+  }
+
+  it('a toggle after hiding the offer does not bring the offer back', () => {
+    const { tree, sidebar } = mount();
+    sidebar.showAccessOffer();
+    sidebar.hide();
+    sidebar.toggle();
+
+    expect(tree.querySelector('.sidebar-access-offer')).toBeNull();
+  });
+
+  it('and a toggle after hiding a tree does not bring the tree back', () => {
+    const { tree, sidebar } = mount();
+    sidebar.showTree(buildTree([{ path: 'cap1.md', kind: 'file' }]), 'proiect', '/proiect', false);
+    sidebar.hide();
+    sidebar.toggle();
+
+    expect(tree.querySelectorAll('.sidebar-file-entry')).toHaveLength(0);
+  });
+
+  it('the panel still opens and closes, which is what toggle is for', () => {
+    const { panel, sidebar } = mount();
+    sidebar.showAccessOffer();
+    expect(panel.classList.contains('hidden')).toBe(false);
+    sidebar.hide();
+    expect(panel.classList.contains('hidden')).toBe(true);
+    sidebar.toggle();
+    expect(panel.classList.contains('hidden')).toBe(false);
+  });
+});

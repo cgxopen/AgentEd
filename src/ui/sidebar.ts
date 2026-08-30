@@ -244,8 +244,23 @@ export function setupSidebar(): Sidebar {
   let onFileClick: OnFileClick = () => {};
   let onRequestAccess: () => void = () => {};
 
+  /**
+   * Hide the panel, and empty it (#184).
+   *
+   * **A hidden panel holds nothing, so nothing stale can be revealed.**
+   * It used to add the class and leave the last render in place, which
+   * `toggle` then brought back: after the offer was accepted and the
+   * panel hid, opening it by hand showed the same offer line again —
+   * still clickable, no longer true, and each click hid the panel again.
+   * That was a loop the user could not leave.
+   *
+   * The line and the tree both clear the root before they draw, so this
+   * takes nothing away from either; what it removes is the third state,
+   * where the panel is closed and still holding something.
+   */
   function hidePanel(): void {
     panel.classList.add('hidden');
+    treeEl.innerHTML = '';
   }
 
   closeBtn.addEventListener('click', hidePanel);
