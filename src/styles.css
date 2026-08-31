@@ -864,6 +864,57 @@ button.indicator-search:hover {
   padding: 16px;
   margin: 0.5em 0;
   overflow-x: auto;
+  /*
+   * The containing block for the language label below (#195), and nothing
+   * else. `position: relative` with no offsets moves nothing, paints nothing
+   * and — with `z-index` left at `auto` — opens no stacking context, so how a
+   * fenced block is drawn is unchanged. It is here because it had to be
+   * measured rather than assumed: this rule declared no `position` at all, so
+   * an absolutely positioned child would have been laid out against the page
+   * instead of against the block it belongs to.
+   */
+  position: relative;
+}
+
+/*
+ * The language a fenced block was written with (R-C15, #195).
+ *
+ * Drawn in the block's own top padding rather than above it: `padding: 16px`
+ * already leaves a band there, and a 10px label sits inside it without moving
+ * the first line of code by a pixel. That is what keeps this chrome rather
+ * than a change to how a fence is drawn — a fence with no language is not
+ * shifted, because nothing about the block itself changed.
+ *
+ * The element is a ProseMirror widget decoration, so it exists in the view and
+ * never in the document model; `user-select: none` keeps it out of a
+ * selection the user drags across the code, and `pointer-events: none` keeps
+ * it from swallowing a click meant for the block. Both go the day the §8
+ * candidate makes the label clickable.
+ *
+ * **It scrolls with the code, and that is worth stating precisely** because a
+ * looser wording invites the wrong picture. `.tiptap pre` is the scroll
+ * container, so the label is anchored to the content rather than to the pane:
+ * scrolling right does not move it, it moves the window, and the label leaves
+ * the view exactly as the first word of a line does. Confirmed on the desktop
+ * build rather than predicted.
+ *
+ * Whether it should instead stay pinned to the left edge while the code moves
+ * under it is a product question and not answered here. It would need a
+ * wrapper element around the block — a node view — which is a change to how a
+ * fence is drawn, and that is an owner decision rather than a detail of this.
+ */
+.tiptap pre .code-block-language {
+  position: absolute;
+  top: 3px;
+  left: 16px;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--code-text);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
 }
 
 .tiptap pre code {
