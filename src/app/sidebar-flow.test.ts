@@ -302,7 +302,6 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       sidebar,
       statusbar: { refresh: () => {} },
       frontmatterPanel: { refresh: () => {}, setVisible: () => {} },
-      editor: { commands: { clearContent: () => {} } },
     } as unknown as AppContext);
   });
 

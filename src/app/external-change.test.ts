@@ -104,7 +104,6 @@ function makeActions(): DocumentActions {
     sidebar: { hide: () => {} },
     statusbar: { refresh: () => {} },
     frontmatterPanel: { refresh: () => {}, setVisible: () => {} },
-    editor: { commands: { clearContent: () => {} } },
   } as unknown as AppContext;
   return createDocumentActions(ctx);
 }

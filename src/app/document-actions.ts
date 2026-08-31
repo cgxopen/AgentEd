@@ -85,7 +85,13 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
   function clearDocumentForReplacement(): void {
     ctx.state.resetDocument();
     ctx.setFilename(null);
-    ctx.editor.commands.clearContent();
+    // The empty document arrives by the same route every other document
+    // does (#206). This used to call `editor.commands.clearContent()`,
+    // which is `setContent('')` — a second whole-document replacement,
+    // with its own transaction in the undo stack, so an undo after New
+    // or Close brought the closed document back. One address now, and
+    // `document-load.ts` says why.
+    ctx.setMarkdown('');
     ctx.statusbar.refresh();
     ctx.frontmatterPanel.refresh();
     ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
