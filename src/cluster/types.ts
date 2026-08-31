@@ -24,10 +24,13 @@ export type ContextFileKind =
  *
  *  - `self`     — same directory as the open document
  *  - `ancestor` — walk-up direction (parent, grandparent, …)
- *  - `sibling`  — same depth as the open document (child of the parent)
  *  - `child`    — one level below the open document
+ *
+ * Up and down the tree the document lives in, and nothing across it:
+ * a peer directory is not scanned, so no entry can be at the same
+ * depth as the document without being in its own directory (#132).
  */
-export type ClusterDirection = 'self' | 'ancestor' | 'sibling' | 'child';
+export type ClusterDirection = 'self' | 'ancestor' | 'child';
 
 export interface ContextFileEntry {
   /** Absolute path to the discovered file (forward-slash). */
@@ -40,8 +43,8 @@ export interface ContextFileEntry {
   direction: ClusterDirection;
   /**
    * Tree-distance from the open document's directory. `0` means the
-   * entry lives in the same directory; `1` is parent / sibling /
-   * direct child; `2+` is grandparent or deeper.
+   * entry lives in the same directory; `1` is parent or direct
+   * child; `2+` is grandparent or deeper.
    */
   distance: number;
   /**

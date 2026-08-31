@@ -150,7 +150,7 @@ describe('detectContextCluster — ancestors only', () => {
   });
 });
 
-describe('detectContextCluster — children + siblings', () => {
+describe('detectContextCluster — children', () => {
   it('finds canonical files in immediate child directories', async () => {
     const io = new FakeIO(
       ['/repo/AGENTS.md', '/repo/backend/AGENTS.md', '/repo/frontend/AGENTS.md'],
@@ -170,30 +170,7 @@ describe('detectContextCluster — children + siblings', () => {
     expect(frontend?.direction).toBe('child');
   });
 
-  it('finds canonical files in sibling directories (children of parent)', async () => {
-    const io = new FakeIO(
-      ['/repo/frontend/AGENTS.md', '/repo/backend/AGENTS.md', '/repo/shared/CLAUDE.md'],
-      {
-        '/repo': ['frontend/', 'backend/', 'shared/'],
-        '/repo/frontend': [],
-        '/repo/backend': [],
-        '/repo/shared': [],
-        '/': ['repo/'],
-      },
-    );
-    const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
-
-    const sibling = cluster.entries.find((e) => e.path === '/repo/backend/AGENTS.md');
-    expect(sibling?.direction).toBe('sibling');
-    expect(sibling?.distance).toBe(1);
-    expect(sibling?.relativePath).toBe('../backend/AGENTS.md');
-
-    const cousin = cluster.entries.find((e) => e.path === '/repo/shared/CLAUDE.md');
-    expect(cousin?.direction).toBe('sibling');
-    expect(cousin?.kind).toBe('claude-md');
-  });
-
-  it('handles ancestors + siblings + children together (the full §1 example)', async () => {
+  it('handles ancestors + children together', async () => {
     const io = new FakeIO(
       [
         '/repo/AGENTS.md',
@@ -213,13 +190,98 @@ describe('detectContextCluster — children + siblings', () => {
     );
     const cluster = await detectContextCluster('/repo/frontend/AGENTS.md', io);
 
+    // `backend/` and `shared/` are on disk and are peers of the document's
+    // directory. They are not reported and their parent is never listed.
     const paths = cluster.entries.map((e) => e.path).sort();
-    expect(paths).toEqual([
-      '/repo/AGENTS.md',
-      '/repo/backend/AGENTS.md',
-      '/repo/frontend/src/AGENTS.md',
-      '/repo/shared/AGENTS.md',
-    ]);
+    expect(paths).toEqual(['/repo/AGENTS.md', '/repo/frontend/src/AGENTS.md']);
+  });
+});
+
+/**
+ * #132 — the peer round is gone, and gone means not run rather than
+ * filtered.
+ *
+ * The distinction is the whole point of the change. The issue argues the
+ * scan on how much disk it reads: ancestors are the lineage of the open
+ * document, while the other children of its parent are a different subtree
+ * read only because it is adjacent. A filter over results would go on
+ * reading that subtree and merely stop showing it, which answers none of
+ * that — so the assertion below is on the `listDir` calls, by argument, and
+ * not only on what came back.
+ *
+ * One fixture carries both halves. A wrong deletion that took the whole
+ * scan with it would satisfy the narrow half and fail the wide one.
+ */
+describe('detectContextCluster — the parent is not listed (#132)', () => {
+  /**
+   *   /work/CLAUDE.md                    grandparent, distance 2
+   *   /work/repo/CLAUDE.md               parent, distance 1
+   *   /work/repo/frontend/doc.md         the open document
+   *   /work/repo/frontend/CLAUDE.md      same directory, distance 0
+   *   /work/repo/frontend/sub/CLAUDE.md  child, distance 1
+   *   /work/repo/backend/AGENTS.md       peer — the one that must go
+   */
+  function fixture(): FakeIO {
+    return new FakeIO(
+      [
+        '/work/CLAUDE.md',
+        '/work/repo/CLAUDE.md',
+        '/work/repo/frontend/doc.md',
+        '/work/repo/frontend/CLAUDE.md',
+        '/work/repo/frontend/sub/CLAUDE.md',
+        '/work/repo/backend/AGENTS.md',
+      ],
+      {
+        '/work/repo/frontend': ['sub/'],
+        '/work/repo/frontend/sub': [],
+        '/work/repo': ['frontend/', 'backend/'],
+        '/work/repo/backend': [],
+        '/work': ['repo/'],
+        '/': ['work/'],
+      },
+    );
+  }
+
+  const DOC = '/work/repo/frontend/doc.md';
+
+  it('does not report a context file in a peer directory', async () => {
+    const io = fixture();
+    const cluster = await detectContextCluster(DOC, io);
+
+    // The file is genuinely on disk and `listDir('/work/repo')` genuinely
+    // returns `backend/`, so this passes only by the round being gone.
+    expect(io.files.has('/work/repo/backend/AGENTS.md')).toBe(true);
+    expect((await io.listDir('/work/repo')).map((e) => e.name)).toContain('backend');
+
+    expect(cluster.entries.some((e) => e.path === '/work/repo/backend/AGENTS.md')).toBe(false);
+  });
+
+  it('never lists the parent directory — a removal, not a filter', async () => {
+    const io = fixture();
+    await detectContextCluster(DOC, io);
+
+    // Asserted on the calls by argument: the subtree is not read at all.
+    // Each test builds its own fixture, so these are the scan's calls and
+    // nothing else's.
+    expect(io.listDirCalls).toContain('/work/repo/frontend');
+    expect(io.listDirCalls).not.toContain('/work/repo');
+    expect(io.listDirCalls).not.toContain('/work');
+  });
+
+  it('still reports the same directory, the parent, further up, and a child', async () => {
+    const io = fixture();
+    const cluster = await detectContextCluster(DOC, io);
+    const at = (path: string) => cluster.entries.find((e) => e.path === path);
+
+    // Each asserted separately, so a wrong deletion names itself.
+    expect(at('/work/repo/frontend/CLAUDE.md')?.direction).toBe('self');
+    expect(at('/work/repo/CLAUDE.md')?.direction).toBe('ancestor');
+    expect(at('/work/CLAUDE.md')?.direction).toBe('ancestor');
+    expect(at('/work/repo/frontend/sub/CLAUDE.md')?.direction).toBe('child');
+
+    expect(at('/work/repo/CLAUDE.md')?.distance).toBe(1);
+    expect(at('/work/CLAUDE.md')?.distance).toBe(2);
+    expect(at('/work/repo/frontend/sub/CLAUDE.md')?.relativePath).toBe('sub/CLAUDE.md');
   });
 });
 
@@ -258,19 +320,22 @@ describe('detectContextCluster — sort and cap', () => {
   });
 
   it('caps results at MAX_RESULTS', async () => {
-    // Synthesise > MAX_RESULTS canonical files spread over many siblings.
-    const siblings: string[] = [];
+    // Synthesise > MAX_RESULTS canonical files spread over many children.
+    // This fixture was built out of sibling directories until #132 removed
+    // that round; children are the only listed direction that can still
+    // produce more hits than the cap.
+    const children: string[] = [];
     const files: string[] = [];
     for (let i = 0; i < MAX_RESULTS + 5; i++) {
-      siblings.push(`s${i}/`);
-      files.push(`/repo/s${i}/AGENTS.md`);
+      children.push(`c${i}/`);
+      files.push(`/repo/me/c${i}/AGENTS.md`);
     }
     const dirs: Record<string, string[]> = {
-      '/repo/me': [],
-      '/repo': ['me/', ...siblings],
+      '/repo/me': children,
+      '/repo': ['me/'],
     };
-    for (const s of siblings) {
-      dirs[`/repo/${s.slice(0, -1)}`] = [];
+    for (const c of children) {
+      dirs[`/repo/me/${c.slice(0, -1)}`] = [];
     }
     const io = new FakeIO(['/repo/me/AGENTS.md', ...files], dirs);
     const cluster = await detectContextCluster('/repo/me/AGENTS.md', io);
@@ -400,17 +465,6 @@ describe('detectContextCluster — relative path rendering', () => {
     const io = new FakeIO(['/a/AGENTS.md'], { '/a': [], '/a/b': [] });
     const cluster = await detectContextCluster('/a/b/file.md', io);
     expect(cluster.entries[0]?.relativePath).toBe('../AGENTS.md');
-  });
-
-  it('renders sibling files with ../sibling/name', async () => {
-    const io = new FakeIO(['/a/back/AGENTS.md'], {
-      '/a': ['front/', 'back/'],
-      '/a/front': [],
-      '/a/back': [],
-    });
-    const cluster = await detectContextCluster('/a/front/AGENTS.md', io);
-    const sib = cluster.entries.find((e) => e.path === '/a/back/AGENTS.md');
-    expect(sib?.relativePath).toBe('../back/AGENTS.md');
   });
 
   it('renders child files with child/name', async () => {
