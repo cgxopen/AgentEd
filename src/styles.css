@@ -925,6 +925,55 @@ button.indicator-search:hover {
   font-size: 14px;
 }
 
+/*
+ * The plain text box (R-C15, #210): a fence with no language wraps its lines
+ * instead of scrolling sideways.
+ *
+ * **What tells the two apart is already in the rendered tree**, so nothing was
+ * added to carry it. Measured at `8bebab9` through the ordinary open path: a
+ * fence written with an info string arrives with `language` set and renders
+ * `<code class="language-ts">`, while one written without arrives with
+ * `language: null` and renders a `<code>` with no class at all. So the
+ * selector below is the whole of the distinction — no attribute, no node view,
+ * no schema change, and nothing that could reach the file.
+ *
+ * `:not([class*="language-"])` rather than `:not([class])`, because it is the
+ * language that decides this and not the presence of some class. It matches a
+ * `<code>` with no class attribute and one carrying any class that is not a
+ * language, which is the same answer for both spellings TipTap can produce.
+ *
+ * **It is declared on the `code`, not on the `pre`.** The scroll container is
+ * the `pre` and the class that decides is on the `code`, so a rule on the
+ * container would need `:has()`. Wrapping the inner text is enough: the
+ * content no longer exceeds the container, so the `overflow-x: auto` above
+ * finds nothing to scroll and shows no bar. One less selector feature to rely
+ * on, and the block with a language keeps the behaviour it has.
+ *
+ * ── What it does to a run with no space in it ──
+ *
+ * Owner decision of 2026-08-31: wrap at spaces, and break inside a run only
+ * when it has nowhere else to go. `overflow-wrap: break-word` is that rule
+ * exactly — ordinary prose breaks between words and looks as it did, and a
+ * long URL or a run of characters with no break opportunity is broken mid-way
+ * rather than pushed out of the box. The alternative spelling, `anywhere`,
+ * breaks the same way but also feeds the shorter measure back into
+ * min-content sizing, which would change how the block negotiates width with
+ * everything around it; that is a layout change this does not need.
+ *
+ * The wrap is a line-box decision and adds nothing to the content: a soft
+ * break is not a character, so selecting and copying across one yields the
+ * original text with its own newlines. Measured on the document model rather
+ * than assumed — the text between two positions is unchanged by this rule,
+ * because CSS never reaches it.
+ *
+ * The label of #202 cannot collide with this: it is drawn only when there is a
+ * language, and this applies only when there is not.
+ */
+.tiptap pre > code:not([class*="language-"]) {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
 /* Tables */
 .tiptap table {
   border-collapse: collapse;
