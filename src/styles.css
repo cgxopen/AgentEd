@@ -808,6 +808,37 @@ button.indicator-search:hover {
   margin-top: 0;
 }
 
+/*
+ * A loose list, drawn the way a renderer draws one (#28).
+ *
+ * A CommonMark list is loose when blank lines separate its items, and every
+ * renderer gives those items real vertical space. The editor could not show
+ * that before, because the distinction did not reach the document model at
+ * all — which is why the display half and the serialization half are one
+ * change: to draw a loose list you first have to know it was loose.
+ *
+ * **Carrying it for display alone would have been worse than not carrying it.**
+ * The editor would have shown spacing that the save then removed, and the user
+ * would watch it vanish on the next open — an editor showing one thing while
+ * the file holds another, which is the failure class this project hunts
+ * everywhere else.
+ *
+ * The attribute is written by `list-spacing.ts` on open and re-rendered from
+ * the node, so it survives editing, Save As and copy-paste. A list created in
+ * the editor carries `false` and is drawn tight, which is the owner decision
+ * rather than a fallback.
+ *
+ * **Placed after the task-list rules on purpose.** `.tiptap ul[data-loose]
+ * > li` and `.tiptap ul[data-type="taskList"] > li` have the same specificity,
+ * so source order is what decides, and a loose task list has to be spaced like
+ * any other loose list. The rule sets only `margin`, which the task-item rule
+ * does not, so nothing of the flex row is disturbed.
+ */
+.tiptap ul[data-loose="true"] > li,
+.tiptap ol[data-loose="true"] > li {
+  margin: 0.75em 0;
+}
+
 /* Blockquote */
 .tiptap blockquote {
   border-left: 3px solid var(--accent);

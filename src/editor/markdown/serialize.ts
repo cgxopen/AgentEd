@@ -2,6 +2,7 @@ import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
+import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import {
   type ColumnStyle,
   DEFAULT_TABLE_STYLE,
@@ -314,7 +315,8 @@ function taskListItemReplacement(node: Node): string {
     .map((block) => trimBlock(turndown.turndown(block.outerHTML)))
     .filter((block) => block.length > 0)
     .join('\n');
-  return `- [${checked}] ${indentContinuation(body, TASK_ITEM_INDENT)}\n`;
+  const separator = li.nextSibling !== null && isLooseList(li) ? '\n\n' : '\n';
+  return `- [${checked}] ${indentContinuation(body, TASK_ITEM_INDENT)}${separator}`;
 }
 
 turndown.addRule('taskListItem', {
@@ -360,12 +362,27 @@ function indentContinuation(body: string, width: number): string {
 // Named for the same reason as `taskListItemReplacement` above: the container
 // table delegates to it for a list item that is blank only because the fence
 // inside it was (#104).
+/**
+ * Whether the list holding this item was spelled loose in the file (#28).
+ *
+ * This used to be derived from the content — an item whose body held more
+ * than one block was written with a blank line after it — and that rule
+ * decided the byte from CommonMark's question rather than the file's. It got
+ * the loose case wrong in one direction and the tight case wrong in the
+ * other: a file spelled `- one`⏎⏎`  second para`⏎`- two` is tight between its
+ * items and gained a blank line it never had, 26 bytes in and 27 out, while a
+ * file spelled loose lost the blank lines it did have.
+ *
+ * One fact answers both, and it is the one the file carries.
+ */
+function isLooseList(li: Node): boolean {
+  return (li as HTMLElement).parentElement?.getAttribute(LIST_SPACING_ATTRIBUTE) === 'true';
+}
+
 function listItemReplacement(content: string, node: Node, options: Options): string {
   const prefix = listItemPrefix(node as HTMLElement, options.bulletListMarker ?? '-');
   const body = content.replace(/^\n+/, '').replace(/\s+$/, '');
-  // An item holding more than one block is a loose item: CommonMark keeps
-  // the blank line before the item that follows it.
-  const separator = body.includes('\n\n') ? '\n\n' : '\n';
+  const separator = isLooseList(node) ? '\n\n' : '\n';
   return prefix + indentContinuation(body, prefix.length) + (node.nextSibling ? separator : '');
 }
 

@@ -121,12 +121,20 @@ describe('markdown roundtrip', () => {
       expect(roundtrip('5. five\n6. six')).toBe('5. five\n6. six');
     });
 
-    it('KNOWN LIMITATION: a loose list is tightened', () => {
-      // TipTap's schema wraps every list item body in a paragraph, so a
-      // blank-line-separated list and an ordinary one reach the serializer
-      // as the same HTML. Tight is the far commoner shape, so it wins; the
-      // list's content is unaffected either way.
-      expect(roundtrip('- one\n\n- two')).toBe('- one\n- two');
+    it('a loose list keeps its blank lines (#28)', () => {
+      // This used to be a KNOWN LIMITATION here and the first R-C2 exception
+      // recorded. `marked` does carry the distinction into the HTML — a loose
+      // list wraps each item body in `<p>` — but it was lost at the ProseMirror
+      // parse, so the pair level was never where it died. What repairs it is
+      // the file's own spacing, read from the markdown and pinned to the list
+      // (`list-spacing.ts`), and this level sees it because `markdownToHtml`
+      // is where it is attached.
+      expect(roundtrip('- one\n\n- two')).toBe('- one\n\n- two');
+      expect(roundtrip('- one\n- two')).toBe('- one\n- two');
+      // The shape that used to gain a byte: spelled tight between its items
+      // while each item holds two blocks, which is loose to CommonMark and
+      // tight to the file.
+      expect(roundtrip('- one\n\n  second para\n- two')).toBe('- one\n\n  second para\n- two');
     });
   });
 
