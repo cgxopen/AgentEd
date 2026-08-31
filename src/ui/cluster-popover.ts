@@ -276,7 +276,6 @@ const DIRECTION_META: Record<
     glyph: '↑',
     label: (e) => `Ancestor (${e.distance} level${e.distance === 1 ? '' : 's'} up)`,
   },
-  sibling: { glyph: '→', label: () => 'Sibling directory' },
   child: { glyph: '↓', label: () => 'Child directory' },
   self: { glyph: '·', label: () => 'Same directory' },
 };

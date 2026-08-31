@@ -5,7 +5,7 @@ import { type ClusterDirection, ContextCluster, type ContextFileEntry } from './
 
 /** Walk-up depth cap (R-A2: at most 5 levels up). */
 export const MAX_DEPTH_UP = 5;
-/** Maximum sibling/child directories per listed parent. */
+/** Maximum child directories listed per parent. */
 export const MAX_CHILDREN = 50;
 /** Hard cap on returned entries. */
 export const MAX_RESULTS = 20;
@@ -18,8 +18,8 @@ export const HARD_TIMEOUT_MS = 100;
 
 /**
  * Build-artifact / dependency / IDE directory names skipped when
- * listing siblings + children. None of these contain semantic agent
- * context files; scanning them wastes I/O.
+ * listing children. None of these contain semantic agent context
+ * files; scanning them wastes I/O.
  *
  * `.cursor/` is intentionally NOT here — `.cursor/rules/*.mdc` is a
  * canonical pattern (deferred to a follow-up: see M0 plan).
@@ -66,11 +66,13 @@ interface ScanDir {
  *   1. Build the set of directories to probe = currentDir
  *      + ancestors (up to MAX_DEPTH_UP)
  *      + immediate children of currentDir
- *      + siblings (children of the immediate parent)
  *   2. For each directory, probe each canonical filename via
  *      `io.entryPresence`, and name only the ones found `present` (#126)
  *   3. Skip the open document itself
  *   4. Sort + cap at MAX_RESULTS
+ *
+ * The parent is walked as an ancestor and never listed, so a peer
+ * directory of the open document is not probed at all (#132).
  *
  * I/O failures (missing dirs, permission errors) are swallowed and
  * yield empty / partial results — the popover degrades gracefully.
@@ -105,14 +107,14 @@ export async function detectContextCluster(
   // The race bounds the wait, not the run. Every collector is already in
   // flight before it starts and nothing cancels them, so the timeout
   // decides when the caller stops listening and not when the filesystem
-  // stops being asked. Their *number* is bounded: at most 106 directories
-  // (currentDir, plus MAX_DEPTH_UP ancestors, plus two rounds of
-  // MAX_CHILDREN for children and siblings) times the 6 canonical
-  // filenames in `registry.ts`, so at most 636 probes. Their duration is
-  // not — a slow network share makes each probe slow rather than making
-  // more of them. Probes that land after the timeout push into `hits`
-  // after its slice has been taken and returned; nothing reads those
-  // writes, and the array is unreachable once the last one settles.
+  // stops being asked. Their *number* is bounded: at most 56 directories
+  // (currentDir, plus MAX_DEPTH_UP ancestors, plus one round of
+  // MAX_CHILDREN) times the 6 canonical filenames in `registry.ts`, so at
+  // most 336 probes. Their duration is not — a slow network share makes
+  // each probe slow rather than making more of them. Probes that land
+  // after the timeout push into `hits` after its slice has been taken and
+  // returned; nothing reads those writes, and the array is unreachable
+  // once the last one settles.
   await Promise.race([Promise.all(collectors), wait(timeoutMs)]);
 
   hits.sort((a, b) => a.distance - b.distance);
@@ -138,16 +140,10 @@ async function collectScanDirs(currentDir: string, io: PlatformIO): Promise<Scan
   }
 
   // Immediate children of currentDir → "child" entries (distance 1).
+  // This is the only directory listed. The parent is probed as an
+  // ancestor above but never listed, so its other children — the peers
+  // of currentDir — are a subtree this scan does not read (#132).
   await addChildren(seen, currentDir, 1, 'child', io);
-
-  // Siblings: children of the direct parent (distance 1) other than
-  // currentDir itself. Without this step a file at depth N can't see
-  // its peer at the same depth — the reference example explicitly
-  // shows this case (frontend/AGENTS.md ↔ backend/AGENTS.md).
-  const directParent = dirname(currentDir);
-  if (directParent.length > 0 && directParent !== currentDir) {
-    await addChildren(seen, directParent, 1, 'sibling', io, currentDir);
-  }
 
   return Array.from(seen.values());
 }
@@ -164,7 +160,6 @@ async function addChildren(
   distance: number,
   direction: ClusterDirection,
   io: PlatformIO,
-  excludePath?: string,
 ): Promise<void> {
   let entries: Awaited<ReturnType<PlatformIO['listDir']>>;
   try {
@@ -178,7 +173,6 @@ async function addChildren(
     if (!entry.isDirectory) continue;
     if (HIDDEN_DIRS.has(entry.name)) continue;
     const childPath = normalize(entry.path);
-    if (childPath === excludePath) continue;
     add(seen, { path: childPath, distance, direction });
     added++;
   }
