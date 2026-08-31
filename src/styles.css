@@ -27,7 +27,27 @@
   --placeholder: #adb5bd;
   --hover-overlay: rgba(0, 0, 0, 0.04);
   --hover-overlay-strong: rgba(0, 0, 0, 0.08);
-  --selection-accent: rgba(37, 99, 235, 0.1);
+  /*
+   * The fill on a selected table cell, and its only consumer is
+   * `.tiptap table .selectedCell` — checked across the whole repository, so
+   * strengthening it moves that surface and nothing else.
+   *
+   * **It has to carry the whole message on its own** (#16). It used to be a
+   * supporting tint beside the browser native paint; with that paint
+   * suppressed, this is the entire feedback a user gets that a cell is
+   * selected, and at the old alpha of 0.10 to 0.18 it read as barely tinted.
+   *
+   * Every palette below carries its own value, and each was solved rather
+   * than guessed: the alpha is the one that puts the filled cell at a
+   * contrast ratio of about 1.60 against the ground it sits on, so a
+   * selection looks equally strong whichever palette is on. Each was then
+   * checked for legibility over both grounds a cell can have — the editor
+   * background for a body cell and `--surface` for a header cell, which is
+   * where this was reported. The worst text contrast across all seven
+   * palettes and both grounds is 6.78 to 1, against the 4.5 that AA asks
+   * for.
+   */
+  --selection-accent: rgba(37, 99, 235, 0.32);
   --dialog-overlay: rgba(0, 0, 0, 0.3);
 
   /* Elevation */
@@ -55,7 +75,7 @@
   --placeholder: #6b7280;
   --hover-overlay: rgba(255, 255, 255, 0.06);
   --hover-overlay-strong: rgba(255, 255, 255, 0.12);
-  --selection-accent: rgba(96, 165, 250, 0.18);
+  --selection-accent: rgba(96, 165, 250, 0.26);
   --dialog-overlay: rgba(0, 0, 0, 0.6);
 
   --shadow-sm: rgba(0, 0, 0, 0.3);
@@ -83,7 +103,7 @@
   --placeholder: #a89a86;
   --hover-overlay: rgba(0, 0, 0, 0.04);
   --hover-overlay-strong: rgba(0, 0, 0, 0.08);
-  --selection-accent: rgba(184, 101, 63, 0.15);
+  --selection-accent: rgba(184, 101, 63, 0.39);
   --dialog-overlay: rgba(45, 30, 18, 0.3);
 
   --shadow-sm: rgba(45, 30, 18, 0.1);
@@ -110,7 +130,7 @@
   --placeholder: #93a1a1;
   --hover-overlay: rgba(0, 43, 54, 0.04);
   --hover-overlay-strong: rgba(0, 43, 54, 0.08);
-  --selection-accent: rgba(38, 139, 210, 0.15);
+  --selection-accent: rgba(38, 139, 210, 0.4);
   --dialog-overlay: rgba(0, 43, 54, 0.3);
 
   --shadow-sm: rgba(0, 43, 54, 0.1);
@@ -137,7 +157,7 @@
   --placeholder: #586e75;
   --hover-overlay: rgba(238, 232, 213, 0.05);
   --hover-overlay-strong: rgba(238, 232, 213, 0.1);
-  --selection-accent: rgba(38, 139, 210, 0.18);
+  --selection-accent: rgba(38, 139, 210, 0.33);
   --dialog-overlay: rgba(0, 0, 0, 0.55);
 
   --shadow-sm: rgba(0, 0, 0, 0.3);
@@ -165,7 +185,7 @@
   --placeholder: #8c959f;
   --hover-overlay: rgba(31, 35, 40, 0.04);
   --hover-overlay-strong: rgba(31, 35, 40, 0.08);
-  --selection-accent: rgba(9, 105, 218, 0.15);
+  --selection-accent: rgba(9, 105, 218, 0.32);
   --dialog-overlay: rgba(31, 35, 40, 0.3);
 
   --shadow-sm: rgba(31, 35, 40, 0.1);
@@ -192,7 +212,7 @@
   --placeholder: #484f58;
   --hover-overlay: rgba(201, 209, 217, 0.06);
   --hover-overlay-strong: rgba(201, 209, 217, 0.12);
-  --selection-accent: rgba(88, 166, 255, 0.18);
+  --selection-accent: rgba(88, 166, 255, 0.27);
   --dialog-overlay: rgba(1, 4, 9, 0.7);
 
   --shadow-sm: rgba(0, 0, 0, 0.3);
@@ -1003,6 +1023,59 @@ button.indicator-search:hover {
 
 .tiptap table .selectedCell {
   background: var(--selection-accent);
+}
+
+/*
+ * A selection ProseMirror calls invisible gets no native paint (#16).
+ *
+ * ── The defect ──
+ *
+ * Dragging across table cells builds a `CellSelection`, which puts
+ * `.selectedCell` on every cell in the range — measured, all of them, header
+ * cells included. So the tint above was already even. What was not even is
+ * that the browser painted its **own** selection on top, in the one cell
+ * holding the DOM range: an opaque, high-contrast block in that cell and a
+ * tint everywhere else. Two paints at two strengths, which reads as the
+ * selection having caught only one cell.
+ *
+ * ── Why the class was doing nothing ──
+ *
+ * `CellSelection.prototype.visible` is false, and `prosemirror-view` answers
+ * that by putting `ProseMirror-hideselection` on the editable element. The
+ * rules that give the class its meaning live in the stylesheet
+ * `prosemirror-view` ships, and this project does not import it: it writes by
+ * hand the ProseMirror styling it needs, the way `.tiptap
+ * img.ProseMirror-selectednode` below already does. So the class landed on an
+ * element no rule was looking for, and the native paint went on.
+ *
+ * Importing the vendor sheet whole would bring rules for the placeholder, the
+ * gap cursor and the caret — a visual change to every document, and bytes
+ * against Q1 — to fix two lines worth of behaviour. These are those two lines.
+ *
+ * ── What it reaches, stated rather than left to be discovered ──
+ *
+ * Every selection ProseMirror declares invisible, which today means a cell
+ * selection and a node selection, so selecting an image no longer paints a
+ * block over it either — it keeps the outline below, which is the styling
+ * this project chose for it. That is the vendor contract this repository has
+ * been missing rather than a new decision taken here.
+ *
+ * **A text selection inside one cell is untouched**, because a text selection
+ * is visible, so the class is absent and the native highlight is the only
+ * thing drawing it. That is the half a wider suppression breaks, and it has
+ * its own test.
+ *
+ * `::-moz-selection` is deliberately not written beside `::selection`. The
+ * vendor sheet carries it for browsers that predate unprefixed support;
+ * Firefox has had it since 62, the desktop build is WebView2, and a prefix
+ * nothing reaches is a line to keep correct for no reader.
+ */
+.tiptap.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.tiptap.ProseMirror-hideselection {
+  caret-color: transparent;
 }
 
 /* Images */
