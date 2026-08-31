@@ -1493,6 +1493,45 @@ button.appearance-menu-trigger:hover {
 }
 
 /* ── Cluster indicator + popover ── */
+/* ── R-C12 document-kind badges ──
+ *
+ * Descriptive, never a warning: no accent colour, no border that reads as
+ * a state, nothing that makes a document with a metadata block or an
+ * `assets/` folder look like a document with a problem. They are muted
+ * chips in the same row as the counts, and a plain document shows
+ * neither. `span` for «Metadata», which is hover-only, and `button` for
+ * «Images», which opens the popover — so only the second gets a cursor
+ * and a hover ground.
+ */
+.document-badge {
+  color: var(--muted);
+  background: var(--hover-overlay);
+  border: none;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 12px;
+}
+
+span.document-badge {
+  cursor: help;
+}
+
+button.document-badge {
+  cursor: pointer;
+}
+
+button.document-badge:hover {
+  color: var(--text);
+}
+
+.assets-popover-summary {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
 button.cluster-indicator {
   background: none;
   border: none;

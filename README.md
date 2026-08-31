@@ -42,7 +42,7 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **Unsaved-changes safety** — every destructive action routes through a safety gate.
 - **Lightweight** — ~3 MB installer, opens in seconds, works as the smallest serious markdown viewer you'll find. No Electron.
 
-Coming next (see [REQUIREMENTS.md](REQUIREMENTS.md) §8): language labels on code and text blocks, and descriptive statusbar badges.
+Coming next (see [REQUIREMENTS.md](REQUIREMENTS.md) §8): plain text blocks that soft-wrap instead of scrolling sideways, and a hover **Copy** button on any block.
 
 ---
 

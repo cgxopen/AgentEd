@@ -15,7 +15,6 @@ import { DEFAULT_LINE_CONVENTIONS, type LineConventions } from '../formats/line-
  */
 export class AppState {
   filePath: string | null = null;
-  frontmatter: string | null = null;
   isFirstSave = true;
   isSaving = false;
   /**
@@ -150,6 +149,25 @@ export class AppState {
   private clusterListeners: Array<(cluster: ContextCluster | null) => void> = [];
 
   /**
+   * The document's raw metadata block, or `null` when it has none.
+   *
+   * **An accessor rather than the plain field it used to be** (#196).
+   * Four places write it — `applyBundle` on every open, the template
+   * seed, `resetDocument`, and the panel's own textarea — and the
+   * «Metadata» badge has to be right after every one of them. A plain
+   * field left that to each writer remembering to refresh something,
+   * which is how the panel's route came to be the one nobody wired: the
+   * user emptied the textarea, the block was gone, and anything drawn
+   * from it stayed on screen. That is the shape #130 was filed against.
+   *
+   * Declared exactly like `modified`, `spellcheckEnabled` and `cluster`
+   * above, so there is one way to learn that a piece of document state
+   * changed rather than four.
+   */
+  private _frontmatter: string | null = null;
+  private frontmatterListeners: Array<(frontmatter: string | null) => void> = [];
+
+  /**
    * Monotonic counter used to discard stale scan results when the user
    * opens documents in rapid succession. Each `applyBundle` increments
    * the counter and only commits the result if its own value still
@@ -196,6 +214,24 @@ export class AppState {
 
   onClusterChange(cb: (cluster: ContextCluster | null) => void): void {
     this.clusterListeners.push(cb);
+  }
+
+  get frontmatter(): string | null {
+    return this._frontmatter;
+  }
+
+  set frontmatter(value: string | null) {
+    // Unconditional, like `setModified` and unlike `setSpellcheck`: the
+    // panel writes the textarea's value on every keystroke, and a
+    // listener that redraws from the same value is cheaper than the
+    // string comparison that would suppress it. What must not happen is
+    // a write that notifies nobody.
+    this._frontmatter = value;
+    for (const cb of this.frontmatterListeners) cb(value);
+  }
+
+  onFrontmatterChange(cb: (frontmatter: string | null) => void): void {
+    this.frontmatterListeners.push(cb);
   }
 
   /**
