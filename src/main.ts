@@ -1,4 +1,5 @@
 import { confirmAssetsDir } from './app/assets-dir';
+import { summariseAssets } from './app/assets-summary';
 import { installCloseGuard } from './app/close-guard';
 import { refreshClusterDetection, reportNothingRelated } from './app/cluster-scan';
 import { createContext } from './app/context';
@@ -24,8 +25,10 @@ import { getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
+import { setupAssetsPopover } from './ui/assets-popover';
 import { setupClusterIndicator } from './ui/cluster-indicator';
 import { setupClusterPopover } from './ui/cluster-popover';
+import { setupDocumentBadges } from './ui/document-badges';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
 import { setupSidebar } from './ui/sidebar';
@@ -123,6 +126,39 @@ ctx.sidebar = setupSidebar();
 ctx.frontmatterPanel = setupFrontmatterPanel(state);
 ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(state));
 
+// The R-C12 document-kind badges, and the popover «Images» opens.
+//
+// **Both halves are subscriptions rather than calls at the sites that
+// change the document** (#196). «Images» rides on the editor's own
+// update event, beside the counts; «Metadata» rides on
+// `onFrontmatterChange`, which every writer of the block goes through
+// now that `AppState.frontmatter` is an accessor. Wiring either from the
+// places that replace a document instead would mean four call sites to
+// keep in step, and the one that would have been missed is the panel's
+// own textarea — the route where a user empties the metadata and
+// whatever was drawn from it stays on screen.
+ctx.assetsPopover = setupAssetsPopover({
+  loadSummary: async () => {
+    const io = await getPlatformIO();
+    return summariseAssets(editor, ctx.state.filePath, io);
+  },
+});
+const documentBadges = setupDocumentBadges(editor, {
+  onImagesToggle: () => ctx.assetsPopover.toggle(),
+});
+// `transaction` rather than `update`, and it is not a preference (#196):
+// `update` is not emitted for a transaction carrying `preventUpdate`, and
+// `setContent` sets exactly that — so a badge wired to `update` would have
+// been right for every keystroke and wrong for every document ever opened.
+// `docChanged` is then the filter that keeps a selection move free.
+editor.on('transaction', ({ transaction }) => {
+  if (!transaction.docChanged) return;
+  documentBadges.refreshImages();
+});
+state.onFrontmatterChange((frontmatter) => documentBadges.refreshMetadata(frontmatter));
+documentBadges.refreshMetadata(state.frontmatter);
+documentBadges.refreshImages();
+
 // Phase 5 — managers (need editor + panels in ctx).
 // SearchManager owns the inline search panel + the vendor extension
 // wrapper. We construct it here (before docActions) so its keyboard
@@ -134,6 +170,7 @@ ctx.searchManager = createSearchManager({
   panelRoot: document.getElementById('search-panel')!,
   onOpen: () => {
     if (ctx.clusterPopover?.isOpen()) ctx.clusterPopover.close();
+    if (ctx.assetsPopover?.isOpen()) ctx.assetsPopover.close();
   },
 });
 ctx.searchManager.installKeyboardListeners();

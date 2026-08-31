@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import type { AppearanceMenu } from '../ui/appearance-menu';
+import type { AssetsPopover } from '../ui/assets-popover';
 import type { ClusterIndicator } from '../ui/cluster-indicator';
 import type { ClusterPopover } from '../ui/cluster-popover';
 import type { FrontmatterPanel } from '../ui/frontmatter-panel';
@@ -40,6 +41,8 @@ export interface AppContext {
   frontmatterPanel: FrontmatterPanel;
   clusterIndicator: ClusterIndicator;
   clusterPopover: ClusterPopover;
+  /** The R-C12 «Images» popover, opened from the badge of the same name. */
+  assetsPopover: AssetsPopover;
   appearanceMenu: AppearanceMenu;
 
   // Phase 5: managers

@@ -32,6 +32,8 @@
                 <path d="m13.5 13.5-3.2-3.2" />
               </svg>
             </button>
+            <span id="badge-metadata" class="indicator document-badge indicator-collapse-600" style="display:none" aria-hidden="true"></span>
+            <button id="badge-images" type="button" class="indicator document-badge indicator-collapse-600" style="display:none" aria-hidden="true" aria-expanded="false" aria-controls="assets-popover"></button>
             <button id="cluster-indicator" type="button" class="indicator cluster-indicator indicator-collapse-600" style="display:none" aria-hidden="true" aria-expanded="false" aria-controls="cluster-popover"></button>
           </div>
           <button id="overflow-toggle" class="indicator-overflow" aria-label="More indicators" aria-expanded="false" aria-controls="overflow-popover" title="Hover any indicator for details">...</button>
@@ -62,6 +64,7 @@
           <button id="menu-about">About AgentEd</button>
         </nav>
         <div id="overflow-popover" class="hidden"></div>
+        <aside id="assets-popover" class="cluster-popover hidden" role="dialog" aria-label="Images in this document"></aside>
         <aside id="cluster-popover" class="cluster-popover hidden" role="dialog" aria-label="Related context files"></aside>
         <aside id="appearance-popover" class="appearance-popover hidden" role="dialog" aria-label="Appearance settings"></aside>
       </header>
