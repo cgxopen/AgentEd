@@ -42,6 +42,23 @@ function labelsFor(markdown: string): string[] {
   return found;
 }
 
+/**
+ * Feed text the way a keypress does, so the markdown input rules actually run.
+ * `insertContent` does not go through them, so a test written with it would
+ * assert nothing about the route a user takes.
+ */
+function typeText(editor: EditorInstance, text: string): void {
+  for (const character of text) {
+    const { from, to } = editor.editor.state.selection;
+    const handled = editor.editor.view.someProp('handleTextInput', (handler) =>
+      handler(editor.editor.view, from, to, character, () => editor.editor.state.tr),
+    );
+    if (!handled) {
+      editor.editor.view.dispatch(editor.editor.state.tr.insertText(character, from, to));
+    }
+  }
+}
+
 function openAndSave(markdown: string): string {
   const editor = open(markdown);
   const saved = editor.getMarkdown().trim();
@@ -92,6 +109,30 @@ describe('a fence with a language shows it, and one without shows nothing', () =
     expect(labelsFor('- ```ts\n  const x = 1;\n  ```')).toEqual(['ts']);
     expect(labelsFor('> ```sh\n> ls\n> ```')).toEqual(['sh']);
     expect(labelsFor('```js\n```')).toEqual(['js']);
+  });
+
+  it('shows the label on a fence typed with the input rule and a language', () => {
+    // The route a user actually takes, and the one the toolbar does not offer:
+    // there is no code-block button, so three backticks and a language is how a
+    // fence gets made. The label has to appear on it as it does on an opened
+    // one, which `setCodeBlock` below cannot show because it sets no language.
+    const editor = open('');
+    editor.editor.commands.focus();
+    typeText(editor, '```python ');
+    typeText(editor, 'x = 1');
+
+    expect(labels(editor)).toEqual(['python']);
+    expect(editor.getMarkdown().trim()).toBe('```python\nx = 1\n```');
+  });
+
+  it('shows no label on a fence typed with the input rule and no language', () => {
+    const editor = open('');
+    editor.editor.commands.focus();
+    typeText(editor, '``` ');
+    typeText(editor, 'x = 1');
+
+    expect(labels(editor)).toEqual([]);
+    expect(editor.getMarkdown().trim()).toBe('```\nx = 1\n```');
   });
 
   it('shows no label on a fence created in the editor', () => {
