@@ -7,11 +7,11 @@
  *
  * **The button is not the repair on its own**, and that is what this file
  * exists to pin. The floating toolbar hides itself whenever the selection is
- * empty, so it does not exist at the caret a user starts a new block from —
- * measured in `toolbar.ts`, where the first thing the position handler does is
- * `if (empty || from === to) { hide; return }`. So the route that answers the
- * issue is the one reachable with **nothing selected**: the Edit menu entry and
- * the shortcut, both of which dispatch the same command the button does.
+ * empty, so it does not exist at the caret a user starts a new block from — and
+ * that is **asserted over the real toolbar below** rather than quoted from
+ * `toolbar.ts`. So the route that answers the issue is the one reachable with
+ * **nothing selected**: the Edit menu entry and the shortcut, both of which
+ * dispatch the same command the button does.
  *
  * Everything below drives that command, or a real key press, rather than a
  * node built by hand — the #146 lesson.
@@ -19,6 +19,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { type KeyboardHandlers, setupKeyboard } from '../app/keyboard';
+import { setupToolbar } from '../ui/toolbar';
 import { insertCodeBlock } from './insert-code-block';
 import { createEditor, type EditorInstance } from './setup';
 
@@ -76,14 +77,41 @@ describe('a code block can be made with nothing selected', () => {
     );
   });
 
-  it('the toolbar is absent at an empty caret, which is why the menu is needed', () => {
-    // The measurement the scope of this issue rests on, asserted rather than
-    // quoted from the source: with nothing selected there is no toolbar to
-    // hold a button.
+  it('the toolbar is shown on a selection and hidden again when it collapses', () => {
+    // The measurement the scope of this issue rests on, asserted over the
+    // **real** toolbar: `setupToolbar` builds it here rather than this test
+    // reproducing what it does.
+    //
+    // **The order is the whole of it, and two earlier versions got it wrong.**
+    // The first asserted only that nothing matched `.floating-toolbar` at an
+    // empty caret — and built no toolbar at all, so the query matched nothing
+    // because nothing had been rendered. The second built one and checked the
+    // empty caret first, which is satisfied by the `hidden` class the toolbar
+    // is *constructed* with: `positionToolbar` runs on `selectionUpdate` and
+    // on `focus`, and a programmatic focus fires neither here, so the guard
+    // was never reached. Both passed against a toolbar that hides for no
+    // reason at all.
+    //
+    // So the selection comes first and the collapse second. Showing it is what
+    // proves the toolbar can appear; hiding it *again*, from a state where it
+    // was visible, is the only sequence that makes the empty-selection guard
+    // run. The reversal that deletes that guard turns this red.
+    //
+    // Asserted on the class rather than on geometry: `positionToolbar` also
+    // reads `coordsAtPos` and `getBoundingClientRect`, which happy-dom answers
+    // with zeroes. The placement is not testable here and is not the claim.
     const editor = open('some text');
-    editor.editor.commands.focus('end');
+    setupToolbar(editor.editor, { onLink: () => {} });
+    const toolbar = document.getElementById('floating-toolbar');
+    if (toolbar === null) throw new Error('setupToolbar rendered no toolbar');
+
+    editor.editor.commands.selectAll();
+    expect(editor.editor.state.selection.empty).toBe(false);
+    expect(toolbar.classList.contains('hidden')).toBe(false);
+
+    editor.editor.commands.setTextSelection(1);
     expect(editor.editor.state.selection.empty).toBe(true);
-    expect(document.querySelector('.floating-toolbar:not(.hidden)')).toBeNull();
+    expect(toolbar.classList.contains('hidden')).toBe(true);
   });
 });
 
