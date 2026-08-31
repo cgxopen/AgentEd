@@ -20,6 +20,7 @@ import {
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { isRelativeLinkAddress } from './link-url';
+import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
@@ -136,6 +137,32 @@ import { createSearchExtension } from './search-extension';
  * wrong reading asked him for a border the application never draws. Whether
  * dead configuration should be removed is its own question, not this one's.
  */
+/**
+ * How the file spaced this list (#28), carried on the list node itself.
+ *
+ * The same shape as `tableStyle` below and for the same reason: `parseHTML`
+ * and `renderHTML` keep it across the document model, which is what lets an
+ * untouched list be written back byte for byte. It rides on the node rather
+ * than on the document so that a list and its spacing move together through
+ * editing, Save As and copy-paste.
+ *
+ * **The default is `false`, and that is the owner decision rather than a
+ * fallback**: a list created in the editor is tight. Only a list that came
+ * from a file that spelled it loose carries `true`, so nothing changes for
+ * what the user writes from scratch and everything changes only for what they
+ * opened. Same shape as `defaultType: paragraph` on #110.
+ */
+function looseAttribute() {
+  return {
+    loose: {
+      default: false,
+      parseHTML: (element: HTMLElement) => element.getAttribute(LIST_SPACING_ATTRIBUTE) === 'true',
+      renderHTML: (attributes: Record<string, unknown>) =>
+        attributes.loose ? { [LIST_SPACING_ATTRIBUTE]: 'true' } : {},
+    },
+  };
+}
+
 function starterKitWithLocalSchemaRules() {
   return StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
@@ -160,6 +187,16 @@ function starterKitWithLocalSchemaRules() {
       return registered.map((extension) => {
         if (extension.name === 'code') return extension.extend({ excludes: '', priority: 1 });
         if (extension.name === 'listItem') return extension.extend({ content: 'block+' });
+        // The two list containers StarterKit registers gain the file's own
+        // spacing (#28). Extended here rather than imported directly, for the
+        // reason the comment above gives: the list is read off the kit.
+        if (extension.name === 'bulletList' || extension.name === 'orderedList') {
+          return extension.extend({
+            addAttributes() {
+              return { ...this.parent?.(), ...looseAttribute() };
+            },
+          });
+        }
         return extension;
       });
     },
@@ -213,6 +250,17 @@ function starterKitWithLocalSchemaRules() {
  * sibling of the content rather than part of its first paragraph, whatever
  * that first block turns out to be.
  */
+/**
+ * The task list, with the same spacing attribute as the other two (#28).
+ * Since #160 the loose-list exception covered bullet, ordered and task lists
+ * alike, so the repair has to reach all three.
+ */
+const TaskListWithSpacing = TaskList.extend({
+  addAttributes() {
+    return { ...this.parent?.(), ...looseAttribute() };
+  },
+});
+
 const TaskItemHoldingABlock = TaskItem.extend({
   content() {
     return this.options.nested ? 'block+' : 'paragraph+';
@@ -333,7 +381,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
       isAllowedUri: (url, ctx) => isRelativeLinkAddress(url) || ctx.defaultValidate(url),
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
-    TaskList,
+    TaskListWithSpacing,
     TaskItemHoldingABlock,
     Image.configure({ inline: true, allowBase64: false }),
     // resizable: false — GFM markdown has no column width syntax.

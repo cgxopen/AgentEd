@@ -127,7 +127,6 @@ afterEach(() => {
 type Expectation = 'identical' | { readonly writes: string; readonly because: string };
 
 /** A recorded R-C2 exception, named the way REQUIREMENTS names it. */
-const LOOSE_LISTS = 'R-C2: loose lists are tightened';
 const SOFT_BREAKS = 'R-C2: a soft line break becomes a space';
 const BACKTICK_RUNS = 'R-C2: backtick runs are escaped even when nothing can close them';
 const REDUNDANT_ESCAPE = 'R-C2: a redundant escape the file already had is not preserved';
@@ -137,8 +136,13 @@ const SINGLE_TILDE = 'R-C2: single-tilde strikethrough is written with two';
 const TABLE_SPELLINGS = 'R-C2: five table spellings AgentEd cannot hold';
 const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
 const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
-/** Two recorded exceptions meeting on one document, not a third one. */
-const LOOSE_ORDERED_MARKER = `${LOOSE_LISTS} + ${ORDERED_TASK_MARKER}`;
+/** The blank line inside an item, between two of its own blocks (#157). */
+const TASK_ITEM_BLOCKS = "R-C2: an item's own blocks are written one newline apart";
+/** Two adjacent lists of different kinds, written tight because that is a fixed point (#160). */
+const ADJACENT_LISTS = 'R-C2: two adjacent lists of different kinds are written a line apart';
+/** A blank line inside a blockquote keeps the marker and gains a space after it. */
+const BLOCKQUOTE_BLANK_LINE =
+  'R-C2: a blank line inside a blockquote keeps the quote marker and gains a space after it';
 
 /**
  * Every shape `markdown/roundtrip.test.ts` covers, plus the six shapes of #84,
@@ -196,7 +200,7 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['an item holding two paragraphs', '1. one\n\n   continued\n\n2. two', 'identical'],
   ['a bullet list next to an ordered list', '- one\n- two\n\ntext\n\n1. a\n2. b', 'identical'],
   ['numbering read from the ol start attribute', '5. five\n6. six', 'identical'],
-  ['a loose list', '- one\n\n- two', { writes: '- one\n- two', because: LOOSE_LISTS }],
+  ['a loose list', '- one\n\n- two', 'identical'],
 
   // ── An item whose whole body is a block (#110) ──
   //
@@ -354,61 +358,45 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   // which is the premise `empty-fence.test.ts` pins from #104. It is amended
   // in the same pull request, and the branch is correct where it is reached —
   // see that file for the rule and for what cannot reach it.
-  ['a loose task list', '- [ ] a\n\n- [ ] b', { writes: '- [ ] a\n- [ ] b', because: LOOSE_LISTS }],
-  [
-    'a loose task list, both ticked',
-    '- [x] a\n\n- [x] b',
-    { writes: '- [x] a\n- [x] b', because: LOOSE_LISTS },
-  ],
-  [
-    'a loose task list, one of each',
-    '- [x] a\n\n- [ ] b',
-    { writes: '- [x] a\n- [ ] b', because: LOOSE_LISTS },
-  ],
-  [
-    'a loose task list of three items',
-    '- [ ] a\n\n- [x] b\n\n- [ ] c',
-    { writes: '- [ ] a\n- [x] b\n- [ ] c', because: LOOSE_LISTS },
-  ],
+  ['a loose task list', '- [ ] a\n\n- [ ] b', 'identical'],
+  ['a loose task list, both ticked', '- [x] a\n\n- [x] b', 'identical'],
+  ['a loose task list, one of each', '- [x] a\n\n- [ ] b', 'identical'],
+  ['a loose task list of three items', '- [ ] a\n\n- [x] b\n\n- [ ] c', 'identical'],
   [
     'a loose list of a task item and a plain one',
     '- [ ] a\n\n- b',
-    { writes: '- [ ] a\n- b', because: LOOSE_LISTS },
+    { writes: '- [ ] a\n- b', because: ADJACENT_LISTS },
   ],
   [
     'a loose task list with a task list nested in it',
     '- [ ] a\n\n  - [ ] n\n\n- [ ] b',
-    { writes: '- [ ] a\n  - [ ] n\n- [ ] b', because: LOOSE_LISTS },
+    { writes: '- [ ] a\n  - [ ] n\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
   ],
   [
     'a loose task list inside a blockquote',
     '> - [ ] a\n>\n> - [ ] b',
-    { writes: '> - [ ] a\n> - [ ] b', because: LOOSE_LISTS },
+    { writes: '> - [ ] a\n> \n> - [ ] b', because: BLOCKQUOTE_BLANK_LINE },
   ],
-  [
-    'a loose task list with an empty item',
-    '- [ ] \n\n- [ ] b',
-    { writes: '- [ ] \n- [ ] b', because: LOOSE_LISTS },
-  ],
+  ['a loose task list with an empty item', '- [ ] \n\n- [ ] b', 'identical'],
   [
     'a loose task item whose whole content is an empty fence',
     '- [ ] \n\n  ```\n  ```\n\n- [ ] b',
-    { writes: '- [ ] ```\n  ```\n- [ ] b', because: LOOSE_LISTS },
+    { writes: '- [ ] ```\n  ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
   ],
   [
     'a loose task item whose whole content is an empty fence with a language',
     '- [ ] \n\n  ```js\n  ```\n\n- [ ] b',
-    { writes: '- [ ] ```js\n  ```\n- [ ] b', because: LOOSE_LISTS },
+    { writes: '- [ ] ```js\n  ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
   ],
   [
     'a loose task item holding a blockquote holding an empty fence',
     '- [ ] \n\n  > ```\n  > ```\n\n- [ ] b',
-    { writes: '- [ ] > ```\n  > ```\n- [ ] b', because: LOOSE_LISTS },
+    { writes: '- [ ] > ```\n  > ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
   ],
   [
     'a loose task item holding a nested list holding an empty fence',
     '- [ ] \n\n  - ```\n    ```\n\n- [ ] b',
-    { writes: '- [ ] - ```\n    ```\n- [ ] b', because: LOOSE_LISTS },
+    { writes: '- [ ] - ```\n    ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
   ],
 
   // ── A loose *ordered* list of markers (#160, members 3a and 3b together) ──
@@ -425,12 +413,12 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   [
     'a loose ordered list of markers',
     '1. [ ] a\n\n2. [ ] b',
-    { writes: '1. \\[ \\] a\n2. \\[ \\] b', because: LOOSE_ORDERED_MARKER },
+    { writes: '1. \\[ \\] a\n\n2. \\[ \\] b', because: ORDERED_TASK_MARKER },
   ],
   [
     'a loose ordered list of markers, one ticked',
     '1. [x] a\n\n2. [ ] b',
-    { writes: '1. \\[x\\] a\n2. \\[ \\] b', because: LOOSE_ORDERED_MARKER },
+    { writes: '1. \\[x\\] a\n\n2. \\[ \\] b', because: ORDERED_TASK_MARKER },
   ],
 
   // ── A task item whose whole body is a block (#157) ──
@@ -761,12 +749,12 @@ describe('an empty task item keeps the space GFM needs (#160)', () => {
   it('keeps the space when the empty item ends a loose list (#160, member 3a)', () => {
     // The one loose shape the table above cannot carry, for the reason this
     // whole block exists: `openAndSave` trims, and the byte in question is the
-    // document's last one. Two differences, both recorded and neither new —
-    // the blank line goes by the loose-list exception, and the space after the
-    // marker stays because member 1 put it there. Before member 3a this whole
-    // item left the file: `- [ ] a`⏎⏎`- [ ] ` was written `- a`.
-    expect(saveUntrimmed('- [ ] a\n\n- [ ] ')).toBe('- [ ] a\n- [ ] ');
-    expect(saveUntrimmed('- [ ] \n\n- [ ] b')).toBe('- [ ] \n- [ ] b');
+    // document's last one. **Byte-identical since #28**: the blank line used
+    // to go by the loose-list exception and is now kept, and the space after
+    // the marker stays because member 1 put it there. Before member 3a this
+    // whole item left the file: `- [ ] a`⏎⏎`- [ ] ` was written `- a`.
+    expect(saveUntrimmed('- [ ] a\n\n- [ ] ')).toBe('- [ ] a\n\n- [ ] ');
+    expect(saveUntrimmed('- [ ] \n\n- [ ] b')).toBe('- [ ] \n\n- [ ] b');
 
     const once = saveUntrimmed('- [ ] a\n\n- [ ] ');
     expect(saveUntrimmed(once)).toBe(once);
@@ -1128,53 +1116,7 @@ interface Normaliser {
   readonly apply: (text: string) => string;
 }
 
-/** A line that opens a list item: `- x`, `* x`, `+ x`, `1. x`, `1) x`. */
-const OPENS_LIST_ITEM = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]/;
-/** A line that is indented and not blank — the continuation of an item above. */
-const CONTINUES_LIST_ITEM = /^[ \t]+\S/;
-
 const NORMALISERS: readonly Normaliser[] = [
-  {
-    // R-C2, the first exception recorded there: a loose list — blank lines
-    // between its items — is written back tight, because TipTap's list nodes
-    // carry no loose/tight distinction and the editor has no node for a blank
-    // line. Rendering differs (loose items are wrapped in `<p>`), which is why
-    // it is tracked as #28 rather than merely accepted; the bytes are what this
-    // guard is about, and they are recorded.
-    //
-    // **It runs before the soft-break normaliser and that is not incidental.**
-    // Once soft breaks have become spaces the blank line is no longer a line —
-    // it is an extra space in a sentence, and a normaliser that collapsed
-    // *those* would erase every doubled space anywhere in any document. Here
-    // the structure is still visible, so the claim can be made about the
-    // structure: a blank line, between two items of one list.
-    //
-    // Narrow on **both** sides deliberately. It claims the blank line only
-    // when the line after it opens an item and the line before it belongs to
-    // one — an item itself, or an indented continuation of one. So the blank
-    // line that *separates a paragraph from a list beneath it* is not claimed:
-    // that one is preserved on save, and a day it stops being preserved this
-    // guard still has to say so.
-    //
-    // Added on #117, after a blank line in `docs/internal/STATUS.md` turned
-    // `main` red for a difference R-C2 already accepts. Removed again, with
-    // the shape-table row above it, if #28 is ever fixed.
-    name: 'a loose list written back tight',
-    apply: (text) => {
-      const lines = text.split('\n');
-      const kept: string[] = [];
-      for (let i = 0; i < lines.length; i++) {
-        const previous = kept[kept.length - 1];
-        const isBlankBetweenItems =
-          lines[i].trim().length === 0 &&
-          OPENS_LIST_ITEM.test(lines[i + 1] ?? '') &&
-          previous !== undefined &&
-          (OPENS_LIST_ITEM.test(previous) || CONTINUES_LIST_ITEM.test(previous));
-        if (!isBlankBetweenItems) kept.push(lines[i]);
-      }
-      return kept.join('\n');
-    },
-  },
   {
     // R-C2: a soft line break becomes a space. A wrapped paragraph arrives as
     // several lines and leaves as one. Both sides are joined, so a *list* that
@@ -1362,16 +1304,22 @@ describe('the repository, opened and saved unedited (R-C2)', () => {
 });
 
 /**
- * The loose-list normaliser, held to the property that makes it worth having
- * rather than to the document that occasioned it (#117).
+ * Nothing claims a loose list any more, and that is the pin that says #28 is
+ * fixed rather than re-described.
  *
- * A normaliser is only as good as what it still refuses, and that half cannot
- * be read off the repository: every document here is expected to pass, so a
- * normaliser drawn too widely passes too, silently. These drive `isClaimed`
- * on regions built by hand — the difference the exception describes, and the
- * differences it must not be able to swallow.
+ * A normaliser for this used to live here (#117): a loose list written back
+ * tight was a recorded exception, so the document half had to be able to erase
+ * that difference before comparing. Now that the file's own spacing survives
+ * the round trip there is nothing to erase, and the strongest statement this
+ * guard can make is the inverse of the one it used to make — if the serializer
+ * ever tightens a list again, **no normaliser will absorb it** and the document
+ * half fails loudly.
+ *
+ * The refusals below outlived the normaliser they were written against. They
+ * were the floor it could most plausibly have broken through, and they are
+ * still the floor: whatever is added here later has to keep failing them.
  */
-describe('the loose-list normaliser claims one exception and no more (#117)', () => {
+describe('a loose list written back tight is claimed by nothing (#28)', () => {
   /** The two sides a difference has, as `differenceRegions` would hand them over. */
   const region = (removed: readonly string[], added: readonly string[]): Region => ({
     removed,
@@ -1379,54 +1327,48 @@ describe('the loose-list normaliser claims one exception and no more (#117)', ()
     at: 1,
   });
 
-  it('claims a loose list written back tight', () => {
-    expect(isClaimed(region(['- one', '', '- two'], ['- one', '- two']), [])).toBe(true);
+  it('does not claim a loose bullet list written back tight', () => {
+    expect(isClaimed(region(['- one', '', '- two'], ['- one', '- two']), [])).toBe(false);
   });
 
-  it('claims it under an item that wraps onto continuation lines', () => {
-    // The shape `docs/internal/STATUS.md` actually held: the blank line sits
-    // under an indented continuation, not under the item marker itself.
+  it('does not claim a loose ordered list written back tight', () => {
+    expect(isClaimed(region(['1. one', '', '2. two'], ['1. one', '2. two']), [])).toBe(false);
+  });
+
+  it('does not claim it under an item that wraps onto continuation lines', () => {
+    // The shape `docs/internal/STATUS.md` actually held, and the one that
+    // occasioned the normaliser in the first place.
     expect(
       isClaimed(
         region(['- one', '  more about one', '', '- two'], ['- one more about one', '- two']),
         [],
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
-  it('claims an ordered list too — the exception is about the blank line', () => {
-    expect(isClaimed(region(['1. one', '', '2. two'], ['1. one', '2. two']), [])).toBe(true);
-  });
+  // ── the floor the removed normaliser was held to, kept ──
 
-  // ── and now what it must still refuse ──
-
-  it('does NOT claim a list that lost an item', () => {
-    // The floor this normaliser could most plausibly have broken. `- one` and
-    // `- two` joined is `- one - two`, which a one-item list does not match —
-    // and it must keep not matching now that blank lines can be erased.
+  it('does not claim a list that lost an item', () => {
     expect(isClaimed(region(['- one', '', '- two'], ['- one']), [])).toBe(false);
   });
 
-  it('does NOT claim an item whose text changed while a blank line went', () => {
+  it('does not claim an item whose text changed while a blank line went', () => {
     expect(isClaimed(region(['- one', '', '- two'], ['- one', '- three']), [])).toBe(false);
   });
 
-  it('does NOT claim the blank line between a paragraph and the list below it', () => {
-    // Preserved on save today. The day it stops being preserved, this guard
-    // has to report it rather than absorb it into the loose-list exception.
+  it('does not claim the blank line between a paragraph and the list below it', () => {
     expect(isClaimed(region(['text', '', '- one'], ['text', '- one']), [])).toBe(false);
   });
 
-  it('does NOT claim a blank line that goes from between two paragraphs', () => {
+  it('does not claim a blank line that goes from between two paragraphs', () => {
     expect(isClaimed(region(['one', '', 'two'], ['one', 'two']), [])).toBe(false);
   });
 
-  it('names itself in the census when a document meets it', () => {
-    expect(normalisersUsed(sideText(['- one', '', '- two']))).toContain(
-      'a loose list written back tight',
-    );
-    // And stays out of it when nothing loose is there to claim.
-    expect(normalisersUsed(sideText(['- one', '- two']))).not.toContain(
+  it('names no loose-list normaliser in the census', () => {
+    // The soft-break normaliser still names itself, because joining the lines
+    // is what it does to every side it is handed. What must not come back is
+    // a normaliser that claims the blank line as an exception.
+    expect(normalisersUsed(sideText(['- one', '', '- two']))).not.toContain(
       'a loose list written back tight',
     );
   });

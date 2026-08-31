@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { attachListSpacing, LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { attachTableStyles, TABLE_STYLE_ATTRIBUTE } from './table-style';
 import { markTaskLists } from './task-list';
 
@@ -44,9 +45,15 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // this HTML exists the file's spacing is already gone.
   const withTableStyles = attachTableStyles(html, markdown);
 
+  // How each list was spaced — loose or tight — read from the markdown for
+  // the same reason and pinned to the list it belongs to (#28). The `<p>`
+  // wrappers `marked` writes are still here, but they answer CommonMark's
+  // question rather than the file's; see `list-spacing.ts`.
+  const withListSpacing = attachListSpacing(withTableStyles, markdown);
+
   // The checkbox `marked` writes for a GFM task item, rewritten for whichever
   // list holds it (#160).
-  const processed = rewriteCheckboxes(withTableStyles);
+  const processed = rewriteCheckboxes(withListSpacing);
 
   // Which of those lists is a task list, in the spelling TipTap reads (#110).
   // It has to happen after the rewrite above and before sanitization, because
@@ -66,7 +73,7 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // together and they live in different files, so neither may be removed while
   // reading only the other. `decodeTableStyle` validates the value regardless.
   return DOMPurify.sanitize(withTaskLists, {
-    ADD_ATTR: ['data-type', 'data-checked', TABLE_STYLE_ATTRIBUTE],
+    ADD_ATTR: ['data-type', 'data-checked', TABLE_STYLE_ATTRIBUTE, LIST_SPACING_ATTRIBUTE],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   });
