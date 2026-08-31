@@ -144,7 +144,6 @@ function makeCtx(state: AppState): AppContext {
         dialogs.push(label);
       }),
     },
-    editor: { commands: { clearContent: vi.fn() } },
     setMarkdown: vi.fn((md: string) => {
       shown.push(md);
     }),

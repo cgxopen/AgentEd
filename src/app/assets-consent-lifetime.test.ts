@@ -77,7 +77,6 @@ function makeCtx(state: AppState): AppContext {
   return {
     state,
     reporter: { dialog: vi.fn(async () => {}) },
-    editor: { commands: { clearContent: vi.fn() } },
     setMarkdown: vi.fn(),
     getMarkdown: () => '',
     statusbar: { refresh: vi.fn() },
