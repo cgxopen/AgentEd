@@ -864,6 +864,50 @@ button.indicator-search:hover {
   padding: 16px;
   margin: 0.5em 0;
   overflow-x: auto;
+  /*
+   * The containing block for the language label below (#195), and nothing
+   * else. `position: relative` with no offsets moves nothing, paints nothing
+   * and — with `z-index` left at `auto` — opens no stacking context, so how a
+   * fenced block is drawn is unchanged. It is here because it had to be
+   * measured rather than assumed: this rule declared no `position` at all, so
+   * an absolutely positioned child would have been laid out against the page
+   * instead of against the block it belongs to.
+   */
+  position: relative;
+}
+
+/*
+ * The language a fenced block was written with (R-C15, #195).
+ *
+ * Drawn in the block's own top padding rather than above it: `padding: 16px`
+ * already leaves a band there, and a 10px label sits inside it without moving
+ * the first line of code by a pixel. That is what keeps this chrome rather
+ * than a change to how a fence is drawn — a fence with no language is not
+ * shifted, because nothing about the block itself changed.
+ *
+ * The element is a ProseMirror widget decoration, so it exists in the view and
+ * never in the document model; `user-select: none` keeps it out of a
+ * selection the user drags across the code, and `pointer-events: none` keeps
+ * it from swallowing a click meant for the block. Both go the day the §8
+ * candidate makes the label clickable.
+ *
+ * **Known limit, measured rather than discovered later**: `.tiptap pre` is the
+ * scroll container, so on a block wider than the pane the label scrolls out to
+ * the left with the code. Holding it still would need a wrapper element around
+ * the block, which is a node view, which is a change to how a fence is drawn.
+ */
+.tiptap pre .code-block-language {
+  position: absolute;
+  top: 3px;
+  left: 16px;
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--code-text);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
 }
 
 .tiptap pre code {
