@@ -1,11 +1,12 @@
 import type { Editor } from '@tiptap/core';
+import { insertCodeBlock } from '../editor/insert-code-block';
 
 export interface ToolbarHandlers {
   /** Open the link dialog (#25). Owned by the app layer, which has the DOM. */
   onLink: () => void;
 }
 
-interface ToolbarButton {
+export interface ToolbarButton {
   label: string;
   title: string;
   action: (editor: Editor, handlers: ToolbarHandlers) => void;
@@ -55,12 +56,31 @@ const buttons: ToolbarButton[] = [
     isActive: (e) => e.isActive('link'),
   },
   {
+    // The two code buttons sit together and are told apart by both halves of
+    // what a user reads: the label and the tooltip (#204). This one used to be
+    // titled just `Code`, which is the whole of how a missing feature became a
+    // wrong turn — the owner went looking for a code block, found the button
+    // labelled for code, and got an inline span.
     label: '<>',
-    title: 'Code (Ctrl+E)',
+    title: 'Inline code (Ctrl+E)',
     action: (e) => {
       e.chain().focus().toggleCode().run();
     },
     isActive: (e) => e.isActive('code'),
+  },
+  {
+    // Labelled with the syntax it writes, the way `1.` is for the ordered
+    // list: in a markdown editor the marker is the clearest icon there is, and
+    // it teaches the input rule at the same time.
+    //
+    // **This button is not the whole repair.** The floating toolbar hides
+    // itself whenever the selection is empty, so it cannot be reached from the
+    // caret the user starts a new block with — that route is the Edit menu and
+    // the shortcut, and without them this issue would still be open.
+    label: '```',
+    title: 'Code block (Ctrl+Shift+K)',
+    action: insertCodeBlock,
+    isActive: (e) => e.isActive('codeBlock'),
   },
   {
     label: 'H1',
@@ -111,6 +131,14 @@ const buttons: ToolbarButton[] = [
     isActive: (e) => e.isActive('blockquote'),
   },
 ];
+
+/**
+ * What the shipped toolbar renders, exported so a test can read the labels and
+ * tooltips rather than restating them (#204) — the `ci.test.ts` shape. It is
+ * the same array the buttons are built from, not a copy: a copy is how a test
+ * goes on passing against a string nothing renders.
+ */
+export const shippedButtons: ReadonlyArray<ToolbarButton> = buttons;
 
 function createToolbarButtons(
   toolbar: HTMLElement,

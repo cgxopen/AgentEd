@@ -18,6 +18,7 @@ function callbacks(): MenuCallbacks {
     onFindPrevious: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
+    onInsertCodeBlock: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };

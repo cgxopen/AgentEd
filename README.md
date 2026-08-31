@@ -54,7 +54,7 @@ Coming next (see [REQUIREMENTS.md](REQUIREMENTS.md) §8): language labels on cod
 | `Ctrl+K` | Insert link (or edit / remove the link at the caret) |
 | `Ctrl`/`Cmd` + click | Open a link in the system browser |
 | `Ctrl+E` | Inline code |
-| `Ctrl+Shift+K` | Code block |
+| `Ctrl+Shift+K` / `Ctrl+Alt+C` | Code block (also **Edit → Insert Code Block**) |
 | `Ctrl+S` / `Ctrl+Shift+S` | Save / Save As |
 | `Ctrl+O` | Open |
 | `Ctrl+Shift+V` | Paste as plain text |

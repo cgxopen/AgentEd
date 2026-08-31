@@ -18,6 +18,7 @@ import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
 import { AppState } from './app/state';
 import { setupTableDialog } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
+import { insertCodeBlock } from './editor/insert-code-block';
 import { createEditor } from './editor/setup';
 import { getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
@@ -232,6 +233,7 @@ setupMenu({
   onFindNext: () => ctx.searchManager.findNext(),
   onFindPrevious: () => ctx.searchManager.findPrevious(),
   onInsertTable: tableDialog.open,
+  onInsertCodeBlock: () => insertCodeBlock(ctx.editor),
   onInsertMedia: () => {
     void insertMedia({
       state: ctx.state,
@@ -266,6 +268,7 @@ setupKeyboard({
     void docActions.handleOpen().catch(console.error);
   },
   onLink: () => linkDialog.open(),
+  onCodeBlock: () => insertCodeBlock(ctx.editor),
 });
 
 setupFileAssociation(docActions.openFilePath);
