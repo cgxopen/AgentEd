@@ -105,11 +105,33 @@ export function setupAssetsPopover(callbacks: AssetsPopoverCallbacks): AssetsPop
     open();
   }
 
-  document.addEventListener('click', (e) => {
-    if (!isOpen()) return;
-    if (popover.contains(e.target as Node)) return;
-    close();
-  });
+  // Capture phase, and the badge below does not stop propagation: the two
+  // halves of the mechanism `appearance-menu.ts` documents, which is what
+  // keeps the header popovers mutually exclusive.
+  //
+  // Capture is the half that matters here. The context indicator calls
+  // `stopPropagation` in its own bubble handler, so a bubble listener on
+  // this popover would never hear that click and this popover would stay
+  // open underneath the one the user just opened. Both are positioned by
+  // the same `cluster-popover` rule, so they overlap.
+  //
+  // **The trigger has to be excused, and the order is why.** Capture runs
+  // from the document down, so a click on the badge reaches this listener
+  // *before* it reaches the badge handler that toggles. Without the guard
+  // below, the badge would close the popover and the toggle would
+  // immediately reopen it, and it would never close by its own control
+  // again. `appearance-menu.ts` excuses its own button for this reason.
+  document.addEventListener(
+    'click',
+    (e) => {
+      if (!isOpen()) return;
+      const target = e.target as Node;
+      if (popover.contains(target)) return;
+      if (badge?.contains(target)) return;
+      close();
+    },
+    true,
+  );
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) close();
   });

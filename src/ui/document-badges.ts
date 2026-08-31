@@ -195,8 +195,12 @@ export function setupDocumentBadges(
   const metadata = metadataEl;
   const images = imagesEl;
 
-  images.addEventListener('click', (e) => {
-    e.stopPropagation();
+  // **No `stopPropagation`, deliberately**, the same choice the appearance
+  // trigger makes and for the same reason: letting the click reach the
+  // document is what closes the context popover, so opening this one is
+  // mutually exclusive with it. Stopping it here left both open at once,
+  // overlapping, since the two use the same positioning rule.
+  images.addEventListener('click', () => {
     callbacks.onImagesToggle();
   });
 
