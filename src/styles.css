@@ -891,10 +891,17 @@ button.indicator-search:hover {
  * it from swallowing a click meant for the block. Both go the day the §8
  * candidate makes the label clickable.
  *
- * **Known limit, measured rather than discovered later**: `.tiptap pre` is the
- * scroll container, so on a block wider than the pane the label scrolls out to
- * the left with the code. Holding it still would need a wrapper element around
- * the block, which is a node view, which is a change to how a fence is drawn.
+ * **It scrolls with the code, and that is worth stating precisely** because a
+ * looser wording invites the wrong picture. `.tiptap pre` is the scroll
+ * container, so the label is anchored to the content rather than to the pane:
+ * scrolling right does not move it, it moves the window, and the label leaves
+ * the view exactly as the first word of a line does. Confirmed on the desktop
+ * build rather than predicted.
+ *
+ * Whether it should instead stay pinned to the left edge while the code moves
+ * under it is a product question and not answered here. It would need a
+ * wrapper element around the block — a node view — which is a change to how a
+ * fence is drawn, and that is an owner decision rather than a detail of this.
  */
 .tiptap pre .code-block-language {
   position: absolute;
