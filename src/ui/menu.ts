@@ -11,6 +11,7 @@ export interface MenuCallbacks {
   onFindPrevious: () => void;
   onInsertTable: () => void;
   onInsertMedia: () => void;
+  onInsertCodeBlock: () => void;
   onToggleSidebar: () => void;
   onAbout: () => void;
 }
@@ -57,6 +58,7 @@ export function setupMenu(callbacks: MenuCallbacks): void {
   bind('menu-find-prev', callbacks.onFindPrevious);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
+  bind('menu-insert-code-block', callbacks.onInsertCodeBlock);
   bind('menu-toggle-sidebar', callbacks.onToggleSidebar);
   bind('menu-about', callbacks.onAbout);
 }

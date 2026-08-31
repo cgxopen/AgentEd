@@ -15,6 +15,7 @@ beforeEach(() => {
     onSaveAs: vi.fn(),
     onOpen: vi.fn(),
     onLink: vi.fn(),
+    onCodeBlock: vi.fn(),
   };
   setupKeyboard(handlers);
 });
@@ -37,11 +38,39 @@ describe('Ctrl+K opens the link dialog', () => {
     expect(handlers.onLink).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves Ctrl+Shift+K to the code block', () => {
+  it('Ctrl+Shift+K makes a code block rather than falling through to nowhere', () => {
+    // Asserted at the binding rather than in a comment (#204). This used to
+    // assert the opposite — that the handler returned and left the event
+    // unclaimed — with a comment beside the return saying the code block took
+    // it. Nothing did: the README promised the shortcut, the one handler that
+    // saw it declined, and it reached no one.
     const event = press({ key: 'K', code: 'KeyK', ctrlKey: true, shiftKey: true });
 
+    expect(handlers.onCodeBlock).toHaveBeenCalledTimes(1);
     expect(handlers.onLink).not.toHaveBeenCalled();
-    expect(event.defaultPrevented).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('takes Ctrl+Shift+K on a layout that reports another character for K', () => {
+    press({ key: 'ĸ', code: 'KeyK', ctrlKey: true, shiftKey: true });
+    expect(handlers.onCodeBlock).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves Ctrl+K to the link dialog, which is the neighbour being changed', () => {
+    // The early return that used to decline Shift is gone, so both sides of
+    // the branch it guarded are pinned: with Shift the block, without it the
+    // link, and neither reaching the other.
+    press({ key: 'k', code: 'KeyK', ctrlKey: true });
+
+    expect(handlers.onLink).toHaveBeenCalledTimes(1);
+    expect(handlers.onCodeBlock).not.toHaveBeenCalled();
+  });
+
+  it('claims neither on Shift+K with no Ctrl', () => {
+    press({ key: 'K', code: 'KeyK', shiftKey: true });
+
+    expect(handlers.onCodeBlock).not.toHaveBeenCalled();
+    expect(handlers.onLink).not.toHaveBeenCalled();
   });
 
   it('ignores K with no modifier', () => {
