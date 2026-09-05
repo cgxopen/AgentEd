@@ -1,5 +1,6 @@
 import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
+import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
@@ -486,6 +487,51 @@ turndown.addRule('adjacentListsOfDifferentKinds', {
 });
 
 // Preserve underline as <u> tag (not standard MD, but round-trips)
+// ── A blockquote keeps the blank-line spelling its file used (#199) ──
+//
+// turndown prefixes every line of a quote, blank ones included, with a marker
+// **and a space**. So `> a`, `>`, `> b` came back with that middle line as
+// `> ` — one byte per blank line, in every diff, for ever. Both spellings read
+// the same, which is what made it a recorded R-C2 exception rather than a
+// defect that loses anything.
+//
+// The two spellings are byte-identical by the time this HTML exists, so the
+// file is asked while it is being read and the answer rides on the node — see
+// `blockquote-spacing.ts`. This is the other end of that: when the quote says
+// its file spelled blank lines bare, the single space is taken back off.
+//
+// **Delegating and narrowing, the shape this file already uses twice** — the
+// heading rule hands the built-in rule different content, and
+// `adjacentListsOfDifferentKinds` narrows what the built-in list rule
+// returned. Nothing here re-implements a quote: indentation, nesting and the
+// marker itself stay turndown's business.
+//
+// ── Why the narrowing cannot eat content, measured rather than argued ──
+//
+// A line of a quote that is exactly a marker run and **one** space is always a
+// blank line. It cannot be content: a fenced block inside a quote holding a
+// line of one space is written with **two** — measured on this build, a marker
+// and two spaces for a single space of content, a marker and one space for a
+// blank line, and a marker and four for a three-space line. So the pattern
+// below, anchored at both ends and admitting exactly one trailing space,
+// reaches blank lines and nothing a user typed.
+//
+// Nesting needs no arithmetic. An inner quote writes first and the outer one
+// prefixes over it, and the result is still one marker run and one space —
+// measured at two and three levels — so this runs once on the finished text
+// rather than composing per level.
+const BLANK_QUOTE_LINE_WITH_SPACE = /^((?:[ \t]*>)+) $/gm;
+
+turndown.addRule('blockquoteKeepingItsBlankLineSpelling', {
+  filter: 'blockquote',
+  replacement: (content, node, options) => {
+    const written = builtinBlockquote.replacement(content, node, options);
+    const bare =
+      (node as HTMLElement).getAttribute(BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE) === BARE_BLANK_MARKER;
+    return bare ? written.replace(BLANK_QUOTE_LINE_WITH_SPACE, '$1') : written;
+  },
+});
+
 turndown.addRule('underline', {
   filter: ['u'],
   replacement: (content) => `<u>${content}</u>`,
