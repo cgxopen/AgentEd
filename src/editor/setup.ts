@@ -22,6 +22,10 @@ import {
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { isRelativeLinkAddress } from './link-url';
+import {
+  BARE_BLANK_MARKER,
+  BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
+} from './markdown/blockquote-spacing';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
@@ -164,6 +168,32 @@ function looseAttribute() {
   };
 }
 
+/**
+ * How a quote spelled its blank lines, carried on the quote (#199).
+ *
+ * The same shape as `looseAttribute` above and for the same reason: the two
+ * spellings are the same document, so nothing downstream can tell them apart
+ * unless the file is asked while it is being read and the answer rides along.
+ *
+ * **The default is the spaced spelling**, which is what turndown writes when
+ * nothing tells it otherwise — so a quote created in the editor, and a quote
+ * from a file that had no blank line to read, are written the way they always
+ * were. Only a file that spelled it bare carries the attribute.
+ */
+function bareBlankMarkerAttribute() {
+  return {
+    bareBlankMarker: {
+      default: false,
+      parseHTML: (element: HTMLElement) =>
+        element.getAttribute(BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE) === BARE_BLANK_MARKER,
+      renderHTML: (attributes: Record<string, unknown>) =>
+        attributes.bareBlankMarker
+          ? { [BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE]: BARE_BLANK_MARKER }
+          : {},
+    },
+  };
+}
+
 function starterKitWithLocalSchemaRules() {
   return StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
@@ -191,6 +221,13 @@ function starterKitWithLocalSchemaRules() {
         // The two list containers StarterKit registers gain the file's own
         // spacing (#28). Extended here rather than imported directly, for the
         // reason the comment above gives: the list is read off the kit.
+        if (extension.name === 'blockquote') {
+          return extension.extend({
+            addAttributes() {
+              return { ...this.parent?.(), ...bareBlankMarkerAttribute() };
+            },
+          });
+        }
         if (extension.name === 'bulletList' || extension.name === 'orderedList') {
           return extension.extend({
             addAttributes() {

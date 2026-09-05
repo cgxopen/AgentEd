@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE, blankMarkerAttribute } from './blockquote-spacing';
 import { attachListSpacing, LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { attachTableStyles, TABLE_STYLE_ATTRIBUTE } from './table-style';
 import { markTaskLists } from './task-list';
@@ -18,6 +19,35 @@ marked.setOptions({
 // `url` inline tokenizer leaves those URLs as text; explicit links —
 // "[text](url)" and "<url>" — are matched by other tokenizers and still parse.
 marked.use({ tokenizer: { url: () => undefined } });
+
+// How each blockquote spelled its blank lines, written onto the quote it
+// belongs to (#199). Two spellings of one blank line — a bare marker and a
+// marker with a space — read the same and are different bytes, and by the
+// time this HTML exists they are byte-identical, so the file has to be asked
+// while it is still being read.
+//
+// **A renderer rather than a pass afterwards, and that is the point.** The
+// other two properties read off the file this way — a table's columns and a
+// list's spacing — are detected into an array and paired with the parsed HTML
+// by document order, which refuses silently when the counts disagree (#200).
+// A blockquote needs none of it: `marked` hands this function the token for
+// the quote it is rendering, so the bytes and the element are the same thing
+// and there is nothing to pair. Nesting falls out for free — an inner quote
+// is a second call whose `raw` is the inner source, outer marker already
+// stripped.
+//
+// The output is otherwise turndown's own: `<blockquote>` newline body
+// `</blockquote>` newline, matched exactly so nothing but the attribute
+// changes.
+marked.use({
+  renderer: {
+    blockquote(token) {
+      const raw = typeof token.raw === 'string' ? token.raw : '';
+      const body = this.parser.parse(token.tokens ?? []);
+      return `<blockquote${blankMarkerAttribute(raw)}>\n${body}</blockquote>\n`;
+    },
+  },
+});
 
 // Allow TipTap-specific attributes through sanitization
 DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
@@ -73,7 +103,13 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // together and they live in different files, so neither may be removed while
   // reading only the other. `decodeTableStyle` validates the value regardless.
   return DOMPurify.sanitize(withTaskLists, {
-    ADD_ATTR: ['data-type', 'data-checked', TABLE_STYLE_ATTRIBUTE, LIST_SPACING_ATTRIBUTE],
+    ADD_ATTR: [
+      'data-type',
+      'data-checked',
+      TABLE_STYLE_ATTRIBUTE,
+      LIST_SPACING_ATTRIBUTE,
+      BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
+    ],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
   });

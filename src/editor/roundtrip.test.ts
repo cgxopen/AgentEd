@@ -140,9 +140,6 @@ const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written e
 const TASK_ITEM_BLOCKS = "R-C2: an item's own blocks are written one newline apart";
 /** Two adjacent lists of different kinds, written tight because that is a fixed point (#160). */
 const ADJACENT_LISTS = 'R-C2: two adjacent lists of different kinds are written a line apart';
-/** A blank line inside a blockquote keeps the marker and gains a space after it. */
-const BLOCKQUOTE_BLANK_LINE =
-  'R-C2: a blank line inside a blockquote keeps the quote marker and gains a space after it';
 
 /**
  * Every shape `markdown/roundtrip.test.ts` covers, plus the six shapes of #84,
@@ -372,11 +369,11 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     '- [ ] a\n\n  - [ ] n\n\n- [ ] b',
     { writes: '- [ ] a\n  - [ ] n\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
   ],
-  [
-    'a loose task list inside a blockquote',
-    '> - [ ] a\n>\n> - [ ] b',
-    { writes: '> - [ ] a\n> \n> - [ ] b', because: BLOCKQUOTE_BLANK_LINE },
-  ],
+  // Was an exception until #199: the blank line came back as a marker and a
+  // space where the file had a bare marker. The quote now keeps the spelling
+  // its file used, so this is byte-identical and the normaliser it named has
+  // left the file.
+  ['a loose task list inside a blockquote', '> - [ ] a\n>\n> - [ ] b', 'identical'],
   ['a loose task list with an empty item', '- [ ] \n\n- [ ] b', 'identical'],
   [
     'a loose task item whose whole content is an empty fence',

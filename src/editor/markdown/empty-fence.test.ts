@@ -159,15 +159,19 @@ describe('a fence alone in its container survives with it (#104)', () => {
   });
 
   it.each([
-    ['a blockquote', '> text\n>\n> ```\n> ```', '> text\n> \n> ```\n> ```'],
-    ['a blockquote with a language', '> a\n>\n> ```js\n> ```', '> a\n> \n> ```js\n> ```'],
-    ['a list item', '- text\n\n  ```\n  ```', '- text\n\n  ```\n  ```'],
-  ])('still keeps an empty fence when %s holds something else too', (_label, markdown, expected) => {
-    // The two shapes #103 could already reach, unchanged by this. The blank
-    // quote line comes back as `> ` rather than `>`: turndown's blockquote
-    // rule prefixes every line, blank ones included, and a blockquote holding
-    // two paragraphs and no blank node at all shows the same.
-    expect(roundtrip(markdown)).toBe(expected);
+    ['a blockquote', '> text\n>\n> ```\n> ```'],
+    ['a blockquote with a language', '> a\n>\n> ```js\n> ```'],
+    ['a list item', '- text\n\n  ```\n  ```'],
+  ])('still keeps an empty fence when %s holds something else too', (_label, markdown) => {
+    // The two shapes #103 could already reach, unchanged by this.
+    //
+    // **The first two rows used to carry a separate expected value** because
+    // the blank quote line came back as a marker and a space where the file
+    // had a bare marker — turndown prefixes every line of a quote, blank ones
+    // included. That was a recorded R-C2 exception and it is gone (#199), so
+    // all three rows are byte-identical now and the column that held the
+    // difference went with the exception.
+    expect(roundtrip(markdown)).toBe(markdown);
   });
 
   it('drops a container that really is empty, exactly as before', () => {
