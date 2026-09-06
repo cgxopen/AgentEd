@@ -387,10 +387,59 @@ function resize(tag: string, name: string, value: string | null): string {
   return setTagAttribute(tag, name, value);
 }
 
+/**
+ * A markdown title, in the spelling CommonMark gives it (#230).
+ *
+ * **Always double quotes, and the delimiter is not a choice this can make.**
+ * CommonMark admits three — `"…"`, `'…'` and `(…)` — and measured on this
+ * pipeline all three parse to the same `title` attribute, so by the time the
+ * serializer is handed a document there is nothing left to say which one the
+ * file used. That is the same shape as the single-tilde strikethrough already
+ * recorded in R-C2, and it is recorded there for this too: a title the file
+ * wrote in single quotes or parentheses comes back double-quoted. The route
+ * that would remove it is the one #229 built — reading the spelling off the
+ * `image` token raw source — and it is named in the requirement rather than
+ * taken here, because a title that survives respelled is a repair on a title
+ * that vanished, and the carrier is its own change.
+ *
+ * **What must be escaped is decided by the delimiter, not by taste.** Inside a
+ * double-quoted title CommonMark reads a backslash escape, so a `"` is written
+ * `\"` and a literal `\` is written `\\`. Measured through `marked`: both
+ * come back as the character, so a title holding either survives the round
+ * trip. Nothing else needs it — a `'`, a `(`, a `)` and a newline-free run of
+ * anything else are ordinary characters between double quotes, measured.
+ */
+function markdownTitle(title: string): string {
+  return ` "${title.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * A value inside a double-quoted HTML attribute, escaped.
+ *
+ * The canonical HTML form is built by concatenation, so a `"` in the value
+ * ends the attribute and everything after it becomes markup — a recorded
+ * reading from the #229 merge, where `alt` was written between double quotes
+ * with nothing escaping one inside it. `title` arrives at the same line with
+ * the identical hazard, so the two are answered together rather than one being
+ * repaired and the other left.
+ *
+ * `&` first, or the escapes this writes would themselves be escaped. `<` is
+ * included because the value is written into a document that other tools
+ * parse as HTML, and a `<` there opens an element for them.
+ */
+function htmlAttributeValue(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function imageMarkup(
   htmlSource: string | null,
   alt: string,
   src: string,
+  title: string | null,
   size: ImageSize,
 ): string {
   const width = size.width === null ? null : String(size.width);
@@ -408,9 +457,19 @@ export function imageMarkup(
     return resize(withWidth, 'height', height);
   }
 
-  if (width === null && height === null) return `![${alt}](${src})`;
+  // The markdown form. `alt` is written exactly as it was before #230 — this
+  // change adds the title and touches nothing else about it.
+  if (width === null && height === null) {
+    return `![${alt}](${src}${title === null ? '' : markdownTitle(title)})`;
+  }
 
-  const canonical = `<img src="${src}" alt="${alt}">`;
+  // The canonical HTML form, written when a markdown image has been resized.
+  // The title comes with it: #229 wrote `alt` here and would otherwise have
+  // made the resize the moment a title left the file, which is the third
+  // acceptance criterion on #230 and the reason it names #229.
+  const canonical =
+    `<img src="${htmlAttributeValue(src)}" alt="${htmlAttributeValue(alt)}"` +
+    `${title === null ? '' : ` title="${htmlAttributeValue(title)}"`}>`;
   const withWidth = setTagAttribute(canonical, 'width', width);
   return setTagAttribute(withWidth, 'height', height);
 }

@@ -476,6 +476,35 @@ describe('what a gesture writes into the document', () => {
     expect(editor.getMarkdown().trim()).toBe('<img src="a.png" alt="x" width="500" height="250">');
   });
 
+  it('a resized markdown image carries its title with it (#230)', () => {
+    // #229 wrote `alt` into the canonical form and not the title, so a resize
+    // was the one gesture that could delete a title from a file. Driven through
+    // a real gesture rather than through `imageMarkup`, because the node is
+    // where the title has to survive to.
+    const { editor, handles } = withSelectedImage('![x](a.png "the title")');
+    drag(handleFor(handles, 'se'), [0, 0], [300, 0]);
+    expect(editor.getMarkdown().trim()).toBe(
+      '<img src="a.png" alt="x" title="the title" width="300">',
+    );
+  });
+
+  it('a resized markdown image with no title gains no title attribute', () => {
+    const { editor, handles } = withSelectedImage('![x](a.png)');
+    drag(handleFor(handles, 'se'), [0, 0], [300, 0]);
+    const saved = editor.getMarkdown().trim();
+    expect(saved).toBe('<img src="a.png" alt="x" width="300">');
+    expect(saved).not.toContain('title');
+  });
+
+  it('a titled image reset to its natural size is markdown with its title again', () => {
+    const { editor, handles } = withSelectedImage('![x](a.png "the title")');
+    drag(handleFor(handles, 'se'), [0, 0], [300, 0]);
+    handleFor(handles, 'se').dispatchEvent(
+      new MouseEvent('dblclick', { bubbles: true, cancelable: true }),
+    );
+    expect(editor.getMarkdown().trim()).toBe('![x](a.png "the title")');
+  });
+
   it('an image cannot be dragged away to nothing', () => {
     const { editor, handles } = withSelectedImage('<img src="a.png" alt="x" width="600">');
     drag(handleFor(handles, 'se'), [0, 0], [-100000, 0]);

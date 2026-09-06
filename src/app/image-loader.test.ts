@@ -149,6 +149,43 @@ describe('#187 — the desktop floor, unchanged', () => {
     expect(getAllImages()).toHaveLength(1);
   });
 
+  it.each([
+    ['a double-quoted title', '![alt](assets/img.png "the title")'],
+    ['a single-quoted title', "![alt](assets/img.png 'the title')"],
+    ['a parenthesised title', '![alt](assets/img.png (the title))'],
+    ['a title holding an escaped quote', '![alt](assets/img.png "say \\" now")'],
+    ['a title holding a closing parenthesis', '![alt](assets/img.png "a ) c")'],
+    ['spaces around the title', '![alt](assets/img.png   "spaced"  )'],
+  ])('the destination stops before %s, so the file read gets a path', async (_label, line) => {
+    // **The defect this replaces drew a broken image and left the bytes
+    // alone**, which is why the round-trip guard could not see it: the
+    // destination group ran to the closing bracket, so the read was asked for
+    // `assets/img.png "the title"` and failed. Found by the owner manual pass
+    // on #230.
+    //
+    // Asserted on the *path the read was asked for*, not only on the outcome —
+    // an unresolved reference and a resolved one differ in the document, but
+    // what separates a repaired split from a lucky one is which string reached
+    // the filesystem.
+    const doc = { markdownBody: `# Doc\n\n${line}\n`, rootPath: '/proj/doc.md' } as DocumentBundle;
+    const out = await prepareMarkdownForDisplay(doc, await desktopIO());
+
+    expect(readFile).toHaveBeenCalledWith('/proj/assets/img.png');
+    expect(getAllImages()).toHaveLength(1);
+    expect(out).toContain('blob:');
+    expect(out).not.toContain('assets/img.png');
+  });
+
+  it('the title itself is put back exactly as the file wrote it', async () => {
+    const doc = {
+      markdownBody: "# Doc\n\n![alt](assets/img.png   'kept as it was'  )\n",
+      rootPath: '/proj/doc.md',
+    } as DocumentBundle;
+    const out = await prepareMarkdownForDisplay(doc, await desktopIO());
+
+    expect(out).toContain("   'kept as it was'  )");
+  });
+
   it('a bare document name is refused before anything is read', async () => {
     // The half a repair too wide gets wrong. An empty parent means the
     // root of the grant on the web and a path with no folder on the

@@ -139,6 +139,8 @@ const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
 const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
 /** The blank line inside an item, between two of its own blocks (#157). */
 const TASK_ITEM_BLOCKS = "R-C2: an item's own blocks are written one newline apart";
+/** All three CommonMark title delimiters parse the same, so one is written (#230). */
+const TITLE_DELIMITER = 'R-C2: an image title is written back double-quoted';
 /** Two adjacent lists of different kinds, written tight because that is a fixed point (#160). */
 const ADJACENT_LISTS = 'R-C2: two adjacent lists of different kinds are written a line apart';
 
@@ -725,6 +727,57 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     'a document holding both kinds of image',
     '![a](a.png)\n\n<img src="b.png" alt="b" width="400">\n\ntext ![c](c.png) more',
     'identical',
+  ],
+
+  // ── An image title (#230) ──
+  //
+  // `![alt](img.png "the title")` used to be written back as `![alt](img.png)`:
+  // the title was on the node all along and the serializer never read it, so
+  // text the user wrote left the file on the first save. Not a respelling — a
+  // loss — which is why it was an issue rather than debt.
+  //
+  // The escapes are the half worth reading. Inside a double-quoted title
+  // CommonMark reads a backslash escape, so a title holding a `"` or a `\` is
+  // written with one and comes back as the character; a `'`, a `(` and a `)`
+  // need nothing at all between double quotes. Each of those is a row, because
+  // each is a different answer and a writer that escaped too much would be as
+  // wrong as one that escaped too little.
+  ['an image with a title', '![alt](img.png "the title")', 'identical'],
+  ['a title with no alt beside it', '![](img.png "the title")', 'identical'],
+  ['a title holding a single quote', '![alt](img.png "it\'s here")', 'identical'],
+  ['a title holding parentheses', '![alt](img.png "a (b) c")', 'identical'],
+  ['a title holding a closing parenthesis', '![alt](img.png "a ) c")', 'identical'],
+  ['a title holding a double quote', '![alt](img.png "say \\" now")', 'identical'],
+  ['a title holding a backslash', '![alt](img.png "back \\\\ slash")', 'identical'],
+  ['a titled image inside a sentence', 'before ![alt](img.png "t") after', 'identical'],
+  ['a titled image inside a list item', '- ![alt](img.png "t")', 'identical'],
+  ['a titled image that is a link', '[![alt](img.png "t")](https://example.com)', 'identical'],
+  ['an html image with a title', '<img src="a.png" alt="x" title="t">', 'identical'],
+  [
+    'an html image with a title and a width',
+    '<img src="a.png" alt="x" title="t" width="400">',
+    'identical',
+  ],
+  [
+    'a document holding a titled image, an untitled one and an html one',
+    '![a](a.png "first")\n\n![b](b.png)\n\n<img src="c.png" alt="c" title="third">',
+    'identical',
+  ],
+  [
+    'a title the file wrote in single quotes',
+    "![alt](img.png 'single')",
+    {
+      writes: '![alt](img.png "single")',
+      because: TITLE_DELIMITER,
+    },
+  ],
+  [
+    'a title the file wrote in parentheses',
+    '![alt](img.png (parens))',
+    {
+      writes: '![alt](img.png "parens")',
+      because: TITLE_DELIMITER,
+    },
   ],
 ];
 
