@@ -1,5 +1,16 @@
 name: Release
 
+# Ceilings (#47). Same shape and same reasoning as `ci.yml`, which carries the
+# argument in full: every network or compile step gets its own
+# `timeout-minutes`, every job a backstop above a fully cold healthy run, and
+# queue time is covered by none of them.
+#
+# The numbers here are **transcribed rather than measured**: this workflow has
+# never run, no tag having been built. They come from the jobs of the same
+# shape - `nightly.yml` builds Windows with no cargo cache, exactly as this
+# does, and its Windows job took 708 seconds on run 34037705792. The first tag
+# is what measures them.
+
 on:
   push:
     tags:
@@ -32,29 +43,60 @@ jobs:
             target: ''
 
     runs-on: ${{ matrix.platform }}
+    # Above a fully cold healthy run by a wide margin: the same job in
+    # `nightly.yml`, which also builds with no cargo cache, took 708 seconds.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        timeout-minutes: 5
 
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        timeout-minutes: 10
         with:
           node-version: 20
           cache: 'npm'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # stable branch, 2026-07-16
+        timeout-minutes: 10
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
 
       - name: Install Linux system deps
+        # Guarded on a platform the matrix no longer carries (#227 left the
+        # step so Linux returns as one matrix line). A ceiling on a step that
+        # does not run costs nothing, and the step is ready when it does.
+        #
+        # The ceiling that catches a stall is the per-attempt `timeout`, not
+        # the step's: apt has legitimately taken 19m 44s in `ci.yml` and
+        # succeeded, so a single tight ceiling would clip a passing run. The
+        # loop below is copied from `ci.yml` rather than rewritten, so all
+        # three workflows say the same thing.
         if: matrix.platform == 'ubuntu-22.04'
+        timeout-minutes: 16
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          set -euo pipefail
+          for attempt in 1 2; do
+            if sudo timeout 120 apt-get update \
+              && sudo timeout 300 apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf; then
+              exit 0
+            fi
+            echo "::warning::apt attempt ${attempt} stalled or failed."
+            sleep 5
+          done
+          echo "::error::apt did not complete within its budget after 2 attempts."
+          exit 1
 
       - run: npm ci
+        timeout-minutes: 10
 
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+        # The action runs the frontend build and the Rust build and then
+        # uploads the assets, so this is the compile step and the widest
+        # ceiling in the file. 45, as the same build carries in
+        # `nightly.yml`; the upload it adds is a few megabytes.
+        timeout-minutes: 45
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # The commit this release is of, passed explicitly (#41). The action
@@ -113,10 +155,15 @@ jobs:
   curate-assets:
     needs: build-and-draft
     runs-on: ubuntu-latest
+    # Its work is a handful of API calls and a few megabytes of download, so
+    # this is a backstop rather than a budget - the same relation to its steps
+    # that every job ceiling in `ci.yml` has to its own.
+    timeout-minutes: 20
     permissions:
       contents: write
     steps:
       - name: Hide intermediate bundles and redundant installers
+        timeout-minutes: 10
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
@@ -147,6 +194,9 @@ jobs:
             --jq '.assets[].name'
 
       - name: Generate SHA-256 checksums
+        # Downloads every release asset before hashing it, so it is
+        # network-bound and gets its own ceiling rather than the job's.
+        timeout-minutes: 15
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
