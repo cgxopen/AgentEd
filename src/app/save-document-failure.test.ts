@@ -36,10 +36,10 @@ import { AppState } from './state';
  * measured on the owner's Windows for the codes this path reaches.
  */
 const WINDOWS_LOCKED =
-  'failed to open file at path: C:\\Users\\vasil\\Downloads\\notes.md with error: ' +
+  'failed to open file at path: C:\\Users\\user\\Downloads\\notes.md with error: ' +
   'The process cannot access the file because it is being used by another process. (os error 32)';
 const WINDOWS_READONLY =
-  'failed to open file at path: C:\\Users\\vasil\\Downloads\\notes.md with error: ' +
+  'failed to open file at path: C:\\Users\\user\\Downloads\\notes.md with error: ' +
   'Access is denied. (os error 5)';
 
 /** Set per test: what the document write should do. */
@@ -101,7 +101,7 @@ function makeActions(state: AppState): DocumentActions {
 /** A document opened from disk, edited, and not yet saved. */
 function openedDocument(): AppState {
   const state = new AppState();
-  state.filePath = 'C:\\Users\\vasil\\Downloads\\notes.md';
+  state.filePath = 'C:\\Users\\user\\Downloads\\notes.md';
   state.knownDiskText = 'what was on disk when it was opened\n';
   state.isFirstSave = false;
   state.setModified(true);
@@ -182,7 +182,7 @@ describe('half (a) — a failing document write reports, and keeps the gate up',
 
   it('the same for Save As, after the picker has returned a path', async () => {
     saveFileThrows = new Error(WINDOWS_READONLY);
-    pickedPath = 'C:\\Users\\vasil\\Downloads\\renamed.md';
+    pickedPath = 'C:\\Users\\user\\Downloads\\renamed.md';
     const state = new AppState();
     state.setModified(true);
 
@@ -227,7 +227,7 @@ describe('half (b) — a save that works is still silent, and still records ever
     expect(dialogsRaised()).toEqual([]);
     expect(vi.mocked(showToast)).not.toHaveBeenCalled();
     expect(written).toHaveLength(1);
-    expect(written[0].path).toBe('C:\\Users\\vasil\\Downloads\\notes.md');
+    expect(written[0].path).toBe('C:\\Users\\user\\Downloads\\notes.md');
     expect(state.modified).toBe(false);
     // The baseline is what was actually written, not what was read.
     expect(state.knownDiskText).toBe(written[0].text);

@@ -39,8 +39,8 @@ describe('theme + palette persistence', () => {
 
 describe('last opened folder', () => {
   it('round-trips a non-empty folder path', () => {
-    saveLastOpenedFolder('/home/cata/projects');
-    expect(loadLastOpenedFolder()).toBe('/home/cata/projects');
+    saveLastOpenedFolder('/home/user/projects');
+    expect(loadLastOpenedFolder()).toBe('/home/user/projects');
   });
 
   it('returns null when no folder is stored', () => {
@@ -76,14 +76,14 @@ describe('purgeLegacyPreferences', () => {
   it('leaves theme + palette + last-opened-folder intact', () => {
     saveThemePreference('dark');
     savePalettePreference('claude');
-    saveLastOpenedFolder('/home/cata/projects');
+    saveLastOpenedFolder('/home/user/projects');
     localStorage.setItem('agented:default-mode', 'skill');
 
     purgeLegacyPreferences();
 
     expect(loadThemePreference()).toBe('dark');
     expect(loadPalettePreference()).toBe('claude');
-    expect(loadLastOpenedFolder()).toBe('/home/cata/projects');
+    expect(loadLastOpenedFolder()).toBe('/home/user/projects');
     expect(localStorage.getItem('agented:default-mode')).toBeNull();
   });
 
