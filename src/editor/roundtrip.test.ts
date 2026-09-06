@@ -72,6 +72,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import claudeMd from '../../CLAUDE.md?raw';
 import contributingMd from '../../CONTRIBUTING.md?raw';
 import adrMd from '../../docs/ADR/ADR-001-reset-and-simplification.md?raw';
+import milestoneLogMd from '../../docs/internal/MILESTONE-LOG.md?raw';
 import statusMd from '../../docs/internal/STATUS.md?raw';
 import workflowMd from '../../docs/internal/WORKFLOW.md?raw';
 import readmeMd from '../../README.md?raw';
@@ -1010,6 +1011,7 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
   ['REQUIREMENTS.md', requirementsMd],
   ['SECURITY.md', securityMd],
   ['docs/ADR/ADR-001-reset-and-simplification.md', adrMd],
+  ['docs/internal/MILESTONE-LOG.md', milestoneLogMd],
   ['docs/internal/STATUS.md', statusMd],
   ['docs/internal/WORKFLOW.md', workflowMd],
   ['src/templates/blank-frontmatter.md', blankFrontmatterMd],
@@ -1019,8 +1021,8 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * The largest document this guard will diff. `docs/internal/STATUS.md` is the
- * longest at ~150 lines and it grows every merge; the alignment below is
+ * The largest document this guard will diff. `docs/internal/MILESTONE-LOG.md`
+ * is the longest at ~280 lines and it grows every merge; the alignment below is
  * quadratic in the line count, so the bound is stated rather than left to grow
  * into a slow test nobody can explain. Exceeding it **fails** — the guard never
  * skips a document quietly.

@@ -89,6 +89,7 @@ jobs:
               - 'REQUIREMENTS.md'
               - 'SECURITY.md'
               - 'docs/ADR/ADR-001-reset-and-simplification.md'
+              - 'docs/internal/MILESTONE-LOG.md'
               - 'docs/internal/STATUS.md'
               - 'docs/internal/WORKFLOW.md'
 
