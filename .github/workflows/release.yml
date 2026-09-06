@@ -12,17 +12,21 @@ jobs:
   build-and-draft:
     strategy:
       fail-fast: false
+      # A release is Windows alone. Linux is built on nightly only until it
+      # turns user-facing, because a release hands a user a product and
+      # REQUIREMENTS section 7 says this one is not that yet.
+      #
+      # macOS is absent for its own reason, also in section 7: nothing here
+      # can test the result, and an unsigned macOS build reaches a user
+      # through Gatekeeper as a file that cannot be opened. There is a known
+      # collision waiting too - the bundle identifier ends with `.app`, which
+      # Tauri warns about because it is the macOS application bundle
+      # extension.
+      #
+      # Each returns when it becomes a shipped target, and section 7 carries
+      # what that takes.
       matrix:
         include:
-          - platform: macos-latest
-            args: '--target aarch64-apple-darwin'
-            target: aarch64-apple-darwin
-          - platform: macos-latest
-            args: '--target x86_64-apple-darwin'
-            target: x86_64-apple-darwin
-          - platform: ubuntu-22.04
-            args: ''
-            target: ''
           - platform: windows-latest
             args: ''
             target: ''
@@ -84,11 +88,6 @@ jobs:
             | Platform | Installer |
             |---|---|
             | Windows | `AgentEd_${{ github.ref_name }}_x64-setup.exe` |
-            | macOS (Apple Silicon) | `AgentEd_${{ github.ref_name }}_aarch64.dmg` |
-            | macOS (Intel) | `AgentEd_${{ github.ref_name }}_x64.dmg` |
-            | Linux (Debian/Ubuntu) | `AgentEd_${{ github.ref_name }}_amd64.deb` |
-            | Linux (Fedora/RHEL) | `AgentEd-${{ github.ref_name }}-1.x86_64.rpm` |
-            | Linux (other) | `AgentEd_${{ github.ref_name }}_amd64.AppImage` |
 
             First time? Most users want the installer for their OS above.
 
@@ -98,8 +97,7 @@ jobs:
             ### Verify checksums
             Each asset has a `.sha256` sidecar; the combined `SHA256SUMS.txt`
             lists all hashes in one file. Verify after download:
-            - Windows PowerShell: `Get-FileHash AgentEd_*.exe -Algorithm SHA256`
-            - macOS/Linux: `sha256sum -c SHA256SUMS.txt`
+            - PowerShell: `Get-FileHash AgentEd_*.exe -Algorithm SHA256`
 
             ### Build from source
             See `README.md` for build instructions.
