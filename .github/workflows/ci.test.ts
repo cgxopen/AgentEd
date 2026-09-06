@@ -220,6 +220,7 @@ describe('nothing runs unbounded (#47)', () => {
   for (const [label, source] of [
     ['ci.yml', CI],
     ['nightly.yml', NIGHTLY],
+    ['release.yml', RELEASE],
   ] as const) {
     it(`${label}: every job carries a ceiling`, () => {
       for (const [id, block] of jobs(source)) {
@@ -229,7 +230,7 @@ describe('nothing runs unbounded (#47)', () => {
 
     it(`${label}: every step that downloads or compiles carries its own`, () => {
       const needsOne =
-        /actions\/checkout|setup-node|rust-toolchain|actions\/cache|upload-artifact|npm ci|npm run tauri build|npm test|npm run build|cargo clippy|cargo test|apt-get|paths-filter/;
+        /actions\/checkout|setup-node|rust-toolchain|actions\/cache|upload-artifact|npm ci|npm run tauri build|tauri-action|npm test|npm run build|cargo clippy|cargo test|apt-get|paths-filter|gh release/;
       for (const step of steps(source)) {
         if (!needsOne.test(step)) continue;
         const first = step.split('\n')[0];
@@ -249,6 +250,20 @@ describe('nothing runs unbounded (#47)', () => {
     expect(CI).toMatch(/sudo timeout 120 apt-get update/);
     expect(CI).toMatch(/sudo timeout 300 apt-get install/);
     expect(CI).toMatch(/for attempt in 1 2; do/);
+  });
+
+  it('all three files run the same apt loop, byte for byte', () => {
+    // Copied rather than rewritten (#47), which is only true for as long as
+    // nothing edits one copy. Three files drifting apart is the quiet kind of
+    // failure: each one still works, and only one of them has the fix.
+    const loop = (source: string) => {
+      const from = source.indexOf('- name: Install Linux system deps');
+      const end = source.indexOf('exit 1', from);
+      const step = source.slice(from, end + 'exit 1'.length);
+      return step.slice(step.indexOf('run: |'));
+    };
+    expect(loop(NIGHTLY), 'nightly.yml apt loop differs from ci.yml').toBe(loop(CI));
+    expect(loop(RELEASE), 'release.yml apt loop differs from ci.yml').toBe(loop(CI));
   });
 });
 
