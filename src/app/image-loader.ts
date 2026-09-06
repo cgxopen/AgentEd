@@ -5,7 +5,42 @@ import type { PlatformIO } from '../platform/types';
 
 const MAX_IMAGES = 200;
 const ABS_URL_RE = /^(https?:|blob:|data:|http:\/\/asset\.)/;
-const MD_IMG_RE = /!\[([^\]]*)\]\(([^)]+)\)/g;
+/**
+ * The three spellings of a markdown image title, as CommonMark writes them,
+ * with backslash escapes inside each (#230).
+ *
+ * They are here because the destination has to stop before the title, and
+ * `[^)]+` did not: `![diagram](assets/a.png "The architecture diagram")` handed
+ * the whole of `assets/a.png "The architecture diagram"` to the file read as a
+ * path, so it failed and **the image drew broken**.
+ *
+ * That was true before #230 and it healed itself, which is why nobody met it:
+ * the serializer deleted the title on the first save, so the second time the
+ * document was opened the reference resolved. #230 makes a title survive, so
+ * the breakage would have become permanent — a regression this change adds and
+ * therefore repairs, rather than debt it leaves. Found by the owner's manual
+ * pass, on the fixture written for that pass.
+ */
+const MD_TITLE = String.raw`"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\])*\)`;
+
+/**
+ * A markdown image, split into the parts a rewrite has to keep apart.
+ *
+ * Group 1 is the alt text, group 2 is the **destination alone**, and group 3 is
+ * everything between it and the closing bracket — the whitespace and the title,
+ * carried through untouched so a rewrite puts back exactly what it found.
+ *
+ * The destination is a run of non-space characters, which is what it was before
+ * this change and what CommonMark asks for outside the angle-bracket form. That
+ * form is not handled here and was not before: `<assets/a.png>` reaches the file
+ * read with its brackets on and fails, drawing broken. It is left alone rather
+ * than repaired in a pull request about titles, and it is the same shape of
+ * defect as the one above.
+ */
+const MD_IMG_RE = new RegExp(
+  String.raw`!\[([^\]]*)\]\(\s*([^\s)]+)((?:\s+(?:${MD_TITLE}))?\s*)\)`,
+  'g',
+);
 const HTML_IMG_RE = /<img\s+[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi;
 const HTML_IMG_REPLACE_RE = /(<img\s+[^>]*src\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
 
@@ -106,9 +141,12 @@ async function resolveFilesystemImages(
     }),
   ]);
 
-  let out = md.replace(MD_IMG_RE, (_match, alt, src) => {
+  // `rest` is the title and the spacing around it, put back exactly as it was
+  // found: this pass exists to swap an address for a displayable one and has no
+  // business respelling anything else in the reference.
+  let out = md.replace(MD_IMG_RE, (_match, alt, src, rest) => {
     const url = replacements.get(src) ?? src;
-    return `![${alt}](${url})`;
+    return `![${alt}](${url}${rest})`;
   });
   out = out.replace(HTML_IMG_REPLACE_RE, (_match, pre, src, post) => {
     const url = replacements.get(src) ?? src;
