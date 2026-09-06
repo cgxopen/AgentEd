@@ -26,7 +26,7 @@ describe('basename', () => {
     expect(basename('/foo/bar/baz.md')).toBe('baz.md');
   });
   it('returns last segment of a windows path', () => {
-    expect(basename('C:\\Users\\cata\\doc.md')).toBe('doc.md');
+    expect(basename('C:\\Users\\user\\doc.md')).toBe('doc.md');
   });
   it('returns full path when no separator', () => {
     expect(basename('doc.md')).toBe('doc.md');
@@ -56,7 +56,7 @@ describe('dirname', () => {
     expect(dirname('/foo/bar/')).toBe('/foo');
   });
   it('normalizes backslashes', () => {
-    expect(dirname('C:\\Users\\cata\\doc.md')).toBe('C:/Users/cata');
+    expect(dirname('C:\\Users\\user\\doc.md')).toBe('C:/Users/user');
   });
 });
 
