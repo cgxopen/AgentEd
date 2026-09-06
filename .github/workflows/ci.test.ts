@@ -278,6 +278,14 @@ describe('the build matrix says which targets exist at all (#8)', () => {
    * can test — an unsigned build reaches a user through Gatekeeper as a file
    * that cannot be opened. Its absence is a decision (2026-09-06), so it is
    * pinned as one.
+   *
+   * Linux is absent from the release for a different reason and fails the
+   * same quiet way. It builds, and the packages it produces install — what
+   * is missing is a person who has launched one, the file association
+   * section 7 records as not honoured, and a declared distribution floor.
+   * Putting the entry back would attach those packages to a public release
+   * under a table telling users to take the installer for their OS, and
+   * nothing would go red.
    */
   it('builds Linux on every scheduled nightly, not on request', () => {
     expect(NIGHTLY).toContain('"platform\\":\\"ubuntu-22.04\\"');
@@ -289,14 +297,29 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     expect(matrixBlock).not.toMatch(/^ +- platform: macos/m);
   });
 
+  it('leaves Linux out of the release matrix until it is user-facing', () => {
+    const matrixBlock = RELEASE.slice(RELEASE.indexOf('matrix:'), RELEASE.indexOf('runs-on:'));
+    expect(matrixBlock).not.toMatch(/^ +- platform: ubuntu/m);
+  });
+
   it('asks Linux for the two bundles it can actually produce', () => {
+    // Nightly only — the release builds no Linux at all, so there is no
+    // bundle list there to assert.
+    //
     // AppImage is out for what it costs, not because it breaks — it builds
     // on the runner. So dropping this flag would leave nightly **green** and
     // quietly restore a 194 MB weekly artifact in place of an 8 MB one,
     // which is the silent-regression shape the rest of this file exists for.
     // The reason is written where the flag is.
-    expect(NIGHTLY).toContain('--bundles deb,rpm');
-    expect(RELEASE).toContain("args: '--bundles deb,rpm'");
+    //
+    // Read off the matrix entry rather than off the file. A plain search of
+    // the source passes on the comment that explains the flag, which is
+    // prose: it survives the flag being deleted from the configuration, and
+    // this assertion then guards nothing. Measured, not feared — it happened
+    // to the first draft of this test.
+    const linuxEntry = NIGHTLY.match(/^ *entries=.*ubuntu-22\.04.*$/m)?.[0];
+    expect(linuxEntry, 'no Linux entry in the nightly matrix').toBeDefined();
+    expect(linuxEntry).toContain('--bundles deb,rpm');
   });
 });
 
