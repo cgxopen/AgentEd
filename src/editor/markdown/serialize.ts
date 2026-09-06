@@ -570,12 +570,23 @@ turndown.addRule('strikethrough', {
 // spelling nor a size — every image in every document nobody has resized — and
 // with the file's own bytes for one the file spelled as HTML.
 //
-// **The relativized `src` is used for the markdown form only**, and that is
-// deliberate rather than an omission. An image the file spelled as HTML is
-// written from the bytes it arrived with, so its address is the one already in
-// those bytes; substituting a registry lookup into them would rewrite an
-// address nobody touched. An image inserted in this session has no HTML
-// spelling, so it takes the markdown path and is relativized as it always was.
+// **The relativized `src` is used for both forms**, and the first version of
+// this change used it for the markdown form alone, on the reasoning that HTML
+// bytes already carry the address the file wrote. That reasoning was wrong, and
+// the way it was wrong is worth keeping: `prepareMarkdownForDisplay` in
+// `src/app/image-loader.ts` rewrites every reference it can resolve **in the
+// raw markdown, before the parser sees it**, so what the spelling carrier
+// captures for a resolvable image is `<img src="blob:…">` — and a save wrote
+// that blob address into the user's file, destroying the reference. Found by
+// the owner's manual pass; the guards missed it because every one of them skips
+// the display pass, and the repository's own documents reference only remote
+// badges, which the loader leaves alone.
+//
+// So the address is mapped back for the HTML form exactly as it always has been
+// for the markdown one. It costs nothing: `setTagAttribute` returns its input
+// unchanged when the value already matches, so an image the loader never
+// touched keeps its bytes to the character, quoting included. Held by
+// `src/app/image-display-roundtrip.test.ts`, which runs the whole route.
 turndown.addRule('agentedImage', {
   filter: 'img',
   replacement: (_content, node) => {

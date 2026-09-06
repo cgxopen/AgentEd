@@ -359,11 +359,11 @@ export function pixelValue(raw: string | null | undefined): number | null {
  *
  * Three answers, and the first two are the whole of decision 1 on #27:
  *
- *  - **The file spelled it as HTML** — the source bytes, with `width` and
- *    `height` set to the size the node holds now. Unchanged, that is the
- *    identity above, so an untouched image writes its own bytes back. A reset
- *    removes both, which is what decision 4 asks for: an image that was HTML
- *    stays HTML with the size attributes gone.
+ *  - **The file spelled it as HTML** — the source bytes, with `src` mapped
+ *    back through the caller and `width` and `height` set to the size the node
+ *    holds now. All three are identities where nothing moved, so an untouched
+ *    image writes its own bytes back. A reset removes the size, which is what
+ *    decision 4 asks for: an image that was HTML stays HTML without it.
  *  - **The file spelled it as markdown and it carries no size** — the markdown
  *    form. This is every image in every document that has never been resized,
  *    and it is why this feature changes no bytes on its own.
@@ -397,7 +397,14 @@ export function imageMarkup(
   const height = size.height === null ? null : String(size.height);
 
   if (htmlSource !== null) {
-    const withWidth = resize(htmlSource, 'width', width);
+    // The address first, and it is not decoration. `prepareMarkdownForDisplay`
+    // rewrites a resolvable reference into a `blob:` URL **before** the parser
+    // runs, so these bytes carry that blob rather than what the file said —
+    // writing them back unchanged put a blob address into the user's document
+    // and destroyed the reference. `src` here is the caller's already-mapped
+    // one, and setting it is an identity where the loader changed nothing.
+    const withSrc = setTagAttribute(htmlSource, 'src', src);
+    const withWidth = resize(withSrc, 'width', width);
     return resize(withWidth, 'height', height);
   }
 
