@@ -173,21 +173,26 @@ describe('the schema the fix depends on', () => {
     // `StarterKit.extend({…}).configure({…})` builds that list from the kit's
     // *default* options — every value `setup.ts` passes is dropped, silently.
     // Measured on this branch before the order was corrected: `heading` came
-    // back as levels 1–6 rather than 1–4, and the code block lost the
-    // `code-block` class. Neither threw, and no test in the suite failed,
-    // because both are configuration rather than behaviour —
+    // back as levels 1–6 rather than 1–4. It did not throw, and no test in the
+    // suite failed, because that is configuration rather than behaviour —
     // `numbered-heading.test.ts` even carries a comment asserting the level
     // limit in prose, which had quietly become false.
     //
-    // **Of the two, only the heading levels had a user-visible consequence.**
-    // Nothing styles `.code-block`: a fenced block's appearance comes from
-    // `.tiptap pre` in `src/styles.css`, which never mentions that class. It is
-    // asserted anyway, because the claim being pinned is *the configuration is
-    // what `setup.ts` asked for* — but it is not evidence about how anything
-    // looks, and an earlier version of this comment wrongly said it was.
+    // **This used to assert a second value and no longer can.** `setup.ts` also
+    // passed `codeBlock: { HTMLAttributes: { class: 'code-block' } }`, and that
+    // configuration has gone — a class nothing consumed, since a fenced block's
+    // appearance is `.tiptap pre` in `src/styles.css`, which never mentioned it.
+    // The debt was recorded on #202 and taken by #27, the next change to put
+    // `setup.ts` in a diff.
+    //
+    // Losing it costs this test nothing it was relied on for. The claim being
+    // pinned is *the configuration is what `setup.ts` asked for*, and the
+    // heading levels carry it — they are also the half with a user-visible
+    // consequence, which the removed half never had and which an earlier
+    // version of this comment wrongly said it did.
     //
     // Asserted here rather than in the round-trip table on purpose: the table
-    // is about bytes, and neither of these reaches the file.
+    // is about bytes, and this does not reach the file.
     const editor = editorWith('');
     const extensions = editor.editor.extensionManager.extensions;
     const optionsOf = (name: string) =>
@@ -198,10 +203,6 @@ describe('the schema the fix depends on', () => {
     expect((optionsOf('heading') as { levels?: number[] } | undefined)?.levels).toEqual([
       1, 2, 3, 4,
     ]);
-    expect(
-      (optionsOf('codeBlock') as { HTMLAttributes?: Record<string, unknown> } | undefined)
-        ?.HTMLAttributes,
-    ).toEqual({ class: 'code-block' });
   });
 
   it('keeps a heading level the editor does not have out of the schema', () => {
@@ -215,14 +216,21 @@ describe('the schema the fix depends on', () => {
     expect(editor.editor.getHTML()).not.toContain('<h5');
   });
 
-  it('gives a fenced block the class setup.ts asks for', () => {
-    // Deliberately *not* titled after styling. The class reaches the HTML, and
-    // that is all this asserts; `src/styles.css` styles `.tiptap pre` and does
-    // not mention `.code-block` anywhere, so this class is configuration
-    // nothing currently consumes. Found by the owner's manual check on
-    // 2026-08-24, against a step that had asked him for a border the
-    // application never draws — the same shape of error as #103.
+  it('draws a fenced block without the class that used to be configured', () => {
+    // The other side of the removal above, kept rather than deleted so the
+    // change is pinned in both directions: the class is gone from the HTML, and
+    // a fenced block is still a fenced block without it.
+    //
+    // What was found by the owner's manual check on 2026-08-24 — that the class
+    // reached the HTML and reached nothing else — is what made it removable.
+    // The failure that check corrected was a step written from the opposite
+    // reading, asking him for a border the application never draws, the same
+    // shape of error as #103; the assertion below is what stops that reading
+    // from coming back.
     const editor = editorWith('```js\nx\n```');
-    expect(editor.editor.getHTML()).toContain('class="code-block"');
+    const html = editor.editor.getHTML();
+    expect(html).not.toContain('code-block');
+    expect(html).toContain('<pre>');
+    expect(html).toContain('class="language-js"');
   });
 });

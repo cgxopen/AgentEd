@@ -1086,9 +1086,109 @@ button.indicator-search:hover {
   margin: 0.5em 0;
 }
 
-.tiptap img.ProseMirror-selectednode {
+/*
+ * The selected-node outline, for every node rather than for images — the line
+ * owed since #212, travelling with the first change to touch this sheet.
+ *
+ * The rule used to be `.tiptap img.ProseMirror-selectednode`, and #212 made the
+ * narrowness visible rather than introducing it: the gate that suppresses the
+ * browser's own paint is the class `prosemirror-view` sets for **any**
+ * selection it calls invisible, so a node selection lost that paint too, and
+ * only an image had anything to replace it with. A horizontal rule clicked as
+ * a node therefore had no visible feedback at all.
+ *
+ * STATUS recorded that as a reading rather than a measurement, so it was
+ * measured before this line was written: `prosemirror-view` **1.41.7**,
+ * `style/prosemirror.css` line 29, carries a general `.ProseMirror-selectednode`
+ * outline that this repository never took while taking the hide-selection rules
+ * beside it. This is the missing half, in this project's accent rather than the
+ * vendor's fixed blue.
+ *
+ * The vendor's `li` exception is deliberately not copied. It exists to wrap an
+ * outline around a list marker, which is a refinement; an unstyled outline on a
+ * node-selected item is feedback where there was none, and copying rules whose
+ * effect has not been looked at here is how the first half arrived without the
+ * second.
+ *
+ * An image is reached through its wrapper rather than directly, because the
+ * resize node view (#27) is what ProseMirror now marks — the wrapper hugs the
+ * picture, so the outline sits where it always did.
+ */
+.tiptap .ProseMirror-selectednode {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* ── Resize handles (#27) ── */
+
+/*
+ * The wrapper the image node view builds. `inline-block` because `image` is an
+ * inline node — a standalone `<img>` line still arrives inside a paragraph, so
+ * there is no block box to anchor to — and `position: relative` is what the
+ * four absolutely positioned handles are placed against.
+ *
+ * `line-height: 0` keeps the wrapper the height of the picture. Without it the
+ * line box adds descender space below the image, the wrapper is taller than
+ * what it holds, and the two bottom handles float below the corner they name.
+ */
+.tiptap .image-resize {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+/*
+ * Hidden until the image is selected, and shown by the class the rule above
+ * already uses — `prosemirror-view` writes it on a selected node view by
+ * itself, so the outline and the handles appear from one mechanism rather than
+ * from two that could disagree.
+ *
+ * Built once and shown, rather than built on selection: a handle the pointer
+ * is already holding must not be taken out from under it.
+ */
+.tiptap .image-resize-handle {
+  position: absolute;
+  display: none;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  background: var(--accent);
+  border: 1px solid var(--bg);
+  border-radius: 2px;
+  /* Above the picture, so the corner of a dark image cannot swallow a handle. */
+  z-index: 1;
+}
+
+.tiptap .image-resize.ProseMirror-selectednode .image-resize-handle {
+  display: block;
+}
+
+/*
+ * Half the handle outside the corner it names, so the visible target straddles
+ * the edge and a drag can be started from either side of it.
+ */
+.tiptap .image-resize-handle[data-corner="nw"] {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.tiptap .image-resize-handle[data-corner="ne"] {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.tiptap .image-resize-handle[data-corner="sw"] {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.tiptap .image-resize-handle[data-corner="se"] {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
 }
 
 /* Horizontal rule */

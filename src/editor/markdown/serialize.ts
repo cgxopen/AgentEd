@@ -3,6 +3,12 @@ import { getRelativePath } from '../image-registry';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
+import {
+  decodeHtmlSource,
+  IMAGE_HTML_SOURCE_ATTRIBUTE,
+  imageMarkup,
+  pixelValue,
+} from './image-spelling';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import {
   type ColumnStyle,
@@ -554,6 +560,33 @@ turndown.addRule('strikethrough', {
 // Relativize image src via the registry at Turndown time.
 // The node's src attribute is the exact string used to register the image,
 // so the registry lookup is guaranteed to match (no intermediate normalization).
+//
+// ── The form the file used, and the size (#27) ──
+//
+// This rule used to write `![alt](src)` unconditionally, which is the second
+// of the two places a width was being dropped: the schema carried no size and
+// this would have discarded one anyway. It now asks `imageMarkup`, which
+// answers with the markdown form for an image that has neither an HTML
+// spelling nor a size — every image in every document nobody has resized — and
+// with the file's own bytes for one the file spelled as HTML.
+//
+// **The relativized `src` is used for both forms**, and the first version of
+// this change used it for the markdown form alone, on the reasoning that HTML
+// bytes already carry the address the file wrote. That reasoning was wrong, and
+// the way it was wrong is worth keeping: `prepareMarkdownForDisplay` in
+// `src/app/image-loader.ts` rewrites every reference it can resolve **in the
+// raw markdown, before the parser sees it**, so what the spelling carrier
+// captures for a resolvable image is `<img src="blob:…">` — and a save wrote
+// that blob address into the user's file, destroying the reference. Found by
+// the owner's manual pass; the guards missed it because every one of them skips
+// the display pass, and the repository's own documents reference only remote
+// badges, which the loader leaves alone.
+//
+// So the address is mapped back for the HTML form exactly as it always has been
+// for the markdown one. It costs nothing: `setTagAttribute` returns its input
+// unchanged when the value already matches, so an image the loader never
+// touched keeps its bytes to the character, quoting included. Held by
+// `src/app/image-display-roundtrip.test.ts`, which runs the whole route.
 turndown.addRule('agentedImage', {
   filter: 'img',
   replacement: (_content, node) => {
@@ -568,7 +601,15 @@ turndown.addRule('agentedImage', {
       console.warn('[agented] image src looks like asset URL but not in registry:', src);
     }
 
-    return `![${alt}](${rel || src})`;
+    return imageMarkup(
+      decodeHtmlSource(img.getAttribute(IMAGE_HTML_SOURCE_ATTRIBUTE)),
+      alt,
+      rel || src,
+      {
+        width: pixelValue(img.getAttribute('width')),
+        height: pixelValue(img.getAttribute('height')),
+      },
+    );
   },
 });
 

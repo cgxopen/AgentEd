@@ -658,6 +658,74 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     { writes: '[~~t~~](https://example.com)', because: MARK_NESTING },
   ],
   ['bold inside strike', '~~**x**~~', { writes: '**~~x~~**', because: MARK_NESTING }],
+
+  // ── An image keeps the form its file used (#27) ──
+  //
+  // The acceptance criterion of #27, above every other: **nothing the user did
+  // not touch changes bytes.** Not a property of the markdown form alone — the
+  // whole reason the node carries the source bytes rather than a width is that
+  // a canonical rewrite reproduces only three of the eleven spellings below.
+  // The other eight are here for that reason, and each of them is a file a
+  // person could have written by hand.
+  //
+  // What a *resize* writes is not in this table, because these rows open and
+  // save with no edit and a resize is an edit. Those fixtures are in
+  // `image-resize.test.ts`, where a gesture can be driven.
+  ['an image with no alt text', '![](img.png)', 'identical'],
+  ['an image with a relative path', '![alt](assets/diagram.png)', 'identical'],
+  ['an image inside a sentence', 'before ![alt](img.png) after', 'identical'],
+  ['an image inside a list item', '- ![alt](img.png)', 'identical'],
+  ['an image inside a blockquote', '> ![alt](img.png)', 'identical'],
+  ['an image that is a link', '[![alt](img.png)](https://example.com)', 'identical'],
+
+  ['an html image with a width', '<img src="a.png" alt="x" width="600">', 'identical'],
+  [
+    'an html image with a width and a height',
+    '<img src="a.png" alt="x" width="600" height="300">',
+    'identical',
+  ],
+  ['an html image with no size at all', '<img src="a.png" alt="x">', 'identical'],
+  ['an html image with no alt', '<img src="a.png">', 'identical'],
+  ['an html image with unquoted attributes', '<img src=a.png alt=x width=600>', 'identical'],
+  ['an html image with single quotes', "<img src='a.png' alt='x' width='600'>", 'identical'],
+  ['a self-closing html image', '<img src="a.png" alt="x" width="600" />', 'identical'],
+  ['an html image whose width comes first', '<img width="600" src="a.png" alt="x">', 'identical'],
+  [
+    'an html image carrying a style',
+    '<img src="a.png" alt="x" width="600" style="border:1px solid red">',
+    'identical',
+  ],
+  [
+    'an html image carrying a title',
+    '<img src="a.png" alt="x" title="t" width="600">',
+    'identical',
+  ],
+  ['an html image in upper case', '<IMG SRC="a.png" ALT="x" WIDTH="600">', 'identical'],
+  [
+    'an html image with a percentage width AgentEd cannot express',
+    // The width is not a number of pixels, so no node attribute holds it — and
+    // it survives anyway, because the bytes do. A carrier of width and height
+    // would have dropped it.
+    '<img src="a.png" alt="x" width="50%">',
+    'identical',
+  ],
+  [
+    'an html image inside a paragraph',
+    'text <img src="a.png" alt="x" width="600"> tail',
+    'identical',
+  ],
+  [
+    'an html image whose alt text holds a closing bracket',
+    // The case a `<img[^>]*>` scan cuts in half. `image-spelling.ts` walks the
+    // bytes instead, and this is that walk asserted through the whole pipeline.
+    '<img src="a.png" alt="a > b" width="600">',
+    'identical',
+  ],
+  [
+    'a document holding both kinds of image',
+    '![a](a.png)\n\n<img src="b.png" alt="b" width="400">\n\ntext ![c](c.png) more',
+    'identical',
+  ],
 ];
 
 describe('the editor-level round-trip table (#84)', () => {
