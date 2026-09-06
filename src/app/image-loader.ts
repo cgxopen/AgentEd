@@ -30,6 +30,14 @@ const MD_TITLE = String.raw`"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\]
  * everything between it and the closing bracket — the whitespace and the title,
  * carried through untouched so a rewrite puts back exactly what it found.
  *
+ * **The alt reads its own backslash escapes** (#232). `[^\]]*` stopped at the
+ * first `]`, so `![step \] two](assets/b.png)` matched nothing at all and the
+ * image drew broken — the same failure the title half above had, in the same
+ * expression, one group to its left. It went unmet for the same reason: the
+ * serializer used to destroy that alt on the first save, so the reference the
+ * loader could not read stopped existing. #232 makes it survive, so the
+ * breakage would have become permanent.
+ *
  * The destination is a run of non-space characters, which is what it was before
  * this change and what CommonMark asks for outside the angle-bracket form. That
  * form is not handled here and was not before: `<assets/a.png>` reaches the file
@@ -38,7 +46,7 @@ const MD_TITLE = String.raw`"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\]
  * defect as the one above.
  */
 const MD_IMG_RE = new RegExp(
-  String.raw`!\[([^\]]*)\]\(\s*([^\s)]+)((?:\s+(?:${MD_TITLE}))?\s*)\)`,
+  String.raw`!\[((?:\\.|[^\]\\])*)\]\(\s*([^\s)]+)((?:\s+(?:${MD_TITLE}))?\s*)\)`,
   'g',
 );
 const HTML_IMG_RE = /<img\s+[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi;

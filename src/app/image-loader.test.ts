@@ -176,6 +176,40 @@ describe('#187 — the desktop floor, unchanged', () => {
     expect(out).not.toContain('assets/img.png');
   });
 
+  it.each([
+    ['an escaped closing bracket', '![step \\] two](assets/img.png)'],
+    ['an escaped opening bracket', '![step \\[ two](assets/img.png)'],
+    ['a pair of escaped brackets', '![a \\[b\\] c](assets/img.png)'],
+    ['a backslash', '![a \\\\ b](assets/img.png)'],
+    ['a double quote', '![say "hi"](assets/img.png)'],
+    ['a bracket and a title together', '![a \\] b](assets/img.png "t")'],
+  ])('an alt holding %s does not stop the image resolving', async (_label, line) => {
+    // **The half a byte comparison cannot see.** The alt group stopped at the
+    // first `]`, so a reference holding an escaped one matched nothing and the
+    // image drew broken — the same failure the title half met on #230, in the
+    // same expression, one group to its left. It went unmet for the same
+    // reason: the serializer destroyed that alt on the first save, so the
+    // reference the loader could not read stopped existing. #232 makes it
+    // survive, so the breakage would have become permanent.
+    const doc = { markdownBody: `# Doc\n\n${line}\n`, rootPath: '/proj/doc.md' } as DocumentBundle;
+    const out = await prepareMarkdownForDisplay(doc, await desktopIO());
+
+    expect(readFile).toHaveBeenCalledWith('/proj/assets/img.png');
+    expect(getAllImages()).toHaveLength(1);
+    expect(out).toContain('blob:');
+  });
+
+  it('and the alt itself is put back exactly as the file wrote it', async () => {
+    const doc = {
+      markdownBody: '# Doc\n\n![step \\] two](assets/img.png)\n',
+      rootPath: '/proj/doc.md',
+    } as DocumentBundle;
+    const out = await prepareMarkdownForDisplay(doc, await desktopIO());
+
+    expect(out).toContain('blob:');
+    expect(out).toContain('![step \\] two](');
+  });
+
   it('the title itself is put back exactly as the file wrote it', async () => {
     const doc = {
       markdownBody: "# Doc\n\n![alt](assets/img.png   'kept as it was'  )\n",
