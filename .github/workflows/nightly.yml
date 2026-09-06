@@ -72,12 +72,23 @@ jobs:
           # in `src/`. That is environment drift, which is the weekly-scale
           # thing this workflow exists for.
           #
-          # `--bundles deb,rpm` leaves AppImage out. It was the one target
-          # that failed when this was first built, needing an `xdg-open` on
-          # the builder that no dependency step here installs; it is also the
-          # only one that downloads a tool mid-build. It is not the portable
-          # escape hatch it looks like either - an AppImage carries libraries
-          # but not libc, so it inherits the same glibc floor as the deb.
+          # `--bundles deb,rpm` leaves AppImage out, and it is left out for
+          # what it costs rather than because it breaks. It builds here: the
+          # first Linux run this repository ever had, 34037705792 on
+          # `ubuntu-22.04`, produced all three bundles. (It fails on a
+          # machine with no `/usr/bin/xdg-open`, which no step here installs
+          # and the runner image happens to carry - that was measured on a
+          # workstation and does not describe this builder.)
+          #
+          # What it costs is the artifact. That run uploaded 194292233 bytes
+          # for Linux against 5839869 for Windows, weekly and kept 7 days,
+          # because the AppDir carries a copy of WebKit; the deb and the rpm
+          # on their own are 13 files and 17858450 bytes before compression.
+          # It also spent about 2 minutes of a 9-minute job.
+          #
+          # And it is not the portable escape hatch it looks like: an
+          # AppImage carries libraries but not libc, so it inherits the same
+          # glibc floor as the deb.
           #
           # macOS stays behind an explicit manual request: those runners bill
           # at ~10x the Linux rate, and nothing here can test the result.

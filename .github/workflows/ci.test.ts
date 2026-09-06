@@ -290,10 +290,11 @@ describe('the build matrix says which targets exist at all (#8)', () => {
   });
 
   it('asks Linux for the two bundles it can actually produce', () => {
-    // AppImage is out: it was the one target that failed to build, needing an
-    // `xdg-open` no dependency step installs. Dropping this flag would turn a
-    // green nightly red rather than quiet, so this assertion is the cheaper
-    // half — it says which bundles were chosen, where the reason is written.
+    // AppImage is out for what it costs, not because it breaks — it builds
+    // on the runner. So dropping this flag would leave nightly **green** and
+    // quietly restore a 194 MB weekly artifact in place of an 8 MB one,
+    // which is the silent-regression shape the rest of this file exists for.
+    // The reason is written where the flag is.
     expect(NIGHTLY).toContain('--bundles deb,rpm');
     expect(RELEASE).toContain("args: '--bundles deb,rpm'");
   });
