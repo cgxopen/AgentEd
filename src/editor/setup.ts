@@ -21,11 +21,18 @@ import {
   type RequestSaveAs,
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
+import { createImageNodeView } from './image-resize';
 import { isRelativeLinkAddress } from './link-url';
 import {
   BARE_BLANK_MARKER,
   BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
 } from './markdown/blockquote-spacing';
+import {
+  decodeHtmlSource,
+  encodeHtmlSource,
+  IMAGE_HTML_SOURCE_ATTRIBUTE,
+  pixelValue,
+} from './markdown/image-spelling';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
@@ -126,21 +133,20 @@ import { createSearchExtension } from './search-extension';
  * other way round — `StarterKit.extend({…}).configure({…})` — the kit builds
  * its sub-extensions from its *default* options and every value passed here is
  * silently dropped: measured on this branch, `heading` came back as levels 1–6
- * instead of 1–4, and the code block lost the `code-block` class. Nothing
- * threw and no test failed, because both are configuration rather than
- * behaviour. `configure` first, then `extend`, is what keeps them.
- * `configuration survives the extend` in `mark-nesting.test.ts` is the pin.
+ * instead of 1–4. Nothing threw and no test failed, because that is
+ * configuration rather than behaviour. `configure` first, then `extend`, is
+ * what keeps it. `configuration survives the extend` in `mark-nesting.test.ts`
+ * is the pin, and `##### Five` opening as a paragraph rather than a heading is
+ * the user-visible half of the same fact (`numbered-heading.test.ts`).
  *
- * **Only one of the two had a user-visible consequence, and it is the heading
- * levels** — with 1–6 restored, `##### Five` becomes a heading here instead of
- * the paragraph the rest of the codebase assumes (`numbered-heading.test.ts`).
- * `code-block` is **not** what a fenced block's appearance hangs on: the
- * styling is `.tiptap pre` in `src/styles.css`, and that class is referenced
- * nowhere in it — it is configuration this file asks for and nothing consumes.
- * An earlier version of this comment said the opposite; the owner's manual
- * check on 2026-08-24 is what corrected it, after a step written from that
- * wrong reading asked him for a border the application never draws. Whether
- * dead configuration should be removed is its own question, not this one's.
+ * **The second value this call used to pass has gone**, owed since #202 and
+ * carried here because this file is in the diff for #27, which is the condition
+ * STATUS attached to it. `codeBlock: { HTMLAttributes: { class: 'code-block' } }`
+ * put a class on every fenced block that nothing consumed: the styling is
+ * `.tiptap pre` in `src/styles.css`, which never mentioned it. It had also been
+ * doing a second job as the *other* half of the pin above, and that job is
+ * covered — the heading levels are the half with a consequence, which is what
+ * the pin exists to catch, and the comment saying so was already in that test.
  */
 /**
  * How the file spaced this list (#28), carried on the list node itself.
@@ -197,7 +203,6 @@ function bareBlankMarkerAttribute() {
 function starterKitWithLocalSchemaRules() {
   return StarterKit.configure({
     heading: { levels: [1, 2, 3, 4] },
-    codeBlock: { HTMLAttributes: { class: 'code-block' } },
   }).extend({
     addExtensions() {
       const registered = (this.parent?.() ?? []) as AnyExtension[];
@@ -304,6 +309,62 @@ const TaskItemHoldingABlock = TaskItem.extend({
     return this.options.nested ? 'block+' : 'paragraph+';
   },
 }).configure({ nested: true });
+
+/**
+ * The image node, plus the three attributes #27 needs.
+ *
+ * `image` is an **inline** node — confirmed on this build, and it is why a
+ * standalone `<img>` line, which `marked` reads as a block, still arrives
+ * inside a paragraph. So there is no block image to give a size to; a width
+ * rides on a node sitting in a line of text.
+ *
+ * The size is the whole visible feature and `htmlSource` is what keeps it
+ * honest: the bytes the file spelled this image with, so an image the user
+ * never touched is written back exactly as it was found, whatever spelling
+ * that was. See `markdown/image-spelling.ts` for why the bytes and not the
+ * width alone.
+ *
+ * All three ride through every edit, Save As and copy-paste the way the table
+ * spelling does, and all three are editor state until the serializer reads
+ * them — the difference from `tableStyle` being that these *can* reach the
+ * user's document, because writing a size is the point.
+ */
+const ImageWithSpelling = Image.extend({
+  addNodeView() {
+    return (props) => createImageNodeView(props);
+  },
+
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      htmlSource: {
+        default: null,
+        parseHTML: (element: HTMLElement) =>
+          decodeHtmlSource(element.getAttribute(IMAGE_HTML_SOURCE_ATTRIBUTE)),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          typeof attributes.htmlSource === 'string'
+            ? { [IMAGE_HTML_SOURCE_ATTRIBUTE]: encodeHtmlSource(attributes.htmlSource) }
+            : {},
+      },
+      // Read back through `pixelValue`, so a width the file wrote as `60%` or
+      // `auto` — which a markdown renderer may honour and this editor cannot
+      // express as a drag — is no size at all rather than a number guessed out
+      // of it. It stays in `htmlSource`, so it is still written back.
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => pixelValue(element.getAttribute('width')),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          typeof attributes.width === 'number' ? { width: String(attributes.width) } : {},
+      },
+      height: {
+        default: null,
+        parseHTML: (element: HTMLElement) => pixelValue(element.getAttribute('height')),
+        renderHTML: (attributes: Record<string, unknown>) =>
+          typeof attributes.height === 'number' ? { height: String(attributes.height) } : {},
+      },
+    };
+  },
+});
 
 /**
  * The table node, plus the one attribute #93 needs: the spelling the file
@@ -427,7 +488,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     Placeholder.configure({ placeholder: 'Start writing…' }),
     TaskListWithSpacing,
     TaskItemHoldingABlock,
-    Image.configure({ inline: true, allowBase64: false }),
+    ImageWithSpelling.configure({ inline: true, allowBase64: false }),
     // resizable: false — GFM markdown has no column width syntax.
     // Enabling resize produces UX inconsistency (widths reset at save).
     //

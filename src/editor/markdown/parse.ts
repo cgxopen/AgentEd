@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE, blankMarkerAttribute } from './blockquote-spacing';
+import { IMAGE_HTML_SOURCE_ATTRIBUTE, stampImageSources } from './image-spelling';
 import { attachListSpacing, LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { attachTableStyles, TABLE_STYLE_ATTRIBUTE } from './table-style';
 import { markTaskLists } from './task-list';
@@ -45,6 +46,29 @@ marked.use({
       const raw = typeof token.raw === 'string' ? token.raw : '';
       const body = this.parser.parse(token.tokens ?? []);
       return `<blockquote${blankMarkerAttribute(raw)}>\n${body}</blockquote>\n`;
+    },
+  },
+});
+
+// How the file spelled each image written as inline HTML, written onto the tag
+// it belongs to (#27).
+//
+// **The same route as the blockquote above, for the same reason.** An `<img>`
+// the file wrote as HTML arrives as an `html` token — measured, block when it
+// is alone on a line and inline when it sits in a paragraph, and `raw` is the
+// tag bytes either way — so the renderer is looking at the file while the
+// element is being built and there is nothing to pair. A markdown image
+// arrives as an `image` token instead and reaches a different renderer, which
+// is how the two spellings are told apart without inspecting anything.
+//
+// `token.text` is what the default renderer returns, so the output is
+// otherwise `marked`'s own and nothing but the attribute changes. A token
+// carrying no image is returned unchanged, which is every other piece of raw
+// HTML in every document.
+marked.use({
+  renderer: {
+    html(token) {
+      return stampImageSources(token.text);
     },
   },
 });
@@ -109,6 +133,15 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
       TABLE_STYLE_ATTRIBUTE,
       LIST_SPACING_ATTRIBUTE,
       BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
+      // The bytes an image was spelled with (#27). Widening the allow-list by
+      // it is safe by construction rather than by a strip elsewhere, which is
+      // what `TABLE_STYLE_ATTRIBUTE` above needs: the value is
+      // `encodeURIComponent` output, so it holds no `<`, `>`, `&` or `"` and
+      // cannot end the attribute or open an element, and `decodeHtmlSource`
+      // refuses anything that is not one image tag. A document carrying its
+      // own `data-html-source` therefore chooses at most how *its own* image
+      // is written back, which is what the attribute means anyway.
+      IMAGE_HTML_SOURCE_ATTRIBUTE,
     ],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,

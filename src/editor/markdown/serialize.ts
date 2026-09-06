@@ -3,6 +3,12 @@ import { getRelativePath } from '../image-registry';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
+import {
+  decodeHtmlSource,
+  IMAGE_HTML_SOURCE_ATTRIBUTE,
+  imageMarkup,
+  pixelValue,
+} from './image-spelling';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import {
   type ColumnStyle,
@@ -554,6 +560,22 @@ turndown.addRule('strikethrough', {
 // Relativize image src via the registry at Turndown time.
 // The node's src attribute is the exact string used to register the image,
 // so the registry lookup is guaranteed to match (no intermediate normalization).
+//
+// ── The form the file used, and the size (#27) ──
+//
+// This rule used to write `![alt](src)` unconditionally, which is the second
+// of the two places a width was being dropped: the schema carried no size and
+// this would have discarded one anyway. It now asks `imageMarkup`, which
+// answers with the markdown form for an image that has neither an HTML
+// spelling nor a size — every image in every document nobody has resized — and
+// with the file's own bytes for one the file spelled as HTML.
+//
+// **The relativized `src` is used for the markdown form only**, and that is
+// deliberate rather than an omission. An image the file spelled as HTML is
+// written from the bytes it arrived with, so its address is the one already in
+// those bytes; substituting a registry lookup into them would rewrite an
+// address nobody touched. An image inserted in this session has no HTML
+// spelling, so it takes the markdown path and is relativized as it always was.
 turndown.addRule('agentedImage', {
   filter: 'img',
   replacement: (_content, node) => {
@@ -568,7 +590,15 @@ turndown.addRule('agentedImage', {
       console.warn('[agented] image src looks like asset URL but not in registry:', src);
     }
 
-    return `![${alt}](${rel || src})`;
+    return imageMarkup(
+      decodeHtmlSource(img.getAttribute(IMAGE_HTML_SOURCE_ATTRIBUTE)),
+      alt,
+      rel || src,
+      {
+        width: pixelValue(img.getAttribute('width')),
+        height: pixelValue(img.getAttribute('height')),
+      },
+    );
   },
 });
 
