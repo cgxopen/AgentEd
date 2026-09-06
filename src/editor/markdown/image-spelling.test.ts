@@ -56,7 +56,11 @@ describe('the size is written into the bytes the file used', () => {
       width: pixelValue(readTagAttribute(tag, 'width')),
       height: pixelValue(readTagAttribute(tag, 'height')),
     };
-    expect(imageMarkup(tag, 'x', 'a.png', size)).toBe(tag);
+    // The title is read out of the tag it is already in, so an HTML-spelled
+    // image with one is written from its own bytes and this argument changes
+    // nothing — which is step zero item 2 on #230, asserted rather than assumed.
+    const title = readTagAttribute(tag, 'title');
+    expect(imageMarkup(tag, 'x', 'a.png', title, size)).toBe(tag);
   });
 
   it('a changed width keeps the quoting the file used', () => {
@@ -116,26 +120,26 @@ describe('the size is written into the bytes the file used', () => {
 
 describe('what the serializer is told to write', () => {
   it('a markdown image with no size stays markdown', () => {
-    expect(imageMarkup(null, 'alt text', 'assets/a.png', { width: null, height: null })).toBe(
+    expect(imageMarkup(null, 'alt text', 'assets/a.png', null, { width: null, height: null })).toBe(
       '![alt text](assets/a.png)',
     );
   });
 
   it('a markdown image that has been resized becomes the canonical html form', () => {
-    expect(imageMarkup(null, 'x', 'a.png', { width: 300, height: null })).toBe(
+    expect(imageMarkup(null, 'x', 'a.png', null, { width: 300, height: null })).toBe(
       '<img src="a.png" alt="x" width="300">',
     );
   });
 
   it('a height is written only when it is there', () => {
-    expect(imageMarkup(null, 'x', 'a.png', { width: 300, height: 150 })).toBe(
+    expect(imageMarkup(null, 'x', 'a.png', null, { width: 300, height: 150 })).toBe(
       '<img src="a.png" alt="x" width="300" height="150">',
     );
   });
 
   it('an html image that has been resized keeps its own spelling', () => {
     expect(
-      imageMarkup('<img src=a.png alt=x width=600 style="b">', 'x', 'a.png', {
+      imageMarkup('<img src=a.png alt=x width=600 style="b">', 'x', 'a.png', null, {
         width: 300,
         height: null,
       }),
@@ -144,15 +148,99 @@ describe('what the serializer is told to write', () => {
 
   it('a reset takes the size attributes off and leaves the rest (decision 4 on #27)', () => {
     expect(
-      imageMarkup('<img src="a.png" alt="x" width="400" height="200" title="t">', 'x', 'a.png', {
-        width: null,
-        height: null,
-      }),
+      imageMarkup(
+        '<img src="a.png" alt="x" width="400" height="200" title="t">',
+        'x',
+        'a.png',
+        null,
+        {
+          width: null,
+          height: null,
+        },
+      ),
     ).toBe('<img src="a.png" alt="x" title="t">');
   });
 
   it('a markdown image reset to its natural size is markdown again (decision 4 on #27)', () => {
-    expect(imageMarkup(null, 'x', 'a.png', { width: null, height: null })).toBe('![x](a.png)');
+    expect(imageMarkup(null, 'x', 'a.png', null, { width: null, height: null })).toBe(
+      '![x](a.png)',
+    );
+  });
+
+  it('a markdown image writes the title the file gave it (#230)', () => {
+    expect(imageMarkup(null, 'alt', 'img.png', 'the title', { width: null, height: null })).toBe(
+      '![alt](img.png "the title")',
+    );
+  });
+
+  it('an image with no title writes none, which is the regression half', () => {
+    expect(imageMarkup(null, 'alt', 'img.png', null, { width: null, height: null })).toBe(
+      '![alt](img.png)',
+    );
+  });
+
+  it.each([
+    ['a single quote', "it's here", '![a](i.png "it\'s here")'],
+    ['parentheses', 'a (b) c', '![a](i.png "a (b) c")'],
+    ['a closing parenthesis', 'a ) c', '![a](i.png "a ) c")'],
+    ['a double quote', 'say " now', '![a](i.png "say \\" now")'],
+    ['a backslash', 'back \\ slash', '![a](i.png "back \\\\ slash")'],
+    ['both a backslash and a quote', '\\ and "', '![a](i.png "\\\\ and \\"")'],
+  ])('a title holding %s is written the way CommonMark reads back', (_label, title, expected) => {
+    // A writer that escaped too much would be as wrong as one that escaped too
+    // little, so the rows that need *no* escape are here beside the two that do.
+    expect(imageMarkup(null, 'a', 'i.png', title, { width: null, height: null })).toBe(expected);
+  });
+
+  it('a resized image carries its title into the canonical html form (#230)', () => {
+    // The criterion #229 made necessary: the canonical form writes `alt`, so
+    // without this a resize would be the moment a title left the file.
+    expect(imageMarkup(null, 'x', 'a.png', 'the title', { width: 300, height: null })).toBe(
+      '<img src="a.png" alt="x" title="the title" width="300">',
+    );
+  });
+
+  it('a resized image with no title gains no title attribute', () => {
+    expect(imageMarkup(null, 'x', 'a.png', null, { width: 300, height: null })).toBe(
+      '<img src="a.png" alt="x" width="300">',
+    );
+  });
+
+  it('an alt and a title each holding a double quote cannot break the tag', () => {
+    // The reading recorded on the #229 merge: the canonical form is built by
+    // concatenation, so an unescaped `"` in `alt` ends the attribute and
+    // everything after it becomes markup. `title` arrives at the same line with
+    // the identical hazard, so both are escaped by one rule rather than one of
+    // them being repaired and the other left.
+    const written = imageMarkup(null, 'say " hi', 'a.png', 'and " again', {
+      width: 300,
+      height: null,
+    });
+    expect(written).toBe(
+      '<img src="a.png" alt="say &quot; hi" title="and &quot; again" width="300">',
+    );
+
+    // Asserted as a property too, not only as bytes: whatever the values hold,
+    // the tag has exactly the attributes it should and each value survives.
+    const box = document.createElement('div');
+    box.innerHTML = written;
+    const img = box.querySelector('img');
+    expect(img?.getAttribute('alt')).toBe('say " hi');
+    expect(img?.getAttribute('title')).toBe('and " again');
+    expect(img?.getAttribute('width')).toBe('300');
+  });
+
+  it('an ampersand and an angle bracket in either value are escaped too', () => {
+    const written = imageMarkup(null, 'a & <b>', 'a.png', 'c & <d>', {
+      width: 300,
+      height: null,
+    });
+    expect(written).not.toContain('<b>');
+    const box = document.createElement('div');
+    box.innerHTML = written;
+    const img = box.querySelector('img');
+    expect(img?.getAttribute('alt')).toBe('a & <b>');
+    expect(img?.getAttribute('title')).toBe('c & <d>');
   });
 
   it.each([
@@ -166,14 +254,14 @@ describe('what the serializer is told to write', () => {
     // edited, which is the failure decision 1 on #27 rejected. The carrier of
     // width and height the brief first described would have dropped every one
     // of these; the bytes keep them.
-    expect(imageMarkup(tag, 'x', 'a.png', { width: null, height: null })).toBe(tag);
+    expect(imageMarkup(tag, 'x', 'a.png', null, { width: null, height: null })).toBe(tag);
   });
 
   it('a drag over a width this editor cannot express still writes pixels', () => {
     // Setting is unconditional, because a set means the user dragged. Only a
     // clear is conditional.
     expect(
-      imageMarkup('<img src="a.png" alt="x" width="50%">', 'x', 'a.png', {
+      imageMarkup('<img src="a.png" alt="x" width="50%">', 'x', 'a.png', null, {
         width: 300,
         height: null,
       }),

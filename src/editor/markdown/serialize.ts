@@ -563,6 +563,12 @@ turndown.addRule('strikethrough', {
 //
 // ── The form the file used, and the size (#27) ──
 //
+// **The title was being dropped here too** (#230), and by this rule alone:
+// `marked` writes it onto the `<img>`, DOMPurify keeps it and the image node
+// carries it, and then this read `alt` and `src` and nothing else — so
+// `![alt](img.png "the title")` was saved as `![alt](img.png)` and the text the
+// user wrote left the file. Measured layer by layer before the repair.
+//
 // This rule used to write `![alt](src)` unconditionally, which is the second
 // of the two places a width was being dropped: the schema carried no size and
 // this would have discarded one anyway. It now asks `imageMarkup`, which
@@ -605,6 +611,12 @@ turndown.addRule('agentedImage', {
       decodeHtmlSource(img.getAttribute(IMAGE_HTML_SOURCE_ATTRIBUTE)),
       alt,
       rel || src,
+      // `getAttribute` answers `null` for an image with no title, which is the
+      // same answer the node carries, so absent and empty stay distinct all the
+      // way to the writer. An empty title is not a shape markdown can hold —
+      // `![a](i.png "")` parses to no title at all, measured — so nothing
+      // downstream has to tell them apart.
+      img.getAttribute('title'),
       {
         width: pixelValue(img.getAttribute('width')),
         height: pixelValue(img.getAttribute('height')),
