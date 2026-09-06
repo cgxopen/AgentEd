@@ -11,6 +11,7 @@ import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
 import type { Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
+import { CodeBlockCopy } from './code-block-copy';
 import { CodeBlockLanguage } from './code-block-language';
 import { replaceDocument } from './document-load';
 import {
@@ -510,6 +511,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     // A paragraph inserted mid-list must not restart the numbering (R-C1).
     OrderedListContinuity,
     CodeBlockLanguage,
+    CodeBlockCopy,
     // Find & Replace highlights (R-C4). The wrapper in
     // src/editor/search-extension.ts owns the user-facing API; this
     // call only registers the underlying decoration plugin so matches

@@ -937,6 +937,70 @@ button.indicator-search:hover {
   pointer-events: none;
 }
 
+/*
+ * The copy icon a fenced block shows on hover (R-C15, #235).
+ *
+ * The other half of the chrome the label above belongs to, at the other corner
+ * of the same box, positioned against the same `position: relative` on
+ * `.tiptap pre`. It is a ProseMirror widget decoration too, so it exists in the
+ * view and never in the document model.
+ *
+ * **Two rules, and the second one is the whole of the hover behaviour.** No
+ * listener shows or hides this: `.tiptap pre:hover` is the entire mechanism,
+ * which is why a selection or a caret inside the block does not reveal it —
+ * neither of those is a hover. `src/editor/code-block-copy.test.ts` reads both
+ * selectors out of this file and runs them against the element the editor
+ * rendered, so a rename here turns that file red rather than leaving an icon
+ * in the DOM that nothing can see.
+ *
+ * `visibility: hidden` rather than `opacity: 0` alone, because an invisible
+ * button that still answers a click is worse than no button: hidden takes it
+ * out of hit-testing, and the opacity is there only so the appearance fades
+ * instead of snapping. It carries no `pointer-events: none` — the label above
+ * does, and cannot do otherwise, but this element exists to take the click.
+ *
+ * **It scrolls with the code, exactly as the label does**, and for the same
+ * reason: `.tiptap pre` is the scroll container. The consequence is not the
+ * same one, though, and the difference was measured rather than reasoned. At
+ * the 720px editor width this icon is in full view through the first 684px of
+ * horizontal scroll, starts leaving at 685 and is gone at 704, where the
+ * top-left label starts leaving at 17 and is gone at 29. Measured against
+ * these very rules rather than against a sketch of them, so the 20px box below
+ * is the box in the number. On a block wider than the editor the icon is out of
+ * reach only for a reader who has scrolled more than a full width to the right
+ * and does not scroll back. Route (b) — a node view wrapping the block, which
+ * would pin both — was the alternative, and the owner decided against it on
+ * #235 on that number.
+ *
+ * The icon is sized by attribute on the SVG rather than by a rule here, so
+ * these two selectors stay the only ones naming this class.
+ */
+.tiptap pre .code-block-copy {
+  position: absolute;
+  top: 3px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--code-text);
+  opacity: 0;
+  visibility: hidden;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 120ms ease-out;
+}
+
+.tiptap pre:hover .code-block-copy {
+  opacity: 0.75;
+  visibility: visible;
+}
+
 .tiptap pre code {
   background: none;
   border: none;
