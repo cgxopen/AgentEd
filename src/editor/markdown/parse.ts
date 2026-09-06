@@ -73,6 +73,83 @@ marked.use({
   },
 });
 
+// ── An alt text holding a double quote (#232, member 1) ──
+//
+// `marked` writes the `title` of an image escaped and the `alt` raw — its own
+// renderer is `alt="${text}"` beside `title="${escape(title)}"`, one line apart
+// — so `![say "hi"](i.png)` was emitted as `alt="say "hi""`, which is not an
+// attribute any parser can read. DOMPurify kept `say` and the rest of the words
+// were gone before the document existed. Saved as `![say](i.png)`: a loss of
+// text the user wrote, on the ordinary path, at the parser.
+//
+// **Only the double quote was broken**, measured: an apostrophe, an ampersand,
+// an angle bracket and a backslash in an alt all survive untouched. The repair
+// is nonetheless the whole escape rather than that one character, because the
+// question is not *which characters break today* but *which values can be
+// written into an HTML attribute*, and `title` already had the answer.
+//
+// ── Why the renderer rather than a pass afterwards ──
+//
+// By the time the HTML string exists the alt is already ambiguous — `say "hi"`
+// and `say` are the same bytes to a parser — so nothing downstream can recover
+// it. It has to be written correctly where it is written, which is here. The
+// same route `blockquote-spacing.ts` uses for #199 and `image-spelling.ts` for
+// #229, and for the same reason: `marked` hands the renderer the token.
+//
+// ── What is copied from the library, and how drift is caught ──
+//
+// This restates two small pieces of `marked`'s own renderer, because there is
+// no way to call it and adjust one attribute. `escapeForAttribute` is its
+// `escape` with `encode` false, the exact function it already applies to
+// `title`; `cleanImageUrl` is its `cleanUrl`, and the `null` branch that turns
+// an unencodable address into escaped text is kept because dropping it would
+// change what a malformed address does.
+//
+// Restating a library is how a silent divergence starts, so it is not trusted:
+// `parse.test.ts` renders a fixture through a pristine `Marked` and asserts
+// that for every alt holding none of the escaped characters this produces
+// **byte-identical** output. A release that changes the shape fails there
+// rather than in a document.
+const MARKED_ATTRIBUTE_ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** `marked`'s own attribute escape — an `&` that already opens an entity is left. */
+const MARKED_ESCAPE_RE = /[<>"']|&(?!(#\d{1,7}|#[Xx][a-fA-F0-9]{1,6}|\w+);)/g;
+
+function escapeForAttribute(text: string): string {
+  return text.replace(MARKED_ESCAPE_RE, (ch) => MARKED_ATTRIBUTE_ESCAPES[ch] ?? ch);
+}
+
+/** `marked`'s own `cleanUrl`: `null` where the address cannot be encoded. */
+function cleanImageUrl(href: string): string | null {
+  try {
+    return encodeURI(href).replace(/%25/g, '%');
+  } catch {
+    return null;
+  }
+}
+
+marked.use({
+  renderer: {
+    image(token) {
+      // The alt as plain text, the way the default builds it — inline markup
+      // inside an alt is flattened, because an attribute cannot hold elements.
+      const text = token.tokens
+        ? this.parser.parseInline(token.tokens, this.parser.textRenderer)
+        : token.text;
+      const href = cleanImageUrl(token.href);
+      if (href === null) return escapeForAttribute(text);
+      const title = token.title ? ` title="${escapeForAttribute(token.title)}"` : '';
+      return `<img src="${href}" alt="${escapeForAttribute(text)}"${title}>`;
+    },
+  },
+});
+
 // Allow TipTap-specific attributes through sanitization
 DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
   if (data.attrName === 'data-type' || data.attrName === 'data-checked') {

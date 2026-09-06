@@ -46,7 +46,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { buildBundle } from '../app/bundle';
 import { AppState } from '../app/state';
-import { clearImages } from '../editor/image-registry';
+import { clearImages, getAllImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
@@ -220,6 +220,31 @@ describe('the display pass rewrites the address, and the save puts it back', () 
     // have happened before its faithfulness means anything.
     expect(displayBody).toContain('blob:');
     expect(displayBody).toContain("'kept as it was'");
+  });
+
+  it('every image of a document resolves, not only its bytes surviving (#232)', async () => {
+    // **The assertion this file was missing, and it cost a round.** Every test
+    // here asked whether the bytes came back; none asked whether the pictures
+    // drew. So a fixture could pass the whole file and still hand the owner a
+    // broken image, which is exactly what happened on #230 and would have
+    // happened again here: an alt holding an escaped bracket matched nothing in
+    // the loader, so one of three images never resolved.
+    //
+    // A count, because it is the only shape that fails for the right reason: a
+    // document whose references all resolve has as many registered images as it
+    // has distinct pictures.
+    const text =
+      '# Alt test\n\n' +
+      '![say "hi" to the chart](assets/a.png)\n\n' +
+      '![step \\] two](assets/b.png)\n\n' +
+      '![plain label](assets/c.png)\n';
+    const { io } = diskWith(text);
+    const loaded = await loadMarkdown(DOCUMENT_PATH, io);
+    const displayBody = await prepareMarkdownForDisplay(loaded.bundle, io);
+
+    expect(getAllImages()).toHaveLength(3);
+    expect(displayBody).not.toContain('assets/');
+    expect(await openAndSaveThroughDisplay(text)).toBe(text);
   });
 
   it('never writes a blob address into the file', async () => {

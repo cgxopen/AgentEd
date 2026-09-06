@@ -779,6 +779,40 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
       because: TITLE_DELIMITER,
     },
   ],
+
+  // ── An image alt text (#232) ──
+  //
+  // Two defects at opposite ends of one value, and neither was a respelling.
+  // **At the parser**, `marked` wrote `title` escaped and `alt` raw, so
+  // `![say "hi"](i.png)` was emitted as `alt="say "hi""` and DOMPurify kept
+  // `say` — the words were gone before the document existed. **At the
+  // serializer**, the alt went into `![…]` unescaped, so a `]` closed the
+  // brackets early and the reference stopped being an image; the next save then
+  // wrote the whole line as escaped text, which is why the file moved twice.
+  //
+  // The rows that need *no* escape are here beside the ones that do, because a
+  // writer that escaped everything would satisfy the others and put backslashes
+  // into every document in this repository.
+  ['an alt holding a double quote', '![say "hi"](i.png)', 'identical'],
+  ['an alt holding two double quotes', '![a "b" c "d"](i.png)', 'identical'],
+  ['an alt holding a single quote', "![it's here](i.png)", 'identical'],
+  ['an alt holding an ampersand', '![a & b](i.png)', 'identical'],
+  ['an alt holding an angle bracket', '![a < b](i.png)', 'identical'],
+  ['an alt holding a closing angle bracket', '![a > b](i.png)', 'identical'],
+  ['an alt holding a backslash', '![a \\\\ b](i.png)', 'identical'],
+  ['an alt holding an escaped closing bracket', '![a \\] b](i.png)', 'identical'],
+  ['an alt holding an escaped opening bracket', '![a \\[ b](i.png)', 'identical'],
+  ['an alt holding a pair of escaped brackets', '![a \\[b\\] c](i.png)', 'identical'],
+  ['an alt holding parentheses, which need none', '![a (b) c](i.png)', 'identical'],
+  ['an alt holding an exclamation mark', '![a ! b](i.png)', 'identical'],
+  ['an alt holding a bracket and a quote', '![a \\] "b"](i.png)', 'identical'],
+  ['an alt holding a bracket beside a title', '![a \\] b](i.png "the title")', 'identical'],
+  ['an alt holding a quote beside a title', '![say "hi"](i.png "and \\" title")', 'identical'],
+  [
+    'a document holding each of the two alt defects and a plain one',
+    '![alpha](a.png)\n\n![say "hi"](b.png)\n\n![a \\] b](c.png)',
+    'identical',
+  ],
 ];
 
 describe('the editor-level round-trip table (#84)', () => {
