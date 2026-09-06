@@ -15,10 +15,6 @@ on:
     - cron: '0 3 * * 1'
   workflow_dispatch:
     inputs:
-      include_linux:
-        description: 'Include Linux in the build matrix (manual verification build)'
-        type: boolean
-        default: false
       include_macos:
         description: 'Include macOS in the build matrix (manual verification build)'
         type: boolean
@@ -63,21 +59,35 @@ jobs:
       - name: Compute build matrix
         id: matrix
         run: |
-          # Windows is the primary target and the only nightly platform
-          # (REQUIREMENTS.md par. 7). Linux and macOS build on release tags,
-          # or here on explicit manual request only - macOS runners bill at
-          # ~10x the Linux rate.
-          matrix='{"include":[{"platform":"windows-latest","label":"windows"}]}'
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            entries='{"platform":"windows-latest","label":"windows"}'
-            if [ "${{ inputs.include_linux }}" = "true" ]; then
-              entries="$entries,{\"platform\":\"ubuntu-22.04\",\"label\":\"linux\"}"
-            fi
-            if [ "${{ inputs.include_macos }}" = "true" ]; then
-              entries="$entries,{\"platform\":\"macos-latest\",\"label\":\"macos\"}"
-            fi
-            matrix="{\"include\":[$entries]}"
+          # Windows is the primary target; Linux rides along here because
+          # this is the only place it runs at all (#8). Both are built on
+          # every scheduled run.
+          #
+          # Linux is a contributor lane rather than a shipped target (owner
+          # decision, 2026-09-06), and that is what puts it here instead of
+          # in `ci.yml`. The Rust job there already compiles the whole crate
+          # graph for this platform on every code change, so a per-pull-
+          # request bundle would only add packaging failures - and those come
+          # from a runner image or an upstream tool moving, not from anything
+          # in `src/`. That is environment drift, which is the weekly-scale
+          # thing this workflow exists for.
+          #
+          # `--bundles deb,rpm` leaves AppImage out. It was the one target
+          # that failed when this was first built, needing an `xdg-open` on
+          # the builder that no dependency step here installs; it is also the
+          # only one that downloads a tool mid-build. It is not the portable
+          # escape hatch it looks like either - an AppImage carries libraries
+          # but not libc, so it inherits the same glibc floor as the deb.
+          #
+          # macOS stays behind an explicit manual request: those runners bill
+          # at ~10x the Linux rate, and nothing here can test the result.
+          entries='{"platform":"windows-latest","label":"windows","args":""}'
+          entries="$entries,{\"platform\":\"ubuntu-22.04\",\"label\":\"linux\",\"args\":\"--bundles deb,rpm\"}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] \
+            && [ "${{ inputs.include_macos }}" = "true" ]; then
+            entries="$entries,{\"platform\":\"macos-latest\",\"label\":\"macos\",\"args\":\"\"}"
           fi
+          matrix="{\"include\":[$entries]}"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
   build:
@@ -128,7 +138,7 @@ jobs:
 
       - run: npm ci
         timeout-minutes: 10
-      - run: npm run tauri build
+      - run: npm run tauri build -- ${{ matrix.args }}
         timeout-minutes: 45
         env:
           # The commit this build is of, passed explicitly (#41). It used to

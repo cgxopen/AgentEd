@@ -262,6 +262,43 @@ describe('nightly.yml runs weekly, and can still be asked for by hand', () => {
   });
 });
 
+describe('the build matrix says which targets exist at all (#8)', () => {
+  /**
+   * Both of these fail **silently** if they regress, which is why they are
+   * here rather than left to a red build.
+   *
+   * Linux spent weeks in this repository as a `workflow_dispatch` input that
+   * nobody set, so both its entries existed and neither had ever run — and
+   * nothing reported anything, because a target that is never built produces
+   * no failure. Putting it back behind an input would restore exactly that
+   * quiet.
+   *
+   * macOS is the mirror image: re-adding it to the release matrix produces
+   * an artifact rather than an error, and the artifact is one nobody here
+   * can test — an unsigned build reaches a user through Gatekeeper as a file
+   * that cannot be opened. Its absence is a decision (2026-09-06), so it is
+   * pinned as one.
+   */
+  it('builds Linux on every scheduled nightly, not on request', () => {
+    expect(NIGHTLY).toContain('"platform\\":\\"ubuntu-22.04\\"');
+    expect(NIGHTLY).not.toContain('inputs.include_linux');
+  });
+
+  it('leaves macOS out of the release matrix until it can be tested', () => {
+    const matrixBlock = RELEASE.slice(RELEASE.indexOf('matrix:'), RELEASE.indexOf('runs-on:'));
+    expect(matrixBlock).not.toMatch(/^ +- platform: macos/m);
+  });
+
+  it('asks Linux for the two bundles it can actually produce', () => {
+    // AppImage is out: it was the one target that failed to build, needing an
+    // `xdg-open` no dependency step installs. Dropping this flag would turn a
+    // green nightly red rather than quiet, so this assertion is the cheaper
+    // half — it says which bundles were chosen, where the reason is written.
+    expect(NIGHTLY).toContain('--bundles deb,rpm');
+    expect(RELEASE).toContain("args: '--bundles deb,rpm'");
+  });
+});
+
 describe('the documents the round-trip guard reads can start the job that runs it (#118)', () => {
   /**
    * The failure this pins is the one that produced #118: `ci.yml` gates the
@@ -428,7 +465,11 @@ describe('every workflow that builds the application names its commit (#41)', ()
     {
       file: 'nightly.yml',
       source: NIGHTLY,
-      isBuild: /^run: npm run tauri build$/m,
+      // The tail is optional on purpose. What this pattern is for is
+      // *which step*, and the step now carries a per-platform bundle list
+      // (#8); asserting the arguments here would make an unrelated change to
+      // them read as a missing build step.
+      isBuild: /^run: npm run tauri build(?: --.*)?$/m,
       expression: 'github.sha',
       count: 1,
     },
