@@ -435,6 +435,34 @@ function htmlAttributeValue(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * An alt text, escaped for the `![…]` it is written into (#232, member 2).
+ *
+ * **What the bare form did was destroy the image, not respell it.** `imageMarkup`
+ * interpolated the alt straight into `![${alt}](…)`, so an alt holding a `]`
+ * closed the brackets early: `![a \] b](i.png)` was written `![a ] b](i.png)`,
+ * which is no longer an image at all. The next save proved it, writing
+ * `!\[a \] b\](i.png)` — turndown escaping what had by then become ordinary
+ * text. So the file moved on the first save and again on the second, and the
+ * second move was correct behaviour applied to a document the first had broken.
+ *
+ * **It is not the #90 and #96 vantage-point class**, and the difference decides
+ * the repair. There the serializer is handed one text node and cannot see the
+ * context, so a narrowing costs meaning. Here the alt is an *attribute* of an
+ * image node and this function knows exactly what it is writing it into — the
+ * whole value, the whole context. There was nothing to work out; it simply did
+ * not escape. So the answer is byte identity rather than a recorded respelling,
+ * and no exception is added.
+ *
+ * The backslash goes first, or the backslashes this adds would be escaped in
+ * turn. Measured on seven shapes, including the two the issue names and three
+ * it does not: an escaped opening bracket, a pair of them, and a literal
+ * backslash, each of which was losing a character quietly.
+ */
+function markdownAlt(alt: string): string {
+  return alt.replace(/\\/g, '\\\\').replace(/([[\]])/g, '\\$1');
+}
+
 export function imageMarkup(
   htmlSource: string | null,
   alt: string,
@@ -457,10 +485,10 @@ export function imageMarkup(
     return resize(withWidth, 'height', height);
   }
 
-  // The markdown form. `alt` is written exactly as it was before #230 — this
-  // change adds the title and touches nothing else about it.
+  // The markdown form. The alt is escaped for the brackets it sits between
+  // (#232) and the title is written beside it (#230).
   if (width === null && height === null) {
-    return `![${alt}](${src}${title === null ? '' : markdownTitle(title)})`;
+    return `![${markdownAlt(alt)}](${src}${title === null ? '' : markdownTitle(title)})`;
   }
 
   // The canonical HTML form, written when a markdown image has been resized.
