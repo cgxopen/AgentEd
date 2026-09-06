@@ -15,9 +15,23 @@
  * So no test looked at a document with a local image through the whole route,
  * and #27 shipped a defect into the owner's hands because of it: the HTML
  * spelling of an image was captured **after** the rewrite, so the bytes carried
- * were `<img src="blob:http://localhost:1420/…">` and that is what a save wrote
- * into the user's file. The image reference was destroyed — 52 bytes longer,
- * and the picture gone the next time the document was opened.
+ * the blob address and that is what a save wrote into the user's file. The
+ * image reference was destroyed, and the picture would have been gone the next
+ * time the document was opened.
+ *
+ * Measured on the Windows build, which is the only place it could be — one line
+ * of the owner's fixture, before and after an unedited save:
+ *
+ * ```
+ * <img src="assets/b.png" alt="chart" width="400">
+ * <img src="blob:http://tauri.localhost/487332f4-…-305fcf484e3e" alt="chart" width="400">
+ * ```
+ *
+ * Twelve characters of address became sixty-four, and the document went from
+ * 276 bytes to 328 — the difference is the address and nothing else, which is
+ * what said the rest of the change was sound. The blob form is the runtime's
+ * rather than this repository's: WebView2 under Tauri spells it as above, and
+ * `happy-dom` spells it `blob:nodedata:…`, so nothing here matches on its shape.
  *
  * The repair is that the serializer maps the address back for the HTML form
  * exactly as it always did for the markdown form. What that costs is nothing,
