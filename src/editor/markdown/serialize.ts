@@ -1,6 +1,7 @@
 import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
+import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
 import {
@@ -593,6 +594,26 @@ turndown.addRule('strikethrough', {
 // unchanged when the value already matches, so an image the loader never
 // touched keeps its bytes to the character, quoting included. Held by
 // `src/app/image-display-roundtrip.test.ts`, which runs the whole route.
+// A comment, written back as the bytes the file used (#245).
+//
+// One rule for both shapes, because there is one carrier: a comment the file
+// put on its own line is a paragraph holding it, and the paragraph rule
+// supplies the blank lines around it. A `wbr` is void, so turndown neither
+// judges it blank nor descends into it — it reaches this rule, and the
+// whitespace beside it in a sentence survives.
+//
+// A value that does not decode writes nothing. It cannot come from this
+// pipeline, since `parse.ts` encodes what it stamps, so what it answers for is
+// a `data-comment` a user document wrote by hand — and these bytes go into the
+// file verbatim.
+turndown.addRule('markdownComment', {
+  filter: (node) =>
+    node.nodeName === COMMENT_TAG.toUpperCase() &&
+    (node as HTMLElement).hasAttribute(MARKDOWN_COMMENT_ATTRIBUTE),
+  replacement: (_content, node) =>
+    decodeComment((node as HTMLElement).getAttribute(MARKDOWN_COMMENT_ATTRIBUTE)) ?? '',
+});
+
 turndown.addRule('agentedImage', {
   filter: 'img',
   replacement: (_content, node) => {

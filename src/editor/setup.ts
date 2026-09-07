@@ -1,4 +1,10 @@
-import { type AnyExtension, Editor, Extension, type Node as NodeExtension } from '@tiptap/core';
+import {
+  type AnyExtension,
+  Editor,
+  Extension,
+  type Node as NodeExtension,
+  Node as TipTapNode,
+} from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -30,6 +36,12 @@ import {
   BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
 } from './markdown/blockquote-spacing';
 import {
+  COMMENT_TAG,
+  decodeComment,
+  encodeComment,
+  MARKDOWN_COMMENT_ATTRIBUTE,
+} from './markdown/comment-spelling';
+import {
   decodeHtmlSource,
   encodeHtmlSource,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
@@ -41,6 +53,136 @@ import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
+
+// ── The node that holds an HTML comment (#245) ──
+//
+// A comment is content the user cannot see, so the node holding it is an
+// **atom**: it has no content of its own, the caret never goes inside it, and
+// it is deleted whole or not at all. That is also why it cannot be typed into,
+// which is why writing a comment is not something this editor offers — R-C1
+// says nothing about comments, and an insert route would be a feature rather
+// than this repair.
+//
+// **One node, inline, for both shapes.** A comment the file put on its own
+// line arrives wrapped in a paragraph (see `comment-spelling.ts`), so it is
+// this same node with room for a caret on either side of it. The first build
+// gave it a block node of its own, and the owner manual pass found the cost:
+// a block atom fills its line, so clicking the line selected it and the next
+// character typed replaced the note. A paragraph has somewhere to put the
+// caret.
+//
+// ── `selectable: false`, and why it is not the usual answer for an atom ──
+//
+// An image and a horizontal rule are selectable atoms: clicking one selects
+// it, and the next character typed replaces it. This node was that too, and
+// the second owner pass found what it costs *here*: the mark is the size of a
+// character, so it reads as one — clicking it and typing is an ordinary thing
+// to do, and it overwrote a note that can be forty lines long.
+//
+// A thing shaped like a character behaves like one. There is no node selection
+// to click into, so nothing is ever typed over: the caret goes before it or
+// after it, and text lands beside the note.
+//
+// **The two-step deletion this replaces was an argument about an invisible
+// node, and it expired when the mark arrived.** Selecting first and deleting
+// second is what made removing something the reader could not see deliberate;
+// a mark on screen already does that, and one keystroke to remove a character
+// you can see is what every other character gets.
+
+const MarkdownComment = TipTapNode.create({
+  name: 'markdownComment',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: false,
+  draggable: false,
+
+  addAttributes: () => ({
+    comment: {
+      default: null as string | null,
+      parseHTML: (element: HTMLElement) =>
+        decodeComment(element.getAttribute(MARKDOWN_COMMENT_ATTRIBUTE)),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        typeof attributes.comment === 'string'
+          ? { [MARKDOWN_COMMENT_ATTRIBUTE]: encodeComment(attributes.comment) }
+          : {},
+    },
+  }),
+
+  /**
+   * The mark the reader sees where a comment is, and the note behind it.
+   *
+   * **Owner decision, 2026-09-07: a muted paragraph sign, with the comment
+   * text on hover.** Drawing nothing was the other option and is what the
+   * issue asks for literally; it was rejected on a measurement rather than on
+   * taste. Of 192 comments counted in 2194 markdown files, the median is one
+   * line and 63 bytes, but **one in eight is five lines or more** and the
+   * largest is 40 lines — so a keystroke beside an invisible node could remove
+   * a page of text with nothing on screen changing, which is the #234 shape: a
+   * document that survives as bytes and not as a document. A mark is what
+   * makes that deliberate.
+   *
+   * **A node view rather than `renderHTML`, and that is the whole reason this
+   * costs nothing.** `getHTML` serializes through `renderHTML`, so the mark
+   * exists only in the editing view: the carrier the serializer reads is
+   * untouched and the file comes back byte for byte whatever is drawn here.
+   * Measured, both with the mark and without it.
+   *
+   * The glyph is a CSS `::before` rather than text in this element, so a
+   * selection dragged across it cannot pick the character up.
+   *
+   * The `title` is the note without its delimiters, which is what a reader
+   * wants to read. A native tooltip draws it — no positioning code, no new
+   * dependency — and it keeps the newlines of a multi-line comment.
+   */
+  addNodeView() {
+    return ({ node }) => {
+      const dom = document.createElement('span');
+      dom.className = 'markdown-comment-mark';
+      dom.contentEditable = 'false';
+      const bytes = node.attrs.comment;
+      if (typeof bytes === 'string') {
+        dom.title = bytes.slice('<!--'.length, -'-->'.length).trim();
+      }
+      return { dom };
+    };
+  },
+
+  /**
+   * Removing the note, explicitly rather than by whatever the browser does.
+   *
+   * With no node selection to delete, what would otherwise remove this is the
+   * browser acting on a `contenteditable="false"` element inside an editable
+   * one — behaviour that differs between engines and that **no test in this
+   * repository can observe**, since a real key press needs a real view. So the
+   * removal is written here: it is the same one keystroke a character gets, it
+   * is certain on every platform, and it is asserted rather than assumed.
+   *
+   * `nodeBefore` and `nodeAfter` are read from the position rather than the
+   * document, so they can only ever name a sibling inside the same paragraph —
+   * a caret at the start of a block cannot reach back into the block above and
+   * take a comment out of it.
+   *
+   * Anything else — a selection that is not a caret, a neighbour that is not a
+   * comment — is declined, and the key does what it always did.
+   */
+  addKeyboardShortcuts() {
+    const removeNeighbour = (side: 'before' | 'after') => () => {
+      const { selection } = this.editor.state;
+      if (!selection.empty) return false;
+      const { $from } = selection;
+      const node = side === 'before' ? $from.nodeBefore : $from.nodeAfter;
+      if (node?.type.name !== this.name) return false;
+      const from = side === 'before' ? $from.pos - node.nodeSize : $from.pos;
+      return this.editor.commands.deleteRange({ from, to: from + node.nodeSize });
+    };
+    return { Backspace: removeNeighbour('before'), Delete: removeNeighbour('after') };
+  },
+
+  parseHTML: () => [{ tag: `${COMMENT_TAG}[${MARKDOWN_COMMENT_ATTRIBUTE}]` }],
+  // `wbr` is void, so nothing is nested inside it.
+  renderHTML: ({ HTMLAttributes }) => [COMMENT_TAG, HTMLAttributes],
+});
 
 /**
  * StarterKit, with the declarations this project overrides. The two the
@@ -470,6 +612,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
 
   return [
     starterKitWithLocalSchemaRules(),
+    MarkdownComment,
     Underline,
     Link.configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link

@@ -2150,3 +2150,37 @@ button.cluster-indicator:hover {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/*
+ * The mark standing where an HTML comment is (#245).
+ *
+ * A comment is hidden by every markdown renderer, and AgentEd hides it too —
+ * what it does not do is hide that there is one. Owner decision, 2026-09-07:
+ * a muted paragraph sign, with the note itself on hover, because a node that
+ * can be removed by a keystroke the reader cannot see is worse than a glyph
+ * they can. One in eight comments in a measured corpus is five lines or more.
+ *
+ * The glyph is `::before` rather than text in the element, so a selection
+ * dragged across it cannot pick the character up and carry it into the file.
+ * The element itself is what the native tooltip hangs on, which is why it
+ * still needs a box of its own.
+ *
+ * `user-select: none` and the `contenteditable="false"` the node view sets
+ * are two halves of the same statement: the mark is not text.
+ */
+.tiptap .markdown-comment-mark {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+  user-select: none;
+}
+
+.tiptap .markdown-comment-mark::before {
+  content: "¶";
+  /* It stands between words and must not push them apart. */
+  font-size: 0.85em;
+}
+
+.tiptap .markdown-comment-mark:hover {
+  opacity: 1;
+}

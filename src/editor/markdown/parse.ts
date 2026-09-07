@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE, blankMarkerAttribute } from './blockquote-spacing';
+import { commentCarrier } from './comment-spelling';
 import { IMAGE_HTML_SOURCE_ATTRIBUTE, stampImageSources } from './image-spelling';
 import { LIST_SPACING_ATTRIBUTE, listSpacingAttribute } from './list-spacing';
 import { TABLE_STYLE_ATTRIBUTE, tableStyleAttribute } from './table-style';
@@ -68,6 +69,12 @@ marked.use({
 marked.use({
   renderer: {
     html(token) {
+      // A token that is exactly one comment becomes an inert carrier holding
+      // its bytes (#245), because DOMPurify removes a comment node and nothing
+      // downstream can put it back. Everything else an `html` token can hold
+      // goes on to the image stamp exactly as before.
+      const carrier = commentCarrier(token.text, token.block);
+      if (carrier !== null) return carrier;
       return stampImageSources(token.text);
     },
   },
@@ -253,8 +260,11 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // blob: URIs must be allowed — image-registry.ts creates blob URLs
   // for all image display (both Tauri and Web).
   //
-  // `TABLE_STYLE_ATTRIBUTE` and `LIST_SPACING_ATTRIBUTE` widen the allow-list
-  // by `data-table-style` and `data-loose`.
+  // `TABLE_STYLE_ATTRIBUTE` and `LIST_SPACING_ATTRIBUTE` name `data-table-style`
+  // and `data-loose` here. Measured on #245: neither entry does anything —
+  // DOMPurify keeps every `data-*` attribute by itself — so what follows is
+  // about what a document can *say* with them, not about what lets them
+  // through.
   //
   // **The strip that used to make that safe is gone, and what replaces it is
   // the value being bounded** (#200). Until the renderers above existed, the
@@ -295,6 +305,13 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
       // own `data-html-source` therefore chooses at most how *its own* image
       // is written back, which is what the attribute means anyway.
       IMAGE_HTML_SOURCE_ATTRIBUTE,
+      // `data-comment` (#245) is deliberately **absent** from this list, and
+      // that is a measurement rather than an omission: DOMPurify keeps every
+      // `data-*` attribute on its own, because `ALLOW_DATA_ATTR` defaults to
+      // true — so every entry above that begins `data-` is inert, and adding a
+      // sixth would have been a line that looks load-bearing and is not.
+      // `comment-spelling.test.ts` pins the default the carrier depends on, so
+      // a release that changed it fails there rather than in a document.
     ],
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
