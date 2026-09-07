@@ -18,6 +18,8 @@
  * string restated here. Either half alone asserts nothing — a selector nobody
  * renders, or an element no stylesheet reaches.
  */
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import { NodeSelection } from '@tiptap/pm/state';
 import { afterEach, describe, expect, it } from 'vitest';
 import stylesCss from '../styles.css?raw';
 import { markdownToHtml } from './markdown/parse';
@@ -188,26 +190,43 @@ describe('the mark the reader sees', () => {
 
 describe('the node holding a comment', () => {
   it.each([
-    ['inline', 'one <!-- note --> two', 'markdownComment', 'one two'],
-    ['on its own line', 'one\n\n<!-- note -->\n\ntwo', 'markdownComment', 'one\n\ntwo'],
-  ])('%s: is an atom, deleted whole, and undo brings the bytes back', (_label, markdown, nodeName, afterDelete) => {
+    ['inline', 'one <!-- note --> two'],
+    ['on its own line', 'one\n\n<!-- note -->\n\ntwo'],
+  ])('%s: is an atom that no click can select', (_label, markdown) => {
     const editor = open(markdown);
-    const at = positionOf(editor, nodeName);
-    const node = editor.editor.state.doc.nodeAt(at);
+    const node = editor.editor.state.doc.nodeAt(positionOf(editor, 'markdownComment'));
     expect(node?.isAtom).toBe(true);
     expect(node?.isLeaf).toBe(true);
     expect(node?.nodeSize).toBe(1);
+    // The half that keeps a click from ever putting a selection on it, and so
+    // keeps the next character typed from replacing the note.
+    expect(NodeSelection.isSelectable(node as ProseMirrorNode)).toBe(false);
+  });
 
-    editor.editor.commands.setNodeSelection(at);
-    expect(editor.editor.state.selection.constructor.name).toBe('NodeSelection');
-
-    editor.editor.commands.deleteSelection();
+  it.each([
+    ['Backspace after it', 'one <!-- note --> two', 'Backspace', 1, 'one two'],
+    ['Delete before it', 'one <!-- note --> two', 'Delete', 0, 'one two'],
+    ['Backspace on its own line', 'one\n\n<!-- note -->\n\ntwo', 'Backspace', 1, 'one\n\ntwo'],
+  ])('%s removes it, and undo brings the bytes back', (_label, markdown, key, offset, afterDelete) => {
+    // One keystroke, the same a character gets, and written rather than left
+    // to whatever the browser does with a `contenteditable="false"` element
+    // — which is exactly the part no test here could otherwise reach.
+    const editor = open(markdown);
+    editor.editor.commands.setTextSelection(positionOf(editor, 'markdownComment') + offset);
+    expect(editor.editor.commands.keyboardShortcut(key)).toBe(true);
     expect(editor.getMarkdown().trim()).toBe(afterDelete);
 
-    // The half the manual pass cannot check by eye: what comes back is the
-    // bytes, not an approximation of them.
     editor.editor.commands.undo();
     expect(editor.getMarkdown().trim()).toBe(markdown);
+  });
+
+  it('and those keys leave ordinary text to whatever handles it', () => {
+    // The other side: the handler declines everywhere else, so it cannot be
+    // what removes a character the user meant to keep.
+    const editor = open('abcd <!-- n --> efgh');
+    editor.editor.commands.setTextSelection(3);
+    editor.editor.commands.keyboardShortcut('Backspace');
+    expect(editor.getMarkdown().trim()).toBe('abcd <!-- n --> efgh');
   });
 
   it('text typed beside an inline comment lands beside it, not inside it', () => {
@@ -279,14 +298,13 @@ describe('a comment on its own line has room for a caret beside it', () => {
     expect(editor.getMarkdown().trim()).toBe(expected);
   });
 
-  it('and selecting the node still replaces it, which is how a block atom behaves', () => {
-    // The other side: deleting on purpose still works, and undo still returns
-    // the bytes. Without this the pair above could be satisfied by a node
-    // nothing can remove.
+  it('and it can still be removed on purpose, one keystroke like a character', () => {
+    // Without this the pair above could be satisfied by a note nothing can
+    // take out, which would be its own defect.
     const editor = open('# Title\n\n<!-- a note -->\n\ntext');
-    editor.editor.commands.setNodeSelection(positionOf(editor, 'markdownComment'));
-    editor.editor.commands.insertContent('X');
-    expect(editor.getMarkdown().trim()).toBe('# Title\n\nX\n\ntext');
+    editor.editor.commands.setTextSelection(positionOf(editor, 'markdownComment') + 1);
+    editor.editor.commands.keyboardShortcut('Backspace');
+    expect(editor.getMarkdown().trim()).toBe('# Title\n\ntext');
     editor.editor.commands.undo();
     expect(editor.getMarkdown().trim()).toBe('# Title\n\n<!-- a note -->\n\ntext');
   });

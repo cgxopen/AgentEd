@@ -70,13 +70,31 @@ import { createSearchExtension } from './search-extension';
 // a block atom fills its line, so clicking the line selected it and the next
 // character typed replaced the note. A paragraph has somewhere to put the
 // caret.
+//
+// ── `selectable: false`, and why it is not the usual answer for an atom ──
+//
+// An image and a horizontal rule are selectable atoms: clicking one selects
+// it, and the next character typed replaces it. This node was that too, and
+// the second owner pass found what it costs *here*: the mark is the size of a
+// character, so it reads as one — clicking it and typing is an ordinary thing
+// to do, and it overwrote a note that can be forty lines long.
+//
+// A thing shaped like a character behaves like one. There is no node selection
+// to click into, so nothing is ever typed over: the caret goes before it or
+// after it, and text lands beside the note.
+//
+// **The two-step deletion this replaces was an argument about an invisible
+// node, and it expired when the mark arrived.** Selecting first and deleting
+// second is what made removing something the reader could not see deliberate;
+// a mark on screen already does that, and one keystroke to remove a character
+// you can see is what every other character gets.
 
 const MarkdownComment = TipTapNode.create({
   name: 'markdownComment',
   group: 'inline',
   inline: true,
   atom: true,
-  selectable: true,
+  selectable: false,
   draggable: false,
 
   addAttributes: () => ({
@@ -128,6 +146,37 @@ const MarkdownComment = TipTapNode.create({
       }
       return { dom };
     };
+  },
+
+  /**
+   * Removing the note, explicitly rather than by whatever the browser does.
+   *
+   * With no node selection to delete, what would otherwise remove this is the
+   * browser acting on a `contenteditable="false"` element inside an editable
+   * one — behaviour that differs between engines and that **no test in this
+   * repository can observe**, since a real key press needs a real view. So the
+   * removal is written here: it is the same one keystroke a character gets, it
+   * is certain on every platform, and it is asserted rather than assumed.
+   *
+   * `nodeBefore` and `nodeAfter` are read from the position rather than the
+   * document, so they can only ever name a sibling inside the same paragraph —
+   * a caret at the start of a block cannot reach back into the block above and
+   * take a comment out of it.
+   *
+   * Anything else — a selection that is not a caret, a neighbour that is not a
+   * comment — is declined, and the key does what it always did.
+   */
+  addKeyboardShortcuts() {
+    const removeNeighbour = (side: 'before' | 'after') => () => {
+      const { selection } = this.editor.state;
+      if (!selection.empty) return false;
+      const { $from } = selection;
+      const node = side === 'before' ? $from.nodeBefore : $from.nodeAfter;
+      if (node?.type.name !== this.name) return false;
+      const from = side === 'before' ? $from.pos - node.nodeSize : $from.pos;
+      return this.editor.commands.deleteRange({ from, to: from + node.nodeSize });
+    };
+    return { Backspace: removeNeighbour('before'), Delete: removeNeighbour('after') };
   },
 
   parseHTML: () => [{ tag: `${COMMENT_TAG}[${MARKDOWN_COMMENT_ATTRIBUTE}]` }],
