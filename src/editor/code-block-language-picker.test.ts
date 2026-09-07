@@ -173,6 +173,39 @@ describe('the rules that draw the control reach the element it drew (#238)', () 
     expect(control(editor).matches(`.${EMPTY_AFFORDANCE_CLASS}`)).toBe(true);
   });
 
+  it('the label draws the language as the file spells it, in any case', () => {
+    // Owner decision, 2026-09-07. The rule carried `text-transform: lowercase`
+    // from #202, so a file holding `Python` was shown as `python` — the one
+    // surface that still normalised a language after #237 settled that none
+    // does. Both halves, because either alone asserts nothing: the rule no
+    // longer transforms the case, and the element the editor rendered carries
+    // the spelling the file had.
+    const declaration = stylesCss.slice(
+      stylesCss.indexOf(`.tiptap pre .${LANGUAGE_LABEL_CLASS}`),
+      stylesCss.indexOf('}', stylesCss.indexOf(`.tiptap pre .${LANGUAGE_LABEL_CLASS}`)),
+    );
+    expect(declaration).not.toContain('text-transform');
+
+    for (const language of ['Python', 'JS', 'C', 'objective-c']) {
+      const editor = open(`\`\`\`${language}\nx\n\`\`\``);
+      expect(control(editor).textContent).toBe(language);
+
+      editor.destroy();
+      instance = null;
+      document.body.innerHTML = '';
+    }
+  });
+
+  it('a language set through the control is drawn the way it was typed', () => {
+    const editor = open('```\nx\n```');
+    click(control(editor));
+    typeInto(field(), 'Python');
+    press(field(), 'Enter');
+
+    expect(control(editor).textContent).toBe('Python');
+    expect(editor.getMarkdown().trim()).toBe('```Python\nx\n```');
+  });
+
   it('the label no longer carries pointer-events none, which would eat the click', () => {
     // The one rule that had to go, asserted on the stylesheet rather than
     // assumed from the diff.

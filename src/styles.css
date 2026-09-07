@@ -923,6 +923,16 @@ button.indicator-search:hover {
  * bare `span`. What grows is the box a pointer has to hit, which was 26 by 12
  * before the padding — measured against the Copy icon next to it at 20 by 20.
  *
+ * **There is no `text-transform` here, and its absence is the point** (owner
+ * decision, 2026-09-07). This rule carried `lowercase` from #202 until #238,
+ * which was styling with no reader behind it: nothing in REQUIREMENTS asked
+ * for it and no test read it. #237 then settled that a language is not
+ * normalised — what is set is what the file carries — and this was the one
+ * surface that still normalised it, so the editor showed `python` for a file
+ * holding `Python`. Measured through the real control before it was removed.
+ * Every lowercase language renders exactly as it did; a language with a
+ * capital in it now renders as the file spells it.
+ *
  * **It scrolls with the code, and that is worth stating precisely** because a
  * looser wording invites the wrong picture. `.tiptap pre` is the scroll
  * container, so the label is anchored to the content rather than to the pane:
@@ -948,7 +958,6 @@ button.indicator-search:hover {
   font-size: 10px;
   line-height: 1.2;
   letter-spacing: 0.04em;
-  text-transform: lowercase;
   color: var(--code-text);
   opacity: 0.55;
   user-select: none;
