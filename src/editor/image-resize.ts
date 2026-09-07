@@ -38,6 +38,7 @@
 import { closeHistory } from '@tiptap/pm/history';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView, NodeView } from '@tiptap/pm/view';
+import { displayMimeFromName, getImageByUrl } from './image-registry';
 
 /**
  * The smallest an image may be dragged to, in pixels, in **both** directions.
@@ -162,6 +163,81 @@ export function startSizeOf(node: ProseMirrorNode, img: HTMLImageElement): DragG
 }
 
 /**
+ * The width to write onto a picture that drew at nothing, or `null` to leave
+ * it alone (#252).
+ *
+ * ── The defect, and why the answer is a number rather than a rule ──
+ *
+ * An svg whose root carries only a `viewBox` has a ratio and **no intrinsic
+ * width**. The wrapper this node view builds is `display: inline-block`, so
+ * its width is shrink-to-fit from its content — and a picture with no
+ * intrinsic width contributes nothing, so the wrapper is zero wide and the
+ * picture inside it is drawn at zero. Nothing appears.
+ *
+ * **Four stylesheet candidates were measured in Edge and all four drew zero**:
+ * the cap moved onto the wrapper, the wrapper capped as well, the wrapper as
+ * an `inline-flex`, and `width: max-content` on the picture. `max-width` is
+ * not the cause, which is what those numbers establish — so there is no rule
+ * that repairs this without moving every other image, and the repair is a
+ * width.
+ *
+ * ── What it decides on, and why each part is there ──
+ *
+ * `nodeWidth` — a picture the document gave a size keeps it. `showSize` has
+ * already written that width, so there is nothing to rescue.
+ *
+ * `isSvg` — every other kind carries its own width and never reaches zero
+ * for this reason. Restricting the branch is what keeps a png that has simply
+ * not been laid out yet from being given a size it never asked for.
+ *
+ * `naturalWidth` — **zero means the picture has not loaded**, not that it is
+ * zero wide, so there is no size to hand out yet and this answers `null`. It
+ * is also the value written when the answer is a number: Chromium reports
+ * 300 by 150 for an svg with no intrinsic size, which is the default object
+ * size from the specification. **AgentEd therefore chooses no size at all** —
+ * it writes down the one the runtime already reports, which is why this
+ * repair asks nothing of R-C5. Owner decision of 2026-09-07, over a fixed
+ * 300, for exactly that reason.
+ *
+ * `drawnWidth` — the symptom, and the whole reason this is asked after layout
+ * rather than from the bytes. An svg spelling its root `width="100%"` carries
+ * a width and is still a percentage inside a shrink-to-fit box, so a bytes
+ * test would call it sized and leave it at zero. Asking what was drawn cannot
+ * be wrong about which pictures need help.
+ *
+ * **Nothing here reaches a file.** The width is written as inline style on
+ * the element, which the serializer never reads — `renderHTML` writes the
+ * node attributes, and this changes none of them.
+ */
+export function fallbackWidthFor(picture: {
+  readonly nodeWidth: number | null;
+  readonly isSvg: boolean;
+  readonly naturalWidth: number;
+  readonly drawnWidth: number;
+}): number | null {
+  if (picture.nodeWidth !== null) return null;
+  if (!picture.isSvg) return null;
+  if (picture.naturalWidth < 1) return null;
+  if (picture.drawnWidth >= 1) return null;
+  return picture.naturalWidth;
+}
+
+/**
+ * Whether the picture behind `displayUrl` is an svg, answered by the same
+ * table that decided the media type its blob was given (#251, #252).
+ *
+ * One table, two consumers, so the kind this node view acts on and the kind
+ * the browser was told about cannot drift apart. A picture the registry does
+ * not hold — an absolute `http` address, which the loader leaves alone — is
+ * not an svg as far as this is concerned, and keeps the behaviour it has.
+ */
+export function isSvgDisplayUrl(displayUrl: string): boolean {
+  const image = getImageByUrl(displayUrl);
+  if (image === undefined) return false;
+  return displayMimeFromName(image.filename) === 'image/svg+xml';
+}
+
+/**
  * Write a size onto one image, as **one** transaction (R-C16).
  *
  * A gesture is one change the user made, so it is one entry in the undo stack
@@ -224,6 +300,11 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
   dom.className = RESIZE_WRAPPER_CLASS;
 
   const img = document.createElement('img');
+  // The bytes are not decoded and the element is not in the layout when the
+  // first paint runs, so the rescue below is asked again once both are true
+  // (#252). One listener, never removed, because the element and the node
+  // view die together.
+  img.addEventListener('load', () => rescueZeroWidth());
   dom.appendChild(img);
 
   const handles = CORNERS.map((corner) => {
@@ -251,6 +332,32 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
       width: typeof node.attrs.width === 'number' ? node.attrs.width : null,
       height: typeof node.attrs.height === 'number' ? node.attrs.height : null,
     });
+    rescueZeroWidth();
+  }
+
+  /**
+   * Give a picture that drew at nothing the width the runtime reports (#252).
+   *
+   * **Called after `showSize` rather than instead of it**, and on every paint,
+   * because `showSize` writes the empty string for a picture the document
+   * gave no size — so a repaint of an unsized svg would otherwise take the
+   * rescue away and collapse it again. Resetting a resized one to its natural
+   * size goes through the same path and lands here, which is what makes the
+   * reset produce a picture rather than nothing.
+   *
+   * Also called on `load`, because the first paint happens before the bytes
+   * have been decoded and before the element is in the layout: `naturalWidth`
+   * is zero then, which `fallbackWidthFor` reads as *not loaded yet* and
+   * declines to act on.
+   */
+  function rescueZeroWidth(): void {
+    const width = fallbackWidthFor({
+      nodeWidth: typeof node.attrs.width === 'number' ? node.attrs.width : null,
+      isSvg: isSvgDisplayUrl(String(node.attrs.src ?? '')),
+      naturalWidth: img.naturalWidth,
+      drawnWidth: img.getBoundingClientRect().width,
+    });
+    if (width !== null) img.style.width = `${width}px`;
   }
 
   /**
