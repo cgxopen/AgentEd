@@ -1,4 +1,4 @@
-import { type AnyExtension, Editor, Extension } from '@tiptap/core';
+import { type AnyExtension, Editor, Extension, type Node as NodeExtension } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -12,6 +12,7 @@ import Underline from '@tiptap/extension-underline';
 import type { Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import { CodeBlockCopy } from './code-block-copy';
+import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
 import { replaceDocument } from './document-load';
 import {
@@ -42,9 +43,14 @@ import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 
 /**
- * StarterKit, with the two declarations this project overrides: the `Code`
- * mark, so a code span can sit *inside* another mark instead of cancelling it
- * (#84), and the `listItem` node, so an item may begin with a block (#110).
+ * StarterKit, with the declarations this project overrides. The two the
+ * sections below are about are the `Code` mark, so a code span can sit
+ * *inside* another mark instead of cancelling it (#84), and the `listItem`
+ * node, so an item may begin with a block (#110). The rest are one line each
+ * and carry their reason at the branch that makes them: `blockquote`,
+ * `bulletList` and `orderedList` gain the file's own spacing (#28, #199), and
+ * `codeBlock` gains the fence input rules that admit every language
+ * CommonMark does (#237, written out in `code-block-input-rules.ts`).
  *
  * ── `listItem` content: `block+` rather than `paragraph block*` (#110) ──
  *
@@ -221,9 +227,32 @@ function starterKitWithLocalSchemaRules() {
         // nothing would say so.
         throw new Error('StarterKit no longer registers a node named "listItem" (see #110)');
       }
+      if (!registered.some((extension) => extension.name === 'codeBlock')) {
+        // Same shape again (#237). The day the kit stops registering
+        // `codeBlock` under that name, the input rules below would stop being
+        // replaced and every language outside `a`-`z` would quietly go back to
+        // making no block at all.
+        throw new Error('StarterKit no longer registers a node named "codeBlock" (see #237)');
+      }
       return registered.map((extension) => {
         if (extension.name === 'code') return extension.extend({ excludes: '', priority: 1 });
         if (extension.name === 'listItem') return extension.extend({ content: 'block+' });
+        // The fence input rules, widened to every language CommonMark admits
+        // (#237). Extended off the kit rather than imported, for the reason
+        // the comment above gives; `code-block-input-rules.ts` carries the
+        // shipped patterns, what they refused, and why the group is what it
+        // is.
+        if (extension.name === 'codeBlock') {
+          // Narrowed to a node extension because `registered` is typed
+          // `AnyExtension[]`, and only the node member of that union carries
+          // `this.type` — the value the rules are built against. The guard
+          // above is what makes the narrowing true at runtime.
+          return (extension as NodeExtension).extend({
+            addInputRules() {
+              return codeBlockInputRules(this.type);
+            },
+          });
+        }
         // The two list containers StarterKit registers gain the file's own
         // spacing (#28). Extended here rather than imported directly, for the
         // reason the comment above gives: the list is read off the kit.
