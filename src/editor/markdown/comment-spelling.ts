@@ -1,11 +1,12 @@
 /**
- * PROTOTYPE for #245 step 3 — an HTML comment carried as bytes.
+ * An HTML comment, carried as the bytes the file used (#245).
  *
  * `marked` keeps a comment: it arrives as an `html` token whose `raw` is the
  * comment bytes, block when it is alone on a line and inline when it sits in
  * a paragraph — the two shapes #229 measured for an `<img>`. **DOMPurify is
  * what removes it**, measured: `marked` emits `<!-- a note -->` and the
- * sanitizer answers the empty string.
+ * sanitizer answers the empty string, so the text left the file on the first
+ * save with nothing said.
  *
  * So the comment is stamped into an attribute on an inert element while the
  * HTML is being built, the way `stampImageSources` stamps a tag. The element

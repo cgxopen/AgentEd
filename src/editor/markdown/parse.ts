@@ -69,9 +69,10 @@ marked.use({
 marked.use({
   renderer: {
     html(token) {
-      // PROTOTYPE #245: a token that is exactly one comment becomes an inert
-      // carrier holding its bytes, because DOMPurify removes a comment node
-      // and nothing downstream can put it back.
+      // A token that is exactly one comment becomes an inert carrier holding
+      // its bytes (#245), because DOMPurify removes a comment node and nothing
+      // downstream can put it back. Everything else an `html` token can hold
+      // goes on to the image stamp exactly as before.
       const carrier = commentCarrier(token.text, token.block);
       if (carrier !== null) return carrier;
       return stampImageSources(token.text);
