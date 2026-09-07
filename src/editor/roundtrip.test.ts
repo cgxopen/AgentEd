@@ -1447,26 +1447,67 @@ describe('the repository, opened and saved unedited (R-C2)', () => {
     expect(destinations(saved)).toEqual(destinations(source));
   });
 
-  it('reports which exceptions each document actually meets', async () => {
-    // Not an assertion — a census, so that a reader of a failing run can see at
-    // a glance which recorded exceptions this repository still pays for, and so
-    // that the normalisers above are visibly in use rather than dead code.
-    const census: string[] = [];
-    for (const [name, source] of DOCUMENTS) {
-      const saved = await openAndSaveUnedited(source);
-      const sourceLines = source.split('\n');
-      const met = new Set<string>();
-      for (const region of differenceRegions(source, saved)) {
-        for (const used of normalisersUsed(sideText(region.removed))) met.add(used);
-        for (const used of normalisersUsed(sideText(region.added))) met.add(used);
-        for (const rule of REGION_RULES) {
-          if (rule.claims(region, sourceLines)) met.add(rule.name);
-        }
+  /**
+   * The census, one case per document (#241).
+   *
+   * **It was one `it` that opened every document, and that is what put main
+   * red.** Every other case here costs one document against the 5000 ms
+   * budget; this one cost the sum of all of them against the same budget, so
+   * its headroom shrank every time a guarded document grew. It crossed on the
+   * push run of `80cbfe5` while the pull request run of the same content had
+   * passed — the failure a slow runner produces and a fast one hides.
+   *
+   * Measured before the split, on the clock the test has: the sum was 1435.8
+   * ms locally, 28.7 percent of the budget, and the slowest single document
+   * through this path was `docs/internal/MILESTONE-LOG.md` at 448.2 ms. The
+   * split therefore puts the worst census case **below the worst case this
+   * file already lives with** — `MILESTONE-LOG.md — no word and no destination
+   * moves` at 974.1 ms — rather than introducing a new one. That is the whole
+   * argument: the budget is per case, so a case has to be one document.
+   *
+   * ── What it is, unchanged ──
+   *
+   * Still a census rather than an assertion about round-tripping: it says
+   * which recorded exceptions each document actually meets, so a reader of a
+   * failing run sees at a glance what this repository still pays for, and so
+   * the normalisers above are visibly in use rather than dead code. The
+   * per-document line and the one printed table are exactly what they were.
+   */
+  const census = new Map<string, string>();
+
+  it.each(DOCUMENTS)('%s — census: which recorded exceptions it meets', async (name, source) => {
+    const saved = await openAndSaveUnedited(source);
+    const sourceLines = source.split('\n');
+    const met = new Set<string>();
+    for (const region of differenceRegions(source, saved)) {
+      for (const used of normalisersUsed(sideText(region.removed))) met.add(used);
+      for (const used of normalisersUsed(sideText(region.added))) met.add(used);
+      for (const rule of REGION_RULES) {
+        if (rule.claims(region, sourceLines)) met.add(rule.name);
       }
-      census.push(`${name}: ${met.size === 0 ? 'byte-identical' : [...met].join('; ')}`);
     }
-    console.info(`R-C2 census\n  ${census.join('\n  ')}`);
-    expect(census).toHaveLength(DOCUMENTS.length);
+    census.set(name, `${name}: ${met.size === 0 ? 'byte-identical' : [...met].join('; ')}`);
+  });
+
+  it('census — the whole table, computed by the cases above', () => {
+    // Opens no document and saves none: every row was already computed by the
+    // case for that document, so this costs the string work and nothing else.
+    // It exists because thirteen separate lines scattered through the reporter
+    // output are not the one table the census is for.
+    console.info(`R-C2 census\n  ${[...census.values()].join('\n  ')}`);
+
+    // The same count the single test asserted, and it has stopped being a
+    // tautology. It used to compare a list against the loop that had just
+    // filled it, which could not fail; now the rows come from other cases, so
+    // a document whose case did not run is a named missing row here.
+    //
+    // The consequence, since it is a real one: under `vitest -t` this case
+    // needs the per-document cases in the same filtered run. Both titles carry
+    // the word census for that reason, so the pattern that selects one selects
+    // all of them; a filter narrow enough to take this case alone reports the
+    // rows it did not get rather than printing a short table quietly.
+    const missing = DOCUMENTS.map(([name]) => name).filter((name) => !census.has(name));
+    expect(missing, `census rows no case produced: ${missing.join(', ')}`).toEqual([]);
   });
 });
 
