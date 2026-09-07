@@ -82,6 +82,92 @@ mod tests {
         );
     }
 
+    /// The `additionalBrowserArgs` of the window labelled `main`, read
+    /// through `tauri::utils::config::Config` rather than as plain JSON.
+    /// `WindowConfig` carries `deny_unknown_fields`, so a misspelled key
+    /// does not become a field the tests below quietly fail to find - it
+    /// stops the whole file parsing, here and in the two tests above.
+    fn main_window_browser_args() -> String {
+        let config: tauri::utils::config::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json"))
+                .expect("tauri.conf.json should parse as a Tauri config");
+
+        let main = config
+            .app
+            .windows
+            .into_iter()
+            .find(|window| window.label == "main")
+            .expect("there should be a window labelled `main`");
+
+        main.additional_browser_args
+            .expect("the main window should set `additionalBrowserArgs`")
+    }
+
+    /// Issue #218 - the window is built with the Chromium network
+    /// predictor turned off.
+    ///
+    /// What this test cannot do, said first: it cannot observe whether the
+    /// hover lookup goes quiet. That is a network property of WebView2, a
+    /// runtime this project does not ship, and one that stopped honouring
+    /// the flag would keep starting normally and say nothing - nothing
+    /// between this file and the environment options reads the arguments
+    /// back. The instrumented run on Windows is where the behaviour is
+    /// measured. This test holds the configuration and nothing else.
+    ///
+    /// It also runs on the Linux CI runner, while `tauri-runtime-wry`
+    /// consumes this field only under `cfg(windows)`. It is evidence about
+    /// the file on every platform, and never about the runtime on any.
+    ///
+    /// Split from the test below on purpose: one equality over the whole
+    /// string would go red for either loss and say the same thing about
+    /// both, so it could not tell a dropped remedy from a dropped default.
+    #[test]
+    fn the_main_window_disables_the_network_predictor() {
+        let args = main_window_browser_args();
+
+        let disabled = args
+            .split_whitespace()
+            .find_map(|arg| arg.strip_prefix("--disable-features="))
+            .expect("the arguments should carry a `--disable-features` switch");
+
+        assert!(
+            disabled
+                .split(',')
+                .any(|feature| feature == "NetworkPrediction"),
+            "`NetworkPrediction` must stay in the disabled feature list - it is \
+             the whole subject of #218, and without it this build measures \
+             nothing: {args}"
+        );
+    }
+
+    /// Issue #218 - the four arguments `wry` would have passed on its own
+    /// are restated here, because setting this field replaces them.
+    ///
+    /// `wry` builds its default argument string only when the field is
+    /// absent - `unwrap_or_else`, `wry-0.54.4/src/webview2/mod.rs:294` -
+    /// so each of these is a thing that stops happening if it is dropped
+    /// from the string, and nothing else in the build would say so. That
+    /// is the same reason the two tests above read this file: JSON carries
+    /// no comment saying why an entry must stay.
+    #[test]
+    fn the_main_window_restates_the_defaults_the_field_replaces() {
+        let args = main_window_browser_args();
+
+        for restated in [
+            "msWebOOUI",
+            "msPdfOOUI",
+            "msSmartScreenProtection",
+            "--autoplay-policy=no-user-gesture-required",
+        ] {
+            assert!(
+                args.contains(restated),
+                "`{restated}` is a wry default that this field replaces rather \
+                 than extends, so dropping it here stops it happening and \
+                 nothing else would say so: {args}"
+            );
+        }
+    }
+
     /// Issue #249, decision 4 of #220 - `svg` is not in the shell `open`
     /// scope, on either path alternative.
     ///

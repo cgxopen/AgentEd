@@ -15,6 +15,7 @@
         "label": "main",
         "title": "AgentEd",
         "dragDropEnabled": false,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,NetworkPrediction --autoplay-policy=no-user-gesture-required",
         "width": 1024,
         "height": 768,
         "minWidth": 600,
