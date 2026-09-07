@@ -24,11 +24,14 @@
 import { undoDepth } from '@tiptap/pm/history';
 import { afterEach, describe, expect, it } from 'vitest';
 import STYLES from '../styles.css?inline';
+import { clearImages, registerImage } from './image-registry';
 import {
   CORNER_ATTRIBUTE,
   CORNERS,
   type Corner,
   type DragGeometry,
+  fallbackWidthFor,
+  isSvgDisplayUrl,
   MIN_IMAGE_SIZE_PX,
   RESIZE_HANDLE_CLASS,
   RESIZE_WRAPPER_CLASS,
@@ -559,5 +562,175 @@ describe('a way back to the natural size (decision 4 on #27)', () => {
     const before = undoDepth(editor.editor.state);
     reset(handleFor(handles, 'se'));
     expect(undoDepth(editor.editor.state) - before).toBe(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4 — the width a picture that drew at nothing is rescued with (#252)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * **The property is layout and this suite cannot see it**, which is why it is
+ * said here rather than at the end. `happy-dom` reports `0` for
+ * `naturalWidth` and for every field of `getBoundingClientRect`, so a picture
+ * drawn at zero and a picture drawn at 300 are the same thing to it. The
+ * measurement that decides this change was made in Edge on the owner machine
+ * and is recorded on #252; **the manual pass is where it is verified.**
+ *
+ * What is held here are the halves that are not layout, joined so neither
+ * stands alone:
+ *
+ *  - the decision itself, as a pure function of four numbers, every branch;
+ *  - the kind test, over the real registry rather than a double;
+ *  - **the wiring**, driven through the node view the editor actually built,
+ *    with the two layout values stubbed onto the element — because a pure
+ *    function nothing calls is a repair nobody gets;
+ *  - **the reason the repair exists**, read out of `styles.css`: the wrapper
+ *    is shrink-to-fit, which is what makes a picture with no intrinsic width
+ *    collapse. If that ever stops being true, this rescue is answering a
+ *    question nobody is asking any more and should be re-measured.
+ */
+describe('a picture that drew at nothing is given the width the runtime reports (#252)', () => {
+  it('an unsized svg that drew at zero is rescued with its natural width', () => {
+    expect(
+      fallbackWidthFor({ nodeWidth: null, isSvg: true, naturalWidth: 300, drawnWidth: 0 }),
+    ).toBe(300);
+  });
+
+  it.each([
+    [
+      'the document already gave it a width',
+      { nodeWidth: 219, isSvg: true, naturalWidth: 300, drawnWidth: 0 },
+    ],
+    ['it is not an svg', { nodeWidth: null, isSvg: false, naturalWidth: 300, drawnWidth: 0 }],
+    ['it has not loaded yet', { nodeWidth: null, isSvg: true, naturalWidth: 0, drawnWidth: 0 }],
+    [
+      'it drew at a size of its own',
+      { nodeWidth: null, isSvg: true, naturalWidth: 300, drawnWidth: 240 },
+    ],
+  ])('nothing is written when %s', (_label, picture) => {
+    expect(fallbackWidthFor(picture)).toBeNull();
+  });
+
+  it('a natural width of zero is not-loaded rather than zero wide', () => {
+    // The two are the same number and opposite situations. Reading it as a
+    // size would write `width: 0px` onto a picture still being decoded and
+    // pin it shut.
+    expect(
+      fallbackWidthFor({ nodeWidth: null, isSvg: true, naturalWidth: 0, drawnWidth: 0 }),
+    ).toBeNull();
+  });
+
+  it('the kind is answered by the same table that typed the blob', () => {
+    clearImages();
+    registerImage('blob:an-svg', {
+      relativePath: 'assets/logo.svg',
+      data: new Uint8Array([1]),
+      filename: 'logo.svg',
+    });
+    registerImage('blob:a-png', {
+      relativePath: 'assets/shot.png',
+      data: new Uint8Array([1]),
+      filename: 'shot.png',
+    });
+
+    expect(isSvgDisplayUrl('blob:an-svg')).toBe(true);
+    expect(isSvgDisplayUrl('blob:a-png')).toBe(false);
+    // An absolute address the loader leaves alone holds no bytes here, so it
+    // is not rescued and keeps the behaviour it has. Stated as a limit.
+    expect(isSvgDisplayUrl('https://example.com/logo.svg')).toBe(false);
+    clearImages();
+  });
+
+  it('the node view asks after the picture loads, on the element the editor rendered', () => {
+    // The two values this suite cannot produce are stubbed onto the element,
+    // and nothing else is: the call, the decision and the write are the real
+    // ones. Without the `load` listener in the node view this goes red.
+    clearImages();
+    registerImage('blob:rescue-me', {
+      relativePath: 'assets/logo.svg',
+      data: new Uint8Array([1]),
+      filename: 'logo.svg',
+    });
+
+    const editor = editorWith('![x](blob:rescue-me)');
+    const dom = editor.editor.view.dom as HTMLElement;
+    const img = dom.querySelector('img') as HTMLImageElement;
+    expect(img).not.toBeNull();
+    expect(img.style.width).toBe('');
+
+    Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
+    img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
+    img.dispatchEvent(new Event('load'));
+
+    expect(img.style.width).toBe('300px');
+    clearImages();
+  });
+
+  it('and it survives a repaint, because showSize would otherwise take it away', () => {
+    // `showSize` writes the empty string for a picture the document gave no
+    // size, so every repaint undoes the rescue unless the rescue runs after
+    // it. Without the call in `paint` this row goes red and the picture
+    // collapses again the moment anything about the node changes — which
+    // includes the reset gesture, whose whole point is a picture rather than
+    // nothing.
+    clearImages();
+    registerImage('blob:repaint-me', {
+      relativePath: 'assets/logo.svg',
+      data: new Uint8Array([1]),
+      filename: 'logo.svg',
+    });
+
+    const editor = editorWith('![x](blob:repaint-me)');
+    const img = (editor.editor.view.dom as HTMLElement).querySelector('img') as HTMLImageElement;
+    Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
+    img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
+    img.dispatchEvent(new Event('load'));
+    expect(img.style.width).toBe('300px');
+
+    editor.editor.commands.setNodeSelection(imagePosition(editor));
+    editor.editor.commands.updateAttributes('image', { alt: 'changed' });
+
+    expect(img.style.width).toBe('300px');
+    clearImages();
+  });
+
+  it('a png that drew at nothing is left alone by the same route', () => {
+    // The other side of the branch, driven the same way: the kind is what
+    // keeps a picture that has simply not been laid out yet from being given
+    // a size it never asked for.
+    clearImages();
+    registerImage('blob:leave-me', {
+      relativePath: 'assets/shot.png',
+      data: new Uint8Array([1]),
+      filename: 'shot.png',
+    });
+
+    const editor = editorWith('![x](blob:leave-me)');
+    const img = (editor.editor.view.dom as HTMLElement).querySelector('img') as HTMLImageElement;
+    Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
+    img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
+    img.dispatchEvent(new Event('load'));
+
+    expect(img.style.width).toBe('');
+    clearImages();
+  });
+
+  it('the wrapper the editor renders is the shrink-to-fit box this rescue exists for', () => {
+    // The selector is read out of the stylesheet by what it declares, then
+    // run against the element the editor actually built. Either half alone
+    // asserts nothing, and together they say the precondition still holds:
+    // an inline-block wrapper takes its width from its content, which is what
+    // a picture with no intrinsic width cannot supply.
+    const selector = selectorOfRuleDeclaring(
+      RESIZE_WRAPPER_CLASS,
+      /display:\s*inline-block/,
+      'making the image wrapper shrink to fit its picture',
+    );
+    const { dom } = withSelectedImage('![x](a.png)');
+    const reached = Array.from(dom.querySelectorAll(selector));
+
+    expect(reached).toHaveLength(1);
+    expect(reached[0].classList.contains(RESIZE_WRAPPER_CLASS)).toBe(true);
   });
 });
