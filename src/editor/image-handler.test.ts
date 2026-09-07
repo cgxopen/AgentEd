@@ -7,9 +7,15 @@ import { registerImage } from './image-registry';
 /** Names the fake assets folder holds for the test in progress. */
 let filesOnDisk: string[] = [];
 
-vi.mock('./image-registry', () => ({
+// `displayMimeFromName` is taken from the real module rather than doubled
+// (#248). It is a pure lookup with no state to stand in the way, and the
+// point of the assertions below is the type an insert actually produces —
+// a stub here would let the table and the call site disagree silently.
+vi.mock('./image-registry', async (importOriginal) => ({
   registerImage: vi.fn(),
   getAllImages: vi.fn(() => []),
+  displayMimeFromName: (await importOriginal<typeof import('./image-registry')>())
+    .displayMimeFromName,
 }));
 
 vi.mock('../platform/index', () => ({
@@ -23,6 +29,20 @@ vi.mock('../platform/index', () => ({
 vi.mock('../platform/detect', () => ({
   isTauri: false,
 }));
+
+/**
+ * Every blob the insert route built, so its media type can be read (#248).
+ *
+ * Installed **once**, over the pristine `createObjectURL`. Re-spying inside a
+ * row of `it.each` binds the fallthrough to the previous spy, and the second
+ * row then recurses until the stack ends — met while writing these rows.
+ */
+const blobsBuilt: Blob[] = [];
+const pristineCreateObjectURL = URL.createObjectURL.bind(URL);
+vi.spyOn(URL, 'createObjectURL').mockImplementation((b: Blob | MediaSource) => {
+  blobsBuilt.push(b as Blob);
+  return pristineCreateObjectURL(b as Blob);
+});
 
 /** Every outcome the insert under test reported (#61). */
 let outcomes: ImageInsertOutcome[] = [];
@@ -157,5 +177,56 @@ describe('handleImageFile — naming (R-C5)', () => {
   it('produces no timestamp or random suffix', async () => {
     const path = await insert('image.png', 'clipboard', '/doc/notes.md');
     expect(path).toBe('assets/notes-01.png');
+  });
+});
+
+/**
+ * Issue #248 — the type the display blob is given on the way in.
+ *
+ * **Measured before it was built**: the insert route builds its blob from the
+ * bytes, so the media type the picker put on the `File` was thrown away and
+ * an inserted svg drew as the placeholder immediately — not, as the issue
+ * first read it, only after a reopen. Paste and drop reach the same line, so
+ * all three gestures were the same defect.
+ *
+ * **The name is the source, not the `File`.** It is the name the image will
+ * carry in `assets/` and therefore the name the reference will resolve
+ * against on the next open, so the type here and the type the display route
+ * gives it later are the same answer to the same question. A `File` handed in
+ * with no type at all — which a drop can be — lands on it just the same.
+ *
+ * As on the display route, whether a browser *draws* the result is not
+ * observable in this suite; what is asserted is the type, and the manual pass
+ * is where the drawing is verified.
+ */
+describe('#248 — an inserted image carries a media type', () => {
+  beforeEach(() => {
+    outcomes = [];
+    filesOnDisk = [];
+  });
+
+  it.each([
+    ['an svg, the kind no browser sniffs', 'logo.svg', 'image/svg+xml'],
+    ['a png, which was never broken', 'shot.png', 'image/png'],
+    ['a jpg, spelled with the short extension', 'photo.jpg', 'image/jpeg'],
+  ])('%s', async (_label, name, expected) => {
+    blobsBuilt.length = 0;
+
+    // Deliberately handed in with **no** type, so nothing but the name can
+    // be answering. A drop carries exactly this shape.
+    await handleImageFile(
+      makeFile(64, '', name),
+      makeStubEditor(),
+      () => '/doc/notes.md',
+      async () => '/doc/notes.md',
+      async () => '/doc/assets',
+      async () => true,
+      'file',
+      record,
+    );
+
+    expect(outcomes).toContainEqual({ kind: 'inserted' });
+    expect(blobsBuilt).toHaveLength(1);
+    expect(blobsBuilt[0].type).toBe(expected);
   });
 });

@@ -7,7 +7,7 @@ import type { FileEntry } from '../platform/types';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { buildImageName, type ImageOrigin, keptFileName } from './image-names';
-import { getAllImages, getDisplayUrl, registerImage } from './image-registry';
+import { displayMimeFromName, getAllImages, getDisplayUrl, registerImage } from './image-registry';
 
 export type GetFilePath = () => string | null;
 export type RequestSaveAs = () => Promise<string | null>;
@@ -308,7 +308,23 @@ export async function handleImageFile(
 
   // Use blob URLs universally for display (both Tauri and Web)
   // No eager disk write — save is the single source of truth
-  const displayUrl = URL.createObjectURL(new Blob([data.slice().buffer as ArrayBuffer]));
+  //
+  // The blob is built from the bytes rather than from `file`, so the type
+  // the picker put on the `File` does not survive on its own (#248) — an
+  // svg inserted here drew as the placeholder immediately, not only after
+  // a reopen. The name is the source of the type at both call sites, so
+  // paste and drop, which carry a `File` typed by the browser, land on the
+  // same answer as the picker.
+  //
+  // The blob is built from the bytes rather than from `file`, so the type
+  // the picker put on the `File` does not survive on its own (#248) — an
+  // svg inserted here drew as the placeholder immediately, not only after
+  // a reopen. The name is the source of the type at both call sites, so
+  // paste and drop, which carry a `File` typed by the browser, land on the
+  // same answer as the picker.
+  const displayUrl = URL.createObjectURL(
+    new Blob([data.slice().buffer as ArrayBuffer], { type: displayMimeFromName(filename) }),
+  );
   registerImage(displayUrl, { relativePath, data, filename: file.name });
 
   editor.chain().focus().setImage({ src: displayUrl, alt: file.name }).run();
