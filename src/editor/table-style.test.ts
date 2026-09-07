@@ -197,3 +197,46 @@ describe('three real documents, opened and saved unedited', () => {
     expect(savedFrom(workflow, editorWith(workflow))).toBe(workflow);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #200 — the document that used to cost every table its spelling
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The spelling used to be scanned out of the raw lines of the whole document
+ * and paired with `querySelectorAll('table')` by document order. Two shapes
+ * broke the pairing, and when it broke **nothing** was written, so every table
+ * in the file fell back to the default hugged spelling — not only the table
+ * that could not be placed.
+ *
+ * The style is read from the token now, one table at a time, so neither shape
+ * reaches any table but its own.
+ */
+describe('a table the scan could not place no longer costs the others their spelling', () => {
+  const PADDED = '| head  | second |\n| ----- | ------ |\n| a     | b      |';
+
+  it('a padded table beside a table in a blockquote keeps its alignment', () => {
+    // Plain markdown, no raw HTML anywhere: this is the reachable one.
+    // Measured before the repair at 97 bytes in and 82 out.
+    const md = `${PADDED}\n\n> | a | b |\n> | --- | --- |\n> | c | d |`;
+    const saved = savedFrom(md, editorWith(md));
+    expect(saved).toBe(md);
+  });
+
+  it('a padded table beside a hand-written table keeps its alignment', () => {
+    // Not byte-identical, and the reason is the question #200 records and
+    // leaves: a table the file wrote as raw HTML does not survive to the file
+    // today, it is rewritten as a markdown table. The exact bytes state both
+    // halves — the markdown table keeps its widths, and the raw one is
+    // rewritten in the spelling of the sibling it inherits from.
+    const md = `${PADDED}\n\n<table>\n<tr><td>one</td></tr>\n</table>`;
+    const saved = savedFrom(md, editorWith(md));
+    expect(saved).toBe(`${PADDED}\n\n| one   |\n| ----- |`);
+  });
+
+  it('and the second save moves nothing further', () => {
+    const md = `${PADDED}\n\n<table>\n<tr><td>one</td></tr>\n</table>`;
+    const first = savedFrom(md, editorWith(md));
+    expect(savedFrom(first, editorWith(first))).toBe(first);
+  });
+});

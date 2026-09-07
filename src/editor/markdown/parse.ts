@@ -2,8 +2,8 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE, blankMarkerAttribute } from './blockquote-spacing';
 import { IMAGE_HTML_SOURCE_ATTRIBUTE, stampImageSources } from './image-spelling';
-import { attachListSpacing, LIST_SPACING_ATTRIBUTE } from './list-spacing';
-import { attachTableStyles, TABLE_STYLE_ATTRIBUTE } from './table-style';
+import { LIST_SPACING_ATTRIBUTE, listSpacingAttribute } from './list-spacing';
+import { TABLE_STYLE_ATTRIBUTE, tableStyleAttribute } from './table-style';
 import { markTaskLists } from './task-list';
 
 // Configure marked for GFM compatibility
@@ -29,13 +29,13 @@ marked.use({ tokenizer: { url: () => undefined } });
 //
 // **A renderer rather than a pass afterwards, and that is the point.** The
 // other two properties read off the file this way — a table's columns and a
-// list's spacing — are detected into an array and paired with the parsed HTML
-// by document order, which refuses silently when the counts disagree (#200).
-// A blockquote needs none of it: `marked` hands this function the token for
-// the quote it is rendering, so the bytes and the element are the same thing
-// and there is nothing to pair. Nesting falls out for free — an inner quote
-// is a second call whose `raw` is the inner source, outer marker already
-// stripped.
+// list's spacing — used to be detected into an array and paired with the
+// parsed HTML by document order, which refused silently when the counts
+// disagreed; #200 moved both of them here, so all three now take this route.
+// `marked` hands this function the token for the quote it is rendering, so
+// the bytes and the element are the same thing and there is nothing to pair.
+// Nesting falls out for free — an inner quote is a second call whose `raw` is
+// the inner source, outer marker already stripped.
 //
 // The output is otherwise turndown's own: `<blockquote>` newline body
 // `</blockquote>` newline, matched exactly so nothing but the attribute
@@ -69,6 +69,71 @@ marked.use({
   renderer: {
     html(token) {
       return stampImageSources(token.text);
+    },
+  },
+});
+
+// How each list was spaced — loose or tight — written onto the list it belongs
+// to (#28), from the token `marked` is rendering (#200).
+//
+// **The same route as the two above, and it replaces a pairing.** This used to
+// be a pass over the finished HTML that detected every list of the document
+// into an array and matched it to `querySelectorAll('ul, ol')` by document
+// order, writing nothing at all when the counts disagreed — silently, and for
+// the whole document rather than the one list it could not place. A list the
+// file wrote as raw HTML arrives as an `html` token and so is invisible to the
+// walk while the selector finds it, which is how an ordinary `<details>` block
+// cost every loose list in its file the spacing R-C2 promises. The token
+// carries the `raw` of each of its own items, so there is nothing to pair.
+//
+// This restates `marked`'s own list renderer, because there is no way to call
+// it and add one attribute; a nested list reaches it as a second call, through
+// `listitem` below. `list-spacing.test.ts` renders through a pristine `Marked`
+// and asserts byte-identical output wherever the attribute is absent, so a
+// release that changes the shape fails there rather than in a document.
+marked.use({
+  renderer: {
+    list(token) {
+      const spacing = listSpacingAttribute(token.items);
+      let body = '';
+      for (const item of token.items) body += this.listitem(item);
+      const tag = token.ordered ? 'ol' : 'ul';
+      // `marked` writes `start` only when it is not 1, and the attribute order
+      // is its own: an ordered list that names its start keeps that spelling.
+      const start = token.ordered && token.start !== 1 ? ` start="${token.start}"` : '';
+      return `<${tag}${start}${spacing}>\n${body}</${tag}>\n`;
+    },
+  },
+});
+
+// How each table was spelled — padded or hugged columns, the separator's own
+// shape — written onto the table it belongs to (#93), from the token `marked`
+// is rendering (#200).
+//
+// **The same move as the list above, and it repairs one case more.** The pass
+// it replaces scanned raw lines for table blocks, and a table inside a
+// blockquote has lines that open with a quote marker — so the scan found none
+// where `marked` found a table, the counts disagreed, and every table in that
+// document fell back to the default spelling. That is plain markdown with no
+// raw HTML in it. The token `raw` is the table with the quote markers already
+// stripped, which is why the reading is now the correct one there.
+//
+// This restates `marked`'s own table renderer for the same reason as the list,
+// and `table-style.test.ts` pins it against a pristine `Marked` the same way.
+marked.use({
+  renderer: {
+    table(token) {
+      let header = '';
+      for (const cell of token.header) header += this.tablecell(cell);
+      let body = '';
+      for (const row of token.rows) {
+        let cells = '';
+        for (const cell of row) cells += this.tablecell(cell);
+        body += this.tablerow({ text: cells });
+      }
+      const rows = body ? `<tbody>${body}</tbody>` : '';
+      const style = tableStyleAttribute(typeof token.raw === 'string' ? token.raw : '');
+      return `<table${style}>\n<thead>\n${this.tablerow({ text: header })}</thead>\n${rows}</table>\n`;
     },
   },
 });
@@ -170,21 +235,13 @@ export interface ParseOptions {
 export function markdownToHtml(markdown: string, options: ParseOptions = {}): string {
   const html = marked.parse(markdown, { async: false, breaks: options.breaks ?? false }) as string;
 
-  // How each table was spelled — padded or hugged columns, the separator's
-  // own shape — read from the markdown and pinned to the table it belongs to
-  // (#93). It has to happen here: `marked` trims every cell, so by the time
-  // this HTML exists the file's spacing is already gone.
-  const withTableStyles = attachTableStyles(html, markdown);
-
-  // How each list was spaced — loose or tight — read from the markdown for
-  // the same reason and pinned to the list it belongs to (#28). The `<p>`
-  // wrappers `marked` writes are still here, but they answer CommonMark's
-  // question rather than the file's; see `list-spacing.ts`.
-  const withListSpacing = attachListSpacing(withTableStyles, markdown);
+  // A table's spelling and a list's spacing are already on the elements that
+  // carry them: both are written by the renderers above, from the token
+  // `marked` hands them, rather than by a pass over this string (#200).
 
   // The checkbox `marked` writes for a GFM task item, rewritten for whichever
   // list holds it (#160).
-  const processed = rewriteCheckboxes(withListSpacing);
+  const processed = rewriteCheckboxes(html);
 
   // Which of those lists is a task list, in the spelling TipTap reads (#110).
   // It has to happen after the rewrite above and before sanitization, because
@@ -196,13 +253,33 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // blob: URIs must be allowed — image-registry.ts creates blob URLs
   // for all image display (both Tauri and Web).
   //
-  // `TABLE_STYLE_ATTRIBUTE` widens the allow-list by `data-table-style`, and
-  // that is safe only because `attachTableStyles` in `table-style.ts` removes
-  // the attribute from every table before writing the detected one. Without
-  // that strip, a document carrying its own `data-table-style` in raw HTML
-  // would choose how its table is written — the two lines are load-bearing
-  // together and they live in different files, so neither may be removed while
-  // reading only the other. `decodeTableStyle` validates the value regardless.
+  // `TABLE_STYLE_ATTRIBUTE` and `LIST_SPACING_ATTRIBUTE` widen the allow-list
+  // by `data-table-style` and `data-loose`.
+  //
+  // **The strip that used to make that safe is gone, and what replaces it is
+  // the value being bounded** (#200). Until the renderers above existed, the
+  // two passes over this string removed both attributes from every table and
+  // list before writing the detected ones, so a document carrying its own
+  // could not reach the serializer at all; the passes are gone and so is the
+  // strip. What a document can do now is mostly what the attribute means
+  // anyway: a table or a list the file wrote as **raw HTML** keeps the value
+  // the file gave it and is written back in that spelling. A markdown table
+  // and a markdown list cannot be reached that way, because both get their
+  // value written at render time from their own bytes.
+  //
+  // **One element it can reach besides its own**, and it is named here rather
+  // than left to be discovered: a table the *user created* has no spelling, so
+  // `styleFor` in `serialize.ts` gives it the spelling of the first table in
+  // the document that has one — the rule from #93 that keeps a document from
+  // being spelled two ways — and a raw HTML table carrying its own attribute
+  // can be that first table. What it can say there is bounded by
+  // `decodeTableStyle`: a separator cell is dashes, colons and spaces or the
+  // whole style is refused, and a width is a small whole number. So the reach
+  // is one new table, and what it costs is column padding.
+  //
+  // `data-loose` has no such fallback — it is read as the literal `true` or
+  // not at all, on the list carrying it. Same shape of argument as
+  // `IMAGE_HTML_SOURCE_ATTRIBUTE` below, which is safe by construction too.
   return DOMPurify.sanitize(withTaskLists, {
     ADD_ATTR: [
       'data-type',
@@ -211,8 +288,7 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
       LIST_SPACING_ATTRIBUTE,
       BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
       // The bytes an image was spelled with (#27). Widening the allow-list by
-      // it is safe by construction rather than by a strip elsewhere, which is
-      // what `TABLE_STYLE_ATTRIBUTE` above needs: the value is
+      // it is safe by construction, the way the two above now are: the value is
       // `encodeURIComponent` output, so it holds no `<`, `>`, `&` or `"` and
       // cannot end the attribute or open an element, and `decodeHtmlSource`
       // refuses anything that is not one image tag. A document carrying its

@@ -1,10 +1,18 @@
+import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 import claudeMd from '../../../CLAUDE.md?raw';
 import status from '../../../docs/internal/STATUS.md?raw';
 import workflow from '../../../docs/internal/WORKFLOW.md?raw';
 import readme from '../../../README.md?raw';
 import requirements from '../../../REQUIREMENTS.md?raw';
-import { decodeTableStyle, detectTableStyles } from './table-style';
+import { markdownToHtml } from './parse';
+import {
+  decodeTableStyle,
+  detectTableStyles,
+  TABLE_STYLE_ATTRIBUTE,
+  type TableStyle,
+  tableStyleAttribute,
+} from './table-style';
 
 /**
  * The reading half of #93: what a table's spelling is, taken from the raw
@@ -233,5 +241,169 @@ describe('the detector and the validator agree — a property, not a case', () =
         ),
       ).toBeNull();
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #200 — the style is read from the token, not paired with the document
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `tableStyleAttribute` is handed the `raw` of one table token, so the scan it
+ * runs finds one block and the answer belongs to that table alone. What used
+ * to happen instead was a pairing by document order that wrote **nothing** for
+ * the whole document whenever the two counts disagreed.
+ */
+describe('tableStyleAttribute reads one table from its own bytes', () => {
+  /** The style the attribute carries, decoded back. */
+  function styleOf(raw: string): TableStyle | null {
+    const attribute = tableStyleAttribute(raw);
+    if (attribute === '') return null;
+    const value = attribute.slice(attribute.indexOf('="') + 2, -1).replaceAll('&quot;', '"');
+    return decodeTableStyle(value);
+  }
+
+  it('a padded table gives fixed columns at the file own widths', () => {
+    const style = styleOf('| head  | second |\n| ----- | ------ |\n| a     | b      |');
+    expect(style?.columns.map((c) => c.kind)).toEqual(['fixed', 'fixed']);
+    expect(style?.columns.map((c) => c.width)).toEqual([7, 8]);
+  });
+
+  it('a hugged table gives hugged columns', () => {
+    expect(styleOf('| a | b |\n| --- | --- |\n| c | d |')?.columns.map((c) => c.kind)).toEqual([
+      'hug',
+      'hug',
+    ]);
+  });
+
+  it('the value is escaped so the JSON quotes cannot end the attribute', () => {
+    const attribute = tableStyleAttribute('| a | b |\n| --- | --- |\n| c | d |');
+    expect(attribute).toContain('&quot;');
+    expect(attribute.slice(attribute.indexOf('="') + 2, -1)).not.toContain('"');
+  });
+
+  it('a table inside a blockquote reaches the element, which it did not before', () => {
+    // The scan this replaces read raw lines and did not look past a quote
+    // marker, so `detectTableStyles` finds nothing here while `marked` finds a
+    // table — the counts disagreed and every table in the document lost its
+    // spelling. `marked` hands the renderer the quote body with the markers
+    // already stripped, so the reading is direct. Both halves are asserted,
+    // because either alone would pass on a renderer that did nothing.
+    const quoted = '> | head  | second |\n> | ----- | ------ |\n> | a     | b      |';
+    expect(detectTableStyles(quoted)).toEqual([]);
+
+    const container = document.createElement('div');
+    container.innerHTML = markdownToHtml(quoted);
+    const table = container.querySelector('blockquote table');
+    const style = decodeTableStyle(table?.getAttribute(TABLE_STYLE_ATTRIBUTE) ?? null);
+    expect(style?.columns.map((c) => c.kind)).toEqual(['fixed', 'fixed']);
+    expect(style?.columns.map((c) => c.width)).toEqual([7, 8]);
+  });
+
+  it('anything that is not exactly one table gives no attribute', () => {
+    // The refusal is still here and still silent. What changed is its reach:
+    // this table falls back to the default spelling, and no other table does.
+    expect(tableStyleAttribute('')).toBe('');
+    expect(tableStyleAttribute('not a table at all')).toBe('');
+    expect(tableStyleAttribute('| a |\n| --- |\n| c |\n\n| x |\n| --- |\n| y |')).toBe('');
+  });
+
+  it('every style it produces, the validator accepts', () => {
+    // The property from #93, restated on this route: the two halves of the
+    // module must agree on what a legal style is, whichever door it came in.
+    for (const raw of [
+      '| a | b |\n| --- | --- |\n| c | d |',
+      '| head  | second |\n| ----- | ------ |\n| a     | b      |',
+      '| a | b |\n| :-- | --: |\n| c | d |',
+      '| a | b |\n|---|---|\n| c | d |',
+      '| a | b |\n| --- | --- |\n| c | |',
+    ]) {
+      expect(styleOf(raw)).not.toBeNull();
+    }
+  });
+});
+
+describe('the table renderer matches marked byte for byte apart from the attribute', () => {
+  /** A `marked` carrying none of this repository configuration. */
+  function pristine(markdown: string): string {
+    return new Marked({ gfm: true, breaks: false }).parse(markdown, { async: false }) as string;
+  }
+
+  const OUR_ATTRIBUTE = new RegExp(` ${TABLE_STYLE_ATTRIBUTE}="[^"]*"`, 'g');
+
+  it.each([
+    ['a hugged table', '| a | b |\n| --- | --- |\n| c | d |'],
+    ['a padded table', '| head  | second |\n| ----- | ------ |\n| a     | b      |'],
+    ['an aligned table', '| a | b |\n| :-- | --: |\n| c | d |'],
+    ['a table with no body rows', '| a | b |\n| --- | --- |'],
+    ['a table holding inline markup', '| **a** | `b` |\n| --- | --- |\n| [c](https://e.com) | d |'],
+    ['a table inside a blockquote', '> | a | b |\n> | --- | --- |\n> | c | d |'],
+    ['two tables', '| a |\n| --- |\n| c |\n\n| x |\n| --- |\n| y |'],
+  ])('%s renders exactly as the library would', (_label, markdown) => {
+    expect(markdownToHtml(markdown).replace(OUR_ATTRIBUTE, '')).toBe(pristine(markdown));
+  });
+
+  it('and the attribute is the only difference', () => {
+    const markdown = '| a | b |\n| --- | --- |\n| c | d |';
+    expect(markdownToHtml(markdown)).not.toBe(pristine(markdown));
+    expect(markdownToHtml(markdown)).toContain(`<table ${TABLE_STYLE_ATTRIBUTE}=`);
+  });
+});
+
+/**
+ * The strip that is gone, and what a document can do with the space it left
+ * (#200).
+ *
+ * `attachTableStyles` removed `data-table-style` from every table before
+ * writing the detected ones, so a document carrying its own in raw HTML could
+ * not reach the serializer. There is no pass any more, so it can — and what it
+ * can say is bounded by `decodeTableStyle`, which is what carries the safety
+ * the strip used to. Pinned here rather than left to be found.
+ */
+describe('a table the file wrote as raw HTML carrying the attribute', () => {
+  function tableIn(markdown: string): Element | null {
+    const container = document.createElement('div');
+    container.innerHTML = markdownToHtml(markdown);
+    return container.querySelector('table');
+  }
+
+  const PADDED_STYLE = JSON.stringify({
+    columns: [
+      { kind: 'fixed', width: 9, separator: ' ------- ' },
+      { kind: 'fixed', width: 9, separator: ' ------- ' },
+    ],
+    emptyCell: null,
+  }).replaceAll('"', '&quot;');
+
+  it('keeps a value the validator accepts', () => {
+    const table = tableIn(
+      `<table ${TABLE_STYLE_ATTRIBUTE}="${PADDED_STYLE}">\n<tr><td>one</td><td>two</td></tr>\n</table>`,
+    );
+    const style = decodeTableStyle(table?.getAttribute(TABLE_STYLE_ATTRIBUTE) ?? null);
+    expect(style?.columns.map((c) => c.kind)).toEqual(['fixed', 'fixed']);
+  });
+
+  it('and a value the validator refuses buys nothing, whatever it holds', () => {
+    // The reach of the attribute is what `decodeTableStyle` will accept, and
+    // that is the whole of what replaced the strip. A separator cell is dashes,
+    // colons and spaces or the style is refused whole.
+    const hostile = JSON.stringify({
+      columns: [{ kind: 'fixed', width: 9, separator: ' --- <script> ' }],
+      emptyCell: null,
+    }).replaceAll('"', '&quot;');
+    const table = tableIn(
+      `<table ${TABLE_STYLE_ATTRIBUTE}="${hostile}">\n<tr><td>one</td></tr>\n</table>`,
+    );
+    expect(decodeTableStyle(table?.getAttribute(TABLE_STYLE_ATTRIBUTE) ?? null)).toBeNull();
+  });
+
+  it('reaches no markdown table, because those are answered from their own bytes', () => {
+    const container = document.createElement('div');
+    container.innerHTML = markdownToHtml(
+      `<table ${TABLE_STYLE_ATTRIBUTE}="${PADDED_STYLE}">\n<tr><td>one</td><td>two</td></tr>\n</table>\n\n| a | b |\n| --- | --- |\n| c | d |`,
+    );
+    const markdownTable = container.querySelectorAll('table')[1];
+    const style = decodeTableStyle(markdownTable?.getAttribute(TABLE_STYLE_ATTRIBUTE) ?? null);
+    expect(style?.columns.map((c) => c.kind)).toEqual(['hug', 'hug']);
   });
 });

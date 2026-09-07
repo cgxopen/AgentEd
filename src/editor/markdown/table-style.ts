@@ -26,6 +26,39 @@
  * in another table's spelling — the very defect being fixed here. Riding on
  * the node has no such failure: a table and its spelling move together
  * through editing, Save As and copy-paste, and nothing can half-wire them.
+ *
+ * ── Read from the renderer, so there is nothing to pair (#200) ──
+ *
+ * This used to scan every table of the document into an array and pair that
+ * array with `querySelectorAll('table')` by document order, writing nothing
+ * at all when the two counts disagreed. The refusal was correct — a table
+ * given another table's widths is worse than a table written plainly — and
+ * it was silent, and it cost the **whole document** rather than the one
+ * table it could not place.
+ *
+ * Two documents reach it, and the second is the one worth naming. A
+ * hand-written `<table>` is emitted by `marked` as an `html` token, so the
+ * scan misses what `querySelectorAll` finds. And a table **inside a
+ * blockquote** has lines that open with a quote marker, which
+ * `findTableBlocks` does not read past, so the scan finds nothing at all
+ * where `marked` produces a `table` token — ordinary markdown, no raw HTML
+ * anywhere. Measured at the editor level: a padded table beside a quoted one
+ * went 97 bytes in and 82 out, its alignment gone.
+ *
+ * There is nothing to pair now. `marked` hands its table renderer the token
+ * for the table it is rendering, and that token carries the `raw` of that
+ * table with any quote markers already stripped — so the bytes and the
+ * element are the same thing. The same route `blockquote-spacing.ts` takes
+ * for #199 and `list-spacing.ts` for #28. It also reads *more* than the scan
+ * did: compared over ten table shapes and the seven documents of this
+ * repository, the two agree on sixteen of seventeen, and the one difference
+ * is the quoted table, where the per-token reading is the correct one and
+ * the whole-document scan produces nothing.
+ *
+ * A table that reaches the HTML without passing this renderer — one the file
+ * wrote as raw HTML — is left with no attribute and falls back to the
+ * default spelling. That is the same answer it got before, and now it is the
+ * answer for that table alone.
  */
 
 /** How one column is spelled. */
@@ -310,28 +343,39 @@ function encodeTableStyle(style: TableStyle): string {
 }
 
 /**
- * Put each detected spelling on the table it belongs to, in document order.
+ * The characters that would end the attribute or open an element.
  *
- * Both lists come from the same markdown, so they agree in order and in
- * length. If they do not — a table shape this scanner reads differently from
- * `marked` — **nothing** is attached and every table falls back to the
- * default spelling: a mismatched list would give a table another table's
- * widths, which is worse than writing them all plainly.
+ * The encoded style holds only the first of them today — a separator cell is
+ * dashes, colons and spaces, a kind is one of two words, a width is a number
+ * — and the escape covers all four rather than that one, because the
+ * question is not which characters appear today but which ones can be
+ * written into an HTML attribute. Same argument as the alt escape in
+ * `parse.ts`, one file over.
  */
-export function attachTableStyles(html: string, markdown: string): string {
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  const tables = container.querySelectorAll('table');
-  // Only detection may set this attribute: a document carrying one in raw
-  // HTML would otherwise choose how its own table is written.
-  for (const table of tables) table.removeAttribute(TABLE_STYLE_ATTRIBUTE);
-  if (tables.length === 0) return html;
+const ATTRIBUTE_ESCAPES: Readonly<Record<string, string>> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+};
 
-  const styles = detectTableStyles(markdown);
-  if (styles.length !== tables.length) return container.innerHTML;
+function escapeForAttribute(value: string): string {
+  return value.replace(/[&<>"]/g, (ch) => ATTRIBUTE_ESCAPES[ch] ?? ch);
+}
 
-  tables.forEach((table, index) => {
-    table.setAttribute(TABLE_STYLE_ATTRIBUTE, encodeTableStyle(styles[index]));
-  });
-  return container.innerHTML;
+/**
+ * The attribute to write on this table, as a string ready for the tag, read
+ * from the `raw` of the token `marked` is rendering.
+ *
+ * The scan is the same one the whole document used to go through; it is
+ * given one table at a time now, so it finds one block. Where it does not —
+ * a shape this scanner reads differently from `marked` — **nothing** is
+ * written and this table falls back to the default spelling. That refusal is
+ * still here and still silent, and what changed is how much it costs: one
+ * table now, rather than every table in the document (#200).
+ */
+export function tableStyleAttribute(raw: string): string {
+  const styles = detectTableStyles(raw);
+  if (styles.length !== 1) return '';
+  return ` ${TABLE_STYLE_ATTRIBUTE}="${escapeForAttribute(encodeTableStyle(styles[0]))}"`;
 }
