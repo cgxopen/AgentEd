@@ -74,27 +74,27 @@ describe('decodeComment refuses anything it did not write', () => {
 });
 
 describe('commentCarrier', () => {
-  it('carries a block comment on a div', () => {
-    expect(commentCarrier('<!-- a -->', true)).toBe(
-      `<div ${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment('<!-- a -->')}"></div>`,
-    );
-  });
+  const CARRIER = `<wbr ${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment('<!-- a -->')}">`;
 
-  it('carries an inline comment on a void wbr', () => {
+  it('carries a comment inside a sentence on a void wbr', () => {
     // Void, so no closing tag — and that is the point of the tag choice, not a
     // detail of it: turndown collapses the whitespace around an empty inline
     // element, and a void one it leaves alone. See the module note.
-    expect(commentCarrier('<!-- a -->', false)).toBe(
-      `<wbr ${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment('<!-- a -->')}">`,
-    );
+    expect(commentCarrier('<!-- a -->', false)).toBe(CARRIER);
+  });
+
+  it('wraps a comment the file put on its own line in a paragraph', () => {
+    // One node for both shapes, and the paragraph is what gives the caret
+    // somewhere to sit beside the mark — found by the owner manual pass, where
+    // a block node of its own was selected by a click and replaced by the next
+    // character typed.
+    expect(commentCarrier('<!-- a -->', true)).toBe(`<p>${CARRIER}</p>`);
   });
 
   it('drops the blank line a block token carries after the comment', () => {
-    // `marked` hands a block comment between two paragraphs its trailing blank
-    // line inside `raw`; the bytes of the comment are what rides on the node.
-    expect(commentCarrier('<!-- a -->\n\n', true)).toBe(
-      `<div ${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment('<!-- a -->')}"></div>`,
-    );
+    // `marked` hands a comment between two paragraphs its trailing blank line
+    // inside `raw`; the bytes of the comment are what rides on the node.
+    expect(commentCarrier('<!-- a -->\n\n', true)).toBe(`<p>${CARRIER}</p>`);
   });
 
   it('leaves every other kind of raw HTML alone', () => {

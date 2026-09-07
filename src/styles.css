@@ -2177,17 +2177,8 @@ button.cluster-indicator:hover {
 
 .tiptap .markdown-comment-mark::before {
   content: "¶";
-}
-
-.tiptap span.markdown-comment-mark {
-  /* Inline: it stands between words and must not push them apart. */
+  /* It stands between words and must not push them apart. */
   font-size: 0.85em;
-}
-
-.tiptap div.markdown-comment-mark {
-  /* Block: it stood on its own line in the file, so it keeps one here. */
-  margin: 0.5em 0;
-  font-size: 0.9em;
 }
 
 .tiptap .markdown-comment-mark:hover {

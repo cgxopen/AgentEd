@@ -140,15 +140,15 @@ describe('the mark the reader sees', () => {
   });
 
   it.each([
-    ['inline', 'one <!-- a short note --> two', 'SPAN'],
-    ['block', 'x\n\n<!-- block note -->\n\ny', 'DIV'],
-  ])('%s: the editor renders an element the selector reaches', (_label, markdown, tag) => {
+    ['inside a sentence', 'one <!-- a short note --> two'],
+    ['on its own line', 'x\n\n<!-- block note -->\n\ny'],
+  ])('%s: the editor renders an element the selector reaches', (_label, markdown) => {
     const editor = open(markdown);
     const host = editor.editor.view.dom.parentElement as HTMLElement;
     // The selector out of the stylesheet, run against what was rendered.
     const marks = host.querySelectorAll(markSelector().replace(/::before$/, ''));
     expect(marks).toHaveLength(1);
-    expect(marks[0].nodeName).toBe(tag);
+    expect(marks[0].nodeName).toBe('SPAN');
   });
 
   it('carries the note on hover, without its delimiters', () => {
@@ -188,8 +188,8 @@ describe('the mark the reader sees', () => {
 
 describe('the node holding a comment', () => {
   it.each([
-    ['inline', 'one <!-- note --> two', 'markdownCommentInline', 'one two'],
-    ['block', 'one\n\n<!-- note -->\n\ntwo', 'markdownCommentBlock', 'one\n\ntwo'],
+    ['inline', 'one <!-- note --> two', 'markdownComment', 'one two'],
+    ['on its own line', 'one\n\n<!-- note -->\n\ntwo', 'markdownComment', 'one\n\ntwo'],
   ])('%s: is an atom, deleted whole, and undo brings the bytes back', (_label, markdown, nodeName, afterDelete) => {
     const editor = open(markdown);
     const at = positionOf(editor, nodeName);
@@ -212,7 +212,7 @@ describe('the node holding a comment', () => {
 
   it('text typed beside an inline comment lands beside it, not inside it', () => {
     const before = open('one <!-- note --> two');
-    const at = positionOf(before, 'markdownCommentInline');
+    const at = positionOf(before, 'markdownComment');
     before.editor.commands.setTextSelection(at + 1);
     before.editor.commands.insertContent('X');
     expect(before.getMarkdown().trim()).toBe('one <!-- note -->X two');
@@ -220,7 +220,7 @@ describe('the node holding a comment', () => {
     instance = null;
 
     const after = open('one <!-- note --> two');
-    const pos = positionOf(after, 'markdownCommentInline');
+    const pos = positionOf(after, 'markdownComment');
     after.editor.commands.setTextSelection(pos);
     after.editor.commands.insertContent('Y');
     expect(after.getMarkdown().trim()).toBe('one Y<!-- note --> two');
@@ -233,8 +233,61 @@ describe('the node holding a comment', () => {
     const json = editor.editor.getJSON();
     expect(json.content).toHaveLength(1);
     expect(json.content?.[0]).toEqual({
-      type: 'markdownCommentBlock',
-      attrs: { comment: '<!--\n## heading\n\n- a\n- b\n-->' },
+      type: 'paragraph',
+      content: [
+        { type: 'markdownComment', attrs: { comment: '<!--\n## heading\n\n- a\n- b\n-->' } },
+      ],
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// What the owner manual pass found, and what it changed
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A comment the file put on its own line used to be a **block** node. The
+ * manual pass on `294026a` found what that costs, and no test here could have:
+ * a block atom fills its line, so clicking the line selects the whole node and
+ * the next character typed **replaces the note**. There was nowhere to put the
+ * caret beside it.
+ *
+ * It is one inline node inside a paragraph now. These pin the difference at
+ * the level this harness can reach — a caret placed on either side of the
+ * mark, and what the file gets — while the click and the arrow keys stay
+ * manual, for the reason at the top of this file.
+ */
+describe('a comment on its own line has room for a caret beside it', () => {
+  it('lives in a paragraph rather than in a block of its own', () => {
+    const editor = open('# Title\n\n<!-- a note -->\n\ntext');
+    const json = editor.editor.getJSON();
+    expect(json.content?.[1]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'markdownComment', attrs: { comment: '<!-- a note -->' } }],
+    });
+  });
+
+  it.each([
+    ['after it', 1, '# Title\n\n<!-- a note -->X\n\ntext'],
+    ['before it', 0, '# Title\n\nX<!-- a note -->\n\ntext'],
+  ])('typing %s keeps the note and puts the text beside it', (_label, offset, expected) => {
+    const editor = open('# Title\n\n<!-- a note -->\n\ntext');
+    const at = positionOf(editor, 'markdownComment');
+    editor.editor.commands.setTextSelection(at + offset);
+    editor.editor.commands.insertContent('X');
+    // The note survives, which is the whole of what the manual pass reported.
+    expect(editor.getMarkdown().trim()).toBe(expected);
+  });
+
+  it('and selecting the node still replaces it, which is how a block atom behaves', () => {
+    // The other side: deleting on purpose still works, and undo still returns
+    // the bytes. Without this the pair above could be satisfied by a node
+    // nothing can remove.
+    const editor = open('# Title\n\n<!-- a note -->\n\ntext');
+    editor.editor.commands.setNodeSelection(positionOf(editor, 'markdownComment'));
+    editor.editor.commands.insertContent('X');
+    expect(editor.getMarkdown().trim()).toBe('# Title\n\nX\n\ntext');
+    editor.editor.commands.undo();
+    expect(editor.getMarkdown().trim()).toBe('# Title\n\n<!-- a note -->\n\ntext');
   });
 });

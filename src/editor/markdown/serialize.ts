@@ -1,7 +1,7 @@
-import TurndownService, { type BlankReplacement, type Options } from 'turndown';
+import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
-import { COMMENT_INLINE_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
+import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
 import {
@@ -88,40 +88,6 @@ const CONTAINERS: ContainerReplacements = {
       : listItemReplacement(content, node, options),
 };
 
-// ── PROTOTYPE #245: a comment, written back as the bytes the file used ──
-//
-// The carrier is an element with no content, and turndown decides that before
-// it consults the rule table: a node it judges blank goes to
-// `blankReplacement` and never reaches `addRule`. That is the same mechanism
-// `empty-fence.ts` documents for #94, so this composes with that hook rather
-// than competing with it — the comment is answered here and everything else,
-// the fence and its containers included, is handed on unchanged.
-//
-// Two shapes, and the difference is the whitespace around them. A block
-// comment stood on its own line in the file, so it is written with a blank
-// line on each side; an inline one sat inside a sentence and gets none, or it
-// would break the paragraph it belongs to.
-//
-// A value that does not decode writes nothing. It cannot come from this
-// pipeline — `parse.ts` encodes what it stamps — so what it answers for is a
-// `data-comment` a user document wrote by hand, and the bytes go into the
-// file verbatim.
-function commentAware(otherwise: BlankReplacement): BlankReplacement {
-  return (content, node, options) => {
-    const element = node as HTMLElement;
-    if (
-      typeof element.getAttribute === 'function' &&
-      element.hasAttribute?.(MARKDOWN_COMMENT_ATTRIBUTE)
-    ) {
-      const bytes = decodeComment(element.getAttribute(MARKDOWN_COMMENT_ATTRIBUTE));
-      // A blank carrier is the block one; the inline carrier is void and
-      // reaches the rule below instead.
-      return bytes === null ? '' : `\n\n${bytes}\n\n`;
-    }
-    return otherwise(content, node, options);
-  };
-}
-
 const turndown = new TurndownService({
   headingStyle: 'atx',
   hr: '---',
@@ -130,7 +96,7 @@ const turndown = new TurndownService({
   fence: '```',
   emDelimiter: '*',
   strongDelimiter: '**',
-  blankReplacement: commentAware(createBlankReplacement(defaultBlankReplacement, CONTAINERS)),
+  blankReplacement: createBlankReplacement(defaultBlankReplacement, CONTAINERS),
 });
 
 // #90: turndown escapes every `_` in a text node, because from one text node
@@ -628,12 +594,21 @@ turndown.addRule('strikethrough', {
 // unchanged when the value already matches, so an image the loader never
 // touched keeps its bytes to the character, quoting included. Held by
 // `src/app/image-display-roundtrip.test.ts`, which runs the whole route.
-// The inline half of #245. A `wbr` is void, so turndown does not call it
-// blank and it reaches the rule table; the block half is answered by
-// `commentAware` above, where a blank `div` goes.
-turndown.addRule('markdownCommentInline', {
+// A comment, written back as the bytes the file used (#245).
+//
+// One rule for both shapes, because there is one carrier: a comment the file
+// put on its own line is a paragraph holding it, and the paragraph rule
+// supplies the blank lines around it. A `wbr` is void, so turndown neither
+// judges it blank nor descends into it — it reaches this rule, and the
+// whitespace beside it in a sentence survives.
+//
+// A value that does not decode writes nothing. It cannot come from this
+// pipeline, since `parse.ts` encodes what it stamps, so what it answers for is
+// a `data-comment` a user document wrote by hand — and these bytes go into the
+// file verbatim.
+turndown.addRule('markdownComment', {
   filter: (node) =>
-    node.nodeName === COMMENT_INLINE_TAG.toUpperCase() &&
+    node.nodeName === COMMENT_TAG.toUpperCase() &&
     (node as HTMLElement).hasAttribute(MARKDOWN_COMMENT_ATTRIBUTE),
   replacement: (_content, node) =>
     decodeComment((node as HTMLElement).getAttribute(MARKDOWN_COMMENT_ATTRIBUTE)) ?? '',

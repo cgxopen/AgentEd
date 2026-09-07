@@ -58,21 +58,17 @@ export function decodeComment(value: string | null): string | null {
 }
 
 /**
- * The tag each shape is carried on.
+ * The tag the comment is carried on, and it is one tag for both shapes.
  *
- * The block carrier is a `div`, which turndown judges **blank** — it has no
- * content — so it is answered by `blankReplacement` rather than by a rule.
- *
- * The inline carrier is a `wbr`, and that is measured rather than chosen for
- * looks. turndown collapses the whitespace around an empty inline element
- * before any rule runs, so `one <span></span> two` reaches the writer as
- * `one two` and a comment inside a sentence came back having eaten one of the
- * spaces beside it. A `wbr` is in turndown own list of **void** elements, and
- * a void element is neither blank nor descended into: both spaces survive,
- * measured, and the node reaches the rule table instead of the blank hook.
+ * **A `wbr`, and that is measured rather than chosen for looks.** turndown
+ * collapses the whitespace around an empty inline element before any rule
+ * runs, so `one <span></span> two` reaches the writer as `one two`, and the
+ * first build of this had a comment inside a sentence eating one of the spaces
+ * beside it. A `wbr` is in turndown own list of **void** elements, and a void
+ * element is neither blank nor descended into: both spaces survive, and the
+ * node reaches the rule table rather than the blank hook.
  */
-export const COMMENT_BLOCK_TAG = 'div';
-export const COMMENT_INLINE_TAG = 'wbr';
+export const COMMENT_TAG = 'wbr';
 
 /**
  * The carrier for a raw `html` token, or `null` when the token is not one
@@ -83,13 +79,23 @@ export const COMMENT_INLINE_TAG = 'wbr';
  * trailing whitespace is trimmed off before the bytes are read. Anything else
  * an `html` token can hold, including a `<div>` that merely contains a
  * comment, is left exactly as it is today.
+ *
+ * ── Why a comment on its own line becomes a paragraph holding the carrier ──
+ *
+ * It used to be a block node of its own, and the owner manual pass found what
+ * that costs: a block atom fills its line, so clicking that line **selects**
+ * it, and the next character typed **replaces** the note. There was no way to
+ * put the caret beside it, which is what this repair is supposed to give. A
+ * paragraph has room for a caret on either side of the mark, so typing lands
+ * beside the comment instead of over it, and the arrow keys walk through the
+ * line rather than jumping it. One node instead of two, and the bytes are
+ * unchanged: a paragraph whose only content is the carrier is written with the
+ * blank lines a paragraph gets, which is the line the file gave it.
  */
 export function commentCarrier(text: string, block: boolean): string | null {
   const trimmed = block ? text.replace(/\s+$/, '') : text;
   if (!isSingleComment(trimmed)) return null;
-  const value = `${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment(trimmed)}"`;
   // `wbr` is void, so it is written without a closing tag.
-  return block
-    ? `<${COMMENT_BLOCK_TAG} ${value}></${COMMENT_BLOCK_TAG}>`
-    : `<${COMMENT_INLINE_TAG} ${value}>`;
+  const carrier = `<${COMMENT_TAG} ${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment(trimmed)}">`;
+  return block ? `<p>${carrier}</p>` : carrier;
 }
