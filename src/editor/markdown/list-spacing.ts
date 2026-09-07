@@ -1,5 +1,3 @@
-import { marked } from 'marked';
-
 /**
  * How a list was spaced in the file it came from (#28).
  *
@@ -37,24 +35,37 @@ import { marked } from 'marked';
  * in the same function. So what is read here is the file's own spacing: a
  * blank line at the end of an item that is not the last.
  *
- * ── Pairing, and what happens when it is not certain ──
+ * ── Read from the renderer, so there is nothing to pair (#200) ──
  *
- * Lists are matched to the HTML by document order, and a depth-first walk of
- * the token tree visits an outer list before the lists inside it exactly as
- * `querySelectorAll('ul, ol')` does. If the two counts disagree the detection
- * is not trustworthy and **nothing is written** — the same refusal
- * `attachTableStyles` makes, and for the same reason: a spelling attached to
- * the wrong list is worse than no spelling at all.
+ * This used to detect every list of the document into an array and pair that
+ * array with `querySelectorAll('ul, ol')` by document order, writing nothing
+ * at all when the two counts disagreed. The refusal was correct — a spelling
+ * attached to the wrong list is worse than no spelling — and it was silent,
+ * and it cost the **whole document** rather than the one list it could not
+ * place: a `<details>` block holding a hand-written `ul` made the counts
+ * disagree, and every loose list in that file came back tight. Measured at
+ * the editor level: 78 bytes in, 20 out.
+ *
+ * There is nothing to pair now. `marked` hands its list renderer the token
+ * for the list it is rendering, and that token carries the `raw` of each of
+ * **its own** items, so the attribute is written by the code that is looking
+ * at the bytes. The same route `blockquote-spacing.ts` takes for #199 and
+ * `image-spelling.ts` for #229. Nesting falls out of it: a nested list is a
+ * second call with its own items, measured over four nested shapes.
+ *
+ * A list that reaches the HTML without passing this renderer — one the file
+ * wrote as raw HTML, which `marked` emits as an `html` token — is left with
+ * no attribute, which is the tight spelling. That is the same answer it got
+ * before, and now it is the answer for that list alone.
  */
 export const LIST_SPACING_ATTRIBUTE = 'data-loose';
 
 /** A blank line ending an item — the file's own spacing, not CommonMark's. */
 const ENDS_WITH_BLANK_LINE = /\n[ \t]*\n$/;
 
-interface ListToken {
-  readonly type?: string;
-  readonly items?: ReadonlyArray<{ readonly raw?: string; readonly tokens?: unknown[] }>;
-  readonly tokens?: unknown[];
+/** As much of a `marked` list item as the spelling is read from. */
+interface ListItemRaw {
+  readonly raw?: string;
 }
 
 /**
@@ -62,49 +73,23 @@ interface ListToken {
  * line. The last item is excluded because a blank line after it separates the
  * list from whatever follows rather than one item from another.
  */
-function isSpelledLoose(items: ListToken['items']): boolean {
-  if (items === undefined || items.length < 2) return false;
+function isSpelledLoose(items: readonly ListItemRaw[]): boolean {
+  if (items.length < 2) return false;
   return items.slice(0, -1).some((item) => ENDS_WITH_BLANK_LINE.test(item.raw ?? ''));
 }
 
-function walk(tokens: readonly unknown[], out: boolean[]): void {
-  for (const token of tokens as readonly ListToken[]) {
-    if (token.type === 'list') {
-      out.push(isSpelledLoose(token.items));
-      for (const item of token.items ?? []) walk(item.tokens ?? [], out);
-      continue;
-    }
-    // A list can also sit inside a blockquote or another container, whose
-    // token carries its children under the same key.
-    if (Array.isArray(token.tokens)) walk(token.tokens, out);
-  }
-}
-
-/** Whether each list in `markdown` is spelled loose, in document order. */
-export function detectListSpacing(markdown: string): boolean[] {
-  const spacing: boolean[] = [];
-  walk(marked.lexer(markdown), spacing);
-  return spacing;
-}
-
 /**
- * Write each list's own spacing onto the `<ul>`/`<ol>` it belongs to.
+ * The attribute to write on this list, as a string ready for the tag, or an
+ * empty string when there is nothing to say.
  *
- * Only detection may set the attribute: a document carrying one in raw HTML
- * would otherwise choose how its own list is written back.
+ * Nothing is written for a tight list: that is what the serializer does
+ * without being told, so an absent attribute and an explicit tight one would
+ * mean the same thing and one of the two would eventually drift. Same rule as
+ * `blankMarkerAttribute` in `blockquote-spacing.ts`, and for the same reason.
+ *
+ * The value holds no character an attribute has to escape — it is the literal
+ * `true` — so the tag is assembled without an escape step.
  */
-export function attachListSpacing(html: string, markdown: string): string {
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  const lists = container.querySelectorAll('ul, ol');
-  for (const list of lists) list.removeAttribute(LIST_SPACING_ATTRIBUTE);
-  if (lists.length === 0) return html;
-
-  const spacing = detectListSpacing(markdown);
-  if (spacing.length !== lists.length) return container.innerHTML;
-
-  lists.forEach((list, index) => {
-    if (spacing[index]) list.setAttribute(LIST_SPACING_ATTRIBUTE, 'true');
-  });
-  return container.innerHTML;
+export function listSpacingAttribute(items: readonly ListItemRaw[]): string {
+  return isSpelledLoose(items) ? ` ${LIST_SPACING_ATTRIBUTE}="true"` : '';
 }

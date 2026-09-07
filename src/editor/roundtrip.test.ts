@@ -826,6 +826,32 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     '![alpha](a.png)\n\n![say "hi"](b.png)\n\n![a \\] b](c.png)',
     'identical',
   ],
+
+  // ── A table inside a blockquote (#200) ──
+  //
+  // These three used to lose their alignment, and none of them holds any raw
+  // HTML. The spelling was scanned out of the raw lines and paired with the
+  // parsed HTML by document order; a quoted table has lines that open with a
+  // marker, so the scan found nothing where `marked` found a table, the counts
+  // disagreed, and **every** table in the document fell back to the default
+  // hugged spelling. Measured before the repair at 97 bytes in and 82 out for
+  // the second row. The style is read from the token now, which is the quote
+  // body with the markers already stripped.
+  [
+    'a padded table inside a blockquote',
+    '> | head  | second |\n> | ----- | ------ |\n> | a     | b      |',
+    'identical',
+  ],
+  [
+    'a padded table beside a padded table in a blockquote',
+    '| head  | second |\n| ----- | ------ |\n| a     | b      |\n\n> | head  | second |\n> | ----- | ------ |\n> | a     | b      |',
+    'identical',
+  ],
+  [
+    'a padded table beside a hugged table in a blockquote',
+    '| head  | second |\n| ----- | ------ |\n| a     | b      |\n\n> | a | b |\n> | --- | --- |\n> | c | d |',
+    'identical',
+  ],
 ];
 
 describe('the editor-level round-trip table (#84)', () => {

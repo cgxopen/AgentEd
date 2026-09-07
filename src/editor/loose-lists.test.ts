@@ -247,3 +247,70 @@ describe('the editor draws a loose list loose', () => {
     expect(lists[0].hasAttribute('data-loose')).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// #200 — the document that used to cost every list its spacing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The spacing used to be paired with the parsed HTML by document order, and a
+ * list the file wrote as **raw HTML** is invisible to that walk while it is
+ * visible to `querySelectorAll`. The counts disagreed, nothing was written,
+ * and every loose list in the document came back tight — not only the
+ * hand-written one.
+ *
+ * These documents assert the repair at the level the numbers were taken at.
+ * They are **not** byte-identical, and the reason is a different question that
+ * #200 records and leaves: a list the file wrote as raw HTML does not survive
+ * to the file at all today, it is rewritten as a markdown list. So what is
+ * pinned here is the exact bytes, which state both halves at once — the
+ * markdown list keeps its blank lines, and the raw one is rewritten.
+ */
+describe('a raw HTML list no longer costs the rest of the document its spacing', () => {
+  it('a loose list beside a hand-written list keeps its blank line', () => {
+    const md = '- a\n\n- b\n\n<ul>\n<li>one</li>\n</ul>';
+    // Before the repair: `- a`, `- b`, blank, `- one` — the loose list tight.
+    expect(openAndSave(md)).toBe('- a\n\n- b\n\n- one');
+  });
+
+  it('a details block holding a list costs the loose list nothing', () => {
+    // The shape a README carries, and the reason this was reachable at all.
+    const md =
+      '- a\n\n- b\n\n<details>\n<summary>more</summary>\n<ul>\n<li>one</li>\n</ul>\n</details>';
+    expect(openAndSave(md)).toBe('- a\n\n- b\n\nmore\n\n- one');
+  });
+
+  it('the hand-written list itself is written tight, which is what it was', () => {
+    const md = '<ul>\n<li>one</li>\n<li>two</li>\n</ul>';
+    expect(openAndSave(md)).toBe('- one\n- two');
+  });
+
+  it('and the second save moves nothing further', () => {
+    const md = '- a\n\n- b\n\n<ul>\n<li>one</li>\n</ul>';
+    const once = openAndSave(md);
+    expect(openAndSave(once)).toBe(once);
+  });
+});
+
+/**
+ * A nested list is rendered by its own call, so it reads its own spelling
+ * (#200). The rows above pair a loose list with a tight one and would still
+ * pass if nesting were answered by the list around it; this one holds no tight
+ * list at all, which is what separates the two claims.
+ *
+ * It is asserted as exact bytes rather than as byte-identity, and the reason is
+ * not this change: the blank line **before** a nested list is dropped, on this
+ * branch and on `main` alike, and nothing here moves it either way. What the
+ * bytes state is the part #200 is about — the outer list keeps the blank lines
+ * between its items and the inner list keeps its own.
+ */
+describe('a nested list reads its own spacing', () => {
+  it('a loose list inside a loose list keeps both spacings', () => {
+    expect(openAndSave('- a\n\n  - x\n\n  - y\n\n- b')).toBe('- a\n  - x\n\n  - y\n\n- b');
+  });
+
+  it('and the second save moves nothing further', () => {
+    const once = openAndSave('- a\n\n  - x\n\n  - y\n\n- b');
+    expect(openAndSave(once)).toBe(once);
+  });
+});
