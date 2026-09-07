@@ -28,7 +28,7 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 
 ## Features
 
-- **WYSIWYG editing** — inline formatting, floating toolbar on selection, markdown input rules (`#` + space → heading, `-` + space → list, ``` + Enter → code block, `[ ]` + space → task list). Tables, task lists, code blocks and images edited visually.
+- **WYSIWYG editing** — inline formatting, floating toolbar on selection, markdown input rules (`#` + space → heading, `-` + space → list, ``` + space or Enter → code block, optionally with a language between them, `[ ]` + space → task list). Tables, task lists, code blocks and images edited visually.
 - **Clean round-trip** — the file you save is plain, portable markdown; opening and saving without edits never alters it.
 - **Live token count** — statusbar, `gpt-tokenizer` (cl100k_base), fully offline, alongside word and character count.
 - **Context awareness** — open a `CLAUDE.md`, `AGENTS.md`, `.cursorrules` and the 📎 *N related* indicator shows the other context files in your project, one click away.

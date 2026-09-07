@@ -169,6 +169,19 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['an empty fence', '```\n```', 'identical'],
   ['an empty fence with a language', '```js\n```', 'identical'],
   ['a fence holding only spaces', '```\n   \n```', 'identical'],
+
+  // The eight spellings the code-block input rule refused until #237. The
+  // file already held every one of them — that is what said the defect was
+  // the rule rather than the format — and these rows are what keeps it so
+  // now that the rule can also produce them.
+  ['a fence whose language is capitalised', '```Python\nx = 1\n```', 'identical'],
+  ['a fence whose language is upper case', '```JS\nconst x = 1;\n```', 'identical'],
+  ['a fence whose language is a single upper-case letter', '```C\nint x;\n```', 'identical'],
+  ['a fence whose language ends in a hash', '```c#\nvar x = 1;\n```', 'identical'],
+  ['a fence whose language ends in two pluses', '```c++\nint x;\n```', 'identical'],
+  ['a fence whose language holds a hyphen', '```objective-c\nint x;\n```', 'identical'],
+  ['a fence whose language ends in a digit', '```py3\nx = 1\n```', 'identical'],
+  ['a fence whose language holds a digit after letters', '```html5\n<p>x</p>\n```', 'identical'],
   ['a task list', '- [ ] todo\n- [x] done', 'identical'],
 
   // ── A fence that is the only content of its container (#104) ──
