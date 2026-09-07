@@ -1,4 +1,4 @@
-import { registerImage } from '../editor/image-registry';
+import { displayMimeFromName, registerImage } from '../editor/image-registry';
 import type { DocumentBundle } from '../formats/types';
 import { dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
@@ -124,9 +124,15 @@ async function resolveFilesystemImages(
     const abs = joinPath(docDir, src);
     try {
       const data = await io.readBinary(abs);
-      const blob = new Blob([data.slice().buffer as ArrayBuffer]);
-      const url = URL.createObjectURL(blob);
       const filename = src.split('/').pop() || src;
+      // The type is what makes an svg draw (#248): the bytes reach the
+      // browser with no name attached, and svg is the one image kind it
+      // will not sniff. Empty for anything not in the table, which is
+      // what this line passed for every extension before it existed.
+      const blob = new Blob([data.slice().buffer as ArrayBuffer], {
+        type: displayMimeFromName(filename),
+      });
+      const url = URL.createObjectURL(blob);
       registerImage(url, { relativePath: src, data, filename });
       urlCache.set(src, url);
       return url;

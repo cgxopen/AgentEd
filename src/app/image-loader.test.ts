@@ -21,7 +21,7 @@
  */
 import { readFile } from '@tauri-apps/plugin-fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearImages, getAllImages } from '../editor/image-registry';
+import { clearImages, displayMimeFromName, getAllImages } from '../editor/image-registry';
 import type { DocumentBundle } from '../formats/types';
 import { WebIO } from '../platform/web';
 import { prepareMarkdownForDisplay } from './image-loader';
@@ -32,7 +32,7 @@ vi.mock('@tauri-apps/plugin-shell', () => ({ open: vi.fn() }));
 vi.mock('@tauri-apps/plugin-fs', () => ({
   readFile: vi.fn(async (path: string) => {
     if (!ON_DISK.has(path)) throw new Error(`ENOENT: ${path}`);
-    return PNG;
+    return path.endsWith('.svg') ? SVG : PNG;
   }),
   readTextFile: vi.fn(),
   writeTextFile: vi.fn(),
@@ -43,8 +43,15 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
 }));
 
 const PNG = new Uint8Array([137, 80, 78, 71]);
+/**
+ * Real svg bytes rather than a stand-in (#248). What this fixture is for is
+ * the media type the loader puts on the blob, and the bytes are the half a
+ * browser would otherwise have to guess from — it never does, for this one
+ * kind, which is the whole of the defect.
+ */
+const SVG = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><rect /></svg>');
 /** What the desktop filesystem holds, by absolute path. */
-const ON_DISK = new Set(['/proj/assets/img.png']);
+const ON_DISK = new Set(['/proj/assets/img.png', '/proj/assets/logo.svg']);
 
 const MD = '# Doc\n\n![alt](assets/img.png)\n';
 
@@ -99,6 +106,18 @@ async function desktopIO() {
   const { TauriIO } = await import('../platform/tauri');
   return new TauriIO();
 }
+
+/**
+ * Every blob the loader built, so its media type can be read (#248).
+ * Installed once over the pristine function: re-spying per test binds the
+ * fallthrough to the previous spy and the next one recurses without end.
+ */
+const blobsBuilt: Blob[] = [];
+const pristineCreateObjectURL = URL.createObjectURL.bind(URL);
+vi.spyOn(URL, 'createObjectURL').mockImplementation((b: Blob | MediaSource) => {
+  blobsBuilt.push(b as Blob);
+  return pristineCreateObjectURL(b as Blob);
+});
 
 /** Whether the reference was replaced by something the editor can show. */
 function resolved(out: string): boolean {
@@ -249,5 +268,66 @@ describe('#187 — the desktop floor, unchanged', () => {
 
     expect(readFile).toHaveBeenCalledWith('/proj/assets/gone.png');
     expect(out).toBe(missing);
+  });
+});
+
+/**
+ * Issue #248 — an svg a document references drew as the placeholder.
+ *
+ * **The property is half unobservable here, and that half is named first.**
+ * Whether a browser *draws* a blob is a browser fact, and there is no browser
+ * in this suite — `happy-dom` does not render and refuses to fetch a blob url
+ * at all. So the two halves are asserted separately and joined: the loader
+ * resolves the reference, **and** the blob it built carries the media type
+ * that makes the drawing possible. Either alone asserts nothing — a reference
+ * can resolve to a blob nothing can display, which is exactly what this
+ * defect was, and a type can be correct on a blob no document points at.
+ *
+ * The other half — that a browser sniffs png, jpeg, gif and webp from their
+ * bytes and never sniffs svg — was measured by the owner on Windows on
+ * 2026-09-07: the placeholder for an svg, the picture for a png, from the same
+ * document. **The manual pass is where this change is verified**, and these
+ * rows are what make a regression in the observable half fail loudly.
+ */
+describe('#248 — the media type an svg needs to be drawn at all', () => {
+  it('an svg reference resolves, and its blob carries image/svg+xml', async () => {
+    blobsBuilt.length = 0;
+    const doc = {
+      markdownBody: '# Doc\n\n![a diagram](assets/logo.svg)\n',
+      rootPath: '/proj/doc.md',
+    } as DocumentBundle;
+    const out = await prepareMarkdownForDisplay(doc, await desktopIO());
+
+    expect(readFile).toHaveBeenCalledWith('/proj/assets/logo.svg');
+    expect(getAllImages()).toHaveLength(1);
+    expect(out).toContain('blob:');
+    expect(blobsBuilt).toHaveLength(1);
+    expect(blobsBuilt[0].type).toBe('image/svg+xml');
+  });
+
+  it('a png beside it still resolves, as it did before any type was set', async () => {
+    // The contrast, and it is deliberately about resolution rather than the
+    // type: png was never the broken kind, because a browser sniffs it. This
+    // row is what says the repair did not cost the case that already worked.
+    const doc = {
+      markdownBody: '# Doc\n\n![a shot](assets/img.png)\n',
+      rootPath: '/proj/doc.md',
+    } as DocumentBundle;
+    const out = await prepareMarkdownForDisplay(doc, await desktopIO());
+
+    expect(getAllImages()).toHaveLength(1);
+    expect(out).toContain('blob:');
+  });
+
+  it('an extension the table does not name is left with no type, exactly as before', () => {
+    // A `.bmp` or an `.ico` a document references is sniffed and drawn today.
+    // Naming it `application/octet-stream` would stop that, so the table
+    // answers with the empty string instead and this row is what holds it
+    // there. The table rather than a route, because what is being pinned is
+    // the answer for a name no fixture on disk carries.
+    expect(displayMimeFromName('drawing.bmp')).toBe('');
+    expect(displayMimeFromName('favicon.ico')).toBe('');
+    expect(displayMimeFromName('noextension')).toBe('');
+    expect(displayMimeFromName('LOGO.SVG')).toBe('image/svg+xml');
   });
 });
