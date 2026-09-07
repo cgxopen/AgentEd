@@ -58,7 +58,6 @@ function buildIO(): PlatformIO {
     entryPresence: async (p: string) => (existing.has(p) ? 'present' : 'absent'),
     listDir: async (p: string) => tree[p] ?? [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: vi.fn(async () => {}),
   };
 }
@@ -237,7 +236,6 @@ const flowIO: PlatformIO = {
     flowDirs.has(path) || flowDisk.has(path) ? 'present' : 'absent',
   listDir: async (path: string) => flowListing[path] ?? [],
   mkdir: async () => {},
-  remove: async () => {},
   openWithSystem: async () => {},
 };
 

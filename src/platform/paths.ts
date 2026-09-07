@@ -96,8 +96,17 @@ export function isMarkdownPath(path: string): boolean {
  *  - `target` outside root after collapse → false
  *
  * This is a string-level check; symlinks pointing outside still pass
- * if the textual prefix matches. Defense in depth: AgentEd relies on
- * the Tauri fs/shell scope at the OS level for the symlink case.
+ * if the textual prefix matches. **What stands behind it is the shell
+ * scope and nothing else** (#220, #249). The `open` scope in
+ * `src-tauri/tauri.conf.json` is an extension whitelist, so a symlink
+ * to an executable is refused there when `sidebar-click.ts` hands a
+ * path to the OS. The `fs` scope in `src-tauri/capabilities/default.json`
+ * allows `**`, so it refuses nothing: a symlink inside the listed root
+ * that points outside passes this check and then passes that scope too.
+ * The sentence that used to stand here named both scopes, and the `fs`
+ * half had nothing at the address it named. Whether the `fs` scope
+ * should narrow is a product question at the #20 gate, not a defect
+ * here.
  */
 export function isPathInsideRoot(target: string, root: string): boolean {
   const normRoot = collapseDotSegments(root).replace(/\/+$/, '');

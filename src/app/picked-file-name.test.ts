@@ -230,7 +230,6 @@ function desktopPlatform(absolutePath: string, name?: string): string[] {
     entryPresence: async () => 'present' as const,
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: async () => {},
   };
   return written;

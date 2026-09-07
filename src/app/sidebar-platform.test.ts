@@ -35,7 +35,6 @@ function mockIO(present: ReadonlyArray<string>): PlatformIO {
     entryPresence: async (p: string) => (existing.has(p) ? 'present' : 'absent'),
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: async () => {},
   };
 }

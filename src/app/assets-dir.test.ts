@@ -37,7 +37,6 @@ function mockIO(existsPredicate: (path: string) => boolean): PlatformIO {
     mkdir: async (p: string) => {
       mkdirCalls.push(p);
     },
-    remove: async () => {},
     openWithSystem: async () => {},
   };
 }

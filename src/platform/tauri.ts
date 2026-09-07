@@ -3,7 +3,6 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import {
   exists as fsExists,
   mkdir as fsMkdir,
-  remove as fsRemove,
   readDir,
   readFile,
   readTextFile,
@@ -185,10 +184,6 @@ export class TauriIO implements PlatformIO {
 
   async mkdir(path: string): Promise<void> {
     await fsMkdir(path, { recursive: true });
-  }
-
-  async remove(path: string): Promise<void> {
-    await fsRemove(path, { recursive: true });
   }
 
   async openWithSystem(path: string): Promise<void> {

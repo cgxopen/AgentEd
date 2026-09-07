@@ -47,7 +47,6 @@ const io: PlatformIO = {
     if (mkdirFails) throw new Error('EACCES: permission denied');
     written.push(`mkdir ${path}`);
   },
-  remove: async () => {},
   openWithSystem: async () => {},
 };
 

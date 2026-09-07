@@ -49,7 +49,6 @@ function stubIO(files: Record<string, string>): PlatformIO & {
     mkdir: async (path: string) => {
       dirs.push(path);
     },
-    remove: async () => {},
     openWithSystem: vi.fn(async () => {}),
   };
 }

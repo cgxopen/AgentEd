@@ -34,7 +34,6 @@ function makeIO(): PlatformIO {
     entryPresence: async () => 'absent' as const,
     listDir: async () => [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: vi.fn(async () => {}),
   };
 }

@@ -68,7 +68,6 @@ function io(folder: Folder): PlatformIO {
       return [...files, ...dirs];
     },
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: async () => {},
   };
 }

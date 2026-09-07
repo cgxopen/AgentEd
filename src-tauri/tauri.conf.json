@@ -36,7 +36,7 @@
   },
   "plugins": {
     "shell": {
-      "open": "(https?://[^\\s]+|mailto:[^\\s]+|/[^\\s]+\\.(?i:md|markdown|txt|png|jpg|jpeg|gif|svg|webp|pdf|json|yaml|yml)|[A-Za-z]:[\\\\/][^\\s]+\\.(?i:md|markdown|txt|png|jpg|jpeg|gif|svg|webp|pdf|json|yaml|yml))"
+      "open": "(https?://[^\\s]+|mailto:[^\\s]+|/[^\\s]+\\.(?i:md|markdown|txt|png|jpg|jpeg|gif|webp|pdf|json|yaml|yml)|[A-Za-z]:[\\\\/][^\\s]+\\.(?i:md|markdown|txt|png|jpg|jpeg|gif|webp|pdf|json|yaml|yml))"
     }
   },
   "bundle": {

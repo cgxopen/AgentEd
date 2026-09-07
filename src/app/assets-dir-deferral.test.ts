@@ -43,7 +43,6 @@ const io: PlatformIO = {
   mkdir: async (path: string) => {
     calls.push(`mkdir ${path}`);
   },
-  remove: async () => {},
   openWithSystem: async () => {},
 };
 

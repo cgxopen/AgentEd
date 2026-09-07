@@ -26,7 +26,6 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   readFile: vi.fn(),
   writeFile: vi.fn(),
   mkdir: vi.fn(),
-  remove: vi.fn(),
   readDir: vi.fn(),
   stat: vi.fn(),
   exists: vi.fn(),

@@ -58,7 +58,6 @@ function recordingIO(disk: Map<string, string>): PlatformIO {
     entryPresence: async () => 'absent' as const,
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: async () => {},
   };
 }
