@@ -57,10 +57,26 @@ import type { NodeType } from '@tiptap/pm/model';
  * (`null`) applies — which is how three backticks alone go on making a block
  * with no language.
  */
-export const BACKTICK_FENCE_INPUT_REGEX = /^```([^\s`]+)?[\s\n]$/;
+const LANGUAGE_GROUP = '[^\\s`]+';
+
+/**
+ * The same group again, as a test on a whole string, for the routes that are
+ * handed a language rather than a line of typing (#238).
+ *
+ * Built from `LANGUAGE_GROUP` rather than written out a second time, so the
+ * picker and the input rule cannot drift into admitting different sets. That
+ * they *must* agree is R-C2 business rather than tidiness: a language holding
+ * a backtick writes a fence that reopens as a paragraph, taking the block out
+ * of the file — measured on `80cbfe5`, saved and reopened. A language holding
+ * a space is truncated to its first word by the serializer instead, which
+ * loses the rest of it silently.
+ */
+export const LANGUAGE_PATTERN = new RegExp(`^${LANGUAGE_GROUP}$`);
+
+export const BACKTICK_FENCE_INPUT_REGEX = new RegExp(`^\`\`\`(${LANGUAGE_GROUP})?[\\s\\n]$`);
 
 /** The tilde spelling of the same fence. See the comment above. */
-export const TILDE_FENCE_INPUT_REGEX = /^~~~([^\s`]+)?[\s\n]$/;
+export const TILDE_FENCE_INPUT_REGEX = new RegExp(`^~~~(${LANGUAGE_GROUP})?[\\s\\n]$`);
 
 /**
  * Both rules, built against the node type the kit registered. Bounded at two

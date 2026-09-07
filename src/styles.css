@@ -907,9 +907,31 @@ button.indicator-search:hover {
  *
  * The element is a ProseMirror widget decoration, so it exists in the view and
  * never in the document model; `user-select: none` keeps it out of a
- * selection the user drags across the code, and `pointer-events: none` keeps
- * it from swallowing a click meant for the block. Both go the day the §8
- * candidate makes the label clickable.
+ * selection the user drags across the code.
+ *
+ * **`pointer-events: none` has gone, and `user-select: none` has not.** This
+ * comment used to predict that both would go the day the label became
+ * clickable. #236 settled half of that before the day arrived: it built a
+ * widget that takes a click in this same box, at the other corner, and kept
+ * `user-select: none` — a button is not dragged into a selection merely by
+ * being clickable. So #238 removed the one rule that actually stood in the
+ * way of a click and left the other alone.
+ *
+ * **The padding is the click target and it moves nothing.** The label reads
+ * where it always read: the offsets below are pulled back by exactly the
+ * padding, so the text lands at the same 3px and 16px it did when this was a
+ * bare `span`. What grows is the box a pointer has to hit, which was 26 by 12
+ * before the padding — measured against the Copy icon next to it at 20 by 20.
+ *
+ * **There is no `text-transform` here, and its absence is the point** (owner
+ * decision, 2026-09-07). This rule carried `lowercase` from #202 until #238,
+ * which was styling with no reader behind it: nothing in REQUIREMENTS asked
+ * for it and no test read it. #237 then settled that a language is not
+ * normalised — what is set is what the file carries — and this was the one
+ * surface that still normalised it, so the editor showed `python` for a file
+ * holding `Python`. Measured through the real control before it was removed.
+ * Every lowercase language renders exactly as it did; a language with a
+ * capital in it now renders as the file spells it.
  *
  * **It scrolls with the code, and that is worth stating precisely** because a
  * looser wording invites the wrong picture. `.tiptap pre` is the scroll
@@ -923,18 +945,61 @@ button.indicator-search:hover {
  * wrapper element around the block — a node view — which is a change to how a
  * fence is drawn, and that is an owner decision rather than a detail of this.
  */
-.tiptap pre .code-block-language {
+.tiptap pre .code-block-language,
+.tiptap pre .code-block-language-empty {
   position: absolute;
-  top: 3px;
-  left: 16px;
+  top: -1px;
+  left: 10px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  font-family: inherit;
   font-size: 10px;
   line-height: 1.2;
   letter-spacing: 0.04em;
-  text-transform: lowercase;
   color: var(--code-text);
   opacity: 0.55;
   user-select: none;
-  pointer-events: none;
+  cursor: pointer;
+}
+
+.tiptap pre .code-block-language:hover,
+.tiptap pre .code-block-language-empty:hover {
+  opacity: 0.9;
+}
+
+/*
+ * The mark a block with **no** language carries (#238, owner decision of
+ * 2026-09-07): drawn only while the pointer is over the block, so a plain
+ * text box stays plain.
+ *
+ * The same two-rule mechanism as the Copy icon, and deliberately the same:
+ * `.tiptap pre:hover` is the whole of it, no listener and no plugin state, so
+ * a selection or a caret inside the block does not reveal it either. It is an
+ * icon rather than a word because R-C15 says a fence with no language carries
+ * *no language label* and offers Text in the picker — so what appears here is
+ * an affordance, and the word belongs in the field the click opens.
+ *
+ * `visibility: hidden` rather than `opacity: 0` alone, for the reason the
+ * Copy icon gives: an invisible control that still answers a click is worse
+ * than no control.
+ */
+.tiptap pre .code-block-language-empty {
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease-out;
+}
+
+.tiptap pre:hover .code-block-language-empty {
+  opacity: 0.55;
+  visibility: visible;
+}
+
+.tiptap pre:hover .code-block-language-empty:hover {
+  opacity: 0.9;
 }
 
 /*
@@ -999,6 +1064,61 @@ button.indicator-search:hover {
 .tiptap pre:hover .code-block-copy {
   opacity: 0.75;
   visibility: visible;
+}
+
+/*
+ * The field that sets the language of a fenced block (R-C15, #238).
+ *
+ * `position: fixed`, and the module writes the two offsets from the label's
+ * own rectangle, so it opens under the label wherever that label happens to
+ * be — including a label that has scrolled sideways inside its block. Fixed
+ * rather than absolute because the element is appended to the body: it is
+ * chrome, and keeping it outside the editable tree is what keeps a caret out
+ * of it and the serializer unaware of it.
+ *
+ * It reuses the surface of the other popovers rather than inventing one, so a
+ * palette change reaches it with everything else.
+ */
+.language-popover {
+  position: fixed;
+  z-index: 70;
+  width: min(260px, calc(100vw - 24px));
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.language-popover-field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.language-popover-field:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/*
+ * The refusal. `role="alert"` on the element and `hidden` when there is
+ * nothing to say, so the popover does not change height as the user types.
+ */
+.language-popover-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--danger);
 }
 
 .tiptap pre code {
