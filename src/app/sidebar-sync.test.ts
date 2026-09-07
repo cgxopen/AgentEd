@@ -30,7 +30,6 @@ function mockIO(options: MockIOOptions = {}): PlatformIO {
     entryPresence: async (p: string) => (existing.has(p) ? 'present' : 'absent'),
     listDir: async (p: string) => options.entries?.[p] ?? [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: async () => {},
   };
 }

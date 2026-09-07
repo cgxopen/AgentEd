@@ -25,7 +25,6 @@ const io = vi.hoisted(() => ({
   exists: vi.fn(async () => false),
   listDir: vi.fn(async (): Promise<FileEntry[]> => []),
   mkdir: vi.fn(async () => {}),
-  remove: vi.fn(async () => {}),
   openWithSystem: vi.fn(async () => {}),
 }));
 

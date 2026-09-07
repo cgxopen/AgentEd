@@ -16,7 +16,6 @@
     "fs:allow-mkdir",
     "fs:allow-exists",
     "fs:allow-read-dir",
-    "fs:allow-remove",
     {
       "identifier": "fs:scope",
       "allow": [{ "path": "**" }]

@@ -386,24 +386,6 @@ export class WebIO implements PlatformIO {
     await this.navigateToDir(path, true);
   }
 
-  async remove(path: string): Promise<void> {
-    if (!this.dirHandle && path.includes('/')) {
-      throw new Error(
-        'NO_DIR_HANDLE: web mode requires directory access for multi-file operations; use Save As to acquire',
-      );
-    }
-    if (!this.dirHandle) return;
-    const parts = path.split('/').filter(Boolean);
-    const name = parts.pop();
-    if (!name) return;
-    try {
-      const parent = await this.navigateToDirByParts(parts, false);
-      await parent.removeEntry(name, { recursive: true });
-    } catch {
-      // Entry doesn't exist
-    }
-  }
-
   /**
    * There is no equivalent of a shell open in the File System Access
    * API, so this rejects. **The rejection is load-bearing** (#146).

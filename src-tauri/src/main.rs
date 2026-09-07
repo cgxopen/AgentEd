@@ -81,4 +81,44 @@ mod tests {
              HTML5 drop event never reaches the editor on Windows (#65)"
         );
     }
+
+    /// Issue #249, decision 4 of #220 - `svg` is not in the shell `open`
+    /// scope, on either path alternative.
+    ///
+    /// The scope is the last thing between a sidebar click and a process
+    /// started by the OS, and `svg` was the one extension in it for which
+    /// open means execute: measured on Windows on 2026-09-07, a click on
+    /// an `.svg` opened it in the browser associated with svg, which runs
+    /// whatever script the document carries. The other twelve extensions
+    /// name documents a viewer displays.
+    ///
+    /// Read from `tauri.conf.json` for the same reason the test above
+    /// reads it: JSON carries no comment saying why an entry must stay
+    /// out, and putting `svg` back would be silent.
+    #[test]
+    fn the_shell_open_scope_does_not_carry_svg() {
+        let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
+            .expect("tauri.conf.json should parse as JSON");
+
+        let scope = config["plugins"]["shell"]["open"]
+            .as_str()
+            .expect("the shell plugin should carry an `open` scope, as a string");
+
+        // Both halves are asserted, because either alone asserts nothing: a
+        // scope that had lost its whitelist entirely would satisfy the first
+        // assertion while opening far more than svg ever did.
+        assert_eq!(
+            scope.matches("png").count(),
+            2,
+            "the open scope should carry its extension whitelist on both path \
+             alternatives - the POSIX one and the Windows one - or this test is \
+             reading something other than the whitelist: {scope}"
+        );
+        assert!(
+            !scope.contains("svg"),
+            "`svg` must stay out of the shell open scope: a sidebar click on one \
+             hands it to the browser associated with svg, which executes the \
+             script it carries (#249): {scope}"
+        );
+    }
 }

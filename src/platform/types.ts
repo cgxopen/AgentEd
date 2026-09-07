@@ -218,7 +218,6 @@ export interface PlatformIO {
   entryPresence(path: string): Promise<EntryPresence>;
   listDir(path: string): Promise<FileEntry[]>;
   mkdir(path: string): Promise<void>;
-  remove(path: string): Promise<void>;
   /**
    * Open `path` with the host OS's default application for that
    * file type (Tauri-only). Throws on Web — there's no equivalent

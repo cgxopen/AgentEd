@@ -88,7 +88,6 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   mkdir: async (path: string) => {
     writes.push(`mkdir ${path}`);
   },
-  remove: vi.fn(),
   readTextFile: vi.fn(),
   writeTextFile: vi.fn(),
 }));

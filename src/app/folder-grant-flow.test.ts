@@ -50,7 +50,6 @@ function ioWith(granted: { current: boolean }): PlatformIO {
       granted.current ? (p === '/proj/notes' ? 'present' : 'absent') : 'unknown',
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
-    remove: async () => {},
     openWithSystem: async () => {},
   };
 }
