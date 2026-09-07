@@ -1,0 +1,240 @@
+/**
+ * An HTML comment survives the save, and the reader can tell it is there
+ * (#245).
+ *
+ * ── What this harness cannot see, said first ──
+ *
+ * **Arrow-key caret motion and Backspace are not observable here.** Measured
+ * on a control rather than assumed: `keyboardShortcut('Backspace')` moves
+ * nothing even on the plain text `abc` under happy-dom, and
+ * `selectNodeBackward` answers false, because both need a real editor view.
+ * So *can the caret pass the mark without sticking* and *does a Backspace
+ * beside it select it before removing it* are **verified in the manual pass**,
+ * not here, and the pull request says so.
+ *
+ * What this file asserts is the halves that are observable, and it joins the
+ * two that are only worth anything together: the mark the editor rendered is
+ * matched against the selector read out of `styles.css`, rather than against a
+ * string restated here. Either half alone asserts nothing — a selector nobody
+ * renders, or an element no stylesheet reaches.
+ */
+import { afterEach, describe, expect, it } from 'vitest';
+import stylesCss from '../styles.css?raw';
+import { markdownToHtml } from './markdown/parse';
+import { createEditor, type EditorInstance } from './setup';
+
+let instance: EditorInstance | null = null;
+
+function open(markdown: string): EditorInstance {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  instance = createEditor(host);
+  instance.setMarkdown(markdown);
+  return instance;
+}
+
+function openAndSave(markdown: string): string {
+  const editor = open(markdown);
+  const saved = editor.getMarkdown().trim();
+  editor.destroy();
+  instance = null;
+  return saved;
+}
+
+function positionOf(editor: EditorInstance, nodeName: string): number {
+  let found = -1;
+  editor.editor.state.doc.descendants((node, pos) => {
+    if (node.type.name === nodeName) found = pos;
+    return true;
+  });
+  return found;
+}
+
+afterEach(() => {
+  instance?.destroy();
+  instance = null;
+  document.body.innerHTML = '';
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The bytes: the file gets back what it gave
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('a comment survives the save', () => {
+  it.each([
+    ['alone on a line', '<!-- a note -->'],
+    ['inline mid-sentence', 'one <!-- note --> two'],
+    ['at the end of a paragraph', 'one two <!-- note -->'],
+    ['between two paragraphs', 'one\n\n<!-- note -->\n\ntwo'],
+    ['multi-line', '<!--\nline one\nline two\n-->'],
+    ['wrapping a block of markdown', '<!--\n## heading\n\n- a\n- b\n-->'],
+    ['two on their own lines', '<!-- a -->\n\n<!-- b -->'],
+    ['holding a tag', '<!-- <b>bold</b> -->'],
+    ['inside a fenced block, where it is code', '```\n<!-- kept as text -->\n```'],
+  ])('%s is byte-identical', (_label, markdown) => {
+    // Every one of these came back as nothing before the repair, apart from the
+    // fenced one, which was already text and must stay text.
+    expect(openAndSave(markdown)).toBe(markdown);
+  });
+
+  it('and the second save moves nothing further', () => {
+    const markdown = 'one\n\n<!-- note -->\n\ntwo <!-- and another -->';
+    const once = openAndSave(markdown);
+    expect(openAndSave(once)).toBe(once);
+  });
+
+  it('a document with no comment is untouched', () => {
+    const markdown =
+      '# Title\n\ntext with **emphasis**\n\n- a\n- b\n\n| a | b |\n| --- | --- |\n| c | d |';
+    expect(openAndSave(markdown)).toBe(markdown);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The carrier: what reaches the sanitizer, and what a hand-written one buys
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('the carrier', () => {
+  it('reaches the document, where the comment node itself could not', () => {
+    // The half this repair rests on: DOMPurify removes a comment node, so the
+    // bytes have to be somewhere it keeps. Both halves asserted, because
+    // either alone would pass on a pipeline that did nothing.
+    expect(markdownToHtml('<!-- a note -->')).toContain('data-comment=');
+    expect(markdownToHtml('<!-- a note -->')).not.toContain('<!--');
+  });
+
+  it('refuses a value a document wrote by hand that is not one comment', () => {
+    // The attribute travels through a user file as readily as through this
+    // pipeline, and what it holds is written back verbatim. A value that is
+    // not one comment carries nothing rather than reaching the file.
+    const saved = openAndSave('<div data-comment="not%20a%20comment">x</div>');
+    expect(saved).not.toContain('not a comment');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The mark: the observable halves, joined
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The class the stylesheet actually styles the mark with, read from
+ * `styles.css` rather than restated here — the precedent is `loose-lists`
+ * reading its own selector, and `ci.test.ts` reading `ci.yml`. A test that
+ * repeats the string it is checking goes on passing after the file it
+ * describes has moved.
+ */
+function markSelector(): string {
+  const rule = stylesCss
+    .split('}')
+    .find((block) => block.includes('::before') && block.includes('markdown-comment-mark'));
+  if (rule === undefined) {
+    throw new Error('styles.css has no ::before rule drawing the comment mark (#245)');
+  }
+  return rule.slice(rule.lastIndexOf('*/') + 2, rule.indexOf('{')).trim();
+}
+
+describe('the mark the reader sees', () => {
+  it('the stylesheet draws a glyph for it', () => {
+    const rule = stylesCss.slice(stylesCss.indexOf(markSelector()));
+    expect(rule).toMatch(/content:\s*["']¶["']/);
+  });
+
+  it.each([
+    ['inline', 'one <!-- a short note --> two', 'SPAN'],
+    ['block', 'x\n\n<!-- block note -->\n\ny', 'DIV'],
+  ])('%s: the editor renders an element the selector reaches', (_label, markdown, tag) => {
+    const editor = open(markdown);
+    const host = editor.editor.view.dom.parentElement as HTMLElement;
+    // The selector out of the stylesheet, run against what was rendered.
+    const marks = host.querySelectorAll(markSelector().replace(/::before$/, ''));
+    expect(marks).toHaveLength(1);
+    expect(marks[0].nodeName).toBe(tag);
+  });
+
+  it('carries the note on hover, without its delimiters', () => {
+    const editor = open('one <!-- a short note --> two');
+    const mark = editor.editor.view.dom.querySelector('.markdown-comment-mark') as HTMLElement;
+    expect(mark.title).toBe('a short note');
+  });
+
+  it('keeps the lines of a multi-line note', () => {
+    const editor = open('<!--\nline A\nline B\n-->');
+    const mark = editor.editor.view.dom.querySelector('.markdown-comment-mark') as HTMLElement;
+    expect(mark.title).toBe('line A\nline B');
+  });
+
+  it('is drawn by the node view alone, so the saved bytes do not know about it', () => {
+    // The reason the product decision cost nothing. `getHTML` serializes
+    // through `renderHTML`, which is the carrier; the mark exists only in the
+    // editing view.
+    const editor = open('one <!-- a short note --> two');
+    expect(editor.editor.view.dom.innerHTML).toContain('markdown-comment-mark');
+    expect(editor.editor.getHTML()).not.toContain('markdown-comment-mark');
+    expect(editor.getMarkdown().trim()).toBe('one <!-- a short note --> two');
+  });
+
+  it('holds no text of its own, so a selection cannot carry the glyph into the file', () => {
+    // The glyph is a CSS `::before`; the element itself is empty.
+    const editor = open('one <!-- note --> two');
+    const mark = editor.editor.view.dom.querySelector('.markdown-comment-mark') as HTMLElement;
+    expect(mark.textContent).toBe('');
+    expect(mark.getAttribute('contenteditable')).toBe('false');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The node: what a user can do to it, in the halves this harness can see
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('the node holding a comment', () => {
+  it.each([
+    ['inline', 'one <!-- note --> two', 'markdownCommentInline', 'one two'],
+    ['block', 'one\n\n<!-- note -->\n\ntwo', 'markdownCommentBlock', 'one\n\ntwo'],
+  ])('%s: is an atom, deleted whole, and undo brings the bytes back', (_label, markdown, nodeName, afterDelete) => {
+    const editor = open(markdown);
+    const at = positionOf(editor, nodeName);
+    const node = editor.editor.state.doc.nodeAt(at);
+    expect(node?.isAtom).toBe(true);
+    expect(node?.isLeaf).toBe(true);
+    expect(node?.nodeSize).toBe(1);
+
+    editor.editor.commands.setNodeSelection(at);
+    expect(editor.editor.state.selection.constructor.name).toBe('NodeSelection');
+
+    editor.editor.commands.deleteSelection();
+    expect(editor.getMarkdown().trim()).toBe(afterDelete);
+
+    // The half the manual pass cannot check by eye: what comes back is the
+    // bytes, not an approximation of them.
+    editor.editor.commands.undo();
+    expect(editor.getMarkdown().trim()).toBe(markdown);
+  });
+
+  it('text typed beside an inline comment lands beside it, not inside it', () => {
+    const before = open('one <!-- note --> two');
+    const at = positionOf(before, 'markdownCommentInline');
+    before.editor.commands.setTextSelection(at + 1);
+    before.editor.commands.insertContent('X');
+    expect(before.getMarkdown().trim()).toBe('one <!-- note -->X two');
+    before.destroy();
+    instance = null;
+
+    const after = open('one <!-- note --> two');
+    const pos = positionOf(after, 'markdownCommentInline');
+    after.editor.commands.setTextSelection(pos);
+    after.editor.commands.insertContent('Y');
+    expect(after.getMarkdown().trim()).toBe('one Y<!-- note --> two');
+  });
+
+  it('a comment wrapping markdown is one node holding bytes, not content', () => {
+    // What makes the hidden block safe: the heading and the list inside are in
+    // the attribute, so nothing renders them and nothing can edit half of them.
+    const editor = open('<!--\n## heading\n\n- a\n- b\n-->');
+    const json = editor.editor.getJSON();
+    expect(json.content).toHaveLength(1);
+    expect(json.content?.[0]).toEqual({
+      type: 'markdownCommentBlock',
+      attrs: { comment: '<!--\n## heading\n\n- a\n- b\n-->' },
+    });
+  });
+});

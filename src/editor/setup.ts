@@ -1,4 +1,10 @@
-import { type AnyExtension, Editor, Extension, type Node as NodeExtension } from '@tiptap/core';
+import {
+  type AnyExtension,
+  Editor,
+  Extension,
+  type Node as NodeExtension,
+  Node as TipTapNode,
+} from '@tiptap/core';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -30,6 +36,13 @@ import {
   BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
 } from './markdown/blockquote-spacing';
 import {
+  COMMENT_BLOCK_TAG,
+  COMMENT_INLINE_TAG,
+  decodeComment,
+  encodeComment,
+  MARKDOWN_COMMENT_ATTRIBUTE,
+} from './markdown/comment-spelling';
+import {
   decodeHtmlSource,
   encodeHtmlSource,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
@@ -41,6 +54,100 @@ import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
+
+// ── The two nodes that hold an HTML comment (#245) ──
+//
+// A comment is content the user cannot see, so the node that holds it is an
+// **atom**: it has no content of its own, the caret never goes inside it, and
+// it is deleted whole or not at all. That is also why it cannot be typed into,
+// which is why writing a comment is not something this editor offers — R-C1
+// says nothing about comments, and an insert route would be a feature rather
+// than this repair.
+//
+// Two nodes rather than one, because the two shapes sit in different places
+// in the schema: a comment alone on a line is a block, and one inside a
+// sentence is inline and has to be allowed wherever text is.
+//
+// **The tag each is carried on is measured, not chosen for looks** — see
+// `comment-spelling.ts` for why the inline one is a `wbr`.
+
+const commentAttributes = {
+  comment: {
+    default: null as string | null,
+    parseHTML: (element: HTMLElement) =>
+      decodeComment(element.getAttribute(MARKDOWN_COMMENT_ATTRIBUTE)),
+    renderHTML: (attributes: Record<string, unknown>) =>
+      typeof attributes.comment === 'string'
+        ? { [MARKDOWN_COMMENT_ATTRIBUTE]: encodeComment(attributes.comment) }
+        : {},
+  },
+};
+
+/**
+ * The mark the reader sees where a comment is, and the note behind it.
+ *
+ * **Owner decision, 2026-09-07: a muted paragraph sign, with the comment text
+ * on hover.** Drawing nothing was the other option and is what the issue asks
+ * for literally; it was rejected on a measurement rather than on taste. Of 192
+ * comments counted in 2194 markdown files, the median is one line and 63
+ * bytes, but **one in eight is five lines or more** and the largest is 40
+ * lines — so a Backspace beside an invisible node could remove a page of text
+ * with nothing on screen changing, which is the #234 shape: a document that
+ * survives as bytes and not as a document. A mark is what makes that
+ * deliberate.
+ *
+ * **A node view rather than `renderHTML`, and that is the whole reason this
+ * costs nothing.** `getHTML` serializes through `renderHTML`, so the mark
+ * exists only in the editing view: the carrier the serializer reads is
+ * untouched and the file comes back byte for byte whatever is drawn here.
+ * Measured, both with the mark and without it.
+ *
+ * The glyph is a CSS `::before` rather than text in this element, so a
+ * selection dragged across it cannot pick the character up.
+ *
+ * The `title` is the note without its delimiters, which is what a reader wants
+ * to read. A native tooltip is what draws it — no positioning code, no new
+ * dependency — and it keeps the newlines of a multi-line comment.
+ */
+function commentMark(comment: unknown, tag: 'span' | 'div'): { dom: HTMLElement } {
+  const dom = document.createElement(tag);
+  dom.className = 'markdown-comment-mark';
+  dom.contentEditable = 'false';
+  if (typeof comment === 'string') {
+    dom.title = comment.slice('<!--'.length, -'-->'.length).trim();
+  }
+  return { dom };
+}
+
+const MarkdownCommentBlock = TipTapNode.create({
+  name: 'markdownCommentBlock',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  draggable: false,
+  addAttributes: () => commentAttributes,
+  addNodeView() {
+    return ({ node }) => commentMark(node.attrs.comment, 'div');
+  },
+  parseHTML: () => [{ tag: `${COMMENT_BLOCK_TAG}[${MARKDOWN_COMMENT_ATTRIBUTE}]` }],
+  renderHTML: ({ HTMLAttributes }) => [COMMENT_BLOCK_TAG, HTMLAttributes],
+});
+
+const MarkdownCommentInline = TipTapNode.create({
+  name: 'markdownCommentInline',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  draggable: false,
+  addAttributes: () => commentAttributes,
+  addNodeView() {
+    return ({ node }) => commentMark(node.attrs.comment, 'span');
+  },
+  parseHTML: () => [{ tag: `${COMMENT_INLINE_TAG}[${MARKDOWN_COMMENT_ATTRIBUTE}]` }],
+  // `wbr` is void, so nothing is nested inside it.
+  renderHTML: ({ HTMLAttributes }) => [COMMENT_INLINE_TAG, HTMLAttributes],
+});
 
 /**
  * StarterKit, with the declarations this project overrides. The two the
@@ -470,6 +577,8 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
 
   return [
     starterKitWithLocalSchemaRules(),
+    MarkdownCommentBlock,
+    MarkdownCommentInline,
     Underline,
     Link.configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link

@@ -852,6 +852,33 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     '| head  | second |\n| ----- | ------ |\n| a     | b      |\n\n> | a | b |\n> | --- | --- |\n> | c | d |',
     'identical',
   ],
+
+  // ── An HTML comment (#245) ──
+  //
+  // Every one of these used to come back as nothing: `marked` keeps a comment
+  // and DOMPurify removes it, so the text left the file on the first save with
+  // nothing said. One shape in the corpus reached 40 lines and 1145 bytes.
+  //
+  // The last row is the one that must **not** move: a comment inside a fenced
+  // block is code, it was already text before this change, and it stays text.
+  ['a comment alone on a line', '<!-- a note -->', 'identical'],
+  ['a comment inline mid-sentence', 'one <!-- note --> two', 'identical'],
+  ['a comment at the end of a paragraph', 'one two <!-- note -->', 'identical'],
+  ['a comment between two paragraphs', 'one\n\n<!-- note -->\n\ntwo', 'identical'],
+  ['a multi-line comment', '<!--\nline one\nline two\n-->', 'identical'],
+  ['a comment wrapping a block of markdown', '<!--\n## heading\n\n- a\n- b\n-->', 'identical'],
+  ['two comments on their own lines', '<!-- a -->\n\n<!-- b -->', 'identical'],
+  ['a comment holding a tag', '<!-- <b>bold</b> -->', 'identical'],
+  ['a comment holding a quote', '<!-- say "hi" -->', 'identical'],
+  ['a comment holding a dash run', '<!-- a - b -- c -->', 'identical'],
+  [
+    'a comment beside an image and a link',
+    '![a](i.png) <!-- n --> [t](https://e.com)',
+    'identical',
+  ],
+  ['a comment in a list item', '- one <!-- note -->\n- two', 'identical'],
+  ['a comment in a blockquote', '> one <!-- note -->', 'identical'],
+  ['a comment inside a fenced block stays text', '```\n<!-- kept as text -->\n```', 'identical'],
 ];
 
 describe('the editor-level round-trip table (#84)', () => {
