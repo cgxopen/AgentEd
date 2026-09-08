@@ -5,12 +5,12 @@ import {
   mkdir as fsMkdir,
   readDir,
   readFile,
-  readTextFile,
   writeFile,
   writeTextFile,
 } from '@tauri-apps/plugin-fs';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
+import { decodeFileText } from './decode';
 import { basename, dirname, joinPath } from './paths';
 import type {
   CloseGuard,
@@ -53,7 +53,7 @@ export class TauriIO implements PlatformIO {
       if (!selected) return null;
       filePath = selected as string;
     }
-    const content = await readTextFile(filePath);
+    const content = decodeFileText(await readFile(filePath), filePath);
     return { content, path: filePath };
   }
 
@@ -74,7 +74,10 @@ export class TauriIO implements PlatformIO {
   }
 
   async readText(path: string): Promise<string> {
-    return await readTextFile(path);
+    // Bytes, then this application's own decoder. `readTextFile` decodes
+    // with a `TextDecoder` it does not let the caller configure, which is
+    // lossy and strips the mark (#259).
+    return decodeFileText(await readFile(path), path);
   }
 
   async saveFile(path: string, content: string): Promise<void> {
@@ -90,7 +93,7 @@ export class TauriIO implements PlatformIO {
    */
   async readSnapshot(path: string): Promise<FileSnapshot> {
     try {
-      return { kind: 'file', text: await readTextFile(path) };
+      return { kind: 'file', text: decodeFileText(await readFile(path), path) };
     } catch (e) {
       try {
         if (!(await fsExists(path))) return { kind: 'absent' };

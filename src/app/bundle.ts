@@ -16,6 +16,7 @@ export function buildBundle(state: AppState, getMarkdown: () => string): Documen
     markdownBody: getMarkdown(),
     images: getAllImages(),
     rootPath: state.filePath ?? 'untitled.md',
+    byteOrderMark: state.byteOrderMark,
     lineConventions: state.lineConventions,
   };
 }
@@ -42,6 +43,9 @@ export async function applyBundle(
   // The file's own line conventions, read on open and re-applied to
   // everything AgentEd writes to it afterwards (#79).
   ctx.state.lineConventions = bundle.lineConventions;
+  // The file's own byte order mark, read on open and put back on every
+  // save afterwards (#259) - the same shape, one property over.
+  ctx.state.byteOrderMark = bundle.byteOrderMark;
   ctx.state.frontmatter = bundle.frontmatterRaw;
   ctx.state.isFirstSave = false;
 

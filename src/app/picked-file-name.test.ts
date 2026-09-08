@@ -174,6 +174,7 @@ async function insertAndSave(documentPath: string): Promise<void> {
       markdownBody: '',
       images: getAllImages(),
       rootPath: documentPath,
+      byteOrderMark: false,
       lineConventions: DEFAULT_LINE_CONVENTIONS,
     },
     io,

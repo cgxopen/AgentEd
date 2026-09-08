@@ -61,9 +61,10 @@ function grantedTree(inDoc: string[], revoked: { value: boolean }): unknown {
       guard();
       if (!inDoc.includes(n)) throw dom('NotFoundError');
       return {
-        getFile: async () => ({
-          text: async () => '# Project rules\n\nThe line a reader actually wants.\n',
-        }),
+        // A real `Blob` rather than an object with a `text` method: the
+        // platform reads bytes and decodes them itself (#259), which is
+        // what a browser `getFile` hands back and what this now models.
+        getFile: async () => new Blob(['# Project rules\n\nThe line a reader actually wants.\n']),
       };
     },
     getDirectoryHandle: async (): Promise<never> => {

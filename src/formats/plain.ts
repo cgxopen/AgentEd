@@ -1,5 +1,6 @@
 import { dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
+import { applyByteOrderMark, hasByteOrderMark, stripByteOrderMark } from './byte-order-mark';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
 import { applyLineConventions, detectLineConventions } from './line-conventions';
 import type { DocumentBundle } from './types';
@@ -39,9 +40,15 @@ export async function loadMarkdown(path: string, io: PlatformIO): Promise<LoadRe
  * on disk, and therefore the R-C14 baseline.
  */
 export function parseMarkdown(text: string, path: string): LoadResult {
-  const { raw, body } = splitFrontmatter(text);
+  // The mark comes off first and is remembered, because everything
+  // below reads the start of the text: a mark in front of `---` is a
+  // metadata block `splitFrontmatter` would not recognise (#259).
+  const mark = hasByteOrderMark(text);
+  const withoutMark = stripByteOrderMark(text);
+  const { raw, body } = splitFrontmatter(withoutMark);
   return {
     bundle: {
+      byteOrderMark: mark,
       frontmatterRaw: raw,
       markdownBody: body,
       images: [],
@@ -49,7 +56,7 @@ export function parseMarkdown(text: string, path: string): LoadResult {
       // Read from the text before any splitting — the same text the
       // R-C14 baseline is taken from, and for the same reason: this is
       // what the file actually contains (#79).
-      lineConventions: detectLineConventions(text),
+      lineConventions: detectLineConventions(withoutMark),
     },
     diskText: text,
   };
@@ -92,7 +99,12 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
   // whole assembled text and nowhere else (#79): the serializer emits
   // `\n` and no final newline, and this is the point where the text
   // that will be written exists in one piece.
-  const writtenText = applyLineConventions(assembleMarkdown(bundle), bundle.lineConventions);
+  // The mark goes back on last, outside the line conventions: it stands
+  // in front of the first line rather than being part of one (#259).
+  const writtenText = applyByteOrderMark(
+    applyLineConventions(assembleMarkdown(bundle), bundle.lineConventions),
+    bundle.byteOrderMark,
+  );
   await io.saveFile(bundle.rootPath, writtenText);
 
   if (!io.supportsMultiFile) return { assetsError: null, writtenText };

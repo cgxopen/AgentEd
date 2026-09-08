@@ -1,3 +1,4 @@
+import { decodeFileText } from './decode';
 import { DocumentIdentity, type GrantedHandles } from './document-identity';
 import { joinPath } from './paths';
 import {
@@ -114,7 +115,7 @@ export class WebIO implements PlatformIO {
       });
       this.fileHandle = handle;
       const file = await handle.getFile();
-      const content = await file.text();
+      const content = decodeFileText(await file.arrayBuffer(), handle.name);
       // The content goes back with the path: the caller has been handed
       // the text this platform read from the picked handle itself, and
       // re-reading it by name is the lookup that went wrong (#141).
@@ -175,7 +176,9 @@ export class WebIO implements PlatformIO {
       this.identity.grantedFor(path, this.handles());
     if (!handle) throw new Error(`Could not resolve a file handle for: ${path}`);
     const file = await handle.getFile();
-    return await file.text();
+    // Bytes, then this application's own decoder. `Blob.text` decodes
+    // lossily by specification and consumes the mark (#259).
+    return decodeFileText(await file.arrayBuffer(), path);
   }
 
   async saveFile(path: string, content: string): Promise<void> {
@@ -231,7 +234,7 @@ export class WebIO implements PlatformIO {
 
     try {
       const file = await handle.getFile();
-      return { kind: 'file', text: await file.text() };
+      return { kind: 'file', text: decodeFileText(await file.arrayBuffer(), path) };
     } catch (e) {
       if (isNotFound(e)) return { kind: 'absent' };
       return { kind: 'unreadable', cause: e };

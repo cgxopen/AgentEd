@@ -8,6 +8,11 @@ import {
 } from './plain';
 import type { DocumentBundle } from './types';
 
+export {
+  applyByteOrderMark,
+  hasByteOrderMark,
+  stripByteOrderMark,
+} from './byte-order-mark';
 export { detectExternalChange, type ExternalChange } from './external-change';
 export { assembleMarkdown, splitFrontmatter } from './frontmatter';
 export {

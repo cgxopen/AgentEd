@@ -173,6 +173,7 @@ describe('the same image inserted twice (#52)', () => {
         markdownBody: instance.getMarkdown(),
         images: getAllImages(),
         rootPath: '/doc/notes.md',
+        byteOrderMark: false,
         lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io as never,

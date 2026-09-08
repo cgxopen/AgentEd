@@ -298,6 +298,7 @@ describe('#148 — a document the granted folder cannot reach', () => {
           },
         ],
         rootPath: s.state.filePath ?? '',
+        byteOrderMark: false,
         lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,

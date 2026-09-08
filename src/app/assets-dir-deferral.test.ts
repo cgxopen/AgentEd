@@ -158,6 +158,7 @@ describe('#14 — an image in a document that was never saved', () => {
         markdownBody: '![diagram](assets/diagram.png)\n',
         images: getAllImages(),
         rootPath: state.filePath!,
+        byteOrderMark: false,
         lineConventions: DEFAULT_LINE_CONVENTIONS,
       },
       io,
