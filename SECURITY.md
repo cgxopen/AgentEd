@@ -1,6 +1,6 @@
 # Security Policy
 
-AgentEd is a local, offline desktop application: no network calls at runtime, no telemetry, no accounts, no cloud storage. Its main attack surface is parsing and rendering untrusted markdown files and writing to the local filesystem.
+AgentEd is a local desktop application that makes no network calls of its own: no telemetry, no update check, no accounts, no cloud storage, and every feature works with the machine offline. The embedded web runtime the platform gives it is a separate matter, and what it does has been measured rather than assumed — on Windows it reaches Microsoft at every launch, and it speculatively looks up the hostname of a link in the open document when the pointer enters it. Neither is traffic AgentEd asks for, and neither can be turned off from here; Q3 in REQUIREMENTS.md carries the figures, the builds and the instrument. The main attack surface is parsing and rendering untrusted markdown files and writing to the local filesystem.
 
 ## Supported versions
 

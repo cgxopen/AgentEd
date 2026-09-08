@@ -5,7 +5,7 @@ This file is read by Claude Code (DEV) sessions working on AgentEd. It is intent
 ## Before you start — read these, in this order
 
 1. **[REQUIREMENTS.md](REQUIREMENTS.md)** — what the product is and what it must never do.
-2. **[docs/internal/STATUS.md](docs/internal/STATUS.md)** — where the project *currently* is: phase, ordered agenda, decisions taken, what merged last.
+2. **[docs/internal/STATUS.md](docs/internal/STATUS.md)** — where the project *currently* is: phase, ordered agenda, decisions taken. What merged, newest first, is [MILESTONE-LOG.md](docs/internal/MILESTONE-LOG.md) beside it.
 3. This file, in full.
 
 Then **verify the live state against the repository before planning or reporting anything**: which pull requests are open, what is on `main`, which branches exist. Your session context goes stale — a branch you remember may already be merged and deleted, an issue you remember as next may already be closed. The repository is the state; your memory of an earlier session is not. Never report project status from context alone.
@@ -22,7 +22,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 - **R-C3 No silent writes**: the editor never writes to disk without an explicit user save decision; every destructive path — including window close and app quit — goes through the unsaved-changes gate.
 - **R-C14 No silent overwrite**: before every save, compare on-disk state (mtime/hash); on external change the user chooses reload / overwrite / save-as. Never write lock files next to user documents.
 - **Q1 Size budget**: Windows installer stays in the ~3 MB class. **No new runtime dependency without explicit owner approval** — state the size impact in the PR.
-- **Q3 Offline**: AgentEd makes no network calls of its own. What the embedded web runtime underneath does is not in its control — on Windows, WebView2 contacts Microsoft twice at every launch, measured on `3f47f20`.
+- **Q3 Offline**: AgentEd makes no network calls of its own. What the embedded web runtime underneath does is not in its control — on Windows, WebView2 reaches two Microsoft destinations over three connections at every launch, and speculatively looks up the hostname of a link when the pointer enters it, before any click. Neither can be turned off from here; the second was measured rather than assumed. Q3 in REQUIREMENTS carries the figures and the builds.
 
 ## Design rules
 
