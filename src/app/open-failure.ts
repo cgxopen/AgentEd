@@ -82,17 +82,22 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  */
 export function openFailedMessage(path: string, cause?: unknown): string {
   if (marked(cause, NOT_UTF8)) {
+    // Three blocks rather than one, because `.dialog-message` renders
+    // with `white-space: pre-wrap`: the cause, the repair, then the path.
+    // The path stands last so it does not bury the reason, and it stands
+    // at all for the reason #127 gives - two files can share a name, and
+    // the path is what was clicked.
+    //
+    // The title above it already says the file could not be opened, so
+    // this does not say it a second time. Nor does it say the file is
+    // there: the sentence that used to claim otherwise is gone, and an
+    // absent false claim needs no denial beside it.
     return (
-      `AgentEd could not open ${path}, because it is not stored in UTF-8 - the text ` +
-      'encoding AgentEd reads and writes. The file is there and was read without ' +
-      'trouble; what AgentEd cannot interpret is the way its characters are stored, ' +
-      'which is usual for documents written years ago by Windows programs. Opening ' +
-      'it would mean showing a placeholder in place of every letter AgentEd cannot ' +
-      'read, and the next save would write those placeholders over your file. ' +
-      'To open it here, re-save it as UTF-8 in the program that wrote it - in ' +
-      'Windows Notepad that is File, then Save As, with Encoding set to UTF-8. ' +
-      'AgentEd has changed nothing on disk, and the document you had open is ' +
-      'unchanged.'
+      'This file is not stored in UTF-8, the text encoding AgentEd reads and writes, ' +
+      'so it has not been opened. Nothing has changed on disk.\n\n' +
+      'To open it here, re-save it as UTF-8 in the program that wrote it. In Windows ' +
+      'Notepad: File, then Save As, with Encoding set to UTF-8.\n\n' +
+      path
     );
   }
   if (marked(cause, READ_REFUSED)) {

@@ -432,10 +432,27 @@ describe('the encoding refusal reaches the route the owner run used (#259)', () 
     // A step, never an offer: AgentEd declines to destroy a legacy file
     // rather than undertaking to rescue one.
     expect(message).not.toMatch(/AgentEd (can|will|could) convert/i);
-    expect(message).toContain('AgentEd has changed nothing on disk');
+    expect(message).toContain('Nothing has changed on disk');
   });
 
-  it('says the open document survived, which is what the read path guarantees', () => {
-    expect(message).toContain('the document you had open is unchanged');
+  it('says nothing on disk moved, which is what the read path guarantees', () => {
+    // The user has just clicked expecting a document to appear. On a
+    // rejection `loadDocument` throws before `applyBundle` runs, so the
+    // editor, the path and the R-C14 baseline are all untouched - and
+    // the refused file was never written to either. One clause covers
+    // both, which is why it is not two.
+    expect(message).toContain('Nothing has changed on disk');
+  });
+
+  it('puts the path last and on its own line, so it does not bury the reason', () => {
+    const blocks = message.split('\n\n');
+    expect(blocks).toHaveLength(3);
+    expect(blocks[2]).toBe(path);
+    expect(blocks[0]).toContain('UTF-8');
+  });
+
+  it('does not repeat what the dialog title already says', () => {
+    expect(message).not.toContain('could not be opened');
+    expect(message).not.toContain('could not open');
   });
 });
