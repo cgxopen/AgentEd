@@ -68,8 +68,15 @@ export async function shouldShowSidebar(
   // `canWriteCompanions` is the predicate #147 built for exactly this
   // split — it asks whether the grant can name a companion **beside
   // this document**, which is the same question a tree asks. Its name is
-  // about writing and its meaning is about the neighbourhood; that is
-  // worth one sentence rather than a rename.
+  // about writing and its meaning is about the neighbourhood; that was
+  // worth one sentence rather than a rename at one consumer, and the
+  // trade was re-examined at three and kept on numbers (#201). One name,
+  // three questions - write, read, neighbourhood - and five of the seven
+  // callers ask the one the name states. No disagreement between the two
+  // platforms is reachable by any of them: on the web all three reduce to
+  // the same grant, and on the desktop the answer is a path-shape check
+  // whose false branch no Windows path reaches, held in
+  // `platform/tauri.test.ts`.
   //
   // `no-folder-access` rather than `nothing-adjacent`, because nothing
   // about *this document's* neighbourhood was established — and on the
@@ -203,6 +210,26 @@ export async function refreshSidebar(
   // `requestFolderAccess` answers `false` to. An unreadable path on the
   // desktop keeps the behaviour it had, which is hidden; whether that
   // silence is right is #58's question and not this one's.
+  //
+  // **What would replace the flag**, which CLAUDE.md asks be named beside
+  // it and which was missing here until #201. The question underneath is
+  // whether this build can acquire a grant at all, and
+  // `requestFolderAccess` in `platform/index.ts` already owns it - it
+  // answers `false` on the desktop, where nothing grants. It cannot be
+  // asked here, because it is an act rather than a query: it opens the
+  // directory picker, so calling it to decide whether to offer a folder
+  // would be asking for the folder. Until something answers that question
+  // without performing it, the platform name is the only answer available.
+  //
+  // **And only one of the two routes to `no-folder-access` reaches this
+  // line on the desktop.** The predicate at the top of `shouldShowSidebar`
+  // is a path-shape check there, and no shape a Windows picker returns
+  // reaches its false branch - the two false answers need a POSIX
+  // filesystem root or a bare name. Measured through the real `TauriIO`
+  // and held in `platform/tauri.test.ts`. What does reach here on the
+  // desktop is the `nothingWasLookedAt` route, `entryPresence` answering
+  // `unknown`, which is the case the paragraph above is about. So the flag
+  // is carrying that second route rather than the first.
   //
   // Below a kept root, because a root a click asked to hold is a folder
   // that was granted: there is nothing to offer.
