@@ -82,6 +82,15 @@ export class AppState {
    * new name is still a CRLF document, whereas what AgentEd knew about
    * the old path says nothing about the new one.
    */
+  /**
+   * Whether the open document's file began with a byte order mark
+   * (#259). Beside the line conventions and for the same reason: it is
+   * a property of the file, carried so that saving puts it back.
+   * `false` for a document that was never read from disk, which is what
+   * AgentEd writes for a new one.
+   */
+  byteOrderMark = false;
+
   lineConventions: LineConventions = DEFAULT_LINE_CONVENTIONS;
 
   /**
@@ -262,6 +271,7 @@ export class AppState {
     this.frontmatter = null;
     this.isFirstSave = true;
     this.knownDiskText = null;
+    this.byteOrderMark = false;
     this.lineConventions = DEFAULT_LINE_CONVENTIONS;
     this.destinationCueShown = false;
     // There is no document, so there is no panel and no root it kept.

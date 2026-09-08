@@ -115,6 +115,19 @@ export const READ_REFUSED = 'READ_REFUSED';
 /** The folder answered, and there is nothing by that name. See above. */
 export const FILE_ABSENT = 'FILE_ABSENT';
 
+/**
+ * The file was found and read, and its bytes are not valid UTF-8 (#259).
+ *
+ * A third state beside the two above, and the one of the three that is
+ * **not** about reaching the file: the read succeeded. Marked rather
+ * than described here for the same reason they are - the words belong to
+ * the wording layer, and this is the term the platform contract offers
+ * it. It is the one open failure where a step genuinely repairs the
+ * situation, which is why the sentence for it names one where the other
+ * two deliberately do not.
+ */
+export const NOT_UTF8 = 'NOT_UTF8';
+
 export interface PlatformIO {
   /** Whether this platform can write to multiple file paths (directories, attachments) */
   readonly supportsMultiFile: boolean;

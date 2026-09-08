@@ -25,6 +25,13 @@ export interface DocumentBundle {
   /** Path of the `.md` file on disk */
   rootPath: string;
   /**
+   * Whether the file began with a byte order mark (#259). Read at the
+   * same moment as the line conventions below and re-applied at the
+   * same one, and required for the same reason: an omission would not
+   * fail, it would silently drop three bytes from the user's file.
+   */
+  byteOrderMark: boolean;
+  /**
    * How the text is written back: line terminator and final newline
    * (#79). Required rather than optional, because a bundle built
    * without them is the half-wired caller this repository refuses to

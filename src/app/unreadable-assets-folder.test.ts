@@ -226,6 +226,7 @@ async function save(): Promise<unknown> {
       markdownBody: 'body',
       images: getAllImages(),
       rootPath: state.filePath as string,
+      byteOrderMark: false,
       lineConventions: DEFAULT_LINE_CONVENTIONS,
     },
     currentIO,

@@ -40,6 +40,7 @@ describe('assembleMarkdown', () => {
       markdownBody,
       images: [],
       rootPath: 'test.md',
+      byteOrderMark: false,
       lineConventions: DEFAULT_LINE_CONVENTIONS,
     };
   }
