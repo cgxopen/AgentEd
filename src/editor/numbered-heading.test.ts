@@ -177,10 +177,11 @@ describe('the floor — where a list can begin, the escape stays', () => {
   });
 
   it('never writes a numbered line that reads back as a list', () => {
-    // A heading level the editor does not have (`heading: { levels: [1..4] }`
-    // in `setup.ts`) arrives as a paragraph, and there the backslash is
-    // load-bearing. Asserted as the property rather than as bytes, so it stays
-    // true whichever block the text ends up in.
+    // Since #262 five hashes are a heading, so this text arrives as one
+    // rather than as the paragraph it used to be. The assertion is unchanged
+    // because it was written as a property rather than as bytes - it stays
+    // true whichever block the text ends up in, which is why opening the
+    // levels moved the comment and not the expectation.
     const saved = editorWith('##### 1990. A year.').getMarkdown().trim();
     expect(editorWith(saved).editor.getHTML()).not.toContain('<ol');
   });

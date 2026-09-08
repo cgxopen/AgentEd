@@ -741,6 +741,28 @@ button.indicator-search:hover {
   margin: 0.5em 0 0.2em;
   font-weight: 600;
 }
+/* Levels 5 and 6 are the size of body text, and that is the decision rather
+   than an oversight (#262). The band between h4 at 1.1em and the 16px body
+   text is 1.6 pixels wide and cannot hold two more steps, so weight carries
+   level 5 and colour carries level 6 — the strategy GitHub uses, without its
+   numbers, which put both below the paragraph they sit above. A heading
+   smaller than the text under it reads as a mistake in an editor.
+
+   The known cost is recorded on the issue: a level-5 heading looks like a
+   paragraph that starts in bold. Accepted, because the alternative is what
+   this change repairs — two levels that were not distinguishable at all and
+   whose markers left the file. */
+.tiptap h5 {
+  font-size: 1em;
+  margin: 0.45em 0 0.18em;
+  font-weight: 600;
+}
+.tiptap h6 {
+  font-size: 1em;
+  margin: 0.4em 0 0.15em;
+  font-weight: 600;
+  color: var(--muted);
+}
 
 /* Paragraphs */
 .tiptap p {
