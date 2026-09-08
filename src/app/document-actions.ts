@@ -7,6 +7,7 @@ import {
   parseDocument,
   saveDocument,
 } from '../formats/index';
+import { NotUtf8Error } from '../platform/decode';
 import { getPlatformIO } from '../platform/index';
 import { basename, dirname } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
@@ -401,6 +402,16 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     try {
       result = await io.openFile();
     } catch (e) {
+      // The picker route reaches the same refusals the click route does,
+      // so it reads the same words (#259). `omit`, because the message
+      // is the whole of what the reader needs and the second line would
+      // put the platform marker under it. `NotUtf8Error` carries the
+      // path; nothing else on this route knows one, since the picker
+      // failed before it named a file.
+      if (e instanceof NotUtf8Error) {
+        await ctx.reporter.dialog(openFailedMessage(e.path, e), e, OPEN_FAILED_TITLE, 'omit');
+        return;
+      }
       await ctx.reporter.dialog('Failed to open file', e);
       return;
     }

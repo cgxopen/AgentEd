@@ -20,27 +20,27 @@
  *   Without this the mark is gone before any AgentEd code runs.
  */
 
+import { NOT_UTF8 } from './types';
+
 /** A leading byte order mark, as the character a decoder yields for it. */
 export const BYTE_ORDER_MARK = '﻿';
 
 /**
  * A file whose bytes are not valid UTF-8.
  *
- * Carries the sentence a person reads rather than a code, because both
- * routes that open a document put an error's own message in front of
- * the user. It names what happened and what AgentEd will not do, and it
- * offers no conversion: rescuing a legacy encoding is a different
- * product from the one REQUIREMENTS describes.
+ * **Carries the marker rather than the sentence.** The first draft put
+ * the prose here and the owner run found what that costs: the route the
+ * sidebar and the file association take does not show an error's own
+ * message, it asks `openFailedMessage` for one - so the user read *it
+ * may have been moved, renamed or removed* about a file that was found
+ * and read without trouble. The words live where the other two open
+ * failures keep theirs, and this is the term that reaches them.
  */
 export class NotUtf8Error extends Error {
   readonly path: string;
 
   constructor(path: string) {
-    super(
-      'This file is not saved in UTF-8, the text encoding AgentEd reads and writes. ' +
-        'It has not been opened, because showing it would mean replacing the characters ' +
-        'AgentEd cannot read - and saving would then write those replacements over your file.',
-    );
+    super(`${NOT_UTF8}: ${path}`);
     this.name = 'NotUtf8Error';
     this.path = path;
   }

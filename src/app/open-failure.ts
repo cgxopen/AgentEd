@@ -7,7 +7,7 @@
  * (the #50 precedent).
  */
 
-import { FILE_ABSENT, READ_REFUSED } from '../platform/types';
+import { FILE_ABSENT, NOT_UTF8, READ_REFUSED } from '../platform/types';
 
 /** The dialog's title. */
 export const OPEN_FAILED_TITLE = 'This file could not be opened';
@@ -47,6 +47,22 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  * nothing acquires what is needed here, so nothing is named. Advice
  * that leads nowhere is worse than none (#148).
  *
+ * **The encoding state is the exception to that, and for the reason the
+ * rule gives rather than against it** (#259). The three states above are
+ * about reaching the file, and nothing the user can do from the dialog
+ * reaches it. This one is not: the file was found and read without
+ * trouble, and what stopped AgentEd is what the bytes are. Re-saving it
+ * as UTF-8 in the program that wrote it repairs it, so a step is named.
+ * It is a step the user takes elsewhere and never an offer to convert
+ * anything here - AgentEd is not asked to rescue a legacy encoding, only
+ * to decline to destroy one.
+ *
+ * **It is also the one state where the disjunction below was wrong
+ * rather than vague** (#259, owner run). Before this branch existed a
+ * file that had been found and read answered *it may have been moved,
+ * renamed or removed* - the confident wrong sentence this module exists
+ * to avoid, reached because the platform threw and nothing marked why.
+ *
  * **The refused sentence still claims no cause.** It says the read was
  * refused and that this is not a missing file, which is exactly what
  * `READ_REFUSED` establishes. It does not say the grant lapsed: which
@@ -65,6 +81,20 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  * is what was clicked.
  */
 export function openFailedMessage(path: string, cause?: unknown): string {
+  if (marked(cause, NOT_UTF8)) {
+    return (
+      `AgentEd could not open ${path}, because it is not stored in UTF-8 - the text ` +
+      'encoding AgentEd reads and writes. The file is there and was read without ' +
+      'trouble; what AgentEd cannot interpret is the way its characters are stored, ' +
+      'which is usual for documents written years ago by Windows programs. Opening ' +
+      'it would mean showing a placeholder in place of every letter AgentEd cannot ' +
+      'read, and the next save would write those placeholders over your file. ' +
+      'To open it here, re-save it as UTF-8 in the program that wrote it - in ' +
+      'Windows Notepad that is File, then Save As, with Encoding set to UTF-8. ' +
+      'AgentEd has changed nothing on disk, and the document you had open is ' +
+      'unchanged.'
+    );
+  }
   if (marked(cause, READ_REFUSED)) {
     return (
       `AgentEd could not read ${path}. The browser refused the folder rather than ` +

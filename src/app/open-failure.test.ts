@@ -24,6 +24,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearImages } from '../editor/image-registry';
+import { NotUtf8Error } from '../platform/decode';
 import tauriSource from '../platform/tauri.ts?raw';
 import type { PlatformIO } from '../platform/types';
 import { FILE_ABSENT, READ_REFUSED } from '../platform/types';
@@ -405,5 +406,36 @@ describe('#173 — the desktop path is untouched, and is asserted to be', () => 
   it('all three sentences differ from each other, so no assertion passes vacuously', () => {
     const three = [refusedMessage('x.md'), notFoundMessage('x.md'), unestablishedMessage('x.md')];
     expect(new Set(three).size).toBe(3);
+  });
+});
+
+describe('the encoding refusal reaches the route the owner run used (#259)', () => {
+  const path = 'C:/Users/vasil/Downloads/b-cp1250.md';
+  const message = openFailedMessage(path, new NotUtf8Error(path));
+
+  it('names the encoding rather than guessing at the file', () => {
+    expect(message).toContain('UTF-8');
+    expect(message).toContain(path);
+  });
+
+  // The defect this branch exists for: before it, a file that had been
+  // found and read answered with the disjunction, which claims a cause
+  // that is false here.
+  it('does not repeat the moved-renamed-removed sentence', () => {
+    expect(message).not.toContain('moved, renamed or removed');
+    expect(message).not.toContain('no longer be readable');
+  });
+
+  it('names a step the user can take, and it is one they take elsewhere', () => {
+    expect(message).toContain('Save As');
+    expect(message).toContain('UTF-8');
+    // A step, never an offer: AgentEd declines to destroy a legacy file
+    // rather than undertaking to rescue one.
+    expect(message).not.toMatch(/AgentEd (can|will|could) convert/i);
+    expect(message).toContain('AgentEd has changed nothing on disk');
+  });
+
+  it('says the open document survived, which is what the read path guarantees', () => {
+    expect(message).toContain('the document you had open is unchanged');
   });
 });

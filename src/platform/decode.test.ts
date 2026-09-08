@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BYTE_ORDER_MARK, decodeFileText, NotUtf8Error } from './decode';
+import { NOT_UTF8 } from './types';
 
 /**
  * Issue #259 - what this application does with the bytes of a file.
@@ -37,14 +38,13 @@ describe('decodeFileText - a file that is not valid UTF-8 is refused (#259)', ()
     }
   });
 
-  it('says so in words rather than in a code, and offers no conversion', () => {
-    const message = new NotUtf8Error('/doc/legacy.md').message;
-    expect(message).toContain('UTF-8');
-    // The refusal explains itself and declines exactly one thing. It must
-    // not offer to convert: rescuing a legacy encoding is a different
-    // product from the one REQUIREMENTS describes.
-    expect(message.toLowerCase()).not.toContain('convert');
-    expect(message).not.toMatch(/\berror\b|\bfailed\b|[A-Z]{3,}_[A-Z]{3,}/);
+  it('carries the platform marker, which is what the wording layer reads', () => {
+    // The words are not here. The first draft put them on this error and
+    // the owner run found what that costs: the route the sidebar and the
+    // file association take does not show an error message, it asks
+    // `openFailedMessage` for one - so a file that had been found and
+    // read was reported as possibly moved or deleted.
+    expect(new NotUtf8Error('/doc/legacy.md').message.startsWith(`${NOT_UTF8}:`)).toBe(true);
   });
 });
 
