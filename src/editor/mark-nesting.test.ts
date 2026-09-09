@@ -23,6 +23,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { createEditor, type EditorInstance } from './setup';
+import setupSource from './setup.ts?raw';
 
 let instance: EditorInstance | null = null;
 
@@ -159,6 +160,14 @@ describe('the toolbar routes (#84)', () => {
  * *renamed* rank or a re-introduced `excludes` would otherwise come back
  * silently, and every shape above would quietly go back to being split.
  */
+
+/** The options the built editor gave the heading extension. */
+function optionsOfHeading(editor: ReturnType<typeof editorWith>) {
+  return editor.editor.extensionManager.extensions.find((e) => e.name === 'heading')?.options as
+    | { levels?: number[] }
+    | undefined;
+}
+
 describe('the schema the fix depends on', () => {
   it('ranks the code mark below every other mark, and excludes none of them', () => {
     const editor = editorWith('');
@@ -167,53 +176,47 @@ describe('the schema the fix depends on', () => {
     expect(editor.schema.marks.code.spec.excludes).toBe('');
   });
 
-  it('configuration survives the extend', () => {
-    // The regression this file exists to prevent a second time. Re-declaring
-    // the `Code` mark means reaching into StarterKit's own extension list, and
-    // `StarterKit.extend({…}).configure({…})` builds that list from the kit's
-    // *default* options — every value `setup.ts` passes is dropped, silently.
-    // Measured on this branch before the order was corrected: `heading` came
-    // back as levels 1–6 rather than 1–4. It did not throw, and no test in the
-    // suite failed, because that is configuration rather than behaviour —
-    // `numbered-heading.test.ts` even carries a comment asserting the level
-    // limit in prose, which had quietly become false.
+  it('the kit is configured before it is extended, read out of the source', () => {
+    // The regression this file exists to prevent a second time.
+    // `StarterKit.extend({…}).configure({…})` builds the kit's extension list
+    // from its *default* options and drops every value `setup.ts` passes,
+    // silently. Measured before the order was corrected: `heading` came back
+    // as levels 1-6 rather than 1-4, nothing threw, and no test failed.
     //
-    // **This used to assert a second value and no longer can.** `setup.ts` also
-    // passed `codeBlock: { HTMLAttributes: { class: 'code-block' } }`, and that
-    // configuration has gone — a class nothing consumed, since a fenced block's
-    // appearance is `.tiptap pre` in `src/styles.css`, which never mentioned it.
-    // The debt was recorded on #202 and taken by #27, the next change to put
-    // `setup.ts` in a diff.
+    // **This used to be pinned by that very value, and since #262 it cannot
+    // be.** The levels are now 1-6, which is also the kit's default, so a
+    // dropped `configure` would leave them looking exactly right - and the
+    // `codeBlock` class that was the other half went at #27. There is no
+    // configured value left whose loss is visible in the built schema.
     //
-    // Losing it costs this test nothing it was relied on for. The claim being
-    // pinned is *the configuration is what `setup.ts` asked for*, and the
-    // heading levels carry it — they are also the half with a user-visible
-    // consequence, which the removed half never had and which an earlier
-    // version of this comment wrongly said it did.
-    //
-    // Asserted here rather than in the round-trip table on purpose: the table
-    // is about bytes, and this does not reach the file.
-    const editor = editorWith('');
-    const extensions = editor.editor.extensionManager.extensions;
-    const optionsOf = (name: string) =>
-      extensions.find((extension) => extension.name === name)?.options as
-        | Record<string, unknown>
-        | undefined;
-
-    expect((optionsOf('heading') as { levels?: number[] } | undefined)?.levels).toEqual([
-      1, 2, 3, 4,
-    ]);
+    // So the ordering is pinned where it is written instead. Reading a source
+    // file in a test is the shape `open-failure.test.ts` already uses. It is
+    // weaker than checking a built value and it is what is available: it
+    // catches the swap, which is the mistake that was actually made, and it
+    // says so rather than implying more.
+    const chain = setupSource.slice(setupSource.indexOf('StarterKit.configure'));
+    const configureAt = chain.indexOf('.configure(');
+    const extendAt = chain.indexOf('.extend(');
+    expect(configureAt).toBeGreaterThanOrEqual(0);
+    expect(extendAt).toBeGreaterThan(configureAt);
   });
 
-  it('keeps a heading level the editor does not have out of the schema', () => {
-    // The user-visible half of the same fact, stated as behaviour rather than
-    // as configuration: `#####` is not a heading here, so it opens as a
-    // paragraph. Not an endorsement of the limit — STATUS §4 records that the
-    // limit itself is unpinned on purpose — but a check that the limit
-    // `setup.ts` asks for is the limit the editor got.
-    const editor = editorWith('##### Five');
+  it('holds every heading level CommonMark spells, and no more', () => {
+    // #262. Levels 5 and 6 are in the schema, so a file carrying them keeps
+    // them instead of losing its markers on the next save.
+    const editor = editorWith('# a\n\n##### e\n\n###### f');
     expect(Object.keys(editor.schema.nodes)).toContain('heading');
-    expect(editor.editor.getHTML()).not.toContain('<h5');
+    const html = editor.editor.getHTML();
+    expect(html).toContain('<h5');
+    expect(html).toContain('<h6');
+
+    // The half that gives the half above its meaning. CommonMark stops at
+    // six, and the input rules are built from the levels list rather than
+    // from a loosened pattern - so a seventh hash matches nothing. A change
+    // that opened the levels by widening a regex would pass every assertion
+    // above and fail this one.
+    expect(editorWith('####### g').editor.getHTML()).not.toContain('<h7');
+    expect((optionsOfHeading(editorWith(''))?.levels ?? []).length).toBe(6);
   });
 
   it('draws a fenced block without the class that used to be configured', () => {

@@ -351,7 +351,7 @@ function bareBlankMarkerAttribute() {
 
 function starterKitWithLocalSchemaRules() {
   return StarterKit.configure({
-    heading: { levels: [1, 2, 3, 4] },
+    heading: { levels: [1, 2, 3, 4, 5, 6] },
   }).extend({
     addExtensions() {
       const registered = (this.parent?.() ?? []) as AnyExtension[];
