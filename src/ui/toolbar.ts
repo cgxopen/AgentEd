@@ -180,6 +180,28 @@ function bindToolbarEvents(
 
     const start = editor.view.coordsAtPos(from);
     const end = editor.view.coordsAtPos(to);
+
+    // ── The reveal comes before the measurement, and the order is the repair ──
+    //
+    // `.floating-toolbar.hidden` is `display: none`, and an element with no box
+    // answers 0 for both width and height. Measuring first therefore put the
+    // toolbar's **left edge** where its centre belonged and its **top** 8 px
+    // above the selection rather than 8 px above minus its own height — drawn
+    // over the very text it acts on, on every hidden-to-visible transition
+    // (#265). A drag hid it, because its second `selectionUpdate` measured a
+    // real box and overwrote the first result.
+    //
+    // Instrumented on Chrome for Testing 153 before the change: 0 by 0 while
+    // hidden, 414.47 by 31.59 once revealed. Both call sites — `selectionUpdate`
+    // and `focus` — reached this line with the toolbar hidden.
+    //
+    // The reveal, the measurement and the two assignments below are one
+    // synchronous block, so there is no point between them at which the browser
+    // could paint; `getBoundingClientRect` forces a reflow, which is not a
+    // paint. That is an argument from the rendering model rather than a
+    // measurement, and WebView2 is not Chromium — a flash on the first reveal
+    // of a session is what the manual pass watches for.
+    toolbar.classList.remove('hidden');
     const rect = toolbar.getBoundingClientRect();
     const centerX = (start.left + end.right) / 2;
     let left = centerX - rect.width / 2;
@@ -188,7 +210,6 @@ function bindToolbarEvents(
     left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
     toolbar.style.left = `${left}px`;
     toolbar.style.top = `${Math.max(8, top)}px`;
-    toolbar.classList.remove('hidden');
     updateActiveStates();
   }
 
