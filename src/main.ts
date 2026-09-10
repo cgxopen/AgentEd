@@ -19,6 +19,7 @@ import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
 import { AppState } from './app/state';
 import { setupTableDialog } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
+import { insertMenuCallbacks } from './editor/insert-blocks';
 import { insertCodeBlock } from './editor/insert-code-block';
 import { createEditor } from './editor/setup';
 import { getPlatformIO, requestFolderAccess } from './platform/index';
@@ -271,6 +272,7 @@ setupMenu({
   onFindPrevious: () => ctx.searchManager.findPrevious(),
   onInsertTable: tableDialog.open,
   onInsertCodeBlock: () => insertCodeBlock(ctx.editor),
+  ...insertMenuCallbacks(ctx.editor),
   onInsertMedia: () => {
     void insertMedia({
       state: ctx.state,
