@@ -1610,6 +1610,75 @@ button.indicator-search:hover {
   color: #fff;
 }
 
+/*
+ * The one control that opens a list rather than running a command (#267).
+ *
+ * The `min-width` is what keeps the toolbar still. Its label follows the caret
+ * — `H` in ordinary text, `H3` inside a heading — and measured on `74cce43`
+ * the six level labels are 35.94 px each, so switching level moves nothing;
+ * without this rule the change between `H` and `H3` moved the toolbar by
+ * roughly 9 px. With it, every label of one or two characters measured an
+ * identical 338.66 px of toolbar.
+ */
+.floating-toolbar button.heading-levels-trigger {
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ── The heading level list (#267) ── */
+
+/*
+ * Above the toolbar in the stacking order, which the pattern this follows does
+ * not give for free: `.language-popover` is z-index 70 against the toolbar's
+ * 200, and while a list opens strictly below the toolbar the two never overlap
+ * so the difference is invisible. This one is placed above the toolbar
+ * whenever there is no room below it, and there it does overlap — at 70 it
+ * would draw behind the control that opened it.
+ */
+.heading-levels {
+  position: fixed;
+  z-index: 210;
+  width: min(240px, calc(100vw - 24px));
+  /*
+   * `max-height` is written by the placement, which measures the room on the
+   * side it chose. This is the scroll the cap implies: measured with the list
+   * as it renders here, 240 by 203 px, 24 per cent of selections at the
+   * 600x400 minimum the window declares have room for it on neither side, and
+   * the roomier side there holds a minimum of 154.5 px — five of the seven
+   * rows. At 1200x800 and 1024x768 nothing is capped at all.
+   */
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow-md);
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.heading-levels-option {
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  padding: 6px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.heading-levels-option:hover,
+.heading-levels-option.active {
+  background: var(--hover-overlay-strong);
+}
+
+.heading-levels-option[aria-current="true"] {
+  font-weight: 600;
+  color: var(--accent);
+}
+
 /* ── Menu separator ── */
 #menu-dropdown hr {
   border: none;

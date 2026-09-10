@@ -147,8 +147,10 @@ describe('a code block can be made from a selection', () => {
 
 describe('the inline code button still makes an inline span', () => {
   it('makes a code span rather than a block, run from the real button', async () => {
-    const { shippedButtons } = await import('../ui/toolbar');
-    const inlineButton = shippedButtons.find((b) => b.title === 'Inline code (Ctrl+E)');
+    const { shippedButtons, isActionEntry } = await import('../ui/toolbar');
+    const inlineButton = shippedButtons
+      .filter(isActionEntry)
+      .find((b) => b.title === 'Inline code (Ctrl+E)');
     if (!inlineButton) throw new Error('the inline code button is missing from the toolbar');
 
     const editor = open('hello world');
@@ -164,9 +166,13 @@ describe('the inline code button still makes an inline span', () => {
     // The two entries must not share an action. A repair that pointed both at
     // the same command would satisfy every behavioural test above for the
     // block and silently take the span away.
-    const { shippedButtons } = await import('../ui/toolbar');
-    const inline = shippedButtons.find((b) => b.title === 'Inline code (Ctrl+E)');
-    const block = shippedButtons.find((b) => b.title === 'Code block (Ctrl+Shift+K)');
+    const { shippedButtons, isActionEntry } = await import('../ui/toolbar');
+    const inline = shippedButtons
+      .filter(isActionEntry)
+      .find((b) => b.title === 'Inline code (Ctrl+E)');
+    const block = shippedButtons
+      .filter(isActionEntry)
+      .find((b) => b.title === 'Code block (Ctrl+Shift+K)');
 
     expect(inline?.action).not.toBe(block?.action);
   });
@@ -175,9 +181,11 @@ describe('the inline code button still makes an inline span', () => {
     // Read off the toolbar's own table rather than restated. The tooltip half
     // matters as much as the label: `Code` on the inline button is how the
     // owner took the wrong turn, and it is now `Inline code`.
-    const { shippedButtons } = await import('../ui/toolbar');
-    const inline = shippedButtons.find((b) => b.title.includes('Ctrl+E'));
-    const block = shippedButtons.find((b) => b.title.includes('Ctrl+Shift+K'));
+    const { shippedButtons, isActionEntry } = await import('../ui/toolbar');
+    const inline = shippedButtons.filter(isActionEntry).find((b) => b.title.includes('Ctrl+E'));
+    const block = shippedButtons
+      .filter(isActionEntry)
+      .find((b) => b.title.includes('Ctrl+Shift+K'));
 
     expect(inline).toBeDefined();
     expect(block).toBeDefined();
@@ -191,9 +199,13 @@ describe('the inline code button still makes an inline span', () => {
     // The buttons' own `action` functions, taken off the shipped table and
     // invoked. Spelling the commands here instead would leave this green while
     // both buttons had been changed underneath it.
-    const { shippedButtons } = await import('../ui/toolbar');
-    const inlineButton = shippedButtons.find((b) => b.title === 'Inline code (Ctrl+E)');
-    const blockButton = shippedButtons.find((b) => b.title === 'Code block (Ctrl+Shift+K)');
+    const { shippedButtons, isActionEntry } = await import('../ui/toolbar');
+    const inlineButton = shippedButtons
+      .filter(isActionEntry)
+      .find((b) => b.title === 'Inline code (Ctrl+E)');
+    const blockButton = shippedButtons
+      .filter(isActionEntry)
+      .find((b) => b.title === 'Code block (Ctrl+Shift+K)');
     if (!inlineButton || !blockButton) throw new Error('a code button is missing from the toolbar');
 
     const forBlock = open('hello world');
