@@ -5,7 +5,8 @@ import { createEditor, type EditorInstance } from '../editor/setup';
 // in a built value under a layout-free harness, so they are read where they
 // are written (#265).
 import stylesCss from '../styles.css?raw';
-import { setupToolbar } from './toolbar';
+import { activeHeadingLevels, HEADING_LEVEL_OPTION_CLASS } from './heading-levels';
+import { isActionEntry, setupToolbar, shippedButtons } from './toolbar';
 import toolbarSource from './toolbar.ts?raw';
 
 let instance: EditorInstance | null = null;
@@ -60,6 +61,31 @@ function hiddenToolbarRule(): { selector: string; declarations: string } {
   const selector = block.slice(block.lastIndexOf('*/', brace) + 2, brace).trim();
   const declarations = block.slice(brace + 1).trim();
   if (selector.length === 0) throw new Error('could not read the hidden-toolbar selector');
+  return { selector, declarations };
+}
+
+/** The one control that opens a list, taken off the rendered toolbar. */
+function headingTrigger(): HTMLButtonElement {
+  const match = document.querySelector<HTMLButtonElement>(
+    '#floating-toolbar button.heading-levels-trigger',
+  );
+  if (!match) throw new Error('the toolbar rendered no heading control');
+  return match;
+}
+
+/**
+ * The rule that gives the heading control a steady width, read out of the
+ * stylesheet: its selector, so a test can run the shipped one against a
+ * rendered element, and its declarations, so what the rule does is read rather
+ * than repeated. Throws rather than returning an empty rule.
+ */
+function headingTriggerRule(): { selector: string; declarations: string } {
+  const block = stylesCss.split('}').find((b) => b.includes('.heading-levels-trigger'));
+  if (block === undefined) throw new Error('styles.css has no rule for the heading control');
+  const brace = block.indexOf('{');
+  const selector = block.slice(block.lastIndexOf('*/', brace) + 2, brace).trim();
+  const declarations = block.slice(brace + 1).trim();
+  if (selector.length === 0) throw new Error('could not read the heading-control selector');
   return { selector, declarations };
 }
 
@@ -187,5 +213,137 @@ describe('floating toolbar — it is revealed before it is measured (#265)', () 
     editor.editor.commands.setTextSelection(1);
     expect(editor.editor.state.selection.empty).toBe(true);
     expect(Array.from(document.querySelectorAll(selector))).toContain(toolbar);
+  });
+});
+
+describe('floating toolbar — one heading control for six levels (#267)', () => {
+  /**
+   * What this harness can see here, and what it cannot.
+   *
+   * It can see the table, the rendered buttons, the label, the list the
+   * control opens and the document the list changes — none of that needs
+   * layout. It cannot see **where** the list opens: `headingListPlacement` is
+   * asserted on numbers in `heading-levels.test.ts`, and that it is called with
+   * the real toolbar rect and the real header bottom is verified by hand.
+   */
+
+  it('ships one heading entry rather than three heading buttons', () => {
+    // Read off the shipped table rather than restated, the #204 shape — and
+    // the reason the control went into the array instead of beside it.
+    const levels = shippedButtons.filter((b) => !isActionEntry(b));
+    expect(levels).toHaveLength(1);
+    expect(levels[0].title).toBe('Heading level');
+
+    for (const gone of ['Heading 1', 'Heading 2', 'Heading 3']) {
+      expect(shippedButtons.find((b) => b.title === gone)).toBeUndefined();
+    }
+  });
+
+  it('the label follows the caret, in a heading and out of one', () => {
+    // **The order is the whole of it.** The control is *constructed* reading
+    // `H`, so checking body text first would be satisfied by a label the code
+    // never had to produce — the cause recorded for the tenth decorative test,
+    // which was also a toolbar test. So the heading comes first: `H2` is a
+    // label only `labelFor` can put there. Body text second, from a control
+    // that was reading `H2` rather than from a fresh one.
+    const { editor } = mountEditorWithToolbar('## a heading\n\nordinary text');
+
+    select(editor, 'a heading');
+    expect(headingTrigger().textContent).toBe('H2');
+
+    select(editor, 'ordinary text');
+    expect(headingTrigger().textContent).toBe('H');
+  });
+
+  it('the control opens the list, and a row sets that level on the document', () => {
+    // Driven through the real button rather than by calling the module: what
+    // is asserted is the wiring, not the popover on its own.
+    const { editor } = mountEditorWithToolbar('plain paragraph');
+    select(editor, 'plain paragraph');
+
+    headingTrigger().dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+    );
+    const rows = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(`.${HEADING_LEVEL_OPTION_CLASS}`),
+    );
+    expect(rows).toHaveLength(7);
+
+    const five = rows.find((r) => r.textContent === 'Heading 5');
+    if (!five) throw new Error('the list offers no Heading 5');
+    five.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(editor.editor.isActive('heading', { level: 5 })).toBe(true);
+    expect(editor.getMarkdown().trim()).toBe('##### plain paragraph');
+  });
+
+  it('choosing the level a heading already has leaves it that heading', () => {
+    // `setHeading` rather than `toggleHeading`. A toggle would answer a
+    // deliberate choice of Heading 3 by turning the heading into a paragraph.
+    const { editor } = mountEditorWithToolbar('### already three');
+    select(editor, 'already three');
+
+    headingTrigger().dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+    );
+    const three = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(`.${HEADING_LEVEL_OPTION_CLASS}`),
+    ).find((r) => r.textContent === 'Heading 3');
+    if (!three) throw new Error('the list offers no Heading 3');
+    three.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(editor.editor.isActive('heading', { level: 3 })).toBe(true);
+    expect(editor.getMarkdown().trim()).toBe('### already three');
+  });
+
+  it('Body text takes a heading back to a paragraph', () => {
+    const { editor } = mountEditorWithToolbar('#### fourth level');
+    select(editor, 'fourth level');
+
+    headingTrigger().dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+    );
+    const body = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(`.${HEADING_LEVEL_OPTION_CLASS}`),
+    ).find((r) => r.textContent === 'Body text');
+    if (!body) throw new Error('the list offers no Body text');
+    body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+
+    expect(editor.editor.isActive('heading')).toBe(false);
+    expect(editor.getMarkdown().trim()).toBe('fourth level');
+  });
+
+  it('a selection that moves ends the list', () => {
+    // The route the list cannot see for itself: a keystroke moves the caret
+    // while it is open, and the toolbar may hide under it.
+    const { editor } = mountEditorWithToolbar('one\n\ntwo');
+    select(editor, 'one');
+    headingTrigger().dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+    );
+    expect(activeHeadingLevels()).not.toBeNull();
+
+    select(editor, 'two');
+
+    expect(activeHeadingLevels()).toBeNull();
+  });
+
+  it('the width rule read out of styles.css reaches the control the toolbar rendered', () => {
+    // The join, in the shape #263, #269 and #270 use: the selector and the
+    // declaration come out of the stylesheet rather than being restated, and
+    // both are run against the element `setupToolbar` actually built.
+    //
+    // `min-width` is why a label that follows the caret does not move the
+    // toolbar. It cannot be observed here — happy-dom lays nothing out — so
+    // what is asserted is that the rule exists and that it reaches this one
+    // button and no other.
+    const { selector, declarations } = headingTriggerRule();
+    expect(declarations).toContain('min-width');
+
+    mountEditorWithToolbar('the docs');
+    const matched = Array.from(document.querySelectorAll(selector));
+
+    expect(matched).toHaveLength(1);
+    expect(matched[0]).toBe(headingTrigger());
   });
 });
