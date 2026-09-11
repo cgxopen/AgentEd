@@ -1,4 +1,6 @@
 import type { Editor } from '@tiptap/core';
+import type { ResolvedPos } from '@tiptap/pm/model';
+import { TextSelection } from '@tiptap/pm/state';
 
 /**
  * The two block routes the menu grew in #266, each at one address.
@@ -23,15 +25,83 @@ import type { Editor } from '@tiptap/core';
  */
 
 /**
- * A checklist from wherever the caret is.
+ * A checklist from wherever the caret is — and, inside one, a fresh item.
  *
- * `toggleTaskList` rather than a command that only ever adds one: it works from
- * an empty caret, which is the case #266 was filed for, and it toggles back out,
- * which is what every other list control in this editor does. The item it makes
- * is unticked; ticking it is a separate gesture on the checkbox.
+ * Two branches, decided by where the selection **ends** (#275):
+ *
+ * - **Inside a checklist item**, a fresh unticked item is added directly after
+ *   that item and the caret goes into it. Nothing else in the document moves.
+ *   Until #275 this ran `toggleTaskList`, and a toggle toggles *out*: the entry
+ *   named Insert took the checklist away. Measured on `dbe287d` it removed the
+ *   checkbox in every shape of that state that was tried — one item, the middle
+ *   of three, an item holding a heading or a fence, a loose list, a selection
+ *   over two items — except a nested item, which it moved out a level instead.
+ * - **Anywhere else**, `toggleTaskList` as before. It works from an empty caret,
+ *   which is the case #266 was filed for, and the owner decision of 2026-09-11
+ *   keeps every other state as it was.
+ *
+ * **Why not `splitListItem`, which is what Enter runs.** It was the obvious
+ * reach, and step zero reported it safe once the caret is sent to the end of
+ * the item first. The edge cases measured afterwards said otherwise, because it
+ * carries Enter semantics, which are right for a key and wrong for this entry:
+ * in an empty item it does nothing — Enter relies on the next command to lift
+ * the item out — and in an item holding two blocks it splits the item between
+ * them, carrying the second block into the new item. Inserting the node is
+ * exact in every shape, because it goes after the whole item whatever the item
+ * holds.
+ *
+ * `$to` rather than `$from`, so that nothing the selection covers is touched:
+ * the new item lands after the last item selected. A selection **ending**
+ * outside a checklist takes the other branch even when it starts inside one;
+ * measured, that nests rather than removes, and it is what the entry already
+ * did there.
+ *
+ * The **nearest** list item decides, not any ancestor: a bullet list nested
+ * inside a checklist item is a bullet list, and pressing the entry there keeps
+ * what it did before. Bullet and ordered lists are the question the decision
+ * set aside to be answered on its own.
  */
 export function insertChecklist(editor: Editor): void {
-  editor.chain().focus().toggleTaskList().run();
+  if (enclosingTaskItemDepth(editor.state.selection.$to) === null) {
+    editor.chain().focus().toggleTaskList().run();
+    return;
+  }
+  editor
+    .chain()
+    .focus()
+    .command(({ tr, state, dispatch }) => {
+      const { $to } = tr.selection;
+      const depth = enclosingTaskItemDepth($to);
+      const { taskItem, paragraph } = state.schema.nodes;
+      const item = taskItem.createAndFill({ checked: false }, paragraph.create());
+      if (depth === null || !item) return false;
+      if (dispatch) {
+        const after = $to.after(depth);
+        tr.insert(after, item);
+        // One step into the new item, one into its paragraph.
+        tr.setSelection(TextSelection.create(tr.doc, after + 2));
+        // The item it was added after can be tall — a long fence — and a new
+        // item landing off screen would read as the silent press the owner
+        // turned down. Enter asks for the same.
+        tr.scrollIntoView();
+      }
+      return true;
+    })
+    .run();
+}
+
+/**
+ * The depth of the list item nearest to the position, when that item is a
+ * checklist item; `null` when it is a bullet or ordered item, or when there is
+ * no list item at all. The walk is bounded by the depth of the position.
+ */
+function enclosingTaskItemDepth($pos: ResolvedPos): number | null {
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const name = $pos.node(depth).type.name;
+    if (name === 'taskItem') return depth;
+    if (name === 'listItem') return null;
+  }
+  return null;
 }
 
 /**
