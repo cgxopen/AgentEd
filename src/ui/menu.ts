@@ -12,6 +12,8 @@ export interface MenuCallbacks {
   onInsertTable: () => void;
   onInsertMedia: () => void;
   onInsertCodeBlock: () => void;
+  onInsertChecklist: () => void;
+  onInsertHorizontalRule: () => void;
   onToggleSidebar: () => void;
   onAbout: () => void;
 }
@@ -59,6 +61,8 @@ export function setupMenu(callbacks: MenuCallbacks): void {
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);
+  bind('menu-insert-checklist', callbacks.onInsertChecklist);
+  bind('menu-insert-horizontal-rule', callbacks.onInsertHorizontalRule);
   bind('menu-toggle-sidebar', callbacks.onToggleSidebar);
   bind('menu-about', callbacks.onAbout);
 }
