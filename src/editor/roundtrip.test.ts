@@ -143,6 +143,8 @@ const TASK_ITEM_BLOCKS = "R-C2: an item's own blocks are written one newline apa
 const TITLE_DELIMITER = 'R-C2: an image title is written back double-quoted';
 /** Two adjacent lists of different kinds, written tight because that is a fixed point (#160). */
 const ADJACENT_LISTS = 'R-C2: two adjacent lists of different kinds are written a line apart';
+/** A table inside a cell, written as inline HTML in one spelling (#278). */
+const INLINE_TABLE = 'R-C2: a table inside a table cell is written as inline HTML';
 
 /**
  * Every shape `markdown/roundtrip.test.ts` covers, plus the six shapes of #84,
@@ -615,6 +617,69 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     'identical',
   ],
   ['a table inside a fenced block', '```\n| a | b |\n| --- | --- |\n```', 'identical'],
+  // ── A table inside a table cell (#278) ──
+  //
+  // GFM has no spelling for one, so it is written as inline HTML on the cell's
+  // one line. Every spelling the writer produces reads back as itself; the two
+  // a file may use that it does not produce are normalised once, as recorded.
+  [
+    'a table inside a cell, as inline HTML',
+    '| a |\n| --- |\n| <table><tr><td>x</td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a table inside a cell with a header row',
+    '| a |\n| --- |\n| <table><tr><th>h</th><th>i</th></tr><tr><td>1</td><td>2</td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a table inside a cell with empty cells',
+    '| a |\n| --- |\n| <table><tr><th></th><th></th></tr><tr><td></td><td></td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a table inside a cell holding inline markdown',
+    '| a |\n| --- |\n| <table><tr><td>**b** and `c`</td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a table inside a cell holding an escaped pipe',
+    '| a |\n| --- |\n| <table><tr><td>a \\| b</td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a table inside a cell holding a link',
+    '| a |\n| --- |\n| <table><tr><td>[l](https://example.com)</td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a table inside a cell, with text beside it',
+    '| a |\n| --- |\n| before <table><tr><td>x</td></tr></table> after |',
+    'identical',
+  ],
+  [
+    'a table inside a table inside a cell',
+    '| a |\n| --- |\n| <table><tr><td><table><tr><td>y</td></tr></table></td></tr></table> |',
+    'identical',
+  ],
+  [
+    'text and a table in one cell, the shape Insert Table used to build',
+    '| a | b |\n| --- | --- |\n| 1 <table><tr><th></th><th></th><th></th></tr><tr><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td></tr></table> | 2 |',
+    'identical',
+  ],
+  [
+    'a table inside a cell spelled with thead and tbody',
+    '| a |\n| --- |\n| <table><thead><tr><th>h</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table> |',
+    {
+      writes: '| a |\n| --- |\n| <table><tr><th>h</th></tr><tr><td>1</td></tr></table> |',
+      because: INLINE_TABLE,
+    },
+  ],
+  [
+    'a table inside a cell carrying an attribute',
+    '| a |\n| --- |\n| <table border="1"><tr><td>x</td></tr></table> |',
+    { writes: '| a |\n| --- |\n| <table><tr><td>x</td></tr></table> |', because: INLINE_TABLE },
+  ],
   [
     'a table without outer pipes',
     'a | b\n--- | ---\n1 | 2',
@@ -905,6 +970,24 @@ describe('the editor-level round-trip table (#84)', () => {
     // at all: a first save may normalise, the next one may not drift.
     const first = openAndSave(markdown);
     expect(openAndSave(first)).toBe(first);
+  });
+});
+
+describe('a table nested past the depth the writer follows (#278)', () => {
+  it('writes the cells of the sixteenth table as their text, and then holds still', () => {
+    // Eighteen tables, each in the one cell of the one before, inside a GFM
+    // cell. The writer follows sixteen of them as HTML and writes the cells of
+    // the sixteenth as their text — the bound that keeps its recursion finite
+    // whatever a file holds — so the two innermost lose their structure, the
+    // word survives exactly once, and the file holds still afterwards.
+    const depth = 18;
+    const inner = `${'<table><tr><td>'.repeat(depth)}z${'</td></tr></table>'.repeat(depth)}`;
+
+    const saved = openAndSave(`| a |\n| --- |\n| ${inner} |`);
+
+    expect(saved.match(/<table>/g)?.length).toBe(16);
+    expect(saved.match(/z/g)?.length).toBe(1);
+    expect(openAndSave(saved)).toBe(saved);
   });
 });
 
