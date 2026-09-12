@@ -20,7 +20,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { type KeyboardHandlers, setupKeyboard } from '../app/keyboard';
 import { setupToolbar } from '../ui/toolbar';
-import { insertCodeBlock, toggleCodeBlock } from './insert-code-block';
+import { codeBlockRoutes } from './insert-code-block';
 import { createEditor, type EditorInstance } from './setup';
 
 let instance: EditorInstance | null = null;
@@ -42,14 +42,18 @@ function open(markdown = ''): EditorInstance {
  * inserts, while the chord and the toolbar button toggle. The reason sits in
  * `insert-code-block.ts` beside both; what this file does is pin each route to
  * the command it actually runs, so a later drift fails here rather than passing.
+ *
+ * Both go through `codeBlockRoutes`, the object `main.ts` spreads into the menu
+ * and into the keyboard, rather than through the two functions directly — so a
+ * swap between the routes reddens these rows wherever it is made.
  */
 function runInsert(editor: EditorInstance): void {
-  insertCodeBlock(editor.editor);
+  codeBlockRoutes(editor.editor).onInsertCodeBlock();
 }
 
-/** What `Ctrl+Shift+K` and the floating-toolbar button run. */
+/** What `Ctrl+Shift+K` runs, through the same mapping `main.ts` spreads. */
 function runToggle(editor: EditorInstance): void {
-  toggleCodeBlock(editor.editor);
+  codeBlockRoutes(editor.editor).onCodeBlock();
 }
 
 /** A caret inside the first fenced block of the document. */

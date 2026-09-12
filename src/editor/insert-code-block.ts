@@ -72,6 +72,34 @@ export function toggleCodeBlock(editor: Editor): void {
 }
 
 /**
+ * The two routes, as the mapping from each caller to the command it runs.
+ *
+ * It exists because of a measurement taken on this branch. With `main.ts`
+ * spelling both bindings inline, **swapping them with each other** — the entry
+ * given the toggle, the chord given the insert — left `tsc` at 0 and all 2907
+ * tests passing. Nothing anywhere noticed that the entry had gone back to
+ * taking fences away, which is the defect this change repairs.
+ *
+ * That was harmless while both bindings ran the same function. Splitting them
+ * is what made it consequential, so the split and its witness arrive together:
+ * `main.ts` spreads this object into the menu and into the keyboard, the tests
+ * drive the same object, and a swap made here reddens them.
+ */
+export interface CodeBlockRoutes {
+  /** The Edit menu entry, which inserts. */
+  readonly onInsertCodeBlock: () => void;
+  /** `Ctrl+Shift+K`, which toggles. */
+  readonly onCodeBlock: () => void;
+}
+
+export function codeBlockRoutes(editor: Editor): CodeBlockRoutes {
+  return {
+    onInsertCodeBlock: () => insertCodeBlock(editor),
+    onCodeBlock: () => toggleCodeBlock(editor),
+  };
+}
+
+/**
  * The depth of the code block the position is in, or `null` outside one. A
  * fence holds text and never another block, so the nearest is the only one.
  * Bounded by the depth of the position.
