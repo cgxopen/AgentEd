@@ -314,6 +314,39 @@ describe('Insert Checklist inside a checklist adds a fresh item after the curren
 // 2 — everywhere else: what the entry already did
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * The Horizontal Rule entry, pressed with the caret in a table cell (#282).
+ *
+ * A cell takes any block, so the entry lands a rule there — measured, it is one
+ * of the two routes that reach the shape, the other being the `---` input rule.
+ * Until #282 the rule was written as `---` flattened into the cell and read back
+ * as text, so the construct was gone by the next open.
+ */
+describe('Insert Horizontal Rule in a table cell', () => {
+  it('writes a rule the file can hold, and the rule comes back', () => {
+    const editor = openWithMenu('| a | b |\n| --- | --- |\n| 1 | 2 |');
+    caret('paragraph', 1, 2)(editor);
+
+    document.getElementById('menu-insert-horizontal-rule')!.click();
+
+    const written = editor.getMarkdown();
+    expect(written).toBe('| a | b |\n| --- | --- |\n| 1<hr> | 2 |');
+    expect(reread(written)).toBe(written);
+    expect(written).toContain('<hr>');
+  });
+
+  it('still writes a rule outside a cell as three characters', () => {
+    // The half that catches an overcorrection: nothing about a rule outside a
+    // cell moves, and `---` is what a file holding one is spelled with.
+    const editor = openWithMenu('a\n\nb');
+    caret('paragraph', 1, 0)(editor);
+
+    document.getElementById('menu-insert-horizontal-rule')!.click();
+
+    expect(editor.getMarkdown()).toBe('a\n\n---\n\nb');
+  });
+});
+
 describe('Insert Checklist outside a checklist keeps what it did', () => {
   it('still makes a checklist from an empty caret, with the caret in it', () => {
     // The case #266 exists for, and the half that catches an overcorrection:

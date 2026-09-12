@@ -692,6 +692,23 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     '| a |\n| --- |\n| before <table><tr><td>x</td></tr></table> after |',
     'identical',
   ],
+  // ── A horizontal rule inside a cell (#282) ──
+  //
+  // Written `---` and flattened, it read back as text and the rule was gone.
+  // `<hr>` is what a cell can carry, and it takes no space on either side: a
+  // space after a void element stays in the text of the block that follows.
+  ['a rule inside a cell', '| a |\n| --- |\n| <hr> |', 'identical'],
+  ['text, a rule and text in one cell', '| a |\n| --- |\n| x<hr>y |', 'identical'],
+  [
+    'a rule inside a table inside a cell',
+    '| a |\n| --- |\n| <table><tr><td><hr></td></tr></table> |',
+    'identical',
+  ],
+  [
+    'a cell holding a table and then a rule',
+    '| a |\n| --- |\n| <table><tr><td>x</td></tr></table><hr> |',
+    'identical',
+  ],
   [
     'a table inside a table inside a cell',
     '| a |\n| --- |\n| <table><tr><td><table><tr><td>y</td></tr></table></td></tr></table> |',

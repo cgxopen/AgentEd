@@ -729,6 +729,28 @@ function ownCells(row: HTMLElement): HTMLElement[] {
   });
 }
 
+// ── A horizontal rule inside a table cell (#282) ──
+//
+// A cell takes any block and a rule is a block, so the editor holds one; GFM
+// gives a cell one line of inline content, so it cannot spell one. Written as
+// the three characters the service is configured with, the rule was flattened
+// into the cell as `---` and read back as text — measured on `21ae688`, the
+// construct was gone after one save and the file took a second save to settle,
+// a cell holding only a rule being written `| --- |` and then escaped to
+// `| \--- |`.
+//
+// `<hr>` is what a cell can carry: DOMPurify keeps the element and `marked`
+// reads it back as a rule, measured for `<hr>`, `<hr />` and `<hr/>` alike. It
+// is the same answer #278 gave a table one construct over, and it fires at any
+// cell depth, so a rule inside a table nested in a cell is written the same way.
+//
+// Outside a cell nothing changes: the option the service was constructed with
+// is what is written, read from the same place turndown own rule reads it.
+turndown.addRule('horizontalRuleInACell', {
+  filter: 'hr',
+  replacement: (_content, _node, options) => (cellDepth > 0 ? '<hr>' : `\n\n${options.hr}\n\n`),
+});
+
 /** A table inside a cell, as one line of inline HTML. */
 function inlineTable(table: HTMLTableElement): string {
   const rows = ownRows(table).map((row) => {
@@ -746,12 +768,21 @@ function inlineTable(table: HTMLTableElement): string {
 }
 
 /**
- * One space between an inline table and whatever sits beside it in the cell.
- * turndown separates two blocks with a blank line, which is two spaces once the
- * cell is flattened; one is what reads back the same.
+ * The space around an element written inline in a cell — and the answer is not
+ * the same for the two of them, measured rather than chosen (#278, #282).
+ *
+ * turndown separates two blocks with a blank line, which becomes two spaces
+ * once a cell is flattened. A **table** keeps one space on each side: it is
+ * written with an opening and a closing tag, and the text beside it is read
+ * back as it was. A **rule** keeps none, because `<hr>` is a void element and a
+ * space after it stays in the text of the block that follows — `| x <hr> y |`
+ * reads back with the paragraph ` y`, while `| x<hr>y |` reads back with `y`.
  */
-function spaceAroundInlineTables(text: string): string {
-  return text.replace(/\s+<table>/g, ' <table>').replace(/<\/table>\s+/g, '</table> ');
+function spaceAroundInlineHtml(text: string): string {
+  return text
+    .replace(/\s+<table>/g, ' <table>')
+    .replace(/<\/table>\s+/g, '</table> ')
+    .replace(/\s*<hr>\s*/g, '<hr>');
 }
 
 /**
@@ -776,7 +807,7 @@ function cellContent(cell: HTMLElement): string {
   cellDepth += 1;
   try {
     const inner = turndown.turndown(cell.innerHTML);
-    const flattened = spaceAroundInlineTables(inner.replace(/\n/g, ' ')).trim();
+    const flattened = spaceAroundInlineHtml(inner.replace(/\n/g, ' ')).trim();
     // Pipes are escaped once, by the outermost cell. A table inside the cell is
     // written with its own cells unescaped and this pass reaches them inside
     // the HTML; escaping at every level would write `\\|` there (#278).
