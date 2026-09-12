@@ -648,6 +648,89 @@ turndown.addRule('agentedImage', {
 
 // ── Table serialization (HTML table → GFM markdown table) ──
 
+// ── A table inside a table cell (#278) ──
+//
+// The editor can hold one — `tableCell` takes `block+`, and a table is a block
+// — and GFM cannot spell one: a cell is a single line of inline content. Until
+// #278 the serializer did not know it was looking at one. `collectRows` walked
+// the outer table with `querySelectorAll`, which reaches into the nested table,
+// so the inner rows were written as rows of the outer table and the inner cells
+// as extra columns: measured, a two-by-two table holding a three-by-three one
+// was saved as eleven columns and five rows, with the inner table's text also
+// flattened into its cell.
+//
+// **So a table inside a cell is written as inline HTML**: `<table>`, its rows
+// and its cells, and nothing else, on the cell's one line. CommonMark admits
+// inline HTML and GitHub draws it, `marked` reads it back as the nested table it
+// was, and it is the precedent #27 set for an image size, which markdown cannot
+// spell either. Rows and cells are always the table's **own**, at every level.
+//
+// `cellDepth` is how many cells deep the writer is: zero while writing the
+// document, one inside a cell of a top-level table. It is what tells the `table`
+// rule which spelling a table gets, because `cellContent` hands turndown the
+// cell as a string and the nested table arrives with no parent to ask.
+
+/** How many table cells deep the serializer is — 0 for the document itself. */
+let cellDepth = 0;
+
+/**
+ * The deepest a table is written as a table inside a cell. Past it, a table's
+ * cells are written as their text, so the recursion through `cellContent` is
+ * bounded whatever a file holds.
+ */
+const MAX_CELL_DEPTH = 16;
+
+const nameOf = (element: Element): string => element.nodeName.toUpperCase();
+
+/** The table's own rows in order — never the rows of a table in one of its cells. */
+function ownRows(table: HTMLTableElement): HTMLElement[] {
+  const rows: HTMLElement[] = [];
+  for (const child of Array.from(table.children)) {
+    const name = nameOf(child);
+    if (name === 'TR') {
+      rows.push(child as HTMLElement);
+    } else if (name === 'THEAD' || name === 'TBODY' || name === 'TFOOT') {
+      for (const row of Array.from(child.children)) {
+        if (nameOf(row) === 'TR') rows.push(row as HTMLElement);
+      }
+    }
+  }
+  return rows;
+}
+
+/** The row's own cells in order. */
+function ownCells(row: HTMLElement): HTMLElement[] {
+  return Array.from(row.children).filter((cell): cell is HTMLElement => {
+    const name = nameOf(cell);
+    return name === 'TH' || name === 'TD';
+  });
+}
+
+/** A table inside a cell, as one line of inline HTML. */
+function inlineTable(table: HTMLTableElement): string {
+  const rows = ownRows(table).map((row) => {
+    const cells = ownCells(row).map((cell) => {
+      const tag = nameOf(cell) === 'TH' ? 'th' : 'td';
+      const content =
+        cellDepth < MAX_CELL_DEPTH
+          ? cellContent(cell)
+          : (cell.textContent ?? '').replace(/\s+/g, ' ').trim();
+      return `<${tag}>${content}</${tag}>`;
+    });
+    return `<tr>${cells.join('')}</tr>`;
+  });
+  return `<table>${rows.join('')}</table>`;
+}
+
+/**
+ * One space between an inline table and whatever sits beside it in the cell.
+ * turndown separates two blocks with a blank line, which is two spaces once the
+ * cell is flattened; one is what reads back the same.
+ */
+function spaceAroundInlineTables(text: string): string {
+  return text.replace(/\s+<table>/g, ' <table>').replace(/<\/table>\s+/g, '</table> ');
+}
+
 /**
  * Serialize a table cell's HTML to markdown.
  *
@@ -667,9 +750,18 @@ turndown.addRule('agentedImage', {
  * cell as a paragraph, which is where that escape comes from.
  */
 function cellContent(cell: HTMLElement): string {
-  const inner = turndown.turndown(cell.innerHTML);
-  const flattened = inner.replace(/\n/g, ' ').replace(/\|/g, '\\|').trim();
-  return withoutLeadingListEscape(flattened);
+  cellDepth += 1;
+  try {
+    const inner = turndown.turndown(cell.innerHTML);
+    const flattened = spaceAroundInlineTables(inner.replace(/\n/g, ' ')).trim();
+    // Pipes are escaped once, by the outermost cell. A table inside the cell is
+    // written with its own cells unescaped and this pass reaches them inside
+    // the HTML; escaping at every level would write `\\|` there (#278).
+    const escaped = cellDepth === 1 ? flattened.replace(/\|/g, '\\|') : flattened;
+    return withoutLeadingListEscape(escaped);
+  } finally {
+    cellDepth -= 1;
+  }
 }
 
 // ── Writing a table the way the file wrote it (#93) ──
@@ -735,15 +827,7 @@ function renderSeparator(column: ColumnStyle | undefined, headerWidth: number): 
 }
 
 function collectRows(table: HTMLTableElement): string[][] {
-  const rows: string[][] = [];
-  table.querySelectorAll('tr').forEach((tr) => {
-    const cells: string[] = [];
-    tr.querySelectorAll('th, td').forEach((cell) => {
-      cells.push(cellContent(cell as HTMLElement));
-    });
-    rows.push(cells);
-  });
-  return rows;
+  return ownRows(table).map((row) => ownCells(row).map((cell) => cellContent(cell)));
 }
 
 /**
@@ -807,6 +891,14 @@ turndown.addRule('table', {
   filter: 'table',
   replacement: (_content, node) => {
     const table = node as HTMLTableElement;
+    // turndown processes a table's content before calling its rule, and the
+    // `tableSection` rule then throws that content away. A table inside a cell
+    // of the pass that is running is therefore thrown away too — its cell
+    // writes it, through `cellContent` — so writing it here would be wasted,
+    // and done at every level it doubled the work per level: measured, a file
+    // nesting eighteen tables ran the heap out of memory on save (#278).
+    if (table.parentElement?.closest('td, th')) return '';
+    if (cellDepth > 0) return inlineTable(table);
     const rows = collectRows(table);
     if (rows.length === 0) return '';
     const colCount = Math.max(...rows.map((r) => r.length));

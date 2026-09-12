@@ -17,7 +17,7 @@ import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
 import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
 import { AppState } from './app/state';
-import { setupTableDialog } from './app/table-dialog';
+import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { insertCodeBlock } from './editor/insert-code-block';
@@ -240,7 +240,6 @@ ctx.sidebar.setOnRequestAccess(() => {
   })().catch(console.error);
 });
 
-const tableDialog = setupTableDialog(editor);
 linkDialog = setupLinkDialog(editor);
 
 setupMenu({
@@ -270,7 +269,7 @@ setupMenu({
   onReplace: () => ctx.searchManager.openReplace(),
   onFindNext: () => ctx.searchManager.findNext(),
   onFindPrevious: () => ctx.searchManager.findPrevious(),
-  onInsertTable: tableDialog.open,
+  ...tableMenuCallbacks(editor),
   onInsertCodeBlock: () => insertCodeBlock(ctx.editor),
   ...insertMenuCallbacks(ctx.editor),
   onInsertMedia: () => {
