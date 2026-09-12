@@ -20,7 +20,7 @@ import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
 import { insertMenuCallbacks } from './editor/insert-blocks';
-import { insertCodeBlock } from './editor/insert-code-block';
+import { insertCodeBlock, toggleCodeBlock } from './editor/insert-code-block';
 import { createEditor } from './editor/setup';
 import { getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
@@ -306,7 +306,8 @@ setupKeyboard({
     void docActions.handleOpen().catch(console.error);
   },
   onLink: () => linkDialog.open(),
-  onCodeBlock: () => insertCodeBlock(ctx.editor),
+  // The chord toggles, the entry above inserts (#279).
+  onCodeBlock: () => toggleCodeBlock(ctx.editor),
 });
 
 setupFileAssociation(docActions.openFilePath);

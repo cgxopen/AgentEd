@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/core';
-import { insertCodeBlock } from '../editor/insert-code-block';
+import { toggleCodeBlock } from '../editor/insert-code-block';
 import {
   activeHeadingLevels,
   closeHeadingLevels,
@@ -138,7 +138,8 @@ const buttons: ToolbarEntry[] = [
     // the shortcut, and without them this issue would still be open.
     label: '```',
     title: 'Code block (Ctrl+Shift+K)',
-    action: insertCodeBlock,
+    // The button toggles, and says so by lighting up inside a fence (#279).
+    action: toggleCodeBlock,
     isActive: (e) => e.isActive('codeBlock'),
   },
   {
