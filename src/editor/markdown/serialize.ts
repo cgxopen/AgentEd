@@ -319,10 +319,33 @@ function taskListItemReplacement(node: Node): string {
   // save that did not come from an editor. It is also the only reading that
   // cannot be answered by the *nested* item's checkbox instead of this one's.
   const checked = li.getAttribute('data-checked') === 'true' ? 'x' : ' ';
-  const body = taskItemBlocks(taskItemContent(li))
+  const blocks = taskItemBlocks(taskItemContent(li));
+  // ── A block after a table inside an item (#281) ──
+  //
+  // The blocks of an item are written one newline apart — the recorded
+  // exception for two paragraphs in one task item — and that is exactly where
+  // GFM expects another table row. Measured on `c96ad04`: an item holding a
+  // table and then the paragraph `after` read back with `after` as a third row
+  // of that table, and a second table after the first turned two rows into
+  // five. Six other blocks survive on their own spelling, because a heading, a
+  // bullet or ordered list, a fence, a blockquote and a rule each end a table
+  // on the line where they start; a paragraph and a table row cannot.
+  //
+  // **So an item that holds a table writes all of its blocks a blank line
+  // apart**, owner decision of 2026-09-12. Spacing only after the table was
+  // measured and is cheaper — it moves no test and no document — but it leaves
+  // the item spelled tight before the table and loose after it, which `marked`
+  // reads as a tight list: the content then arrives as bare text rather than
+  // paragraphs, and the paragraph comes back carrying a leading space. Written
+  // loose throughout, the document comes back exactly as it went out.
+  //
+  // An item that holds no table is untouched, so the recorded exception holds
+  // everywhere it held before.
+  const holdsATable = blocks.some((block) => block.nodeName.toUpperCase() === 'TABLE');
+  const body = blocks
     .map((block) => trimBlock(turndown.turndown(block.outerHTML)))
     .filter((block) => block.length > 0)
-    .join('\n');
+    .join(holdsATable ? '\n\n' : '\n');
   const separator = li.nextSibling !== null && isLooseList(li) ? '\n\n' : '\n';
   return `- [${checked}] ${indentContinuation(body, TASK_ITEM_INDENT)}${separator}`;
 }

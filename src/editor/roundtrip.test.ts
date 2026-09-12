@@ -139,6 +139,8 @@ const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
 const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
 /** The blank line inside an item, between two of its own blocks (#157). */
 const TASK_ITEM_BLOCKS = "R-C2: an item's own blocks are written one newline apart";
+/** An item holding a table writes its blocks a blank line apart (#281). */
+const TASK_ITEM_WITH_A_TABLE = 'R-C2: an item holding a table writes its blocks a blank line apart';
 /** All three CommonMark title delimiters parse the same, so one is written (#230). */
 const TITLE_DELIMITER = 'R-C2: an image title is written back double-quoted';
 /** Two adjacent lists of different kinds, written tight because that is a fixed point (#160). */
@@ -270,6 +272,39 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['an empty fence after a task item paragraph', '- [ ] a\n  ```\n  ```', 'identical'],
   ['a nested list under the second task item', '- [ ] a\n- [x] c\n  - d', 'identical'],
   ['a task item with a nested list, then another item', '- [ ] a\n  - b\n- [x] c', 'identical'],
+
+  // ── A block after a table inside an item (#281) ──
+  //
+  // The blocks of an item are written one newline apart, which after a table
+  // is where GFM expects another row: `after` came back as a third row of the
+  // table, and a second table turned two rows into five. An item that holds a
+  // table now writes its blocks a blank line apart, which is what these rows
+  // are. The six blocks that survived on their own spelling are the four rows
+  // above this comment and the two below them, and they are still written
+  // tight, because those items hold no table.
+  [
+    'a paragraph after a table in a task item',
+    '- [ ] x\n\n  | a | b |\n  | --- | --- |\n  | 1 | 2 |\n\n  after',
+    'identical',
+  ],
+  [
+    'a paragraph after a table in a ticked item',
+    '- [x] x\n\n  | a | b |\n  | --- | --- |\n  | 1 | 2 |\n\n  after',
+    'identical',
+  ],
+  [
+    'a second table after a table in a task item',
+    '- [ ] x\n\n  | a | b |\n  | --- | --- |\n  | 1 | 2 |\n\n  | c | d |\n  | --- | --- |\n  | 3 | 4 |',
+    'identical',
+  ],
+  [
+    'a table after a task item paragraph, spelled tight',
+    '- [ ] x\n  | a | b |\n  | --- | --- |\n  | 1 | 2 |',
+    {
+      writes: '- [ ] x\n\n  | a | b |\n  | --- | --- |\n  | 1 | 2 |',
+      because: TASK_ITEM_WITH_A_TABLE,
+    },
+  ],
   ['a task list nested under a bullet', '- a\n  - [ ] b', 'identical'],
 
   // ── Two adjacent lists of different kinds (#160, member 2) ──

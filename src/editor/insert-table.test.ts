@@ -196,19 +196,19 @@ const INSIDE_A_TABLE: ReadonlyArray<readonly [string, string, Place, string]> = 
     'a table in a checklist item',
     `- [ ] x\n\n${indent(TABLE, '  ')}`,
     caret('paragraph', 1, 3),
-    `- [ ] x\n${indent(TABLE, '  ')}\n\n${NEW_TABLE}`,
+    `- [ ] x\n\n${indent(TABLE, '  ')}\n\n${NEW_TABLE}`,
   ],
   [
     'a table in a checklist item with another item after it',
     `- [ ] x\n\n${indent(TABLE, '  ')}\n\n- [ ] y`,
     caret('paragraph', 1, 3),
-    `- [ ] x\n${indent(TABLE, '  ')}\n\n- [ ] y\n\n${NEW_TABLE}`,
+    `- [ ] x\n\n${indent(TABLE, '  ')}\n\n- [ ] y\n\n${NEW_TABLE}`,
   ],
   [
     'a checklist inside a bullet item',
     '- b\n\n  - [ ] x\n\n    | a |\n    | --- |\n    | 1 |',
     caret('paragraph', 1, 3),
-    `- b\n\n  - [ ] x\n    | a |\n    | --- |\n    | 1 |\n\n${indent(NEW_TABLE, '  ')}`,
+    `- b\n\n  - [ ] x\n\n    | a |\n    | --- |\n    | 1 |\n\n${indent(NEW_TABLE, '  ')}`,
   ],
 ];
 
