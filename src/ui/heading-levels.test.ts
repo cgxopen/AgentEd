@@ -1,116 +1,26 @@
 /**
  * ── What can be asserted here, and what cannot ──
  *
- * `headingListPlacement` takes numbers and returns numbers, so the arithmetic
- * of where the list opens is checked directly, the way `toolbarTop` is since
- * #270. Everything else in this file is DOM structure and keyboard behaviour,
- * which happy-dom does answer.
+ * Where the list opens is `popoverPlacement`, which takes numbers and returns
+ * numbers and is asserted in `popover-placement.test.ts`, with the list and
+ * toolbar sizes measured in #267 as its arguments. Everything in this file is
+ * DOM structure and keyboard behaviour, which happy-dom does answer.
  *
  * **What is not asserted anywhere is the placement itself.** That `position`
- * calls this function with the real toolbar rect, the real header bottom and
- * the real list height cannot be shown where every box measures 0 by 0. The
- * numbers below are arithmetic against arithmetic; the placement on screen is
- * verified by hand on Windows.
- *
- * **There is deliberately no test asserting the header is 44 px**, for the
- * reason #270 recorded: it is content-driven and it is 54 at 125 per cent
- * scaling and 64 at 150. The header bottom is varied across those measured
- * values instead.
- *
- * The numbers used as arguments are distinct from one another on purpose, so a
- * transposed pair changes a result rather than cancelling out.
+ * calls that function with the real toolbar rect, the real header bottom and
+ * the real list height cannot be shown where every box measures 0 by 0; the
+ * placement on screen is verified by hand on Windows.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   activeHeadingLevels,
   closeHeadingLevels,
   HEADING_CHOICES,
   HEADING_LEVEL_OPTION_CLASS,
-  headingListPlacement,
+  HEADING_LEVELS_CLASS,
   openHeadingLevels,
 } from './heading-levels';
-
-// The list and toolbar sizes measured on this branch in Chromium, used as
-// realistic arguments rather than as claims about what either measures: the
-// rendered list is 240 by 203 and the toolbar 31.59 tall.
-const LIST_H = 203;
-const TOOLBAR_H = 31.59;
-const OFFSET = 4;
-const MARGIN = 8;
-
-describe('headingListPlacement — below the toolbar when it fits (#267)', () => {
-  it('opens under the toolbar with the offset, in a roomy window', () => {
-    const tbTop = 300;
-    const tbBottom = tbTop + TOOLBAR_H;
-    const p = headingListPlacement(tbTop, tbBottom, LIST_H, 44, 800);
-    expect(p.above).toBe(false);
-    expect(p.top).toBeCloseTo(tbBottom + OFFSET, 5);
-    expect(p.maxHeight).toBe(LIST_H);
-  });
-
-  it('prefers below even when above would also fit', () => {
-    // Both sides have room; the list reads downward, so downward wins.
-    const tbTop = 400;
-    const p = headingListPlacement(tbTop, tbTop + TOOLBAR_H, LIST_H, 44, 1000);
-    expect(p.above).toBe(false);
-  });
-});
-
-describe('headingListPlacement — above the toolbar when it does not (#267)', () => {
-  it('flips above near the bottom of the window', () => {
-    // The toolbar low in an 800 px window: nothing like 203 px fits under it.
-    const tbTop = 700;
-    const p = headingListPlacement(tbTop, tbTop + TOOLBAR_H, LIST_H, 44, 800);
-    expect(p.above).toBe(true);
-    expect(p.top).toBeCloseTo(tbTop - OFFSET - LIST_H, 5);
-    expect(p.maxHeight).toBe(LIST_H);
-  });
-
-  it('never opens across the header, at any of the measured header heights', () => {
-    // 44, 54, 64 and 87 are what the header computes to at 100, 125, 150 and
-    // 200 per cent scaling. The ceiling follows the argument.
-    for (const headerBottom of [44, 54, 64, 87]) {
-      const tbTop = 700;
-      const p = headingListPlacement(tbTop, tbTop + TOOLBAR_H, LIST_H, headerBottom, 800);
-      expect(p.top).toBeGreaterThanOrEqual(headerBottom);
-    }
-  });
-});
-
-describe('headingListPlacement — capped when it fits neither way (#267)', () => {
-  it('takes the roomier side and caps to it', () => {
-    // The 600x400 case the sweep found: a toolbar in the middle of a short
-    // window, with 203 px of list and room for neither side.
-    const tbTop = 190;
-    const tbBottom = tbTop + TOOLBAR_H;
-    const p = headingListPlacement(tbTop, tbBottom, LIST_H, 44, 400);
-    const roomBelow = 400 - MARGIN - (tbBottom + OFFSET);
-    const roomAbove = tbTop - OFFSET - 44;
-
-    expect(p.maxHeight).toBeLessThan(LIST_H);
-    expect(p.maxHeight).toBeCloseTo(Math.max(roomBelow, roomAbove), 5);
-    expect(p.above).toBe(roomAbove > roomBelow);
-  });
-
-  it('stays on screen on the capped branch, both ways', () => {
-    // Swept through a short window: whichever side it lands on, the list ends
-    // inside the window and starts at or below the header.
-    const headerBottom = 54;
-    for (let tbTop = headerBottom; tbTop <= 340; tbTop += 2) {
-      const tbBottom = tbTop + TOOLBAR_H;
-      const p = headingListPlacement(tbTop, tbBottom, LIST_H, headerBottom, 400);
-      expect(p.top).toBeGreaterThanOrEqual(headerBottom);
-      expect(p.top + p.maxHeight).toBeLessThanOrEqual(400 - MARGIN + 0.001);
-    }
-  });
-
-  it('never returns a negative height', () => {
-    // Arithmetic hygiene rather than a case anyone has produced: the smallest
-    // room measured at the declared 600x400 minimum was 154.5 px.
-    const p = headingListPlacement(50, 50 + TOOLBAR_H, LIST_H, 44, 60);
-    expect(p.maxHeight).toBeGreaterThanOrEqual(0);
-  });
-});
+import { POPOVER_OFFSET } from './popover-placement';
 
 describe('the list the toolbar offers (#267)', () => {
   it('holds every level CommonMark spells, and the way back to body text', () => {
@@ -209,5 +119,65 @@ describe('the list, driven (#267)', () => {
 
     expect(activeHeadingLevels()).toBeNull();
     expect(chosen).toEqual([]);
+  });
+});
+
+/**
+ * The list is placed through `popoverPlacement` (#272).
+ *
+ * Measured when that function moved out of this file: pointing this list at
+ * the language popover placement instead, which holds a popover by its bottom
+ * edge and sets no height, left all 3046 tests green. Nothing watched this
+ * caller at all. So the list is opened here with rectangles supplied to it:
+ * a toolbar, a header, and a list of the height measured in #267.
+ */
+describe('the list is placed through the shared arithmetic (#272)', () => {
+  const LIST_H = 203;
+  const TOOLBAR_H = 31.59;
+  let toolbarTop = 0;
+  const innerHeight = window.innerHeight;
+
+  afterEach(() => {
+    closeHeadingLevels();
+    vi.restoreAllMocks();
+    Object.defineProperty(window, 'innerHeight', { value: innerHeight, configurable: true });
+    document.body.innerHTML = '';
+  });
+
+  function openWithToolbarAt(top: number): HTMLElement {
+    toolbarTop = top;
+    document.body.innerHTML = '<header id="menubar"></header>';
+    const toolbar = document.createElement('div');
+    const anchor = document.createElement('button');
+    toolbar.appendChild(anchor);
+    document.body.appendChild(toolbar);
+    Object.defineProperty(window, 'innerHeight', { value: 800, configurable: true });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const box = (y: number, height: number) =>
+        ({ top: y, bottom: y + height, left: 20, right: 260, width: 240, height }) as DOMRect;
+      if (this === toolbar) return box(toolbarTop, TOOLBAR_H);
+      if (this.id === 'menubar') return box(0, 44);
+      if (this.classList.contains(HEADING_LEVELS_CLASS)) return box(0, LIST_H);
+      return box(0, 0);
+    });
+    openHeadingLevels({ anchor, toolbar, current: null, onChoose: () => {} });
+    const list = document.querySelector<HTMLElement>(`.${HEADING_LEVELS_CLASS}`);
+    if (list === null) throw new Error('openHeadingLevels rendered no list');
+    return list;
+  }
+
+  it('opens under a toolbar with room below, by its top, with its own height', () => {
+    const list = openWithToolbarAt(300);
+    expect(list.style.top).toBe(`${Math.round(300 + TOOLBAR_H + POPOVER_OFFSET)}px`);
+    expect(list.style.maxHeight).toBe(`${LIST_H}px`);
+    expect(list.style.bottom).toBe('');
+  });
+
+  it('opens over a toolbar low in the window, by its top, with its own height', () => {
+    const list = openWithToolbarAt(700);
+    expect(list.style.top).toBe(`${Math.round(700 - POPOVER_OFFSET - LIST_H)}px`);
+    expect(list.style.maxHeight).toBe(`${LIST_H}px`);
   });
 });

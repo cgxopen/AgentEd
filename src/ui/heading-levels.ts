@@ -12,12 +12,11 @@
  * follows `language-popover.ts`: same one-open-at-a-time module state, same
  * capture-phase mousedown for the click outside, same Escape.
  *
- * ── What it does that `language-popover` does not ──
+ * ── Where it opens ──
  *
- * That one opens downward and clamps horizontally only. Measured on `74cce43`
- * with a list of this height: opening downward alone runs off the bottom of
- * the window for **24 per cent** of selections at 1200x800 and **48 per cent**
- * at the 600x400 minimum. So this one chooses a side, and caps.
+ * It chooses a side and caps, through `popoverPlacement` in
+ * `popover-placement.ts`. That arithmetic was written here for #267 and moved
+ * there in #272, when the language popover turned out to need the same.
  *
  * ── Focus stays in the editor, and that is load-bearing ──
  *
@@ -29,6 +28,8 @@
  * lives only while the list is open.
  */
 
+import { POPOVER_MARGIN, popoverPlacement } from './popover-placement';
+
 /** The class the stylesheet draws and positions the list with. */
 export const HEADING_LEVELS_CLASS = 'heading-levels';
 
@@ -37,10 +38,6 @@ export const HEADING_LEVEL_OPTION_CLASS = 'heading-levels-option';
 
 /** The row the arrow keys are on. */
 export const HEADING_LEVEL_ACTIVE_CLASS = 'active';
-
-/** Between the toolbar and the list, and between the list and the window edge. */
-const OFFSET = 4;
-const MARGIN = 8;
 
 export interface HeadingChoice {
   /** What the row reads. */
@@ -67,67 +64,6 @@ export const HEADING_CHOICES: ReadonlyArray<HeadingChoice> = [
   { label: 'Heading 6', level: 6 },
   { label: 'Body text', level: null },
 ];
-
-export interface ListPlacement {
-  /** Viewport `top` for the list. */
-  readonly top: number;
-  /** What it may occupy; the list scrolls inside this. */
-  readonly maxHeight: number;
-  /** Above the toolbar rather than below it. Read by the tests and the caller. */
-  readonly above: boolean;
-}
-
-/**
- * Where the list goes, as arithmetic that can be read without a browser.
- *
- * Below the toolbar when it fits there, above it when it does not, and on the
- * roomier of the two capped to that room when it fits neither. The header
- * bottom is the ceiling for the same reason it is in `toolbarTop`: a list that
- * clamped to the window top instead would draw across the header, which is the
- * defect #268 repaired one module away.
- *
- * ── Why the third branch exists, with the numbers that put it there ──
- *
- * Measured on this branch, with the list this file actually renders — 240 by
- * 203 px, seven rows — across every visible line at several scroll positions:
- *
- * - 1200x800, 678 selections: 74 per cent below, 26 per cent above, **none
- *   capped**.
- * - 1024x768, 651 selections: 73 per cent below, 27 per cent above, **none
- *   capped**.
- * - 600x400, 196 selections: 48 per cent below, 27 per cent above, **24 per
- *   cent capped**.
- *
- * So at ordinary window sizes the first two branches are the whole story, and
- * the third exists for the minimum `src-tauri/tauri.conf.json` declares, where
- * the visible text is 356 px tall against a list wanting 207 with its offset.
- * In the capped cases there the roomier side holds a minimum of **154.5 px**,
- * which shows five of the seven rows and scrolls for the rest.
- *
- * `maxHeight` is floored at 0 rather than allowed to go negative. That is
- * arithmetic hygiene: the smallest room measured at the declared minimum window
- * was 154.5 px, and nothing has produced a negative one.
- */
-export function headingListPlacement(
-  toolbarTop: number,
-  toolbarBottom: number,
-  listHeight: number,
-  headerBottom: number,
-  viewportHeight: number,
-): ListPlacement {
-  const below = toolbarBottom + OFFSET;
-  const roomBelow = viewportHeight - MARGIN - below;
-  const roomAbove = toolbarTop - OFFSET - headerBottom;
-
-  if (listHeight <= roomBelow) return { top: below, maxHeight: listHeight, above: false };
-  if (listHeight <= roomAbove) {
-    return { top: toolbarTop - OFFSET - listHeight, maxHeight: listHeight, above: true };
-  }
-  if (roomBelow >= roomAbove) {
-    return { top: below, maxHeight: Math.max(0, roomBelow), above: false };
-  }
-  return { top: headerBottom, maxHeight: Math.max(0, roomAbove), above: true };
-}
 
 export interface HeadingLevelsOptions {
   /** The control the list hangs off, and the toolbar it sits in. */
@@ -274,7 +210,7 @@ export function openHeadingLevels(options: HeadingLevelsOptions): HeadingLevels 
  *
  * `position: fixed` in the stylesheet, so these are viewport coordinates.
  * The horizontal clamp is the same shape `language-popover` uses; the vertical
- * one is `headingListPlacement`, which is where the arithmetic is asserted.
+ * one is `popoverPlacement`, which is where the arithmetic is asserted.
  *
  * **None of this is observable in the test harness**, which reports every
  * rectangle as zero. It is verified in the manual pass and by the numbers
@@ -291,7 +227,7 @@ function position(element: HTMLElement, toolbar: HTMLElement): void {
   // Measured before it is placed: the element is in the document and unhidden,
   // so this is a real box. The lesson is #265 and it is one module away.
   const listHeight = element.getBoundingClientRect().height;
-  const placement = headingListPlacement(
+  const placement = popoverPlacement(
     anchor.top,
     anchor.bottom,
     listHeight,
@@ -300,7 +236,10 @@ function position(element: HTMLElement, toolbar: HTMLElement): void {
   );
 
   const width = element.getBoundingClientRect().width;
-  const left = Math.max(MARGIN, Math.min(anchor.left, window.innerWidth - width - MARGIN));
+  const left = Math.max(
+    POPOVER_MARGIN,
+    Math.min(anchor.left, window.innerWidth - width - POPOVER_MARGIN),
+  );
   element.style.left = `${Math.round(left)}px`;
   element.style.top = `${Math.round(placement.top)}px`;
   element.style.maxHeight = `${Math.round(placement.maxHeight)}px`;

@@ -1,4 +1,5 @@
 import { LANGUAGE_PATTERN } from '../editor/code-block-input-rules';
+import { POPOVER_MARGIN, POPOVER_OFFSET, popoverPlacement } from './popover-placement';
 
 /**
  * The control that sets the language of one fenced block (R-C15, #238).
@@ -129,8 +130,9 @@ export function openLanguagePopover(options: LanguagePopoverOptions): LanguagePo
 
   function showRefusal(message: string | null): void {
     error.textContent = message ?? '';
-    // `hidden` rather than a class, so an empty line takes no space and the
-    // popover does not change height as the user types.
+    // `hidden` rather than a class, so an empty line takes no space while there
+    // is nothing to say. The popover does grow when a refusal appears, by
+    // 39.6 px measured, and `position` places it for that taller state (#272).
     error.hidden = message === null;
   }
 
@@ -205,22 +207,118 @@ export function activeLanguagePopover(): LanguagePopover | null {
 }
 
 /**
- * Put it under the label, and keep it on screen.
+ * Where the popover goes against its label, as CSS offsets (#272).
  *
- * `position: fixed` in the stylesheet, so these are viewport coordinates and
- * the popover does not scroll away from a label that is itself scrolling
- * inside the block. The clamp is against the viewport rather than against the
- * editor, because the popover is a child of the body.
+ * `tallHeight` is the popover with a refusal showing, which is taller than the
+ * popover as it opens. **The side is chosen for that height, not for the one on
+ * screen at open**, because a refusal appears after placement: measured in
+ * Chromium at 600x400, a popover placed for its closed 45 px ran past the
+ * window edge in 26.5 per cent of label positions once a refusal grew it to
+ * 84.6, against 14.6 per cent before.
  *
- * **None of this is observable in the test harness**, which reports every
- * rectangle as zero, so it is verified in the manual pass and by the numbers
- * measured in Chromium on the branch rather than by an assertion here.
+ * Below, it is placed by its `top`, exactly where it opened before #272, and a
+ * refusal grows it downward into room that was reserved for it. Above, it is
+ * held by its `bottom`, just over the label, so a refusal grows it upward, away
+ * from the label and inside the window. That costs something, stated rather
+ * than hidden: measured over the same positions, it opens above where the
+ * closed popover would have fitted below in 6.9 per cent of positions at
+ * 1024x768 and 14.5 at 600x400, and there the field rises by one line when a
+ * refusal appears.
+ *
+ * The capped branches of `popoverPlacement` are not reached at this height,
+ * measured, so its `maxHeight` is not applied: the popover is never taller
+ * than the room it is given.
+ */
+export type LanguagePopoverOffset =
+  | { readonly edge: 'top'; readonly px: number }
+  | { readonly edge: 'bottom'; readonly px: number };
+
+export function languagePopoverOffset(
+  anchorTop: number,
+  anchorBottom: number,
+  tallHeight: number,
+  headerBottom: number,
+  viewportHeight: number,
+): LanguagePopoverOffset {
+  const placement = popoverPlacement(
+    anchorTop,
+    anchorBottom,
+    tallHeight,
+    headerBottom,
+    viewportHeight,
+  );
+  if (!placement.above) return { edge: 'top', px: placement.top };
+  return { edge: 'bottom', px: viewportHeight - (anchorTop - POPOVER_OFFSET) };
+}
+
+/**
+ * The height of the popover with the tallest refusal it can show.
+ *
+ * Measured on an invisible copy rather than on the popover, because the
+ * refusal line is `role="alert"`: writing a message into the real one, even for
+ * the length of a measurement, is a message a screen reader may announce for a
+ * value nobody typed. The copy has no role and is hidden from assistive
+ * technology, and it is removed before this returns.
+ *
+ * Both messages are tried rather than one assumed longer, because how many
+ * lines each wraps to depends on the font, and the font on Windows is not the
+ * one this was measured with.
+ */
+function tallestHeight(element: HTMLElement): number {
+  const probe = element.cloneNode(true) as HTMLElement;
+  probe.removeAttribute('role');
+  probe.setAttribute('aria-hidden', 'true');
+  probe.style.visibility = 'hidden';
+  probe.style.left = '0px';
+  probe.style.top = '0px';
+  const line = probe.querySelector<HTMLElement>(`.${LANGUAGE_ERROR_CLASS}`);
+  line?.removeAttribute('role');
+  document.body.appendChild(probe);
+
+  let tallest = element.getBoundingClientRect().height;
+  for (const message of [LANGUAGE_HAS_BACKTICK, LANGUAGE_HAS_SPACE]) {
+    if (line === null) break;
+    line.textContent = message;
+    line.hidden = false;
+    tallest = Math.max(tallest, probe.getBoundingClientRect().height);
+  }
+  probe.remove();
+  return tallest;
+}
+
+/**
+ * Put it against the label, and keep it on screen whether or not a refusal is
+ * showing.
+ *
+ * `position: fixed` in the stylesheet, so these are viewport coordinates. The
+ * horizontal clamp is against the viewport rather than against the editor,
+ * because the popover is a child of the body. The ceiling is the header, read
+ * rather than written down, for the reason `popoverPlacement` gives.
+ *
+ * **None of the result is observable in the test harness**, which reports
+ * every rectangle as zero. `language-popover.test.ts` drives this function
+ * through rectangles it supplies, so the wiring is asserted; where it lands on
+ * a real screen is verified in the manual pass.
  */
 function position(element: HTMLElement, anchor: HTMLElement): void {
   const rect = anchor.getBoundingClientRect();
+  const header = document.getElementById('menubar');
+  // `#menubar` is written in `index.html`. If it is ever absent the window top
+  // is the ceiling, as it is for the heading list.
+  const headerBottom = header === null ? 0 : header.getBoundingClientRect().bottom;
+  const offset = languagePopoverOffset(
+    rect.top,
+    rect.bottom,
+    tallestHeight(element),
+    headerBottom,
+    window.innerHeight,
+  );
+
   const width = element.offsetWidth;
-  const margin = 8;
-  const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+  const left = Math.max(
+    POPOVER_MARGIN,
+    Math.min(rect.left, window.innerWidth - width - POPOVER_MARGIN),
+  );
   element.style.left = `${Math.round(left)}px`;
-  element.style.top = `${Math.round(rect.bottom + 4)}px`;
+  element.style[offset.edge] = `${Math.round(offset.px)}px`;
 }

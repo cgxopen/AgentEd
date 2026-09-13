@@ -1150,7 +1150,8 @@ button.indicator-search:hover {
 
 /*
  * The refusal. `role="alert"` on the element and `hidden` when there is
- * nothing to say, so the popover does not change height as the user types.
+ * nothing to say, so an empty line takes no space. The popover grows when a
+ * refusal appears, and `language-popover.ts` places it for that height (#272).
  */
 .language-popover-error {
   margin: 0;
