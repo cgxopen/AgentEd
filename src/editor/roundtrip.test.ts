@@ -147,6 +147,11 @@ const TITLE_DELIMITER = 'R-C2: an image title is written back double-quoted';
 const ADJACENT_LISTS = 'R-C2: two adjacent lists of different kinds are written a line apart';
 /** A table inside a cell, written as inline HTML in one spelling (#278). */
 const INLINE_TABLE = 'R-C2: a table inside a table cell is written as inline HTML';
+/** Where a raw HTML table is not one whole block at the top level, it is written as GFM (#283). */
+const HTML_TABLE_NOT_KEPT =
+  'R-C2: a raw HTML table is kept only as one whole block at the top level';
+/** A list the file wrote as raw HTML, written as a markdown list (#283, owner decision). */
+const HTML_LIST = 'R-C2: a list the file wrote as raw HTML is written as a markdown list';
 
 /**
  * Every shape `markdown/roundtrip.test.ts` covers, plus the six shapes of #84,
@@ -731,6 +736,186 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     'a table inside a cell carrying an attribute',
     '| a |\n| --- |\n| <table border="1"><tr><td>x</td></tr></table> |',
     { writes: '| a |\n| --- |\n| <table><tr><td>x</td></tr></table> |', because: INLINE_TABLE },
+  ],
+  // ── A table one level further in than `holdsATable` asks (#283) ──
+  //
+  // The outer item holds a nested list, and the table is in the nested item.
+  // Owed as a measurement since #284, and written here as the rows it came to.
+  [
+    'a nested checklist item holding a table, then a paragraph in the outer item',
+    '- [ ] outer\n  - [ ] inner\n\n    | a |\n    | --- |\n    | c |\n  after',
+    'identical',
+  ],
+  [
+    'a nested bullet item holding a table, then a paragraph in the outer item',
+    '- [ ] outer\n  - inner\n\n    | a |\n    | --- |\n    | c |\n  after',
+    'identical',
+  ],
+  // ── A table the file wrote as raw HTML (#283) ──
+  //
+  // Kept as the bytes the file used while it is unedited, owner decision of
+  // 2026-09-13. Every construct step zero measured losing something is here,
+  // and each of them used to be written as GFM. What an edit does is in
+  // `kept-html-table.test.ts`, because this table cannot express one.
+  ['a raw HTML table', '<table><tr><td>a</td></tr></table>', 'identical'],
+  [
+    'a raw HTML table across lines',
+    '<table>\n  <tr>\n    <td>a</td>\n  </tr>\n</table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table between paragraphs',
+    'before\n\n<table><tr><td>a</td></tr></table>\n\nafter',
+    'identical',
+  ],
+  [
+    'a raw HTML table with a header row in thead',
+    '<table><thead><tr><th>h</th></tr></thead><tbody><tr><td>1</td></tr></tbody></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table with a colspan',
+    '<table><tr><th>a</th><th>b</th></tr><tr><td colspan="2">wide</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table with a rowspan',
+    '<table><tr><th>a</th><th>b</th></tr><tr><td rowspan="2">tall</td><td>1</td></tr><tr><td>2</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table aligned by attribute',
+    '<table><tr><th align="right">a</th></tr><tr><td align="right">1</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table aligned by style',
+    '<table><tr><th style="text-align:center">a</th></tr><tr><td style="text-align:center">1</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table with a caption',
+    '<table><caption>The caption</caption><tr><td>a</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table whose cell holds two paragraphs',
+    '<table><tr><td><p>one</p><p>two</p></td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table whose cell holds a list',
+    '<table><tr><td><ul><li>x</li><li>y</li></ul></td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table with attributes of its own',
+    '<table border="1" class="data"><tr><td>a</td></tr></table>',
+    'identical',
+  ],
+  ['a raw HTML table in capitals', '<TABLE><TR><TD>a</TD></TR></TABLE>', 'identical'],
+  [
+    'two raw HTML tables',
+    '<table><tr><td>a</td></tr></table>\n\n<table><tr><td>b</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table holding an image with a size',
+    '<table><tr><td><img src="a.png" width="10"></td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table holding markdown characters, which HTML does not read',
+    '<table><tr><td>**b** _c_</td></tr></table>',
+    'identical',
+  ],
+  ['a raw HTML table with a blank cell', '<table><tr><td> </td></tr></table>', 'identical'],
+  [
+    'a raw HTML table holding entities',
+    '<table><tr><td>a &amp; b &lt;</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table holding a comment',
+    '<table><!-- c --><tr><td>a</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table with a tfoot',
+    '<table><tr><td>a</td></tr><tfoot><tr><td>f</td></tr></tfoot></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table holding a table',
+    '<table><tr><td><table><tr><td>in</td></tr></table></td></tr></table>',
+    'identical',
+  ],
+  [
+    // The file's own bytes, script and all. DOMPurify still removes the script
+    // from what the editor shows; what is written back is what the file held.
+    'a raw HTML table holding a script the file had',
+    '<table><tr><td><script>x</script>a</td></tr></table>',
+    'identical',
+  ],
+  [
+    // The file spells the attribute the bytes ride on, with another table in
+    // it. The stamp goes first, so the file's own bytes are what is kept.
+    'a raw HTML table spelling the source attribute itself',
+    '<table data-table-html-source="%3Ctable%3E%3Ctr%3E%3Ctd%3Eevil%3C%2Ftd%3E%3C%2Ftr%3E%3C%2Ftable%3E"><tr><td>a</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table beside a GFM table',
+    '| a | b |\n| --- | --- |\n| 1 | 2 |\n\n<table><tr><td>a</td></tr></table>',
+    'identical',
+  ],
+  // Where it is not kept, measured byte-identical to `2bf4f1a`: nothing here
+  // moved, and each is recorded rather than left to be found.
+  [
+    'a raw HTML table with a blank line inside it',
+    '<table>\n\n<tr><td>a</td></tr>\n\n</table>',
+    { writes: '| a |\n| --- |', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table with text on the line after it',
+    '<table><tr><td>a</td></tr></table>\nafter',
+    { writes: '| a |\n| --- |\n\nafter', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table inside a blockquote',
+    '> <table><tr><td>a</td></tr></table>',
+    { writes: '> | a |\n> | --- |', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table inside a list item',
+    '- item\n\n  <table><tr><td>a</td></tr></table>',
+    { writes: '- item\n\n  | a |\n  | --- |', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table inside a task item',
+    '- [ ] <table><tr><td>a</td></tr></table>',
+    { writes: '- [ ] | a |\n  | --- |', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table inside another element',
+    '<div><table><tr><td>a</td></tr></table></div>',
+    { writes: '| a |\n| --- |', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table with no rows',
+    '<table></table>',
+    { writes: '', because: HTML_TABLE_NOT_KEPT },
+  ],
+  // ── A list the file wrote as raw HTML (#283, owner decision) ──
+  [
+    'a raw HTML bullet list',
+    '<ul><li>a</li><li>b</li></ul>',
+    { writes: '- a\n- b', because: HTML_LIST },
+  ],
+  [
+    'a raw HTML ordered list',
+    '<ol><li>a</li><li>b</li></ol>',
+    { writes: '1. a\n2. b', because: HTML_LIST },
   ],
   [
     'a table without outer pipes',

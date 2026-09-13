@@ -30,6 +30,7 @@ import {
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { createImageNodeView } from './image-resize';
+import { HTML_SOURCE, htmlForSave, KEPT_HTML_SOURCE } from './kept-html-table';
 import { isRelativeLinkAddress } from './link-url';
 import {
   BARE_BLANK_MARKER,
@@ -49,6 +50,7 @@ import {
 } from './markdown/image-spelling';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
+import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
@@ -539,10 +541,14 @@ const ImageWithSpelling = Image.extend({
 });
 
 /**
- * The table node, plus the one attribute #93 needs: the spelling the file
- * used for this table. `parseHTML`/`renderHTML` keep it on the round trip
- * through the document model, which is what lets an untouched table be
- * written back byte for byte.
+ * The table node, plus the attribute #93 needs: the spelling the file used for
+ * this table. `parseHTML`/`renderHTML` keep it on the round trip through the
+ * document model, which is what lets an untouched table be written back byte
+ * for byte.
+ *
+ * And the two #283 needs, for a table the file wrote as raw HTML: the bytes it
+ * used, and the mark that says to write them. Why they are two, and why one is
+ * never rendered and the other never parsed, is in `kept-html-table.ts`.
  */
 const TableWithStyle = Table.extend({
   addAttributes() {
@@ -553,6 +559,22 @@ const TableWithStyle = Table.extend({
         parseHTML: (element: HTMLElement) => element.getAttribute(TABLE_STYLE_ATTRIBUTE),
         renderHTML: (attributes: Record<string, unknown>) =>
           attributes.tableStyle ? { [TABLE_STYLE_ATTRIBUTE]: attributes.tableStyle as string } : {},
+      },
+      [HTML_SOURCE]: {
+        default: null,
+        rendered: false,
+        parseHTML: (element: HTMLElement) =>
+          decodeTableSource(element.getAttribute(TABLE_HTML_SOURCE_ATTRIBUTE)),
+      },
+      [KEPT_HTML_SOURCE]: {
+        default: null,
+        parseHTML: () => null,
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const source = attributes[KEPT_HTML_SOURCE];
+          return typeof source === 'string'
+            ? { [TABLE_HTML_SOURCE_ATTRIBUTE]: encodeURIComponent(source) }
+            : {};
+        },
       },
     };
   },
@@ -718,7 +740,9 @@ export function createEditor(
     },
   });
 
-  const getMarkdown = () => htmlToMarkdown(editor.getHTML());
+  // `htmlForSave` is `editor.getHTML()` with each unedited raw HTML table
+  // marked to be written as its own bytes (#283).
+  const getMarkdown = () => htmlToMarkdown(htmlForSave(editor), { keepHtmlTables: true });
 
   // Every route that replaces the whole document goes through this one
   // function, which also forgets the undo history the previous document

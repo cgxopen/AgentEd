@@ -1,5 +1,9 @@
 import type { Editor } from '@tiptap/core';
-import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
+import {
+  DOMParser as ProseMirrorDOMParser,
+  type Node as ProseMirrorNode,
+  type Schema,
+} from '@tiptap/pm/model';
 import type { Plugin } from '@tiptap/pm/state';
 import { markdownToHtml } from './markdown/parse';
 
@@ -146,8 +150,19 @@ function forgetUndoHistory(editor: Editor): void {
  * rule.
  */
 export function replaceDocument(editor: Editor, markdown: string): void {
+  editor.commands.setContent(parseDocument(editor.schema, markdown));
+  forgetUndoHistory(editor);
+}
+
+/**
+ * The document `markdown` becomes on load, without loading it.
+ *
+ * Its own function so that the question `kept-html-table.ts` asks at save —
+ * would this table's source bytes read back as the table the editor holds —
+ * is answered by the route a load takes, rather than by a copy of it.
+ */
+export function parseDocument(schema: Schema, markdown: string): ProseMirrorNode {
   const container = document.createElement('div');
   container.innerHTML = markdownToHtml(markdown);
-  editor.commands.setContent(ProseMirrorDOMParser.fromSchema(editor.schema).parse(container));
-  forgetUndoHistory(editor);
+  return ProseMirrorDOMParser.fromSchema(schema).parse(container);
 }

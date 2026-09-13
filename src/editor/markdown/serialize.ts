@@ -11,6 +11,7 @@ import {
   pixelValue,
 } from './image-spelling';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
+import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
   type ColumnStyle,
   DEFAULT_TABLE_STYLE,
@@ -341,6 +342,14 @@ function taskListItemReplacement(node: Node): string {
   //
   // An item that holds no table is untouched, so the recorded exception holds
   // everywhere it held before.
+  //
+  // **Only the item's own blocks are asked**, so an item whose nested list
+  // holds the table is written tight around that list. Measured on `2bf4f1a`
+  // (#283), with a paragraph after the nested list in the outer item, for a
+  // nested checklist and a nested bullet list: the document reads back as it
+  // went out and the second save moves nothing, because the nested item
+  // spaces its own blocks and the outer paragraph ends the table by its lesser
+  // indentation. Pinned by two rows in `src/editor/roundtrip.test.ts`.
   const holdsATable = blocks.some((block) => block.nodeName.toUpperCase() === 'TABLE');
   const body = blocks
     .map((block) => trimBlock(turndown.turndown(block.outerHTML)))
@@ -744,11 +753,23 @@ function ownCells(row: HTMLElement): HTMLElement[] {
 // is the same answer #278 gave a table one construct over, and it fires at any
 // cell depth, so a rule inside a table nested in a cell is written the same way.
 //
-// Outside a cell nothing changes: the option the service was constructed with
-// is what is written, read from the same place turndown own rule reads it.
+// Outside a cell nothing changes, and that is delegated rather than restated
+// (#283): turndown's own rule writes the rule there, read from its resolved
+// defaults the way the heading rule reads `heading`, and guarded for the same
+// stated reason. Until #283 this branch spelled out what that rule returns;
+// measured on `2bf4f1a` the two were byte-identical, and nothing checked it.
+const builtinHorizontalRule = turndown.options.rules.horizontalRule;
+if (!builtinHorizontalRule) {
+  throw new Error(
+    'turndown no longer exposes options.rules.horizontalRule, so a rule outside a table cell ' +
+      'cannot delegate to the built-in one (#282). See src/editor/markdown/serialize.ts.',
+  );
+}
+
 turndown.addRule('horizontalRuleInACell', {
   filter: 'hr',
-  replacement: (_content, _node, options) => (cellDepth > 0 ? '<hr>' : `\n\n${options.hr}\n\n`),
+  replacement: (content, node, options) =>
+    cellDepth > 0 ? '<hr>' : builtinHorizontalRule.replacement(content, node, options),
 });
 
 /** A table inside a cell, as one line of inline HTML. */
@@ -941,6 +962,29 @@ function styleFor(table: HTMLTableElement): TableStyle {
   );
 }
 
+// ── A table the file wrote as raw HTML (#283) ──
+//
+// Written back as the bytes the file used, when the editor marked it as
+// unedited at save — see `kept-html-table.ts` for how that is decided and
+// `table-html-source.ts` for the owner decision. Everything else, including the
+// same table once it is edited, falls through to GFM below.
+//
+// **Only when the caller is the save path**, which asks for it through
+// `htmlToMarkdown`. The other caller is paste, which runs rich HTML from any
+// page through this serializer, and a page can carry the attribute. Measured
+// with the attribute honoured there: a pasted table holding `p`, carrying a
+// source holding `other`, arrived as `other`. So paste never reads it, and a
+// pasted table is written as GFM, as the owner decision says.
+
+/** Whether the running conversion writes kept tables. Set only by `htmlToMarkdown`. */
+let writingKeptTables = false;
+
+/** The bytes to write for a table, or `null` when it is written as GFM. */
+function keptHtmlSource(table: HTMLTableElement): string | null {
+  if (!writingKeptTables) return null;
+  return decodeTableSource(table.getAttribute(TABLE_HTML_SOURCE_ATTRIBUTE));
+}
+
 turndown.addRule('table', {
   filter: 'table',
   replacement: (_content, node) => {
@@ -953,6 +997,8 @@ turndown.addRule('table', {
     // nesting eighteen tables ran the heap out of memory on save (#278).
     if (table.parentElement?.closest('td, th')) return '';
     if (cellDepth > 0) return inlineTable(table);
+    const kept = keptHtmlSource(table);
+    if (kept !== null) return `\n\n${kept}\n\n`;
     const rows = collectRows(table);
     if (rows.length === 0) return '';
     const colCount = Math.max(...rows.map((r) => r.length));
@@ -1008,7 +1054,21 @@ turndown.addRule('tableSection', {
 // belongs to whoever picks up member 3a.
 const EMPTY_TASK_ITEM_AT_THE_END = /(?:^|\n)[>\s]*- \[[ x]\]$/;
 
-export function htmlToMarkdown(html: string): string {
-  const markdown = turndown.turndown(html);
-  return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
+export interface SerializeOptions {
+  /**
+   * Write a table marked as an unedited raw HTML table as its own bytes
+   * (#283). On for the save path, which is the only one that marks them; off
+   * for everything else, and paste in particular. See `keptHtmlSource`.
+   */
+  readonly keepHtmlTables?: boolean;
+}
+
+export function htmlToMarkdown(html: string, options: SerializeOptions = {}): string {
+  writingKeptTables = options.keepHtmlTables ?? false;
+  try {
+    const markdown = turndown.turndown(html);
+    return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
+  } finally {
+    writingKeptTables = false;
+  }
 }

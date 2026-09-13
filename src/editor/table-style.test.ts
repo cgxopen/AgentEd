@@ -224,14 +224,27 @@ describe('a table the scan could not place no longer costs the others their spel
   });
 
   it('a padded table beside a hand-written table keeps its alignment', () => {
-    // Not byte-identical, and the reason is the question #200 records and
-    // leaves: a table the file wrote as raw HTML does not survive to the file
-    // today, it is rewritten as a markdown table. The exact bytes state both
-    // halves — the markdown table keeps its widths, and the raw one is
-    // rewritten in the spelling of the sibling it inherits from.
+    // Byte-identical since #283, which answered the question #200 recorded
+    // and left: a table the file wrote as raw HTML is written back as its own
+    // bytes while it is unedited. Until then this row expected the raw table
+    // rewritten as `| one   |` over `| ----- |`, and #283 moved it on purpose.
     const md = `${PADDED}\n\n<table>\n<tr><td>one</td></tr>\n</table>`;
     const saved = savedFrom(md, editorWith(md));
-    expect(saved).toBe(`${PADDED}\n\n| one   |\n| ----- |`);
+    expect(saved).toBe(md);
+  });
+
+  it('and once edited, the hand-written table takes the spelling of its sibling', () => {
+    // The half the row above used to witness, now reached only by an edit:
+    // written as GFM, a table with no spelling of its own inherits the first
+    // one in the document, the #93 rule.
+    const md = `${PADDED}\n\n<table>\n<tr><td>one</td></tr>\n</table>`;
+    const editor = editorWith(md);
+    let end = -1;
+    editor.editor.state.doc.descendants((node, pos) => {
+      if (node.isText && node.text === 'one') end = pos + 3;
+    });
+    editor.editor.chain().setTextSelection(end).insertContent('Z').run();
+    expect(savedFrom(md, editor)).toBe(`${PADDED}\n\n| oneZ  |\n| ----- |`);
   });
 
   it('and the second save moves nothing further', () => {

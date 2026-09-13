@@ -116,8 +116,9 @@ describe('the sanitizer default the carrier depends on', () => {
    * The carrier is only useful because DOMPurify keeps it. It is **not** in
    * the `ADD_ATTR` list in `parse.ts`, and that is measured rather than
    * assumed: `ALLOW_DATA_ATTR` defaults to true, so every `data-*` attribute
-   * survives on its own — which also means the five `data-` entries already in
-   * that list are inert.
+   * survives on its own. The six `data-` entries that list held were inert for
+   * the same reason, and #283 removed them with no test moving, so every
+   * attribute the parser writes onto an element now depends on this default.
    *
    * Pinned here so a release that changes the default fails in this file,
    * naming its cause, rather than in a user document.
