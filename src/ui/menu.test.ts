@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { insertMenuCallbacks } from '../editor/insert-blocks';
 import { createEditor, type EditorInstance } from '../editor/setup';
+import stylesCss from '../styles.css?raw';
 import { type MenuCallbacks, setupMenu } from './menu';
 
 function callbacks(): MenuCallbacks {
@@ -69,6 +70,97 @@ describe('setupMenu', () => {
 
     document.getElementById('menu-about')!.click();
     expect(dropdown.classList.contains('hidden')).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The height of the open menu (#273)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Nothing in this suite can see how tall the menu is: happy-dom performs no
+ * layout, and every rectangle it reports is zero. What the repair for #273 does
+ * on screen is verified by hand, at the minimum window and at 125 and 150 per
+ * cent display scaling, and those states are on the pull request.
+ *
+ * What can be asserted, and is, is the rule itself: read out of the shipped
+ * stylesheet, its selector run against the `#menu-dropdown` the shipped page
+ * renders, and its value checked for the property the repair rests on. That
+ * property is that the cap takes the header height from the header, through
+ * `100%` of the box the menu hangs from. A cap written as the header height at
+ * one scaling, such as `calc(100vh - 44px)`, would look right on this machine
+ * and be wrong on a display at 150 per cent, and this is where it fails instead.
+ */
+
+interface StyleRule {
+  readonly selector: string;
+  readonly declarations: ReadonlyMap<string, string>;
+}
+
+/**
+ * Every top-level rule in the stylesheet, as its selector and declarations.
+ * Comments are dropped first. A block inside `@media` keeps the at-rule in its
+ * selector text, so it never matches an element and is not mistaken for a rule
+ * that applies at every width.
+ */
+function stylesheetRules(): StyleRule[] {
+  const css = stylesCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules: StyleRule[] = [];
+  for (const block of css.split('}')) {
+    const brace = block.indexOf('{');
+    if (brace < 0) continue;
+    const declarations = new Map<string, string>();
+    for (const part of block.slice(brace + 1).split(';')) {
+      const colon = part.indexOf(':');
+      if (colon > 0) declarations.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim());
+    }
+    rules.push({ selector: block.slice(0, brace).trim(), declarations });
+  }
+  if (rules.length === 0) throw new Error('read no rules out of styles.css');
+  return rules;
+}
+
+/** Whether a selector list reaches the element. A selector the DOM cannot parse reaches nothing. */
+function reaches(selector: string, element: Element): boolean {
+  if (selector.startsWith('@')) return false;
+  return selector.split(',').some((one) => {
+    try {
+      return element.matches(one.trim());
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** The values a property takes in every rule that reaches the element, in stylesheet order. */
+function valuesReaching(element: Element, property: string): string[] {
+  return stylesheetRules()
+    .filter((rule) => reaches(rule.selector, element) && rule.declarations.has(property))
+    .map((rule) => rule.declarations.get(property) as string);
+}
+
+describe('the open menu is bounded by the room below the header (#273)', () => {
+  function openMenu(): HTMLElement {
+    setupMenu(callbacks());
+    document.getElementById('menu-toggle')!.click();
+    const dropdown = document.getElementById('menu-dropdown')!;
+    expect(dropdown.classList.contains('hidden')).toBe(false);
+    return dropdown;
+  }
+
+  it('reaches the rendered menu with one height cap, and scrolls inside it', () => {
+    const dropdown = openMenu();
+    expect(valuesReaching(dropdown, 'max-height')).toHaveLength(1);
+    expect(valuesReaching(dropdown, 'overflow-y')).toEqual(['auto']);
+  });
+
+  it('takes the header height from the header rather than naming it', () => {
+    const [cap] = valuesReaching(openMenu(), 'max-height');
+    // The window height, less `100%` of the #menubar padding box the menu hangs
+    // from, less a small gap to the window edge, and nothing else.
+    const shape = /^calc\(100vh - 100% - (\d+)px\)$/.exec(cap ?? '');
+    expect(shape, `max-height is ${cap}`).not.toBeNull();
+    expect(Number(shape?.[1])).toBeLessThanOrEqual(16);
   });
 });
 

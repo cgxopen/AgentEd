@@ -294,6 +294,22 @@ body {
   flex-direction: column;
   min-width: 160px;
   padding: 4px 0;
+  /* Bounded by the room below the header, and scrolling inside itself past it
+   * (#273). Unbounded, the menu was taller than the declared minimum window,
+   * and opening it made the page itself scrollable: the wheel moved the whole
+   * editor to its end before the last entries came into view, and the header
+   * scrolled away on the way. Measured in Chromium at 600x400: 745 px of menu.
+   *
+   * `100%` is the height of the #menubar padding box, the same box `top: 100%`
+   * hangs the menu from, so the cap reads the header rather than naming it.
+   * The header has no declared height and is taller at 125, 150 and 200 per
+   * cent display scaling, so a constant for it would be right at one scaling
+   * only (#270). The 8 px is the gap left above the window edge.
+   *
+   * `70vh`, the cap on .cluster-popover, was measured and not used: at the
+   * default 1024x768 window it cut the menu to 12 of its 17 entries. */
+  max-height: calc(100vh - 100% - 8px);
+  overflow-y: auto;
 }
 
 #menu-dropdown.hidden {
