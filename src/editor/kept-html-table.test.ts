@@ -119,6 +119,44 @@ describe('an edit decides, and nothing short of an edit does', () => {
   });
 });
 
+/**
+ * The table plugin repairs every table that is not rectangular straight after
+ * a load, and raw HTML tables often are not. Tables generated from spans,
+ * captions, uneven rows and wrappers, so the property is checked beyond the
+ * shapes anyone thought to write down. Measured with the check comparing the
+ * unrepaired bytes instead: 38 of these 40 were written as GFM, and of 1500
+ * from a wider generator, with block content in the cells, 99 were kept.
+ */
+describe('a table the load repaired is still the table the file wrote', () => {
+  it('keeps every generated table, nearly all of them not rectangular', () => {
+    let seed = 283;
+    const next = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return Math.floor(seed / 65536) % n;
+    };
+    const pick = (options: readonly string[]): string => options[next(options.length)];
+    const cell = (): string => {
+      const tag = pick(['td', 'td', 'th']);
+      const span =
+        pick(['', '', ' colspan="2"', ' colspan="3"']) +
+        pick(['', '', ' rowspan="2"', ' rowspan="4"']);
+      return `<${tag}${span}>${pick(['a', '', '<b>b</b>', '<p>p</p><p>q</p>'])}</${tag}>`;
+    };
+    const row = (): string => `<tr>${Array.from({ length: 1 + next(3) }, cell).join('')}</tr>`;
+    const notKept: string[] = [];
+    for (let i = 0; i < 40; i += 1) {
+      const rows = Array.from({ length: 1 + next(4) }, row).join('\n');
+      const caption = pick(['', '<caption>cap</caption>\n']);
+      const table = `<table>\n${caption}${rows}\n</table>`;
+      const editor = editorWith(table);
+      if (editor.getMarkdown() !== table) notKept.push(table);
+      editor.destroy();
+      editors.splice(editors.indexOf(editor), 1);
+    }
+    expect(notKept).toEqual([]);
+  });
+});
+
 describe('the bytes never leave the editor except through the save path', () => {
   it('holds the source on the node and renders it nowhere', () => {
     const editor = editorWith(SIMPLE);

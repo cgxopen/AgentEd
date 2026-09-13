@@ -869,6 +869,34 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
     '| a | b |\n| --- | --- |\n| 1 | 2 |\n\n<table><tr><td>a</td></tr></table>',
     'identical',
   ],
+  // Not rectangular, so the table plugin repairs each one straight after the
+  // load. The check at save repairs the reread bytes the same way, and without
+  // that every row here was written as GFM by a save that changed nothing.
+  [
+    'a raw HTML table whose caption sits above two columns',
+    '<table><caption>T</caption><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table with a caption, alignment and a rowspan, across lines',
+    '<table>\n  <caption>Title</caption>\n  <tr><th align="right">name</th><th>value</th></tr>\n  <tr><td rowspan="2">tall</td><td>1</td></tr>\n  <tr><td>2</td></tr>\n</table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table whose rows are not the same length',
+    '<table><tr><td>a</td><td>b</td><td>c</td></tr><tr><td>d</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table whose rowspan reaches past the last row',
+    '<table><tr><td rowspan="4">a</td><td>b</td></tr><tr><td>c</td></tr></table>',
+    'identical',
+  ],
+  [
+    'a raw HTML table whose colspan is wider than the other rows',
+    '<table><tr><td colspan="3">a</td></tr><tr><td>b</td></tr></table>',
+    'identical',
+  ],
   // Where it is not kept, measured byte-identical to `2bf4f1a`: nothing here
   // moved, and each is recorded rather than left to be found.
   [
@@ -904,6 +932,11 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   [
     'a raw HTML table with no rows',
     '<table></table>',
+    { writes: '', because: HTML_TABLE_NOT_KEPT },
+  ],
+  [
+    'a raw HTML table whose rows hold no cells',
+    '<table><tr></tr></table>',
     { writes: '', because: HTML_TABLE_NOT_KEPT },
   ],
   // ── A list the file wrote as raw HTML (#283, owner decision) ──

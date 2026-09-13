@@ -1,5 +1,7 @@
 import { type Editor, getHTMLFromFragment } from '@tiptap/core';
 import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
+import { EditorState } from '@tiptap/pm/state';
+import { fixTables } from '@tiptap/pm/tables';
 import { parseDocument } from './document-load';
 
 /**
@@ -22,9 +24,9 @@ import { parseDocument } from './document-load';
  *
  * ── The check: is this still the table the file wrote ──
  *
- * The source is read again through the route a load takes, and the table it
- * becomes is compared with the table the editor holds, cell attributes and
- * all. Equal, and the source is written back. Different in anything, and the
+ * The source is read again through the route a load takes, repaired the way
+ * a load repairs a table (`asLoaded`), and the table it becomes is compared
+ * with the table the editor holds, cell attributes and all. Equal, and the source is written back. Different in anything, and the
  * table is written as GFM, as every table was before #283.
  *
  * **This is exact rather than tracked.** Nothing watches for an edit, so
@@ -78,7 +80,7 @@ export function htmlForSave(editor: Editor): string {
 export function isUneditedHtmlTable(node: ProseMirrorNode, schema: Schema): boolean {
   const source = node.attrs[HTML_SOURCE];
   if (node.type.name !== 'table' || typeof source !== 'string') return false;
-  const reread = parseDocument(schema, source);
+  const reread = asLoaded(parseDocument(schema, source));
   const table = reread.firstChild;
   return (
     reread.childCount === 1 &&
@@ -86,4 +88,25 @@ export function isUneditedHtmlTable(node: ProseMirrorNode, schema: Schema): bool
     table.type === node.type &&
     table.content.eq(node.content)
   );
+}
+
+/**
+ * The parsed document as the editor holds it once a load has finished.
+ *
+ * Parsing is not the whole of a load. The table plugin repairs every table
+ * that is not rectangular in its own transaction straight after it, and a raw
+ * HTML table is often not: a `<caption>` becomes a row of one cell beside rows
+ * of two, and the repair adds the missing cell. Measured before this existed,
+ * a table holding a caption and a `rowspan` was compared unrepaired against
+ * its repaired self, counted as edited, and written as GFM by a save that
+ * changed nothing. `fixTables` is the function that plugin runs, so the source
+ * is repaired the same way before it is compared.
+ *
+ * It is the only repair a load makes to a table. The other plugins that append
+ * to a transaction answer a paste, a split list or a cleared document, and a
+ * load is none of those.
+ */
+function asLoaded(doc: ProseMirrorNode): ProseMirrorNode {
+  const repair = fixTables(EditorState.create({ doc }));
+  return repair ? repair.doc : doc;
 }
