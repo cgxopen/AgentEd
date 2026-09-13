@@ -222,9 +222,10 @@ describe('floating toolbar — one heading control for six levels (#267)', () =>
    *
    * It can see the table, the rendered buttons, the label, the list the
    * control opens and the document the list changes — none of that needs
-   * layout. It cannot see **where** the list opens: `headingListPlacement` is
-   * asserted on numbers in `heading-levels.test.ts`, and that it is called with
-   * the real toolbar rect and the real header bottom is verified by hand.
+   * layout. It cannot see **where** the list opens: `popoverPlacement` is
+   * asserted on numbers in `popover-placement.test.ts`, the list is shown to
+   * pass it the rectangles it reads in `heading-levels.test.ts` (#272), and
+   * where that lands on a real screen is verified by hand.
    */
 
   it('ships one heading entry rather than three heading buttons', () => {
