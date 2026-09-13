@@ -20,7 +20,7 @@ import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
 import { insertMenuCallbacks } from './editor/insert-blocks';
-import { insertCodeBlock } from './editor/insert-code-block';
+import { codeBlockRoutes } from './editor/insert-code-block';
 import { createEditor } from './editor/setup';
 import { getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
@@ -241,6 +241,9 @@ ctx.sidebar.setOnRequestAccess(() => {
 });
 
 linkDialog = setupLinkDialog(editor);
+// One object, spread into the menu and into the keyboard, so a swap between
+// the two routes is made in one place and the tests drive that place (#279).
+const codeBlock = codeBlockRoutes(editor);
 
 setupMenu({
   onNew: () => {
@@ -270,7 +273,7 @@ setupMenu({
   onFindNext: () => ctx.searchManager.findNext(),
   onFindPrevious: () => ctx.searchManager.findPrevious(),
   ...tableMenuCallbacks(editor),
-  onInsertCodeBlock: () => insertCodeBlock(ctx.editor),
+  ...codeBlock,
   ...insertMenuCallbacks(ctx.editor),
   onInsertMedia: () => {
     void insertMedia({
@@ -306,7 +309,7 @@ setupKeyboard({
     void docActions.handleOpen().catch(console.error);
   },
   onLink: () => linkDialog.open(),
-  onCodeBlock: () => insertCodeBlock(ctx.editor),
+  ...codeBlock,
 });
 
 setupFileAssociation(docActions.openFilePath);
