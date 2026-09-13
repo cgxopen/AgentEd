@@ -40,6 +40,7 @@ declare module 'turndown' {
     readonly heading?: Rule;
     readonly blockquote?: Rule;
     readonly list?: Rule;
+    readonly horizontalRule?: Rule;
   }
 
   export class TurndownService {

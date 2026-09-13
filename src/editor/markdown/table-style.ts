@@ -278,10 +278,11 @@ function refuse(reason: string): null {
  * the document model and through the clipboard, and a separator cell is
  * written into the file verbatim, so anything that is not dashes, colons and
  * spaces — or a width that is not a small whole number — is refused and the
- * table falls back to the default spelling. A document that carried its own
- * `data-table-style` in raw HTML cannot reach this: `attachTableStyles`
- * strips the attribute before writing the detected one (see the note beside
- * `ADD_ATTR` in `parse.ts`).
+ * table falls back to the default spelling. A document that carries its own
+ * `data-table-style` on a raw HTML table **does** reach this, since #200
+ * removed `attachTableStyles` and the strip it made, and this validation is
+ * what bounds what it can say — see the note above the sanitize call in
+ * `parse.ts`.
  *
  * **A refusal is per table, not per column, and that is deliberate.** Refusing
  * only the offending column and keeping the rest was considered: it is the
