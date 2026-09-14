@@ -75,6 +75,64 @@ export function saveLastOpenedFolder(folder: string): void {
   }
 }
 
+// ── Frequently used emoji (#296) ──
+//
+// How many times each emoji was chosen from the palette, so its first row can
+// show the ones used most. A count per emoji and nothing else: no document,
+// no path and no time is stored. Every window reads and writes the same
+// list, as it does the theme; that was measured with two pages of one origin
+// in Chromium on the #296 step zero and not in Tauri.
+
+const EMOJI_FREQUENT_KEY = 'agented:emoji-frequent';
+
+/** The most emoji remembered, by owner decision on #296. */
+export const EMOJI_FREQUENT_BOUND = 50;
+
+/**
+ * The stored counts, most used first. Among equal counts the one chosen for
+ * the first time earlier comes first, which is the order the object keeps.
+ * Anything stored that is not a positive count is left out.
+ */
+export function loadFrequentEmoji(): Array<readonly [char: string, count: number]> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(localStorage.getItem(EMOJI_FREQUENT_KEY) ?? '{}');
+  } catch (e) {
+    console.warn('[preferences] read frequent emoji failed, using none:', e);
+    return [];
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+  return Object.entries(parsed as Record<string, unknown>)
+    .filter((entry): entry is [string, number] => {
+      const count = entry[1];
+      return typeof count === 'number' && Number.isInteger(count) && count > 0;
+    })
+    .sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Counts one more use of `char`. Past the bound the least used emoji is
+ * forgotten, **never the one just chosen**: otherwise, once fifty emoji had
+ * each been used once, a new one would be dropped the moment it was counted
+ * and could never reach the row.
+ */
+export function recordEmojiUse(char: string): void {
+  const counts = loadFrequentEmoji();
+  const index = counts.findIndex(([stored]) => stored === char);
+  if (index >= 0) counts[index] = [char, counts[index][1] + 1];
+  else counts.push([char, 1]);
+  counts.sort((a, b) => b[1] - a[1]);
+  while (counts.length > EMOJI_FREQUENT_BOUND) {
+    const last = counts.findLastIndex(([stored]) => stored !== char);
+    counts.splice(last, 1);
+  }
+  try {
+    localStorage.setItem(EMOJI_FREQUENT_KEY, JSON.stringify(Object.fromEntries(counts)));
+  } catch (e) {
+    console.warn('[preferences] save frequent emoji failed:', e);
+  }
+}
+
 // ── Legacy keys cleanup ──
 //
 // Earlier versions persisted document modes, per-mode frontmatter
@@ -83,7 +141,7 @@ export function saveLastOpenedFolder(folder: string): void {
 // keys are swept from localStorage rather than left behind on machines
 // that ran an older build. This runs once per launch; after the first
 // one the keys are gone and it stays silent. Surviving preferences:
-// theme + palette + last opened folder.
+// theme + palette + last opened folder + frequently used emoji.
 
 const LEGACY_KEYS = [
   'agented:default-mode',

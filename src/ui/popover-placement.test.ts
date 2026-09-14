@@ -85,9 +85,62 @@ describe('popoverPlacement — capped when it fits neither way', () => {
   });
 
   it('never returns a negative height', () => {
-    // Arithmetic hygiene rather than a case anyone has produced: the smallest
-    // room measured at the declared 600x400 minimum was 154.5 px.
+    // A window 60 px tall, far below the declared 600x400 minimum.
     const p = popoverPlacement(50, 50 + ANCHOR_H, LIST_H, 44, 60);
     expect(p.maxHeight).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The band between the header and the window edge (#296)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The emoji palette, measured on the #296 step zero: 200 emoji in rows of 8.
+const GRID_H = 964;
+
+/** Whether a placement starts at or below the header and ends inside the window. */
+function inBand(p: { top: number; maxHeight: number }, headerBottom: number, vh: number): boolean {
+  return p.top >= headerBottom - 0.001 && p.top + p.maxHeight <= vh - POPOVER_MARGIN + 0.001;
+}
+
+describe('popoverPlacement — an anchor outside the window still gives a popover inside it', () => {
+  it('keeps the popover in the band for an anchor scrolled above the window', () => {
+    // Measured on the step zero before this existed: a caret scrolled out above
+    // put the palette at top -2380 in a 400 px window.
+    for (const height of [LIST_H, GRID_H]) {
+      const p = popoverPlacement(-2400, -2380, height, 44, 400);
+      expect(inBand(p, 44, 400), `height ${height}`).toBe(true);
+      expect(p.maxHeight).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the popover in the band for an anchor scrolled below the window', () => {
+    // And at top +1908 for a caret scrolled out below.
+    for (const height of [LIST_H, GRID_H]) {
+      const p = popoverPlacement(1930, 1950, height, 64, 400);
+      expect(inBand(p, 64, 400), `height ${height}`).toBe(true);
+      expect(p.maxHeight).toBeGreaterThan(0);
+    }
+  });
+
+  it('covers the anchor from the header down when neither side has any room', () => {
+    // The recorded fact: an anchor as tall as the window left no room either
+    // side, and the popover came back with a max height of 0.
+    for (const headerBottom of [44, 54, 64, 87]) {
+      const p = popoverPlacement(headerBottom, 400, GRID_H, headerBottom, 400);
+      expect(p.top).toBe(headerBottom);
+      expect(p.maxHeight).toBe(400 - POPOVER_MARGIN - headerBottom);
+    }
+    const short = popoverPlacement(44, 400, LIST_H, 44, 400);
+    expect(short.maxHeight).toBe(LIST_H);
+  });
+
+  it('stays in the band for every anchor position, on screen or not', () => {
+    for (const height of [LIST_H, GRID_H]) {
+      for (let anchorTop = -600; anchorTop <= 1000; anchorTop += 7) {
+        const p = popoverPlacement(anchorTop, anchorTop + ANCHOR_H, height, 54, 400);
+        expect(inBand(p, 54, 400), `top ${anchorTop}, height ${height}`).toBe(true);
+      }
+    }
   });
 });
