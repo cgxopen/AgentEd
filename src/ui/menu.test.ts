@@ -34,6 +34,7 @@ function callbacks(): MenuCallbacks {
     onInsertChecklist: vi.fn(),
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
+    onInsertEmoji: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
@@ -107,7 +108,7 @@ describe('setupMenu', () => {
  * `menu.ts` turned 0 of 3075 tests red, because apart from four entries nothing
  * said which handler an entry calls. A menu where everything is reachable and
  * two entries are wired to each other is the #204 shape, and this is what now
- * stands against it for all twenty.
+ * stands against it for all twenty-one.
  *
  * The rows click the entry the shipped `index.html` renders, reached the way a
  * person reaches it — the toggle, then the section, then the entry — through
@@ -147,6 +148,7 @@ const ENTRIES: ReadonlyArray<
     'onInsertHorizontalRule',
   ],
   ['menu-panel-insert', 'Insert Metadata', 'menu-insert-metadata', 'onInsertMetadata'],
+  ['menu-panel-insert', 'Insert Emoji', 'menu-insert-emoji', 'onInsertEmoji'],
   ['menu-panel-view', 'Toggle Sidebar', 'menu-toggle-sidebar', 'onToggleSidebar'],
   ['menu-panel-help', 'About AgentEd', 'menu-about', 'onAbout'],
 ];
@@ -822,7 +824,7 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
  * `insert-blocks.ts` rather than restated here, and then assert **what the
  * document became**. A wrong binding — the #204 shape, a control that points at
  * one capability and runs another — is what they exist to catch; which handler
- * every entry calls is pinned for all twenty by the table above them.
+ * every entry calls is pinned for all twenty-one by the table above them.
  *
  * **The mapping is imported, not restated.** `insertMenuCallbacks` is the same
  * object `main.ts` spreads into `setupMenu`, so a swap between the two commands

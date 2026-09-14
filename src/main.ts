@@ -32,6 +32,7 @@ import { setupAssetsPopover } from './ui/assets-popover';
 import { setupClusterIndicator } from './ui/cluster-indicator';
 import { setupClusterPopover } from './ui/cluster-popover';
 import { setupDocumentBadges } from './ui/document-badges';
+import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
 import { setupSidebar } from './ui/sidebar';
@@ -280,6 +281,7 @@ setupMenu(
     ...codeBlock,
     ...insertMenuCallbacks(ctx.editor),
     ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
+    ...emojiMenuCallbacks(editor),
     onInsertMedia: () => {
       void insertMedia({
         state: ctx.state,

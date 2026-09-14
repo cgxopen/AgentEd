@@ -1,11 +1,12 @@
 /**
  * Where a popover opens against the control that opened it (#267, #272).
  *
- * Two callers, and the arithmetic is the same for both:
+ * Three callers, and the arithmetic is the same for all of them:
  *
  * - **the heading list**, against the floating toolbar (`heading-levels.ts`);
  * - **the language popover**, against the label of a fenced block
- *   (`language-popover.ts`).
+ *   (`language-popover.ts`);
+ * - **the emoji palette**, against the caret (`emoji-palette.ts`, #296).
  *
  * It was written for the first in #267 and moved here in #272, when the second
  * turned out to need exactly it: nothing in the body knows what the anchor is.
@@ -63,9 +64,30 @@ export interface PopoverPlacement {
  * occupied while scrolling: 0 of 6569 positions across 1200x800, 1024x768 and
  * 600x400 at three header heights.
  *
- * `maxHeight` is floored at 0 rather than allowed to go negative. That is
- * arithmetic hygiene: the smallest room measured at the declared minimum window
- * was 154.5 px, and nothing has produced a negative one.
+ * ── The band, and the two facts it answers (#296) ──
+ *
+ * The four branches assume the anchor sits between the header and the window
+ * edge. The emoji palette was the first caller to break that assumption, and
+ * its step zero measured what the branches did then:
+ *
+ * - **an anchor scrolled out of the window gave a popover drawn wholly outside
+ *   it**, top at -2380 or +1908 px at 600x400, because each branch places the
+ *   popover against the anchor wherever the anchor is;
+ * - **an anchor as tall as the window gave a max height of 0**, since neither
+ *   side then has room, which at 600x400 was an 18 px strip.
+ *
+ * So the result of the branches is kept inside the band between the header
+ * and the window edge. **For an anchor inside the band this changes nothing**:
+ * every branch already lands inside it. The two callers before the palette
+ * were re-swept rather than assumed unchanged, and no sampled position moved:
+ * 13961 label positions of the language popover, each with and without a
+ * refusal, and 5256 toolbar positions of the heading list, 830 of them on the
+ * capped branch. Where neither side has any room at all the popover covers
+ * the anchor instead, from the header down; `above` is left as the branches
+ * chose it, because the language popover reads nothing else.
+ *
+ * A popover still loses rows when an anchor leaves little room on both sides:
+ * a room of 1 px is a room. Only the case of none is answered.
  */
 export function popoverPlacement(
   anchorTop: number,
@@ -77,7 +99,28 @@ export function popoverPlacement(
   const below = anchorBottom + POPOVER_OFFSET;
   const roomBelow = viewportHeight - POPOVER_MARGIN - below;
   const roomAbove = anchorTop - POPOVER_OFFSET - headerBottom;
+  const band = Math.max(0, viewportHeight - POPOVER_MARGIN - headerBottom);
 
+  if (roomBelow <= 0 && roomAbove <= 0) {
+    return { top: headerBottom, maxHeight: Math.min(height, band), above: roomAbove > roomBelow };
+  }
+  return withinBand(
+    sideOf(anchorTop, below, height, roomBelow, roomAbove, headerBottom),
+    headerBottom,
+    viewportHeight,
+    band,
+  );
+}
+
+/** The four branches, as they were before #296. */
+function sideOf(
+  anchorTop: number,
+  below: number,
+  height: number,
+  roomBelow: number,
+  roomAbove: number,
+  headerBottom: number,
+): PopoverPlacement {
   if (height <= roomBelow) return { top: below, maxHeight: height, above: false };
   if (height <= roomAbove) {
     return { top: anchorTop - POPOVER_OFFSET - height, maxHeight: height, above: true };
@@ -86,4 +129,19 @@ export function popoverPlacement(
     return { top: below, maxHeight: Math.max(0, roomBelow), above: false };
   }
   return { top: headerBottom, maxHeight: Math.max(0, roomAbove), above: true };
+}
+
+/** No taller than the band, and starting where it ends inside it. */
+function withinBand(
+  placement: PopoverPlacement,
+  headerBottom: number,
+  viewportHeight: number,
+  band: number,
+): PopoverPlacement {
+  const maxHeight = Math.min(placement.maxHeight, band);
+  const top = Math.min(
+    Math.max(placement.top, headerBottom),
+    viewportHeight - POPOVER_MARGIN - maxHeight,
+  );
+  return { top, maxHeight, above: placement.above };
 }

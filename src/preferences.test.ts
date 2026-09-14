@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  EMOJI_FREQUENT_BOUND,
+  loadFrequentEmoji,
   loadLastOpenedFolder,
   loadPalettePreference,
   loadThemePreference,
   purgeLegacyPreferences,
+  recordEmojiUse,
   saveLastOpenedFolder,
   savePalettePreference,
   saveThemePreference,
@@ -89,5 +92,45 @@ describe('purgeLegacyPreferences', () => {
 
   it('is a no-op on a clean store', () => {
     expect(() => purgeLegacyPreferences()).not.toThrow();
+  });
+});
+
+describe('frequently used emoji (#296)', () => {
+  it('counts each use, most used first, and nothing is stored before the first', () => {
+    expect(loadFrequentEmoji()).toEqual([]);
+    recordEmojiUse('a');
+    recordEmojiUse('b');
+    recordEmojiUse('b');
+
+    expect(loadFrequentEmoji()).toEqual([
+      ['b', 2],
+      ['a', 1],
+    ]);
+  });
+
+  it('keeps the one chosen first ahead among equal counts', () => {
+    recordEmojiUse('a');
+    recordEmojiUse('b');
+
+    expect(loadFrequentEmoji().map(([char]) => char)).toEqual(['a', 'b']);
+  });
+
+  it('remembers at most the bound, and never forgets the one just chosen', () => {
+    for (let i = 0; i < EMOJI_FREQUENT_BOUND; i++) recordEmojiUse(`e${i}`);
+    recordEmojiUse('new');
+
+    const kept = loadFrequentEmoji().map(([char]) => char);
+    expect(kept).toHaveLength(EMOJI_FREQUENT_BOUND);
+    expect(kept).toContain('new');
+    expect(kept).not.toContain(`e${EMOJI_FREQUENT_BOUND - 1}`);
+  });
+
+  it('reads a store it cannot parse, or one holding anything but counts, as none', () => {
+    localStorage.setItem('agented:emoji-frequent', '{not json');
+    expect(loadFrequentEmoji()).toEqual([]);
+    localStorage.setItem('agented:emoji-frequent', JSON.stringify({ a: 'x', b: -1, c: 1.5, d: 2 }));
+    expect(loadFrequentEmoji()).toEqual([['d', 2]]);
+    localStorage.setItem('agented:emoji-frequent', JSON.stringify(['a']));
+    expect(loadFrequentEmoji()).toEqual([]);
   });
 });

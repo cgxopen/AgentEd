@@ -39,6 +39,7 @@ function spies(): MenuCallbacks {
     onInsertChecklist: vi.fn(),
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
+    onInsertEmoji: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
