@@ -1,7 +1,11 @@
 import { Extension } from '@tiptap/core';
 import { Fragment, DOMParser as ProseMirrorDOMParser, Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
-import { isInTable, handlePaste as pasteCellsIntoTable } from '@tiptap/pm/tables';
+import {
+  __pastedCells as cellsInSlice,
+  isInTable,
+  handlePaste as pasteCellsIntoTable,
+} from '@tiptap/pm/tables';
 import type { EditorView } from '@tiptap/pm/view';
 import { showToast } from '../ui/toast';
 import { isSingleUrl } from './link-url';
@@ -131,13 +135,25 @@ function parseSlice(view: EditorView, html: string): Slice {
   });
 }
 
-/** True when the parsed clipboard holds a table at the top of its content. */
-function holdsATable(slice: Slice): boolean {
-  let found = false;
-  slice.content.forEach((node) => {
-    if (node.type.name === 'table') found = true;
-  });
-  return found;
+/**
+ * True when the open end of the slice runs down into a table — the one shape in
+ * which the text after the caret would be fitted into a pasted cell.
+ *
+ * Asked of the open end rather than of the top level, because that is where the
+ * swallowing happens: a table beside a heading ends in the table and swallows,
+ * a table inside a blockquote ends in it one level down and swallows too, and a
+ * table followed by a paragraph ends in the paragraph and merges the way a
+ * pasted paragraph always has. The walk is bounded by `openEnd`, the depth to
+ * which the end of the slice is open, and nothing below that depth can take
+ * the trailing text.
+ */
+function openEndIsInATable(slice: Slice): boolean {
+  let node = slice.content.lastChild;
+  for (let depth = 0; node !== null && depth <= slice.openEnd; depth++) {
+    if (node.type.spec.tableRole === 'table') return true;
+    node = node.lastChild;
+  }
+  return false;
 }
 
 /**
@@ -166,17 +182,30 @@ function holdsATable(slice: Slice): boolean {
  * overwrote and grew at the right, and the behaviour arrived with `df91691`,
  * the commit that added this file.
  *
- * **Only a clipboard that holds a table is handed over**, which is narrower
- * than the table handler itself would accept and is measured rather than
- * cautious: over a selection of cells that handler wraps any other content
- * into one cell and tiles it across the whole selection, so plain text pasted
- * over three selected cells landed in all three where it used to clear them
- * and land in the last. That behaviour is pinned by `cell-selection.test.ts`
- * and belongs to no part of this defect. A paragraph therefore still reaches
- * `replaceSelection` below and merges into the cell the caret is in.
+ * **Only a clipboard the table handler can read as cells is handed over**, and
+ * the question is put to the handler own reader, `pastedCells`, rather than
+ * answered here a second time. Two measured reasons it is not the looser test
+ * of whether a table is somewhere in the slice:
+ *
+ *   - over a selection of cells the handler never declines. It wraps anything
+ *     it cannot read as cells into one cell and tiles it across the selection,
+ *     so plain text pasted over three selected cells landed in all three, and
+ *     a heading pasted beside a table landed in both of two. That behaviour is
+ *     pinned by `cell-selection.test.ts` and belongs to no part of this defect;
+ *   - a table inside a blockquote or a list item **is** read as cells, the
+ *     reader unwrapping a single child at a time, and a test of the top level
+ *     alone left it on the path that split the row.
+ *
+ * A clipboard that holds a table beside other content is not cells, and it
+ * keeps the answer it had before this function existed: `replaceSelection`
+ * below, which puts it inside the cell rather than splitting the row.
+ *
+ * The reader is exported as `__pastedCells`, a name the package marks as its
+ * own. It is imported by name, so if a later version drops it the import fails
+ * the type check rather than the paste failing quietly.
  */
 function placedAsCells(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {
-  if (!isInTable(view.state) || !holdsATable(slice)) return false;
+  if (!isInTable(view.state) || cellsInSlice(slice) === null) return false;
   return pasteCellsIntoTable(view, event, slice);
 }
 
@@ -195,7 +224,7 @@ function placedAsCells(view: EditorView, event: ClipboardEvent, slice: Slice): b
  * write the same bytes in all 35 cases, so it buys nothing.
  */
 function withoutTheTrailingMerge(slice: Slice): Slice {
-  if (!holdsATable(slice)) return slice;
+  if (!openEndIsInATable(slice)) return slice;
   return new Slice(slice.content, slice.openStart, 0);
 }
 

@@ -213,6 +213,35 @@ describe('a table pasted into a table', () => {
     );
   });
 
+  it('reads a table inside a blockquote as cells too', () => {
+    const instance = editorWith(ALIGNED_TABLE);
+    caretAfter(instance, 'a2');
+    paste(instance, { html: `<blockquote>${PAGE_TABLE}</blockquote>`, text: 'x\ty' });
+
+    // A guard that looked at the top level only left this on the path that
+    // split the row open, `a1, a2, x, y, a3`.
+    expect(saved(instance)).toBe(
+      ['| h1 | h2 | h3 |', '| :--- | :---: | ---: |', '| a1 | x | y |', '| b1 | b2 | b3 |'].join(
+        '\n',
+      ),
+    );
+  });
+
+  it('does not split the row for a table beside a heading', () => {
+    const instance = editorWith(ALIGNED_TABLE);
+    caretAfter(instance, 'a2');
+    paste(instance, { html: `<h2>T</h2>${PAGE_TABLE}`, text: 'T\nx\ty' });
+
+    // The clipboard is not cells, so it keeps the answer it had before this
+    // repair: it lands inside the one cell. What that cell then holds is not
+    // decided here; that no value leaves its column is.
+    const rows = saved(instance).split('\n');
+    expect(rows).toHaveLength(4);
+    expect(rows.slice(0, 2)).toEqual(['| h1 | h2 | h3 |', '| :--- | :---: | ---: |']);
+    expect(rows[2]).toMatch(/^\| a1 \| a2.* \| a3 \|$/);
+    expect(rows[3]).toBe('| b1 | b2 | b3 |');
+  });
+
   it('restores the document with one undo', () => {
     const instance = editorWith(ALIGNED_TABLE);
     caretAfter(instance, 'a2');
@@ -262,6 +291,28 @@ describe('a table pasted anywhere else keeps the text that follows the caret', (
 
     expect(saved(instance)).toBe(
       ['# Title', '', '| x | y |', '| --- | --- |', '', '# here'].join('\n'),
+    );
+  });
+
+  it('keeps the text after the caret for a table beside a heading', () => {
+    const instance = editorWith('before text after');
+    caretAfter(instance, 'before text');
+    paste(instance, { html: `<h2>T</h2>${PAGE_TABLE}`, text: 'T\nx\ty' });
+
+    expect(saved(instance)).toBe(
+      ['before textT', '', '| x | y |', '| --- | --- |', '', 'after'].join('\n'),
+    );
+  });
+
+  it('keeps the text after the caret for a table inside a blockquote', () => {
+    const instance = editorWith('before text after');
+    caretAfter(instance, 'before text');
+    paste(instance, { html: `<blockquote>${PAGE_TABLE}</blockquote>`, text: 'x\ty' });
+
+    // The open end runs down into the table one level below the top, which is
+    // where a top-level test did not look.
+    expect(saved(instance)).toBe(
+      ['before text', '', '| x | y |', '| --- | --- |', '', 'after'].join('\n'),
     );
   });
 
@@ -328,6 +379,23 @@ describe('what the repair must not change', () => {
         '|  |  | b1 |',
       ].join('\n'),
     );
+  });
+
+  it('a table beside a heading, pasted over selected cells, is not tiled across them', () => {
+    const instance = editorWith(ALIGNED_TABLE);
+    instance.editor.commands.setCellSelection({
+      anchorCell: cellAt(instance, 'a1'),
+      headCell: cellAt(instance, 'a2'),
+    });
+    paste(instance, { html: `<h2>T</h2>${PAGE_TABLE}`, text: 'T\nx\ty' });
+
+    // Handing every table-holding clipboard to the table handler wrote this
+    // content into both cells. The row it lands in is asserted by what it must
+    // not contain twice, not byte for byte: that output does not hold still on
+    // a second save on main either, which is its own question.
+    const row = saved(instance).split('\n')[2];
+    expect(row.match(/<table>/g)).toHaveLength(1);
+    expect(row.endsWith('| a3 |')).toBe(true);
   });
 
   it('a pasted paragraph still merges into the cell the caret is in', () => {
