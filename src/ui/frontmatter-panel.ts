@@ -5,6 +5,8 @@ export interface FrontmatterPanel {
   refresh(): void;
   /** Show or hide the collapsible panel entirely. */
   setVisible(visible: boolean): void;
+  /** Show the panel, expand it, and put focus in its field (#297). */
+  reveal(): void;
 }
 
 /**
@@ -28,7 +30,7 @@ export function setupFrontmatterPanel(state: AppState): FrontmatterPanel {
   const textareaEl = document.getElementById('frontmatter-input') as HTMLTextAreaElement | null;
   if (!detailsEl || !textareaEl) {
     // Defensive: tests / partial mounts get a no-op handle.
-    return { refresh: () => {}, setVisible: () => {} };
+    return { refresh: () => {}, setVisible: () => {}, reveal: () => {} };
   }
   const details = detailsEl;
   const textarea = textareaEl;
@@ -47,5 +49,11 @@ export function setupFrontmatterPanel(state: AppState): FrontmatterPanel {
     details.classList.toggle('hidden', !visible);
   }
 
-  return { refresh, setVisible };
+  function reveal(): void {
+    setVisible(true);
+    details.open = true;
+    textarea.focus();
+  }
+
+  return { refresh, setVisible, reveal };
 }
