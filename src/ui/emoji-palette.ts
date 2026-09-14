@@ -28,8 +28,8 @@
  *
  * The frequent row first, when there is one: the eight emoji used most, under
  * their own label. Then all 200 of `EMOJI`. **An emoji in the frequent row
- * appears in the grid as well**, as the prototype had it; whether it should is
- * in front of the owner, and this is the shape built until he answers.
+ * appears in the grid as well**, by owner decision on #309: the row is a
+ * shortcut, and the grid stays complete and in the same order every time.
  */
 
 import type { Editor } from '@tiptap/core';

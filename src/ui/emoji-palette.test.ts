@@ -180,7 +180,7 @@ describe('the frequent row', () => {
     expect(palette.textContent).toContain(FREQUENT_LABEL);
     expect(row.map((b) => b.textContent)).toEqual(['✅', '🎉']);
     expect(document.activeElement).toBe(row[0]);
-    // Built as the prototype had it: an emoji in the row is in the grid too.
+    // By owner decision on #309: an emoji in the row is in the grid too.
     expect(all).toHaveLength(200);
   });
 
