@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { Fragment, DOMParser as ProseMirrorDOMParser, Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
+import { isInTable, handlePaste as pasteCellsIntoTable } from '@tiptap/pm/tables';
 import type { EditorView } from '@tiptap/pm/view';
 import { showToast } from '../ui/toast';
 import { isSingleUrl } from './link-url';
@@ -130,10 +131,80 @@ function parseSlice(view: EditorView, html: string): Slice {
   });
 }
 
-function insertParsedHtml(view: EditorView, html: string): void {
+/** True when the parsed clipboard holds a table at the top of its content. */
+function holdsATable(slice: Slice): boolean {
+  let found = false;
+  slice.content.forEach((node) => {
+    if (node.type.name === 'table') found = true;
+  });
+  return found;
+}
+
+/**
+ * Cells from anywhere else, placed where cells copied from this editor are
+ * placed (#293).
+ *
+ * ── The two paths, and why only one of them used to be reached ──
+ *
+ * `prosemirror-tables` carries its own paste handler, and it is the one that
+ * answers a copy from this editor: it reads the slice as cells, overwrites the
+ * cells it lands on, and grows the table **only at the right end of a row and
+ * only with whole rows at the bottom** (`insertCells`, then `growTable`).
+ * Nothing is ever inserted in the middle of a row.
+ *
+ * This plugin never let that handler see any other clipboard. TipTap builds
+ * its plugin list from the extension array **reversed**, so an extension later
+ * in the list answers first, and `PredictablePaste` sits after the table
+ * extension in `setup.ts`. This handler took the paste, returned true and
+ * called `preventDefault`, so the table handler was never asked — and
+ * `replaceSelection` below fits a slice by splitting the row open and putting
+ * the pasted cells inside it, which pushed the cells that were already there
+ * to the right and left a value under another header.
+ *
+ * Handing the slice over restores what this repository did before a paste
+ * handler existed: measured at the reset commit `a8c770c`, the same paste
+ * overwrote and grew at the right, and the behaviour arrived with `df91691`,
+ * the commit that added this file.
+ *
+ * **Only a clipboard that holds a table is handed over**, which is narrower
+ * than the table handler itself would accept and is measured rather than
+ * cautious: over a selection of cells that handler wraps any other content
+ * into one cell and tiles it across the whole selection, so plain text pasted
+ * over three selected cells landed in all three where it used to clear them
+ * and land in the last. That behaviour is pinned by `cell-selection.test.ts`
+ * and belongs to no part of this defect. A paragraph therefore still reaches
+ * `replaceSelection` below and merges into the cell the caret is in.
+ */
+function placedAsCells(view: EditorView, event: ClipboardEvent, slice: Slice): boolean {
+  if (!isInTable(view.state) || !holdsATable(slice)) return false;
+  return pasteCellsIntoTable(view, event, slice);
+}
+
+/**
+ * A pasted table does not swallow the text that follows the caret (#293).
+ *
+ * `parseSlice` returns a table four levels open at each end — table, row,
+ * cell, paragraph — which is what lets a pasted paragraph merge into the
+ * sentence at the caret. For a table that open end is harm rather than help:
+ * the text after the caret is fitted **into the last pasted cell**, so
+ * `before text|after` came back as a table whose last cell read `y after`,
+ * and the same in a blockquote and in a heading.
+ *
+ * Closing the end leaves the trailing text where it was, below the table.
+ * The start is left as parsed: closing it as well was built and measured to
+ * write the same bytes in all 35 cases, so it buys nothing.
+ */
+function withoutTheTrailingMerge(slice: Slice): Slice {
+  if (!holdsATable(slice)) return slice;
+  return new Slice(slice.content, slice.openStart, 0);
+}
+
+function insertParsedHtml(view: EditorView, event: ClipboardEvent, html: string): void {
+  const slice = parseSlice(view, html);
+  if (placedAsCells(view, event, slice)) return;
   view.dispatch(
     view.state.tr
-      .replaceSelection(parseSlice(view, html))
+      .replaceSelection(withoutTheTrailingMerge(slice))
       .setMeta('preventAutolink', true)
       .scrollIntoView(),
   );
@@ -147,22 +218,28 @@ function insertParsedHtml(view: EditorView, html: string): void {
  * word dropped into the middle of a sentence needs the space the user
  * copied, so those spaces are set aside and put back around the result.
  */
-function insertMarkdown(view: EditorView, text: string): void {
+function insertMarkdown(view: EditorView, event: ClipboardEvent, text: string): void {
   const singleLine = !/[\r\n]/.test(text);
   const leading = singleLine ? (/^[ \t]*/.exec(text)?.[0] ?? '') : '';
   const trailing = singleLine ? (/[ \t]*$/.exec(text)?.[0] ?? '') : '';
   const body = singleLine ? text.slice(leading.length, text.length - trailing.length) : text;
 
+  // A markdown table reaches the document through the same two answers a rich
+  // HTML one does: the table path when the caret is in a table, and a closed
+  // end when it is not.
+  const slice = parseSlice(view, markdownToHtml(body, { breaks: true }));
+  if (placedAsCells(view, event, slice)) return;
+
   const tr = view.state.tr.setMeta('preventAutolink', true);
   if (leading.length > 0) tr.insertText(leading);
-  tr.replaceSelection(parseSlice(view, markdownToHtml(body, { breaks: true })));
+  tr.replaceSelection(withoutTheTrailingMerge(slice));
   if (trailing.length > 0) tr.insertText(trailing);
   view.dispatch(tr.scrollIntoView());
 }
 
-function insertCleanedHtml(view: EditorView, html: string): void {
+function insertCleanedHtml(view: EditorView, event: ClipboardEvent, html: string): void {
   // cleanPastedHtml ends in markdownToHtml, which sanitizes with DOMPurify.
-  insertParsedHtml(view, cleanPastedHtml(html));
+  insertParsedHtml(view, event, cleanPastedHtml(html));
 }
 
 function pasteLiterally(view: EditorView, text: string): boolean {
@@ -273,7 +350,7 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
         if (!html) {
           if (!text) return false;
           try {
-            insertMarkdown(view, text);
+            insertMarkdown(view, event, text);
           } catch (error) {
             console.error('[agented] failed to read pasted text as markdown:', error);
             if (!pasteLiterally(view, text)) return false;
@@ -294,7 +371,7 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
         }
 
         try {
-          insertCleanedHtml(view, html);
+          insertCleanedHtml(view, event, html);
         } catch (error) {
           // Never drop the paste on the floor: fall back to the text the
           // clipboard also carries, and say why the formatting was lost.
