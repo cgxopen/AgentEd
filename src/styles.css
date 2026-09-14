@@ -1172,7 +1172,8 @@ button.indicator-search:hover {
  * #235 on that number.
  *
  * The icon is sized by attribute on the SVG rather than by a rule here, so
- * these two selectors stay the only ones naming this class.
+ * these two rules stay the only ones that style it. The reduced-motion block at
+ * the end of this file names it once more, and only to take its fade away.
  */
 .tiptap pre .code-block-copy {
   position: absolute;
@@ -2387,4 +2388,19 @@ button.cluster-indicator:hover {
 
 .tiptap .markdown-comment-mark:hover {
   opacity: 1;
+}
+
+/* No fade, slide or turn for someone who has asked the system for less motion
+ * (#302). Each selector is the one that gives a transition above, so this
+ * block wins by coming later at the same specificity, the shape the menu block
+ * uses (#294). Nothing listens for the end of these transitions, so taking them
+ * away changes the motion and nothing else. */
+@media (prefers-reduced-motion: reduce) {
+  #filename,
+  .tiptap pre .code-block-language-empty,
+  .tiptap pre .code-block-copy,
+  .sidebar-folder-toggle::before,
+  .toast {
+    transition: none;
+  }
 }
