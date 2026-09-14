@@ -1,6 +1,7 @@
 import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
+import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
@@ -772,6 +773,29 @@ turndown.addRule('horizontalRuleInACell', {
     cellDepth > 0 ? '<hr>' : builtinHorizontalRule.replacement(content, node, options),
 });
 
+// ── A hard break inside a table cell (#300) ──
+//
+// turndown writes a hard break as two spaces and a newline, and `cellContent`
+// flattens that newline to a space: Shift+Enter in a cell was written
+// `one   two` and read back as one line, the break gone on the next open.
+// `<br>` is what a cell line carries, measured on the step zero of #300 to come
+// back as the break, and GitHub and Obsidian both draw it as one. Outside a
+// cell the built-in rule writes the break, delegated for the reason the rule
+// above gives.
+const builtinLineBreak = turndown.options.rules.lineBreak;
+if (!builtinLineBreak) {
+  throw new Error(
+    'turndown no longer exposes options.rules.lineBreak, so a break outside a table cell ' +
+      'cannot delegate to the built-in one (#300). See src/editor/markdown/serialize.ts.',
+  );
+}
+
+turndown.addRule('hardBreakInACell', {
+  filter: 'br',
+  replacement: (content, node, options) =>
+    cellDepth > 0 ? '<br>' : builtinLineBreak.replacement(content, node, options),
+});
+
 /** A table inside a cell, as one line of inline HTML. */
 function inlineTable(table: HTMLTableElement): string {
   const rows = ownRows(table).map((row) => {
@@ -818,16 +842,23 @@ function spaceAroundInlineHtml(text: string): string {
  * Newlines are flattened to spaces (MD tables are single-line) and
  * pipes are escaped to avoid breaking the column structure.
  *
- * A cell's own content is inline by the time it is written — GFM gives a cell
- * nothing else, and the newlines are flattened here anyway — so a leading
- * `N.` cannot open a list when the table is read back, and it is written
- * without turndown's backslash (#97). The recursive call above serializes the
- * cell as a paragraph, which is where that escape comes from.
+ * **A block the cell holds is written as its HTML element** (#300), through
+ * `cell-blocks.ts`, because a cell line carries inline content and nothing
+ * else: flattened as markdown, a heading, a list or a fence was read back as its
+ * own text and gone on the next open. A cell of paragraphs, rules and tables in
+ * the shapes this function already wrote stays on the path below unchanged.
+ *
+ * On either path, text at the start of the cell line cannot open a list when the
+ * table is read back, so a leading `N.` is written without turndown's backslash
+ * (#97). The recursive call serializes the cell as a paragraph, which is where
+ * that escape comes from.
  */
 function cellContent(cell: HTMLElement): string {
   cellDepth += 1;
   try {
-    const inner = turndown.turndown(cell.innerHTML);
+    const inner = needsCellBlockSpelling(cell)
+      ? cellBlocks(cell, { inline: cellInline, table: inlineTable })
+      : turndown.turndown(cell.innerHTML);
     const flattened = spaceAroundInlineHtml(inner.replace(/\n/g, ' ')).trim();
     // Pipes are escaped once, by the outermost cell. A table inside the cell is
     // written with its own cells unescaped and this pass reaches them inside
@@ -837,6 +868,11 @@ function cellContent(cell: HTMLElement): string {
   } finally {
     cellDepth -= 1;
   }
+}
+
+/** The inline content of one block inside a cell, as markdown on one line. */
+function cellInline(block: Element): string {
+  return turndown.turndown(block.innerHTML).replace(/\n/g, ' ').trim();
 }
 
 // ── Writing a table the way the file wrote it (#93) ──
