@@ -349,69 +349,33 @@ body {
   font-family: "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
-/* One panel of the menu shows at a time (#294): the root lists the sections,
- * and a section replaces it inside the same box, #menu-dropdown, with a back
- * entry at its top. The box keeps its top-left corner and takes the width of
- * the panel showing. The panels are in flow and carry no position, height or overflow of
- * their own, so the one cap on #menu-dropdown bounds whichever panel is
- * showing and the menu has a single scroll region. An absolutely positioned
- * panel was measured and collapses the menu to its 10 px of padding and
- * border. `.menu-panel[hidden]` is spelled out because `display: flex` on
- * `.menu-panel` would otherwise win over the attribute. */
-.menu-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.menu-panel[hidden] {
-  display: none;
-}
-
-.menu-chevron {
-  color: var(--muted);
-}
-
-/* The section entries are headings rather than commands, and the owner asked
- * for the two to be told apart at a glance (#294): the headings take the face,
- * size and weight of #filename in the header, and the commands inside a
- * section keep the plain button text. A button does not inherit the page font
- * by default, hence `font-family: inherit`. */
-#menu-root button {
-  font-family: inherit;
-  font-weight: 500;
-}
-
-/* ── TEMPORARY, #294 comparison head: the accordion variant ──
+/* The menu is an accordion (#294): five section headers, each with its panel
+ * directly below it in the markup, so the Tab order is the order on screen.
+ * Pressing a header opens its panel and the headers below slide down; one
+ * section is open at a time.
  *
- * Shown while `menu-variant.ts` has put `.menu-accordion` on the menu, and
- * removed in the following head, together with the drill-down if the
- * accordion wins or with this block if it loses. The markup is the drill-down
- * markup unchanged: the root is taken out of the box with `display: contents`,
- * so its five headers and the five panels become siblings, and `order` puts
- * each panel directly below its header.
+ * The panels are in flow and carry no position or height cap of their own, so
+ * the one cap on #menu-dropdown bounds the menu whatever is open and the menu
+ * has a single scroll region. An absolutely positioned panel was measured and
+ * collapses the menu to its 10 px of padding and border.
  *
- * A closed panel stays laid out at height 0 rather than leaving the layout,
- * so the height can be animated and the menu does not change width as a
- * section opens: the box is as wide as its widest entry in any section.
- * `interpolate-size` lets `height` move to and from `auto`; a runtime without
- * it snaps open instead. `flex-shrink: 0` keeps a panel from being squeezed
- * when the cap is reached, so the menu scrolls rather than the panel. The
- * delayed `visibility` keeps a closing panel visible until it has folded, and
- * keeps the entries of a closed one out of the Tab order. */
-#menu-dropdown.menu-accordion {
+ * A closed panel stays laid out at height 0 rather than leaving the layout:
+ * `display: flex` on `.menu-panel` wins over the `hidden` attribute. That is
+ * what lets the height slide, and what keeps the menu one width, as wide as
+ * its widest entry in any section. `overflow: clip` hides the entries of a
+ * folding panel without making it a scroll container. `interpolate-size` lets
+ * `height` move to and from `auto`; a runtime without it opens without the
+ * slide. `flex-shrink: 0` keeps a panel from being squeezed when the cap is
+ * reached, so the menu scrolls rather than the panel. The delayed `visibility`
+ * keeps a folding panel visible until it has folded, and keeps the entries of
+ * a folded one out of the Tab order. */
+#menu-dropdown {
   interpolate-size: allow-keywords;
 }
 
-#menu-dropdown.menu-accordion #menu-root {
-  display: contents;
-}
-
-#menu-dropdown.menu-accordion .menu-back,
-#menu-dropdown.menu-accordion .menu-back + hr {
-  display: none;
-}
-
-#menu-dropdown.menu-accordion .menu-panel {
+.menu-panel {
+  display: flex;
+  flex-direction: column;
   overflow: clip;
   min-height: 0;
   flex-shrink: 0;
@@ -421,8 +385,7 @@ body {
     visibility 0s;
 }
 
-#menu-dropdown.menu-accordion .menu-panel[hidden] {
-  display: flex;
+.menu-panel[hidden] {
   height: 0;
   visibility: hidden;
   transition:
@@ -430,77 +393,57 @@ body {
     visibility 0s 400ms;
 }
 
-/* Only the entries inside a section are indented: the root is a .menu-panel
- * too, and its headers keep the menu own left edge. */
-#menu-dropdown.menu-accordion .menu-panel:not(#menu-root) button {
+#menu-dropdown .menu-panel button {
   padding-left: 32px;
 }
 
-#menu-dropdown.menu-accordion #menu-section-file {
-  order: 1;
-}
-#menu-dropdown.menu-accordion #menu-panel-file {
-  order: 2;
-}
-#menu-dropdown.menu-accordion #menu-section-edit {
-  order: 3;
-}
-#menu-dropdown.menu-accordion #menu-panel-edit {
-  order: 4;
-}
-#menu-dropdown.menu-accordion #menu-section-insert {
-  order: 5;
-}
-#menu-dropdown.menu-accordion #menu-panel-insert {
-  order: 6;
-}
-#menu-dropdown.menu-accordion #menu-section-view {
-  order: 7;
-}
-#menu-dropdown.menu-accordion #menu-panel-view {
-  order: 8;
-}
-#menu-dropdown.menu-accordion #menu-section-help {
-  order: 9;
-}
-#menu-dropdown.menu-accordion #menu-panel-help {
-  order: 10;
-}
-
-/* The chevron points the way the section will move when its header is
- * pressed: down while it is closed, up while it is open. The glyph points
- * right, so it is turned a quarter either way, and it turns half round as the
- * section opens or closes. */
-#menu-dropdown.menu-accordion .menu-chevron {
-  display: inline-block;
-  transform: rotate(90deg);
-  transition: transform 400ms ease;
-}
-
-#menu-dropdown.menu-accordion [aria-expanded="true"] .menu-chevron {
-  transform: rotate(-90deg);
+/* The headers are headings rather than commands, and the owner asked for the
+ * two to be told apart at a glance: the headers take the face, size and weight
+ * of #filename in the header, and the commands inside a section keep the plain
+ * button text. A button does not inherit the page font by default, hence
+ * `font-family: inherit`. */
+#menu-dropdown .menu-section {
+  font-family: inherit;
+  font-weight: 500;
 }
 
 /* A hairline between one header and the next, a fifth of the width of the
  * menu, set to the right: its end sits half an em, about one character, in
  * from the right border, which puts it past the chevrons, since those end at
  * the 16 px button padding. It is drawn as a background, so it adds no height
- * and no element. Only
- * the headers carry it, never the entries inside a section; a header that
- * follows an open section keeps its line, above it. The selector outranks
- * `#menu-dropdown button:hover`, whose `background` shorthand would otherwise
- * clear the line while the pointer is on the header. */
-#menu-dropdown.menu-accordion #menu-root button + button {
+ * and no element. Only the headers carry it, never the entries inside a
+ * section; a header that follows an open section keeps its line, above it.
+ * The selector outranks `#menu-dropdown button:hover`, whose `background`
+ * shorthand would otherwise clear the line while the pointer is on the header. */
+#menu-dropdown .menu-section ~ .menu-section {
   background-image: linear-gradient(var(--border), var(--border));
   background-position: right 0.5em top;
   background-size: 20% 1px;
   background-repeat: no-repeat;
 }
 
+/* The chevron points the way the section will move when its header is
+ * pressed: down while it is closed, up while it is open. The glyph points
+ * right, so it is turned a quarter either way, and it turns half round as the
+ * section opens or folds. */
+.menu-chevron {
+  display: inline-block;
+  color: var(--muted);
+  transform: rotate(90deg);
+  transition: transform 400ms ease;
+}
+
+.menu-section[aria-expanded="true"] .menu-chevron {
+  transform: rotate(-90deg);
+}
+
+/* No slide and no turn for someone who has asked the system for less motion.
+ * Each selector is the one that gives the transition above, so this block wins
+ * by coming later at the same specificity. */
 @media (prefers-reduced-motion: reduce) {
-  #menu-dropdown.menu-accordion .menu-panel,
-  #menu-dropdown.menu-accordion .menu-panel[hidden],
-  #menu-dropdown.menu-accordion .menu-chevron {
+  .menu-panel,
+  .menu-panel[hidden],
+  .menu-chevron {
     transition: none;
   }
 }

@@ -18,19 +18,10 @@ export interface MenuCallbacks {
   onAbout: () => void;
 }
 
-/**
- * TEMPORARY, #294 comparison head. The class `menu-variant.ts` sets on
- * `#menu-dropdown` to show the accordion instead of the drill-down. It exists
- * so the owner can compare the two in one build, and it comes out with the
- * losing variant in the following head.
- */
-export const MENU_ACCORDION_CLASS = 'menu-accordion';
-
-/** A section entry on the root panel, the panel it opens, and that panel's back entry. */
+/** A section header and the panel below it that it opens and folds. */
 interface Section {
-  readonly entry: HTMLElement;
+  readonly header: HTMLElement;
   readonly panel: HTMLElement;
-  readonly back: HTMLElement;
 }
 
 function required(id: string): HTMLElement {
@@ -40,36 +31,32 @@ function required(id: string): HTMLElement {
 }
 
 /**
- * The sections, read from the markup: every root entry names its panel through
- * `aria-controls`, and every panel starts with a `.menu-back` entry. A section
- * without either is a markup error and throws here, at boot, rather than
- * leaving an entry that opens nothing.
+ * The sections, read from the markup: every `.menu-section` header names its
+ * panel through `aria-controls`. A header whose panel is missing is a markup
+ * error and throws here, at boot, rather than leaving a header that opens
+ * nothing.
  */
-function readSections(root: HTMLElement): Section[] {
-  return Array.from(root.querySelectorAll<HTMLElement>('[aria-controls]'), (entry) => {
-    const panel = required(entry.getAttribute('aria-controls') as string);
-    const back = panel.querySelector<HTMLElement>('.menu-back');
-    if (!back) throw new Error(`#${panel.id} has no back entry`);
-    return { entry, panel, back };
-  });
+function readSections(dropdown: HTMLElement): Section[] {
+  return Array.from(dropdown.querySelectorAll<HTMLElement>('.menu-section'), (header) => ({
+    header,
+    panel: required(header.getAttribute('aria-controls') as string),
+  }));
 }
 
 /**
- * The hamburger menu, as drill-down (#294): the root panel lists the sections,
- * and choosing one replaces the root with that section inside the same box,
- * `#menu-dropdown`. Only one panel shows at a time, so the menu is as tall as its
- * longest section rather than as all of them together.
+ * The hamburger menu, as an accordion (#294): five section headers, each with
+ * its panel directly below it. Pressing a header opens its section, and the
+ * headers below slide down; pressing it again folds it. One section is open at
+ * a time, so opening one folds any other.
  *
- * Focus follows the panel that shows. Opening a section moves it to the first
- * entry that can be chosen; the back entry returns it to the section it came
- * from; the menu always reopens at its root. Escape closes the whole menu, not
- * one level, which is the owner decision recorded on #294.
+ * Focus follows what was opened. Opening a section moves it to the first
+ * entry that can be chosen. The menu always reopens with every section folded.
+ * Escape closes the whole menu, which is the owner decision recorded on #294.
  */
 export function setupMenu(callbacks: MenuCallbacks): void {
   const toggle = required('menu-toggle');
   const dropdown = required('menu-dropdown');
-  const root = required('menu-root');
-  const sections = readSections(root);
+  const sections = readSections(dropdown);
 
   function isOpen(): boolean {
     return !dropdown.classList.contains('hidden');
@@ -79,41 +66,32 @@ export function setupMenu(callbacks: MenuCallbacks): void {
     toggle.setAttribute('aria-expanded', isOpen() ? 'true' : 'false');
   }
 
-  function isAccordion(): boolean {
-    return dropdown.classList.contains(MENU_ACCORDION_CLASS);
-  }
-
-  /**
-   * Shows one panel, or the root alone. In the drill-down the root gives way to
-   * the section; in the accordion (temporary, see MENU_ACCORDION_CLASS) the
-   * section headers stay and the section opens below its own header, which is
-   * where the stylesheet orders it, and the header says whether it is open.
-   */
-  function show(panel: HTMLElement): void {
-    const accordion = isAccordion();
-    root.hidden = panel !== root && !accordion;
+  /** Opens the one panel given and folds every other, or folds them all for null. */
+  function unfold(open: HTMLElement | null): void {
     for (const section of sections) {
-      section.panel.hidden = section.panel !== panel;
-      if (accordion) section.entry.setAttribute('aria-expanded', String(!section.panel.hidden));
-      else section.entry.removeAttribute('aria-expanded');
+      section.panel.hidden = section.panel !== open;
+      section.header.setAttribute('aria-expanded', String(section.panel === open));
     }
   }
 
   function open(): void {
-    show(root);
+    unfold(null);
     dropdown.classList.remove('hidden');
     syncExpanded();
   }
 
   /**
-   * Hides the menu. When focus was inside it, focus goes back to the toggle:
-   * hiding an element does not move focus off it, and before #294 a chosen
-   * entry kept focus while nobody could see it, so the next Tab started from
-   * an invisible place. Focus that had already left the menu stays where it is.
+   * Hides the menu and folds its sections while it is hidden, so a menu
+   * reopened shows no fold running. When focus was inside it, focus goes back
+   * to the toggle: hiding an element does not move focus off it, and before
+   * #294 a chosen entry kept focus while nobody could see it, so the next Tab
+   * started from an invisible place. Focus that had already left the menu
+   * stays where it is.
    */
   function close(): void {
     const focusWasInside = dropdown.contains(document.activeElement);
     dropdown.classList.add('hidden');
+    unfold(null);
     syncExpanded();
     if (focusWasInside) toggle.focus();
   }
@@ -136,18 +114,13 @@ export function setupMenu(callbacks: MenuCallbacks): void {
   });
 
   for (const section of sections) {
-    section.entry.addEventListener('click', () => {
-      // The accordion collapses an open section when its header is pressed again.
-      if (isAccordion() && !section.panel.hidden) {
-        show(root);
+    section.header.addEventListener('click', () => {
+      if (!section.panel.hidden) {
+        unfold(null);
         return;
       }
-      show(section.panel);
-      section.panel.querySelector<HTMLElement>('button:not(.menu-back):not(:disabled)')?.focus();
-    });
-    section.back.addEventListener('click', () => {
-      show(root);
-      section.entry.focus();
+      unfold(section.panel);
+      section.panel.querySelector<HTMLElement>('button:not(:disabled)')?.focus();
     });
   }
 

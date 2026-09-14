@@ -145,28 +145,26 @@ function labelOf(entry: Element): string {
   return (copy.textContent ?? '').trim();
 }
 
-/** The entry on the root panel that opens a section panel. */
-function sectionEntry(panel: string): HTMLElement {
-  const entry = document.querySelector<HTMLElement>(`#menu-root [aria-controls="${panel}"]`);
-  if (!entry) throw new Error(`the root panel has no entry opening #${panel}`);
-  return entry;
+/** The header that opens and folds a section panel. */
+function sectionHeader(panel: string): HTMLElement {
+  const header = document.querySelector<HTMLElement>(
+    `#menu-dropdown .menu-section[aria-controls="${panel}"]`,
+  );
+  if (!header) throw new Error(`the menu has no header for #${panel}`);
+  return header;
 }
 
 /** Opens the menu and then one section, by clicking what a person clicks. */
 function openSection(panel: string): void {
   element('menu-toggle').click();
-  const entry = sectionEntry(panel);
-  expect(isShown(entry), `the entry opening #${panel} is on screen`).toBe(true);
-  entry.click();
+  const header = sectionHeader(panel);
+  expect(isShown(header), `the header of #${panel} is on screen`).toBe(true);
+  header.click();
 }
 
 /** The entries the page renders inside the section panels, in page order. */
 function renderedEntries(): HTMLElement[] {
-  return Array.from(
-    document.querySelectorAll<HTMLElement>(
-      '#menu-dropdown .menu-panel:not(#menu-root) button:not(.menu-back)',
-    ),
-  );
+  return Array.from(document.querySelectorAll<HTMLElement>('#menu-dropdown .menu-panel button'));
 }
 
 describe('every entry runs its own command, reached the way a person reaches it (#294)', () => {
@@ -199,16 +197,21 @@ describe('every entry runs its own command, reached the way a person reaches it 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Drill-down: one panel at a time, inside the same box (#294)
+// The accordion: the headers stay, and one section opens below its own (#294)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * All of this is structure, focus and attributes, which happy-dom can see.
- * What it cannot is height — how tall each panel is and whether anything
- * scrolls — and the other thing a browser does that happy-dom does not: a key
- * pressed on a focused button. Enter and Space on the toggle open the menu
- * because it is a native `<button>`; that was checked in Chromium and is part of
- * the manual pass, and nothing below claims it.
+ * What it cannot see is layout and time — how tall each state is, whether the
+ * menu scrolls, the slide itself — and a key pressed on a focused button: Enter
+ * and Space on a header work because it is a native `<button>`. Those were
+ * checked in Chromium and belong to the manual pass, and nothing below claims
+ * them.
+ *
+ * The drill-down this shape replaced had a test for its back entry. It is gone
+ * with the back entry, and it is named here because on the comparison build it
+ * went on passing against the accordion for the wrong reason: happy-dom does not
+ * apply the stylesheet that hid the back entry there.
  */
 
 const SECTION_PANELS = [
@@ -219,11 +222,18 @@ const SECTION_PANELS = [
   'menu-panel-help',
 ];
 
-/** The panels that are on screen while the menu is open. */
+/** The section panels that are open. */
 function shownPanels(): string[] {
   return Array.from(document.querySelectorAll('#menu-dropdown .menu-panel'))
     .filter((panel) => isShown(panel))
     .map((panel) => panel.id);
+}
+
+/** The panels whose headers say they are open. */
+function expandedHeaders(): string[] {
+  return Array.from(document.querySelectorAll('#menu-dropdown .menu-section'))
+    .filter((header) => header.getAttribute('aria-expanded') === 'true')
+    .map((header) => header.getAttribute('aria-controls') as string);
 }
 
 function pressEscape(): void {
@@ -231,27 +241,36 @@ function pressEscape(): void {
   target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 }
 
-describe('the menu is drill-down (#294)', () => {
-  it('opens at the root, which lists the sections and nothing else', () => {
+describe('the menu is an accordion (#294)', () => {
+  it('opens with every section folded, and each header directly above its own panel', () => {
     setupMenu(callbacks());
 
     element('menu-toggle').click();
 
     expect(element('menu-toggle').getAttribute('aria-expanded')).toBe('true');
-    expect(shownPanels()).toEqual(['menu-root']);
-    const sections = Array.from(element('menu-root').querySelectorAll('button'));
-    expect(sections.map((entry) => entry.getAttribute('aria-controls'))).toEqual(SECTION_PANELS);
-    expect(sections.map(labelOf)).toEqual(['File ›', 'Edit ›', 'Insert ›', 'View ›', 'Help ›']);
+    expect(shownPanels()).toEqual([]);
+    expect(expandedHeaders()).toEqual([]);
+    const headers = Array.from(document.querySelectorAll('#menu-dropdown .menu-section'));
+    expect(headers.map((header) => header.getAttribute('aria-controls'))).toEqual(SECTION_PANELS);
+    expect(headers.map(labelOf)).toEqual(['File ›', 'Edit ›', 'Insert ›', 'View ›', 'Help ›']);
+    // The order of the markup is the order of the keyboard. Measured on the
+    // comparison build, where the panels followed all five headers: Tab from
+    // File visited Edit, Insert, View and Help before the entries of the open
+    // section.
+    expect(Array.from(element('menu-dropdown').children, (child) => child.id)).toEqual(
+      SECTION_PANELS.flatMap((panel) => [sectionHeader(panel).id, panel]),
+    );
   });
 
-  it('shows each section in place of the root, with focus on its first entry', () => {
+  it('opens each section below its own header, the headers staying, with focus on its first entry', () => {
     setupMenu(callbacks());
 
     for (const panel of SECTION_PANELS) {
       openSection(panel);
 
       expect(shownPanels()).toEqual([panel]);
-      expect(element(panel).parentElement).toBe(element('menu-dropdown'));
+      expect(expandedHeaders()).toEqual([panel]);
+      for (const other of SECTION_PANELS) expect(isShown(sectionHeader(other)), other).toBe(true);
       expect(document.activeElement).toBe(
         renderedEntries().find((e) => element(panel).contains(e)),
       );
@@ -269,25 +288,37 @@ describe('the menu is drill-down (#294)', () => {
     expect(document.activeElement).toBe(element('menu-new-from-template'));
   });
 
-  it('returns from each section to the root, with focus on the section it came from', () => {
+  it('folds an open section when its header is pressed again', () => {
     setupMenu(callbacks());
 
     for (const panel of SECTION_PANELS) {
       openSection(panel);
-      const back = element(panel).querySelector<HTMLElement>('.menu-back');
-      expect(back && isShown(back)).toBe(true);
 
-      back?.click();
+      sectionHeader(panel).click();
 
-      expect(shownPanels()).toEqual(['menu-root']);
-      expect(document.activeElement).toBe(sectionEntry(panel));
-      expect(isShown(element('menu-dropdown'))).toBe(true);
+      expect(shownPanels(), panel).toEqual([]);
+      expect(expandedHeaders(), panel).toEqual([]);
+      expect(isShown(element('menu-dropdown')), panel).toBe(true);
 
       element('menu-toggle').click();
     }
   });
 
-  it('reopens at the root however it was closed from inside a section', () => {
+  it('keeps one section open at a time, folding the open one when another opens', () => {
+    // Several open at once was measured and not offered: with the planned
+    // contents it scrolls 125 to 213 px even at 1024x768, where one fits.
+    setupMenu(callbacks());
+    element('menu-toggle').click();
+
+    for (const panel of [...SECTION_PANELS, SECTION_PANELS[0]]) {
+      sectionHeader(panel).click();
+
+      expect(shownPanels(), panel).toEqual([panel]);
+      expect(expandedHeaders(), panel).toEqual([panel]);
+    }
+  });
+
+  it('reopens with every section folded however it was closed', () => {
     setupMenu(callbacks());
     const closers: ReadonlyArray<readonly [string, () => void]> = [
       ['a click outside', () => document.body.click()],
@@ -304,7 +335,8 @@ describe('the menu is drill-down (#294)', () => {
 
       element('menu-toggle').click();
 
-      expect(shownPanels(), how).toEqual(['menu-root']);
+      expect(shownPanels(), how).toEqual([]);
+      expect(expandedHeaders(), how).toEqual([]);
       element('menu-toggle').click();
     }
   });
@@ -660,10 +692,10 @@ describe('the cap reads the header because the header is what the menu hangs fro
     expect(positions(menubar)).toEqual(['relative']);
   });
 
-  it('keeps every panel in flow, with no position, height or scroll of its own', () => {
+  it('keeps every panel in flow and inside the one scroll region of the menu', () => {
     const dropdown = element('menu-dropdown');
     const panels = Array.from(dropdown.querySelectorAll<HTMLElement>('.menu-panel'));
-    expect(panels.map((panel) => panel.id)).toEqual(['menu-root', ...SECTION_PANELS]);
+    expect(panels.map((panel) => panel.id)).toEqual(SECTION_PANELS);
 
     for (const panel of panels) {
       expect(panel.parentElement, panel.id).toBe(dropdown);
@@ -671,8 +703,69 @@ describe('the cap reads the header because the header is what the menu hangs fro
         positions(panel).every((value) => value === 'static'),
         panel.id,
       ).toBe(true);
-      for (const property of ['height', 'max-height', 'overflow', 'overflow-y']) {
-        expect(valuesReaching(panel, property), `${panel.id} ${property}`).toEqual([]);
+      expect(valuesReaching(panel, 'max-height'), `${panel.id} max-height`).toEqual([]);
+      expect(valuesReaching(panel, 'overflow-y'), `${panel.id} overflow-y`).toEqual([]);
+      // `clip` folds the entries away without making the panel a scroll
+      // container, so the menu keeps its one scroll region. `hidden`, `auto`
+      // or `scroll` would each make a second one.
+      expect(
+        valuesReaching(panel, 'overflow').every((value) => value === 'clip'),
+        `${panel.id} overflow`,
+      ).toBe(true);
+      // A height only while folded, and only nothing: an open panel is as tall
+      // as its entries, and the cap on the menu is the only bound.
+      panel.hidden = true;
+      expect(valuesReaching(panel, 'height'), `${panel.id} folded`).toEqual(['0']);
+      panel.hidden = false;
+      expect(valuesReaching(panel, 'height'), `${panel.id} open`).toEqual([]);
+    }
+  });
+});
+
+describe('the slide and the turn stop for someone who asked for less motion (#294)', () => {
+  function isReducedMotion(rule: StyleRule): boolean {
+    return rule.conditions.some((condition) => /prefers-reduced-motion:\s*reduce/.test(condition));
+  }
+
+  it('answers every transition on a panel or a chevron with a later rule that takes it away', () => {
+    setupMenu(callbacks());
+    openSection('menu-panel-insert');
+    const chevron = (panel: string) =>
+      sectionHeader(panel).querySelector('.menu-chevron') as HTMLElement;
+    const targets: ReadonlyArray<readonly [string, Element]> = [
+      ['an open panel', element('menu-panel-insert')],
+      ['a folded panel', element('menu-panel-file')],
+      ['the chevron of an open section', chevron('menu-panel-insert')],
+      ['the chevron of a folded section', chevron('menu-panel-file')],
+    ];
+
+    for (const [what, target] of targets) {
+      const moving = shippedRules.filter(
+        (rule) =>
+          !isReducedMotion(rule) &&
+          rule.declarations.has('transition') &&
+          reaches(rule.selector, target),
+      );
+      const guards = shippedRules.filter(
+        (rule) =>
+          isReducedMotion(rule) &&
+          rule.declarations.get('transition') === 'none' &&
+          reaches(rule.selector, target),
+      );
+      // Motion exists to be guarded, or the rest of this would pass over nothing.
+      expect(moving.length, `${what} moves`).toBeGreaterThan(0);
+
+      // A guard wins by repeating the selector that gives the transition, later
+      // in the sheet, so no specificity has to be worked out here.
+      for (const rule of moving) {
+        for (const selector of splitTopLevel(rule.selector).filter((one) => reaches(one, target))) {
+          const answered = guards.some(
+            (guard) =>
+              shippedRules.indexOf(guard) > shippedRules.indexOf(rule) &&
+              splitTopLevel(guard.selector).includes(selector),
+          );
+          expect(answered, `${what}: ${selector} under prefers-reduced-motion`).toBe(true);
+        }
       }
     }
   });
