@@ -722,52 +722,51 @@ describe('the cap reads the header because the header is what the menu hangs fro
   });
 });
 
-describe('the slide and the turn stop for someone who asked for less motion (#294)', () => {
-  function isReducedMotion(rule: StyleRule): boolean {
-    return rule.conditions.some((condition) => /prefers-reduced-motion:\s*reduce/.test(condition));
-  }
+/** Whether a rule sits inside `@media (prefers-reduced-motion: reduce)`. */
+function isReducedMotion(rule: StyleRule): boolean {
+  return rule.conditions.some((condition) => /prefers-reduced-motion:\s*reduce/.test(condition));
+}
 
-  it('answers every transition on a panel or a chevron with a later rule that takes it away', () => {
-    setupMenu(callbacks());
-    openSection('menu-panel-insert');
-    const chevron = (panel: string) =>
-      sectionHeader(panel).querySelector('.menu-chevron') as HTMLElement;
-    const targets: ReadonlyArray<readonly [string, Element]> = [
-      ['an open panel', element('menu-panel-insert')],
-      ['a folded panel', element('menu-panel-file')],
-      ['the chevron of an open section', chevron('menu-panel-insert')],
-      ['the chevron of a folded section', chevron('menu-panel-file')],
-    ];
+/** Whether a rule gives any transition, through the shorthand or a longhand. */
+function givesTransition(rule: StyleRule): boolean {
+  return [...rule.declarations].some(
+    ([property, value]) => property.startsWith('transition') && value !== 'none',
+  );
+}
 
-    for (const [what, target] of targets) {
-      const moving = shippedRules.filter(
-        (rule) =>
-          !isReducedMotion(rule) &&
-          rule.declarations.has('transition') &&
-          reaches(rule.selector, target),
-      );
-      const guards = shippedRules.filter(
-        (rule) =>
-          isReducedMotion(rule) &&
-          rule.declarations.get('transition') === 'none' &&
-          reaches(rule.selector, target),
-      );
-      // Motion exists to be guarded, or the rest of this would pass over nothing.
-      expect(moving.length, `${what} moves`).toBeGreaterThan(0);
+/**
+ * One assertion for the whole sheet rather than one per element. #294 first
+ * wrote it for the panels and chevrons of the menu, naming them; with the
+ * other five transitions guarded (#302) the sheet-wide form passes, and it is
+ * the stronger of the two. Measured by adding an unguarded transition to the
+ * menu headers: this form reddened, and the named one, which only looked at
+ * panels and chevrons, stayed green. What the named form checked and this one
+ * does not is that the menu moves at all; that is left to the manual pass.
+ */
+describe('nothing in the stylesheet moves for someone who asked for less motion (#294, #302)', () => {
+  it('answers every transition in the sheet with a later rule that repeats its selector and takes it away', () => {
+    const moving = shippedRules.filter((rule) => !isReducedMotion(rule) && givesTransition(rule));
+    const guards = shippedRules.filter(
+      (rule) => isReducedMotion(rule) && rule.declarations.get('transition') === 'none',
+    );
+    // Motion exists to be guarded, or the assertion below would pass over nothing.
+    expect(moving.length).toBeGreaterThan(0);
 
-      // A guard wins by repeating the selector that gives the transition, later
-      // in the sheet, so no specificity has to be worked out here.
-      for (const rule of moving) {
-        for (const selector of splitTopLevel(rule.selector).filter((one) => reaches(one, target))) {
-          const answered = guards.some(
+    // A guard wins by repeating the selector that gives the transition, later in
+    // the sheet and so at the same specificity, which is why no specificity has
+    // to be worked out here. Every selector of every moving rule is checked, so
+    // a transition added anywhere next year reddens this until it is answered.
+    const unanswered = moving.flatMap((rule) =>
+      splitTopLevel(rule.selector).filter(
+        (selector) =>
+          !guards.some(
             (guard) =>
               shippedRules.indexOf(guard) > shippedRules.indexOf(rule) &&
               splitTopLevel(guard.selector).includes(selector),
-          );
-          expect(answered, `${what}: ${selector} under prefers-reduced-motion`).toBe(true);
-        }
-      }
-    }
+          ),
+      ),
+    );
+    expect(unanswered).toEqual([]);
   });
 });
 
