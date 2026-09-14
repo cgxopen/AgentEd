@@ -5,7 +5,8 @@ import { showToast } from './toast';
  * TEMPORARY, #294 comparison head, and not a merge candidate. It lets the owner
  * compare the two shapes of the hamburger menu in one running build: an
  * Alt+click on the menu toggle flips between the drill-down and the accordion,
- * and a toast names the one now active. The build starts on the drill-down.
+ * and a toast names the one now active. The build starts on the accordion,
+ * because on the first look the owner stayed on the drill-down without flipping.
  *
  * Whichever shape is chosen, this module, its call in `main.ts`, the class it
  * sets and the losing variant come out in the following head.
@@ -19,6 +20,7 @@ export function setupMenuVariantSwitch(): void {
   const dropdown = document.getElementById('menu-dropdown');
   if (!toggle || !dropdown)
     throw new Error('the menu markup has no #menu-toggle or #menu-dropdown');
+  dropdown.classList.add(MENU_ACCORDION_CLASS);
   toggle.addEventListener(
     'click',
     (e) => {

@@ -371,6 +371,13 @@ body {
   color: var(--muted);
 }
 
+/* The section entries are headings rather than commands, so they are set in
+ * bold and the commands inside a section stay at normal weight: the owner
+ * asked for the two to be told apart at a glance (#294). */
+#menu-root button {
+  font-weight: 600;
+}
+
 /* ── TEMPORARY, #294 comparison head: the accordion variant ──
  *
  * Shown while `menu-variant.ts` has put `.menu-accordion` on the menu, and
@@ -407,7 +414,7 @@ body {
   flex-shrink: 0;
   background: var(--surface);
   transition:
-    height 200ms ease,
+    height 400ms ease,
     visibility 0s;
 }
 
@@ -416,8 +423,8 @@ body {
   height: 0;
   visibility: hidden;
   transition:
-    height 200ms ease,
-    visibility 0s 200ms;
+    height 400ms ease,
+    visibility 0s 400ms;
 }
 
 #menu-dropdown.menu-accordion .menu-panel button {
@@ -457,7 +464,7 @@ body {
 
 #menu-dropdown.menu-accordion .menu-chevron {
   display: inline-block;
-  transition: transform 200ms ease;
+  transition: transform 400ms ease;
 }
 
 #menu-dropdown.menu-accordion [aria-expanded="true"] .menu-chevron {
