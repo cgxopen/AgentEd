@@ -306,6 +306,12 @@ body {
    * cent display scaling, so a constant for it would be right at one scaling
    * only (#270). The 8 px is the gap left above the window edge.
    *
+   * That makes the rule correct only while #menubar is the containing block:
+   * the menu is its direct child and nothing between them is positioned. With
+   * the menu moved into a positioned wrapper, the `100%` resolves against the
+   * wrapper instead, and at 600x400 the menu was measured ending at 413 of 400
+   * with the page scrolling again, and no error anywhere (#294).
+   *
    * `70vh`, the cap on .cluster-popover, was measured and not used: at the
    * default 1024x768 window it cut the menu to 12 of its 17 entries. */
   max-height: calc(100vh - 100% - 8px);
@@ -343,13 +349,103 @@ body {
   font-family: "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
-.menu-label {
-  padding: 4px 16px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
+/* The menu is an accordion (#294): five section headers, each with its panel
+ * directly below it in the markup, so the Tab order is the order on screen.
+ * Pressing a header opens its panel and the headers below slide down; one
+ * section is open at a time.
+ *
+ * The panels are in flow and carry no position or height cap of their own, so
+ * the one cap on #menu-dropdown bounds the menu whatever is open and the menu
+ * has a single scroll region. An absolutely positioned panel was measured and
+ * collapses the menu to its 10 px of padding and border.
+ *
+ * A closed panel stays laid out at height 0 rather than leaving the layout:
+ * `display: flex` on `.menu-panel` wins over the `hidden` attribute. That is
+ * what lets the height slide, and what keeps the menu one width, as wide as
+ * its widest entry in any section. `overflow: clip` hides the entries of a
+ * folding panel without making it a scroll container. `interpolate-size` lets
+ * `height` move to and from `auto`; a runtime without it opens without the
+ * slide. `flex-shrink: 0` keeps a panel from being squeezed when the cap is
+ * reached, so the menu scrolls rather than the panel. The delayed `visibility`
+ * keeps a folding panel visible until it has folded, and keeps the entries of
+ * a folded one out of the Tab order. */
+#menu-dropdown {
+  interpolate-size: allow-keywords;
+}
+
+.menu-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+  min-height: 0;
+  flex-shrink: 0;
+  background: var(--surface);
+  transition:
+    height 400ms ease,
+    visibility 0s;
+}
+
+.menu-panel[hidden] {
+  height: 0;
+  visibility: hidden;
+  transition:
+    height 400ms ease,
+    visibility 0s 400ms;
+}
+
+#menu-dropdown .menu-panel button {
+  padding-left: 32px;
+}
+
+/* The headers are headings rather than commands, and the owner asked for the
+ * two to be told apart at a glance: the headers take the face, size and weight
+ * of #filename in the header, and the commands inside a section keep the plain
+ * button text. A button does not inherit the page font by default, hence
+ * `font-family: inherit`. */
+#menu-dropdown .menu-section {
+  font-family: inherit;
+  font-weight: 500;
+}
+
+/* A hairline between one header and the next, a fifth of the width of the
+ * menu, set to the right: its end sits half an em, about one character, in
+ * from the right border, which puts it past the chevrons, since those end at
+ * the 16 px button padding. It is drawn as a background, so it adds no height
+ * and no element. Only the headers carry it, never the entries inside a
+ * section; a header that follows an open section keeps its line, above it.
+ * The selector outranks `#menu-dropdown button:hover`, whose `background`
+ * shorthand would otherwise clear the line while the pointer is on the header. */
+#menu-dropdown .menu-section ~ .menu-section {
+  background-image: linear-gradient(var(--border), var(--border));
+  background-position: right 0.5em top;
+  background-size: 20% 1px;
+  background-repeat: no-repeat;
+}
+
+/* The chevron points the way the section will move when its header is
+ * pressed: down while it is closed, up while it is open. The glyph points
+ * right, so it is turned a quarter either way, and it turns half round as the
+ * section opens or folds. */
+.menu-chevron {
+  display: inline-block;
   color: var(--muted);
-  letter-spacing: 0.5px;
+  transform: rotate(90deg);
+  transition: transform 400ms ease;
+}
+
+.menu-section[aria-expanded="true"] .menu-chevron {
+  transform: rotate(-90deg);
+}
+
+/* No slide and no turn for someone who has asked the system for less motion.
+ * Each selector is the one that gives the transition above, so this block wins
+ * by coming later at the same specificity. */
+@media (prefers-reduced-motion: reduce) {
+  .menu-panel,
+  .menu-panel[hidden],
+  .menu-chevron {
+    transition: none;
+  }
 }
 
 #filename {

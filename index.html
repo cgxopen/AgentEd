@@ -40,32 +40,38 @@
           <button id="appearance-menu-trigger" type="button" class="appearance-menu-trigger" aria-label="Appearance settings" aria-expanded="false" aria-controls="appearance-popover" title="Appearance">&#8942;</button>
         </div>
         <nav id="menu-dropdown" class="hidden">
-          <div class="menu-label">File</div>
-          <button id="menu-new">New</button>
-          <button id="menu-new-from-template">New from Template…</button>
-          <button id="menu-open">Open</button>
-          <button id="menu-save">Save</button>
-          <button id="menu-save-as">Save As</button>
-          <button id="menu-close">Close file</button>
-          <hr />
-          <div class="menu-label">Edit</div>
-          <button id="menu-find">Find <span class="menu-shortcut">Ctrl+F</span></button>
-          <button id="menu-replace">Replace <span class="menu-shortcut">Ctrl+H</span></button>
-          <button id="menu-find-next">Find Next <span class="menu-shortcut">F3</span></button>
-          <button id="menu-find-prev">Find Previous <span class="menu-shortcut">Shift+F3</span></button>
-          <hr />
-          <div class="menu-label">Insert</div>
-          <button id="menu-insert-table">Insert Table</button>
-          <button id="menu-insert-media">Insert Media</button>
-          <button id="menu-insert-code-block">Insert Code Block <span class="menu-shortcut">Ctrl+Shift+K</span></button>
-          <button id="menu-insert-checklist">Insert Checklist</button>
-          <button id="menu-insert-horizontal-rule">Insert Horizontal Rule</button>
-          <hr />
-          <div class="menu-label">View</div>
-          <button id="menu-toggle-sidebar">Toggle Sidebar</button>
-          <hr />
-          <div class="menu-label">Help</div>
-          <button id="menu-about">About AgentEd</button>
+          <button id="menu-section-file" class="menu-section" aria-expanded="false" aria-controls="menu-panel-file">File <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
+          <div id="menu-panel-file" class="menu-panel" role="group" aria-label="File" hidden>
+            <button id="menu-new">New</button>
+            <button id="menu-new-from-template">New from Template…</button>
+            <button id="menu-open">Open</button>
+            <button id="menu-save">Save</button>
+            <button id="menu-save-as">Save As</button>
+            <button id="menu-close">Close file</button>
+          </div>
+          <button id="menu-section-edit" class="menu-section" aria-expanded="false" aria-controls="menu-panel-edit">Edit <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
+          <div id="menu-panel-edit" class="menu-panel" role="group" aria-label="Edit" hidden>
+            <button id="menu-find">Find <span class="menu-shortcut">Ctrl+F</span></button>
+            <button id="menu-replace">Replace <span class="menu-shortcut">Ctrl+H</span></button>
+            <button id="menu-find-next">Find Next <span class="menu-shortcut">F3</span></button>
+            <button id="menu-find-prev">Find Previous <span class="menu-shortcut">Shift+F3</span></button>
+          </div>
+          <button id="menu-section-insert" class="menu-section" aria-expanded="false" aria-controls="menu-panel-insert">Insert <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
+          <div id="menu-panel-insert" class="menu-panel" role="group" aria-label="Insert" hidden>
+            <button id="menu-insert-table">Insert Table</button>
+            <button id="menu-insert-media">Insert Media</button>
+            <button id="menu-insert-code-block">Insert Code Block <span class="menu-shortcut">Ctrl+Shift+K</span></button>
+            <button id="menu-insert-checklist">Insert Checklist</button>
+            <button id="menu-insert-horizontal-rule">Insert Horizontal Rule</button>
+          </div>
+          <button id="menu-section-view" class="menu-section" aria-expanded="false" aria-controls="menu-panel-view">View <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
+          <div id="menu-panel-view" class="menu-panel" role="group" aria-label="View" hidden>
+            <button id="menu-toggle-sidebar">Toggle Sidebar</button>
+          </div>
+          <button id="menu-section-help" class="menu-section" aria-expanded="false" aria-controls="menu-panel-help">Help <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
+          <div id="menu-panel-help" class="menu-panel" role="group" aria-label="Help" hidden>
+            <button id="menu-about">About AgentEd</button>
+          </div>
         </nav>
         <div id="overflow-popover" class="hidden"></div>
         <aside id="assets-popover" class="cluster-popover hidden" role="dialog" aria-label="Images in this document"></aside>
