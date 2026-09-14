@@ -33,6 +33,9 @@ import { type MenuCallbacks, setupMenu } from '../ui/menu';
 import { insertMenuCallbacks } from './insert-blocks';
 import { createEditor, type EditorInstance } from './setup';
 
+/** Undo and Redo are not what this file tests, so the menu greys them. */
+const nothingToUndo = () => ({ canUndo: false, canRedo: false });
+
 function spies(): MenuCallbacks {
   return {
     onNew: vi.fn(),
@@ -45,6 +48,8 @@ function spies(): MenuCallbacks {
     onReplace: vi.fn(),
     onFindNext: vi.fn(),
     onFindPrevious: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
     onInsertCodeBlock: vi.fn(),
@@ -72,7 +77,7 @@ function openWithMenu(markdown: string): EditorInstance {
   document.body.appendChild(host);
   instance = createEditor(host);
   if (markdown.length > 0) instance.setMarkdown(markdown);
-  setupMenu({ ...spies(), ...insertMenuCallbacks(instance.editor) });
+  setupMenu({ ...spies(), ...insertMenuCallbacks(instance.editor) }, nothingToUndo);
   instance.editor.commands.focus();
   return instance;
 }

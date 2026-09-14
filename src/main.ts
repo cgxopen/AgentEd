@@ -20,6 +20,7 @@ import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
+import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockRoutes } from './editor/insert-code-block';
 import { createEditor } from './editor/setup';
@@ -246,53 +247,57 @@ linkDialog = setupLinkDialog(editor);
 // the two routes is made in one place and the tests drive that place (#279).
 const codeBlock = codeBlockRoutes(editor);
 
-setupMenu({
-  onNew: () => {
-    void docActions.handleNew().catch(console.error);
+setupMenu(
+  {
+    onNew: () => {
+      void docActions.handleNew().catch(console.error);
+    },
+    onNewFromTemplate: () => {
+      void (async () => {
+        const templateId = await showTemplateGallery();
+        if (!templateId) return;
+        await docActions.handleNewFromTemplate(templateId);
+      })().catch(console.error);
+    },
+    onOpen: () => {
+      void docActions.handleOpen().catch(console.error);
+    },
+    onSave: () => {
+      void docActions.handleSave().catch(console.error);
+    },
+    onSaveAs: () => {
+      void docActions.handleSaveAs().catch(console.error);
+    },
+    onClose: () => {
+      void docActions.handleClose().catch(console.error);
+    },
+    onFind: () => ctx.searchManager.openFind(),
+    onReplace: () => ctx.searchManager.openReplace(),
+    onFindNext: () => ctx.searchManager.findNext(),
+    onFindPrevious: () => ctx.searchManager.findPrevious(),
+    ...historyMenuCallbacks(editor),
+    ...tableMenuCallbacks(editor),
+    ...codeBlock,
+    ...insertMenuCallbacks(ctx.editor),
+    ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
+    onInsertMedia: () => {
+      void insertMedia({
+        state: ctx.state,
+        editor: ctx.editor,
+        requestSaveAs: docActions.requestSaveAs,
+        reporter: ctx.reporter,
+        report: reportImageInsert,
+      }).catch(console.error);
+    },
+    onToggleSidebar: () => {
+      ctx.sidebar.toggle();
+    },
+    onAbout: () => {
+      void showAboutDialog().catch(console.error);
+    },
   },
-  onNewFromTemplate: () => {
-    void (async () => {
-      const templateId = await showTemplateGallery();
-      if (!templateId) return;
-      await docActions.handleNewFromTemplate(templateId);
-    })().catch(console.error);
-  },
-  onOpen: () => {
-    void docActions.handleOpen().catch(console.error);
-  },
-  onSave: () => {
-    void docActions.handleSave().catch(console.error);
-  },
-  onSaveAs: () => {
-    void docActions.handleSaveAs().catch(console.error);
-  },
-  onClose: () => {
-    void docActions.handleClose().catch(console.error);
-  },
-  onFind: () => ctx.searchManager.openFind(),
-  onReplace: () => ctx.searchManager.openReplace(),
-  onFindNext: () => ctx.searchManager.findNext(),
-  onFindPrevious: () => ctx.searchManager.findPrevious(),
-  ...tableMenuCallbacks(editor),
-  ...codeBlock,
-  ...insertMenuCallbacks(ctx.editor),
-  ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
-  onInsertMedia: () => {
-    void insertMedia({
-      state: ctx.state,
-      editor: ctx.editor,
-      requestSaveAs: docActions.requestSaveAs,
-      reporter: ctx.reporter,
-      report: reportImageInsert,
-    }).catch(console.error);
-  },
-  onToggleSidebar: () => {
-    ctx.sidebar.toggle();
-  },
-  onAbout: () => {
-    void showAboutDialog().catch(console.error);
-  },
-});
+  () => historyAvailability(editor),
+);
 
 // Appearance (Mode + Palette) lives in its own kebab menu in the
 // header, not the hamburger. The menu is a pure view over

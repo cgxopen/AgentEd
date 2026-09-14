@@ -9,6 +9,8 @@ export interface MenuCallbacks {
   onReplace: () => void;
   onFindNext: () => void;
   onFindPrevious: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
   onInsertTable: () => void;
   onInsertMedia: () => void;
   onInsertCodeBlock: () => void;
@@ -17,6 +19,16 @@ export interface MenuCallbacks {
   onInsertMetadata: () => void;
   onToggleSidebar: () => void;
   onAbout: () => void;
+}
+
+/**
+ * Whether the editor has a step to undo and a step to redo (#295). Read when
+ * the menu opens, and only then; `historyAvailability` in
+ * `editor/history-routes.ts` records why that moment was chosen.
+ */
+export interface HistoryAvailability {
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
 }
 
 /** A section header and the panel below it that it opens and folds. */
@@ -53,11 +65,16 @@ function readSections(dropdown: HTMLElement): Section[] {
  * Focus follows what was opened. Opening a section moves it to the first
  * entry that can be chosen. The menu always reopens with every section folded.
  * Escape closes the whole menu, which is the owner decision recorded on #294.
+ *
+ * `readHistory` is required rather than optional, so a caller that forgot it
+ * does not build: without it Undo and Redo would stay enabled over nothing.
  */
-export function setupMenu(callbacks: MenuCallbacks): void {
+export function setupMenu(callbacks: MenuCallbacks, readHistory: () => HistoryAvailability): void {
   const toggle = required('menu-toggle');
   const dropdown = required('menu-dropdown');
   const sections = readSections(dropdown);
+  const undoEntry = required('menu-undo') as HTMLButtonElement;
+  const redoEntry = required('menu-redo') as HTMLButtonElement;
 
   function isOpen(): boolean {
     return !dropdown.classList.contains('hidden');
@@ -75,7 +92,21 @@ export function setupMenu(callbacks: MenuCallbacks): void {
     }
   }
 
+  /**
+   * Greys Undo and Redo when there is nothing for them to do, so a press is
+   * never silent (the #275 shape). It runs as the menu opens, which is before
+   * any section can be opened and so before a header moves focus to the first
+   * entry that can be chosen: that selector skips disabled entries, and it
+   * must read the state this sets rather than the state of the last opening.
+   */
+  function refreshHistoryEntries(): void {
+    const { canUndo, canRedo } = readHistory();
+    undoEntry.disabled = !canUndo;
+    redoEntry.disabled = !canRedo;
+  }
+
   function open(): void {
+    refreshHistoryEntries();
     unfold(null);
     dropdown.classList.remove('hidden');
     syncExpanded();
@@ -144,6 +175,8 @@ export function setupMenu(callbacks: MenuCallbacks): void {
   bind('menu-replace', callbacks.onReplace);
   bind('menu-find-next', callbacks.onFindNext);
   bind('menu-find-prev', callbacks.onFindPrevious);
+  bind('menu-undo', callbacks.onUndo);
+  bind('menu-redo', callbacks.onRedo);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);

@@ -178,6 +178,9 @@ describe('the block Insert Metadata writes', () => {
 // The entry, clicked
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Undo and Redo are not what this file tests, so the menu greys them. */
+const nothingToUndo = () => ({ canUndo: false, canRedo: false });
+
 function spies(): MenuCallbacks {
   return {
     onNew: vi.fn(),
@@ -190,6 +193,8 @@ function spies(): MenuCallbacks {
     onReplace: vi.fn(),
     onFindNext: vi.fn(),
     onFindPrevious: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
     onInsertCodeBlock: vi.fn(),
@@ -226,7 +231,7 @@ function mount(filePath: string | null, frontmatter: string | null): Mounted {
   const panel = setupFrontmatterPanel(state);
   panel.refresh();
   panel.setVisible(shouldShowFrontmatterPanel(state));
-  setupMenu({ ...spies(), ...metadataMenuCallbacks(state, panel) });
+  setupMenu({ ...spies(), ...metadataMenuCallbacks(state, panel) }, nothingToUndo);
   return {
     state,
     details: document.getElementById('frontmatter-panel') as HTMLDetailsElement,

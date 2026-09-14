@@ -7,6 +7,13 @@ import { createEditor, type EditorInstance } from '../editor/setup';
 import stylesCss from '../styles.css?raw';
 import { type MenuCallbacks, setupMenu } from './menu';
 
+/**
+ * Undo and Redo enabled. The rows below click every entry the menu ships, and a
+ * greyed entry cannot be chosen; when the two are greyed is asserted in
+ * `editor/history-routes.test.ts`, over a real editor.
+ */
+const bothAvailable = () => ({ canUndo: true, canRedo: true });
+
 function callbacks(): MenuCallbacks {
   return {
     onNew: vi.fn(),
@@ -19,6 +26,8 @@ function callbacks(): MenuCallbacks {
     onReplace: vi.fn(),
     onFindNext: vi.fn(),
     onFindPrevious: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
     onInsertCodeBlock: vi.fn(),
@@ -61,12 +70,12 @@ function isShown(target: Element): boolean {
 
 describe('setupMenu', () => {
   it('binds every entry the hamburger menu ships', () => {
-    expect(() => setupMenu(callbacks())).not.toThrow();
+    expect(() => setupMenu(callbacks(), bothAvailable)).not.toThrow();
   });
 
   it('opens About from the Help entry', () => {
     const handlers = callbacks();
-    setupMenu(handlers);
+    setupMenu(handlers, bothAvailable);
 
     element('menu-about').click();
 
@@ -74,7 +83,7 @@ describe('setupMenu', () => {
   });
 
   it('closes the menu when About is chosen', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     const dropdown = element('menu-dropdown');
 
     element('menu-toggle').click();
@@ -98,7 +107,7 @@ describe('setupMenu', () => {
  * `menu.ts` turned 0 of 3075 tests red, because apart from four entries nothing
  * said which handler an entry calls. A menu where everything is reachable and
  * two entries are wired to each other is the #204 shape, and this is what now
- * stands against it for all eighteen.
+ * stands against it for all twenty.
  *
  * The rows click the entry the shipped `index.html` renders, reached the way a
  * person reaches it — the toggle, then the section, then the entry — through
@@ -125,6 +134,8 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-edit', 'Replace', 'menu-replace', 'onReplace'],
   ['menu-panel-edit', 'Find Next', 'menu-find-next', 'onFindNext'],
   ['menu-panel-edit', 'Find Previous', 'menu-find-prev', 'onFindPrevious'],
+  ['menu-panel-edit', 'Undo', 'menu-undo', 'onUndo'],
+  ['menu-panel-edit', 'Redo', 'menu-redo', 'onRedo'],
   ['menu-panel-insert', 'Insert Table', 'menu-insert-table', 'onInsertTable'],
   ['menu-panel-insert', 'Insert Media', 'menu-insert-media', 'onInsertMedia'],
   ['menu-panel-insert', 'Insert Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
@@ -181,7 +192,7 @@ describe('every entry runs its own command, reached the way a person reaches it 
     ENTRIES,
   )('%s holds %s, and choosing it runs its handler and no other', (panel, label, id, handler) => {
     const handlers = callbacks();
-    setupMenu(handlers);
+    setupMenu(handlers, bothAvailable);
 
     openSection(panel);
     const entry = element(id);
@@ -245,7 +256,7 @@ function pressEscape(): void {
 
 describe('the menu is an accordion (#294)', () => {
   it('opens with every section folded, and each header directly above its own panel', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
 
     element('menu-toggle').click();
 
@@ -265,7 +276,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('opens each section below its own header, the headers staying, with focus on its first entry', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
 
     for (const panel of SECTION_PANELS) {
       openSection(panel);
@@ -282,7 +293,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('moves focus past a first entry that cannot be chosen', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     (element('menu-new') as HTMLButtonElement).disabled = true;
 
     openSection('menu-panel-file');
@@ -291,7 +302,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('folds an open section when its header is pressed again', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
 
     for (const panel of SECTION_PANELS) {
       openSection(panel);
@@ -309,7 +320,7 @@ describe('the menu is an accordion (#294)', () => {
   it('keeps one section open at a time, folding the open one when another opens', () => {
     // Several open at once was measured and not offered: with the planned
     // contents it scrolls 125 to 213 px even at 1024x768, where one fits.
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     element('menu-toggle').click();
 
     for (const panel of [...SECTION_PANELS, SECTION_PANELS[0]]) {
@@ -321,7 +332,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('reopens with every section folded however it was closed', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     const closers: ReadonlyArray<readonly [string, () => void]> = [
       ['a click outside', () => document.body.click()],
       ['the toggle', () => element('menu-toggle').click()],
@@ -344,7 +355,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('closes the whole menu on Escape from inside a section, with focus on the toggle', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     openSection('menu-panel-insert');
     expect(element('menu-panel-insert').contains(document.activeElement)).toBe(true);
 
@@ -356,7 +367,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('leaves focus where it is when Escape closes a menu that focus had already left', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     const elsewhere = document.createElement('button');
     document.body.appendChild(elsewhere);
     openSection('menu-panel-insert');
@@ -372,7 +383,7 @@ describe('the menu is an accordion (#294)', () => {
     // Measured before #294 in Chromium: after an entry was chosen, focus stayed
     // on it while nobody could see it, and the next Tab started from there.
     const handlers = callbacks();
-    setupMenu(handlers);
+    setupMenu(handlers, bothAvailable);
     openSection('menu-panel-view');
     element('menu-toggle-sidebar').focus();
 
@@ -629,7 +640,7 @@ function calcTerms(value: string): string[] | null {
 
 describe('the open menu is bounded by the room below the header (#273)', () => {
   function openMenu(): HTMLElement {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     element('menu-toggle').click();
     const dropdown = element('menu-dropdown');
     expect(dropdown.classList.contains('hidden')).toBe(false);
@@ -777,7 +788,7 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
   });
 
   it('keeps the slide of a menu panel and the turn of its chevron, for everyone else', () => {
-    setupMenu(callbacks());
+    setupMenu(callbacks(), bothAvailable);
     openSection('menu-panel-insert');
     const chevron = sectionHeader('menu-panel-insert').querySelector('.menu-chevron') as Element;
     const transitionsOn = (target: Element): string =>
@@ -811,7 +822,7 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
  * `insert-blocks.ts` rather than restated here, and then assert **what the
  * document became**. A wrong binding — the #204 shape, a control that points at
  * one capability and runs another — is what they exist to catch; which handler
- * every entry calls is pinned for all eighteen by the table above them.
+ * every entry calls is pinned for all twenty by the table above them.
  *
  * **The mapping is imported, not restated.** `insertMenuCallbacks` is the same
  * object `main.ts` spreads into `setupMenu`, so a swap between the two commands
@@ -846,10 +857,13 @@ function openEditor(markdown = ''): EditorInstance {
  * is what the comment on that function records.
  */
 function menuOverEditor(editor: EditorInstance): void {
-  setupMenu({
-    ...callbacks(),
-    ...insertMenuCallbacks(editor.editor),
-  });
+  setupMenu(
+    {
+      ...callbacks(),
+      ...insertMenuCallbacks(editor.editor),
+    },
+    bothAvailable,
+  );
 }
 
 function chooseEntry(id: string): void {
