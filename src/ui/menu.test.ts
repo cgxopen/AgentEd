@@ -24,6 +24,7 @@ function callbacks(): MenuCallbacks {
     onInsertCodeBlock: vi.fn(),
     onInsertChecklist: vi.fn(),
     onInsertHorizontalRule: vi.fn(),
+    onInsertMetadata: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
@@ -97,7 +98,7 @@ describe('setupMenu', () => {
  * `menu.ts` turned 0 of 3075 tests red, because apart from four entries nothing
  * said which handler an entry calls. A menu where everything is reachable and
  * two entries are wired to each other is the #204 shape, and this is what now
- * stands against it for all seventeen.
+ * stands against it for all eighteen.
  *
  * The rows click the entry the shipped `index.html` renders, reached the way a
  * person reaches it — the toggle, then the section, then the entry — through
@@ -134,6 +135,7 @@ const ENTRIES: ReadonlyArray<
     'menu-insert-horizontal-rule',
     'onInsertHorizontalRule',
   ],
+  ['menu-panel-insert', 'Insert Metadata', 'menu-insert-metadata', 'onInsertMetadata'],
   ['menu-panel-view', 'Toggle Sidebar', 'menu-toggle-sidebar', 'onToggleSidebar'],
   ['menu-panel-help', 'About AgentEd', 'menu-about', 'onAbout'],
 ];
@@ -740,8 +742,13 @@ function givesTransition(rule: StyleRule): boolean {
  * other five transitions guarded (#302) the sheet-wide form passes, and it is
  * the stronger of the two. Measured by adding an unguarded transition to the
  * menu headers: this form reddened, and the named one, which only looked at
- * panels and chevrons, stayed green. What the named form checked and this one
- * does not is that the menu moves at all; that is left to the manual pass.
+ * panels and chevrons, stayed green.
+ *
+ * What the named form also checked, and the sheet-wide one cannot, is that the
+ * menu moves at all: a guard answers a transition, and deleting the transition
+ * leaves nothing to answer. Recorded at the #303 review and paid on #297 by the
+ * second test below, because the slide and the turning chevron are what the
+ * owner chose by name on #294 and refined twice.
  */
 describe('nothing in the stylesheet moves for someone who asked for less motion (#294, #302)', () => {
   it('answers every transition in the sheet with a later rule that repeats its selector and takes it away', () => {
@@ -768,6 +775,24 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
     );
     expect(unanswered).toEqual([]);
   });
+
+  it('keeps the slide of a menu panel and the turn of its chevron, for everyone else', () => {
+    setupMenu(callbacks());
+    openSection('menu-panel-insert');
+    const chevron = sectionHeader('menu-panel-insert').querySelector('.menu-chevron') as Element;
+    const transitionsOn = (target: Element): string =>
+      shippedRules
+        .filter(
+          (rule) =>
+            !isReducedMotion(rule) && givesTransition(rule) && reaches(rule.selector, target),
+        )
+        .map((rule) => rule.declarations.get('transition') ?? '')
+        .join(' | ');
+
+    expect(transitionsOn(element('menu-panel-insert')), 'an open panel').toMatch(/\bheight\b/);
+    expect(transitionsOn(element('menu-panel-file')), 'a folded panel').toMatch(/\bheight\b/);
+    expect(transitionsOn(chevron), 'a chevron').toMatch(/\btransform\b/);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -786,7 +811,7 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
  * `insert-blocks.ts` rather than restated here, and then assert **what the
  * document became**. A wrong binding — the #204 shape, a control that points at
  * one capability and runs another — is what they exist to catch; which handler
- * every entry calls is pinned for all seventeen by the table above them.
+ * every entry calls is pinned for all eighteen by the table above them.
  *
  * **The mapping is imported, not restated.** `insertMenuCallbacks` is the same
  * object `main.ts` spreads into `setupMenu`, so a swap between the two commands

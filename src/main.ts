@@ -9,6 +9,7 @@ import { createErrorReporter } from './app/error-reporter';
 import { setupFileAssociation } from './app/file-association';
 import { setupHeader, wireHeaderIndicators } from './app/header-wiring';
 import { createImageInsertReporter } from './app/image-insert-report';
+import { metadataMenuCallbacks } from './app/insert-metadata';
 import { setupKeyboard } from './app/keyboard';
 import { type LinkDialog, setupLinkDialog } from './app/link-dialog';
 import { installLinkOpener } from './app/link-open';
@@ -275,6 +276,7 @@ setupMenu({
   ...tableMenuCallbacks(editor),
   ...codeBlock,
   ...insertMenuCallbacks(ctx.editor),
+  ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
   onInsertMedia: () => {
     void insertMedia({
       state: ctx.state,
