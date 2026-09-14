@@ -18,6 +18,14 @@ export interface MenuCallbacks {
   onAbout: () => void;
 }
 
+/**
+ * TEMPORARY, #294 comparison head. The class `menu-variant.ts` sets on
+ * `#menu-dropdown` to show the accordion instead of the drill-down. It exists
+ * so the owner can compare the two in one build, and it comes out with the
+ * losing variant in the following head.
+ */
+export const MENU_ACCORDION_CLASS = 'menu-accordion';
+
 /** A section entry on the root panel, the panel it opens, and that panel's back entry. */
 interface Section {
   readonly entry: HTMLElement;
@@ -71,9 +79,24 @@ export function setupMenu(callbacks: MenuCallbacks): void {
     toggle.setAttribute('aria-expanded', isOpen() ? 'true' : 'false');
   }
 
+  function isAccordion(): boolean {
+    return dropdown.classList.contains(MENU_ACCORDION_CLASS);
+  }
+
+  /**
+   * Shows one panel, or the root alone. In the drill-down the root gives way to
+   * the section; in the accordion (temporary, see MENU_ACCORDION_CLASS) the
+   * section headers stay and the section opens below its own header, which is
+   * where the stylesheet orders it, and the header says whether it is open.
+   */
   function show(panel: HTMLElement): void {
-    root.hidden = panel !== root;
-    for (const section of sections) section.panel.hidden = section.panel !== panel;
+    const accordion = isAccordion();
+    root.hidden = panel !== root && !accordion;
+    for (const section of sections) {
+      section.panel.hidden = section.panel !== panel;
+      if (accordion) section.entry.setAttribute('aria-expanded', String(!section.panel.hidden));
+      else section.entry.removeAttribute('aria-expanded');
+    }
   }
 
   function open(): void {
@@ -114,6 +137,11 @@ export function setupMenu(callbacks: MenuCallbacks): void {
 
   for (const section of sections) {
     section.entry.addEventListener('click', () => {
+      // The accordion collapses an open section when its header is pressed again.
+      if (isAccordion() && !section.panel.hidden) {
+        show(root);
+        return;
+      }
       show(section.panel);
       section.panel.querySelector<HTMLElement>('button:not(.menu-back):not(:disabled)')?.focus();
     });

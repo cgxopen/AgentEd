@@ -32,6 +32,7 @@ import { setupClusterPopover } from './ui/cluster-popover';
 import { setupDocumentBadges } from './ui/document-badges';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
+import { setupMenuVariantSwitch } from './ui/menu-variant';
 import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
@@ -291,6 +292,9 @@ setupMenu({
     void showAboutDialog().catch(console.error);
   },
 });
+// TEMPORARY, #294 comparison head: Alt+click on the menu button flips drill-down
+// and accordion. Comes out in the following head with the losing variant.
+setupMenuVariantSwitch();
 
 // Appearance (Mode + Palette) lives in its own kebab menu in the
 // header, not the hamburger. The menu is a pure view over
