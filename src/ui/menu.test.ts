@@ -47,6 +47,17 @@ beforeEach(() => {
   document.body.innerHTML = shippedHeaderMarkup();
 });
 
+function element(id: string): HTMLElement {
+  const found = document.getElementById(id);
+  if (!found) throw new Error(`the shipped header has no #${id}`);
+  return found;
+}
+
+/** Whether nothing above the element, itself included, is hidden by the menu. */
+function isShown(target: Element): boolean {
+  return target.closest('[hidden], .hidden') === null;
+}
+
 describe('setupMenu', () => {
   it('binds every entry the hamburger menu ships', () => {
     expect(() => setupMenu(callbacks())).not.toThrow();
@@ -56,32 +67,297 @@ describe('setupMenu', () => {
     const handlers = callbacks();
     setupMenu(handlers);
 
-    document.getElementById('menu-about')!.click();
+    element('menu-about').click();
 
     expect(handlers.onAbout).toHaveBeenCalledTimes(1);
   });
 
   it('closes the menu when About is chosen', () => {
     setupMenu(callbacks());
-    const dropdown = document.getElementById('menu-dropdown')!;
+    const dropdown = element('menu-dropdown');
 
-    document.getElementById('menu-toggle')!.click();
+    element('menu-toggle').click();
     expect(dropdown.classList.contains('hidden')).toBe(false);
 
-    document.getElementById('menu-about')!.click();
+    element('menu-about').click();
     expect(dropdown.classList.contains('hidden')).toBe(true);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The height of the open menu (#273)
+// Every entry runs its own command (#294)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Every entry the menu ships, in the order a person sees it: the panel that
+ * holds it, the words on it, its id, and the one handler choosing it must run.
+ *
+ * **This table is the specification, and restating it here is the point.**
+ * Measured before #294: swapping the handlers of Find Next and Find Previous in
+ * `menu.ts` turned 0 of 3075 tests red, because apart from four entries nothing
+ * said which handler an entry calls. A menu where everything is reachable and
+ * two entries are wired to each other is the #204 shape, and this is what now
+ * stands against it for all seventeen.
+ *
+ * The rows click the entry the shipped `index.html` renders, reached the way a
+ * person reaches it — the toggle, then the section, then the entry — through
+ * the real `setupMenu`, and never the mapping object. The words are read too,
+ * so an id moved onto the wrong label reddens as well as a handler moved onto
+ * the wrong id.
+ *
+ * **Not covered, stated rather than implied**: which command `main.ts` hands to
+ * each key. It cannot be imported without booting the application. The commands
+ * with their own tests are reached through the objects `main.ts` spreads —
+ * `insertMenuCallbacks`, `tableMenuCallbacks` and `codeBlockRoutes` — and the
+ * rest are one line each in `main.ts`.
+ */
+const ENTRIES: ReadonlyArray<
+  readonly [panel: string, label: string, id: string, handler: keyof MenuCallbacks]
+> = [
+  ['menu-panel-file', 'New', 'menu-new', 'onNew'],
+  ['menu-panel-file', 'New from Template…', 'menu-new-from-template', 'onNewFromTemplate'],
+  ['menu-panel-file', 'Open', 'menu-open', 'onOpen'],
+  ['menu-panel-file', 'Save', 'menu-save', 'onSave'],
+  ['menu-panel-file', 'Save As', 'menu-save-as', 'onSaveAs'],
+  ['menu-panel-file', 'Close file', 'menu-close', 'onClose'],
+  ['menu-panel-edit', 'Find', 'menu-find', 'onFind'],
+  ['menu-panel-edit', 'Replace', 'menu-replace', 'onReplace'],
+  ['menu-panel-edit', 'Find Next', 'menu-find-next', 'onFindNext'],
+  ['menu-panel-edit', 'Find Previous', 'menu-find-prev', 'onFindPrevious'],
+  ['menu-panel-insert', 'Insert Table', 'menu-insert-table', 'onInsertTable'],
+  ['menu-panel-insert', 'Insert Media', 'menu-insert-media', 'onInsertMedia'],
+  ['menu-panel-insert', 'Insert Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
+  ['menu-panel-insert', 'Insert Checklist', 'menu-insert-checklist', 'onInsertChecklist'],
+  [
+    'menu-panel-insert',
+    'Insert Horizontal Rule',
+    'menu-insert-horizontal-rule',
+    'onInsertHorizontalRule',
+  ],
+  ['menu-panel-view', 'Toggle Sidebar', 'menu-toggle-sidebar', 'onToggleSidebar'],
+  ['menu-panel-help', 'About AgentEd', 'menu-about', 'onAbout'],
+];
+
+/** The words on an entry, without the keyboard shortcut printed beside them. */
+function labelOf(entry: Element): string {
+  const copy = entry.cloneNode(true) as Element;
+  for (const shortcut of copy.querySelectorAll('.menu-shortcut')) shortcut.remove();
+  return (copy.textContent ?? '').trim();
+}
+
+/** The entry on the root panel that opens a section panel. */
+function sectionEntry(panel: string): HTMLElement {
+  const entry = document.querySelector<HTMLElement>(`#menu-root [aria-controls="${panel}"]`);
+  if (!entry) throw new Error(`the root panel has no entry opening #${panel}`);
+  return entry;
+}
+
+/** Opens the menu and then one section, by clicking what a person clicks. */
+function openSection(panel: string): void {
+  element('menu-toggle').click();
+  const entry = sectionEntry(panel);
+  expect(isShown(entry), `the entry opening #${panel} is on screen`).toBe(true);
+  entry.click();
+}
+
+/** The entries the page renders inside the section panels, in page order. */
+function renderedEntries(): HTMLElement[] {
+  return Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '#menu-dropdown .menu-panel:not(#menu-root) button:not(.menu-back)',
+    ),
+  );
+}
+
+describe('every entry runs its own command, reached the way a person reaches it (#294)', () => {
+  it('has a row for every entry the page renders, and a row for every handler', () => {
+    expect(renderedEntries().map((entry) => entry.id)).toEqual(ENTRIES.map(([, , id]) => id));
+    expect(ENTRIES.map(([, , , handler]) => handler).sort()).toEqual(
+      Object.keys(callbacks()).sort(),
+    );
+  });
+
+  it.each(
+    ENTRIES,
+  )('%s holds %s, and choosing it runs its handler and no other', (panel, label, id, handler) => {
+    const handlers = callbacks();
+    setupMenu(handlers);
+
+    openSection(panel);
+    const entry = element(id);
+    expect(element(panel).contains(entry)).toBe(true);
+    expect(labelOf(entry)).toBe(label);
+    expect(isShown(entry)).toBe(true);
+
+    entry.click();
+
+    for (const [name, spy] of Object.entries(handlers)) {
+      expect(spy, name).toHaveBeenCalledTimes(name === handler ? 1 : 0);
+    }
+    expect(isShown(element('menu-dropdown'))).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drill-down: one panel at a time, inside the same box (#294)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * All of this is structure, focus and attributes, which happy-dom can see.
+ * What it cannot is height — how tall each panel is and whether anything
+ * scrolls — and the other thing a browser does that happy-dom does not: a key
+ * pressed on a focused button. Enter and Space on the toggle open the menu
+ * because it is a native `<button>`; that was checked in Chromium and is part of
+ * the manual pass, and nothing below claims it.
+ */
+
+const SECTION_PANELS = [
+  'menu-panel-file',
+  'menu-panel-edit',
+  'menu-panel-insert',
+  'menu-panel-view',
+  'menu-panel-help',
+];
+
+/** The panels that are on screen while the menu is open. */
+function shownPanels(): string[] {
+  return Array.from(document.querySelectorAll('#menu-dropdown .menu-panel'))
+    .filter((panel) => isShown(panel))
+    .map((panel) => panel.id);
+}
+
+function pressEscape(): void {
+  const target = document.activeElement ?? document.body;
+  target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+}
+
+describe('the menu is drill-down (#294)', () => {
+  it('opens at the root, which lists the sections and nothing else', () => {
+    setupMenu(callbacks());
+
+    element('menu-toggle').click();
+
+    expect(element('menu-toggle').getAttribute('aria-expanded')).toBe('true');
+    expect(shownPanels()).toEqual(['menu-root']);
+    const sections = Array.from(element('menu-root').querySelectorAll('button'));
+    expect(sections.map((entry) => entry.getAttribute('aria-controls'))).toEqual(SECTION_PANELS);
+    expect(sections.map(labelOf)).toEqual(['File ›', 'Edit ›', 'Insert ›', 'View ›', 'Help ›']);
+  });
+
+  it('shows each section in place of the root, with focus on its first entry', () => {
+    setupMenu(callbacks());
+
+    for (const panel of SECTION_PANELS) {
+      openSection(panel);
+
+      expect(shownPanels()).toEqual([panel]);
+      expect(element(panel).parentElement).toBe(element('menu-dropdown'));
+      expect(document.activeElement).toBe(
+        renderedEntries().find((e) => element(panel).contains(e)),
+      );
+
+      pressEscape();
+    }
+  });
+
+  it('moves focus past a first entry that cannot be chosen', () => {
+    setupMenu(callbacks());
+    (element('menu-new') as HTMLButtonElement).disabled = true;
+
+    openSection('menu-panel-file');
+
+    expect(document.activeElement).toBe(element('menu-new-from-template'));
+  });
+
+  it('returns from each section to the root, with focus on the section it came from', () => {
+    setupMenu(callbacks());
+
+    for (const panel of SECTION_PANELS) {
+      openSection(panel);
+      const back = element(panel).querySelector<HTMLElement>('.menu-back');
+      expect(back && isShown(back)).toBe(true);
+
+      back?.click();
+
+      expect(shownPanels()).toEqual(['menu-root']);
+      expect(document.activeElement).toBe(sectionEntry(panel));
+      expect(isShown(element('menu-dropdown'))).toBe(true);
+
+      element('menu-toggle').click();
+    }
+  });
+
+  it('reopens at the root however it was closed from inside a section', () => {
+    setupMenu(callbacks());
+    const closers: ReadonlyArray<readonly [string, () => void]> = [
+      ['a click outside', () => document.body.click()],
+      ['the toggle', () => element('menu-toggle').click()],
+      ['Escape', pressEscape],
+      ['a chosen entry', () => element('menu-find').click()],
+    ];
+
+    for (const [how, closeIt] of closers) {
+      openSection('menu-panel-edit');
+      closeIt();
+      expect(isShown(element('menu-dropdown')), how).toBe(false);
+      expect(element('menu-toggle').getAttribute('aria-expanded'), how).toBe('false');
+
+      element('menu-toggle').click();
+
+      expect(shownPanels(), how).toEqual(['menu-root']);
+      element('menu-toggle').click();
+    }
+  });
+
+  it('closes the whole menu on Escape from inside a section, with focus on the toggle', () => {
+    setupMenu(callbacks());
+    openSection('menu-panel-insert');
+    expect(element('menu-panel-insert').contains(document.activeElement)).toBe(true);
+
+    pressEscape();
+
+    expect(isShown(element('menu-dropdown'))).toBe(false);
+    expect(element('menu-toggle').getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(element('menu-toggle'));
+  });
+
+  it('leaves focus where it is when Escape closes a menu that focus had already left', () => {
+    setupMenu(callbacks());
+    const elsewhere = document.createElement('button');
+    document.body.appendChild(elsewhere);
+    openSection('menu-panel-insert');
+    elsewhere.focus();
+
+    pressEscape();
+
+    expect(isShown(element('menu-dropdown'))).toBe(false);
+    expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it('moves focus to the toggle when a chosen entry hides the menu, instead of leaving it on the hidden entry', () => {
+    // Measured before #294 in Chromium: after an entry was chosen, focus stayed
+    // on it while nobody could see it, and the next Tab started from there.
+    const handlers = callbacks();
+    setupMenu(handlers);
+    openSection('menu-panel-view');
+    element('menu-toggle-sidebar').focus();
+
+    element('menu-toggle-sidebar').click();
+
+    expect(handlers.onToggleSidebar).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(element('menu-toggle'));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The height of the open menu (#273, #294)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Nothing in this suite can see how tall the menu is: happy-dom performs no
  * layout, and every rectangle it reports is zero. What the repair for #273 does
- * on screen is verified by hand, at the minimum window and at 125 and 150 per
- * cent display scaling, and those states are on the pull request.
+ * on screen, and what #294 does to each panel, is verified by hand at the
+ * minimum window and at 125 and 150 per cent display scaling.
  *
  * What can be asserted, and is, is the rule itself: read out of the shipped
  * stylesheet, its selector run against the `#menu-dropdown` the shipped page
@@ -94,73 +370,311 @@ describe('setupMenu', () => {
 
 interface StyleRule {
   readonly selector: string;
+  /** The at-rules the rule sits inside, outermost first, such as `@media (max-width: 600px)`. */
+  readonly conditions: readonly string[];
   readonly declarations: ReadonlyMap<string, string>;
 }
 
-/**
- * Every top-level rule in the stylesheet, as its selector and declarations.
- * Comments are dropped first. A block inside `@media` keeps the at-rule in its
- * selector text, so it never matches an element and is not mistaken for a rule
- * that applies at every width.
- */
-function stylesheetRules(): StyleRule[] {
-  const css = stylesCss.replace(/\/\*[\s\S]*?\*\//g, '');
-  const rules: StyleRule[] = [];
-  for (const block of css.split('}')) {
-    const brace = block.indexOf('{');
-    if (brace < 0) continue;
-    const declarations = new Map<string, string>();
-    for (const part of block.slice(brace + 1).split(';')) {
-      const colon = part.indexOf(':');
-      if (colon > 0) declarations.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim());
-    }
-    rules.push({ selector: block.slice(0, brace).trim(), declarations });
+/** The index just past the quoted string that opens at `start`. */
+function stringEnd(css: string, start: number): number {
+  const quote = css[start];
+  for (let i = start + 1; i < css.length; i++) {
+    if (css[i] === '\\') i++;
+    else if (css[i] === quote) return i + 1;
   }
-  if (rules.length === 0) throw new Error('read no rules out of styles.css');
+  throw new Error(`an unterminated string at ${start} in the stylesheet`);
+}
+
+function isQuote(ch: string): boolean {
+  return ch === '"' || ch === "'";
+}
+
+/** The stylesheet with its comments removed, leaving any `/*` inside a string alone. */
+function withoutComments(css: string): string {
+  let out = '';
+  for (let i = 0; i < css.length; i++) {
+    if (isQuote(css[i])) {
+      const end = stringEnd(css, i);
+      out += css.slice(i, end);
+      i = end - 1;
+    } else if (css.startsWith('/*', i)) {
+      const end = css.indexOf('*/', i + 2);
+      if (end < 0) throw new Error(`an unterminated comment at ${i} in the stylesheet`);
+      i = end + 1;
+    } else {
+      out += css[i];
+    }
+  }
+  return out;
+}
+
+/** The index of the `}` that closes a block whose body starts at `start`. */
+function blockEnd(css: string, start: number): number {
+  let depth = 0;
+  for (let i = start; i < css.length; i++) {
+    if (isQuote(css[i])) i = stringEnd(css, i) - 1;
+    else if (css[i] === '{') depth++;
+    else if (css[i] === '}') {
+      if (depth === 0) return i;
+      depth--;
+    }
+  }
+  throw new Error(`an unclosed block at ${start} in the stylesheet`);
+}
+
+/**
+ * The declarations of one block. A semicolon ends a declaration only outside
+ * parentheses and strings, so a value such as `url(data:image/svg+xml;base64,…)`
+ * stays whole, and the property is what precedes the first colon, so a colon
+ * inside the value stays in the value.
+ */
+function declarationsOf(body: string): Map<string, string> {
+  const declarations = new Map<string, string>();
+  const take = (part: string) => {
+    const colon = part.indexOf(':');
+    if (colon > 0) declarations.set(part.slice(0, colon).trim(), part.slice(colon + 1).trim());
+  };
+  let parens = 0;
+  let from = 0;
+  for (let i = 0; i < body.length; i++) {
+    if (isQuote(body[i])) i = stringEnd(body, i) - 1;
+    else if (body[i] === '(') parens++;
+    else if (body[i] === ')') parens--;
+    else if (body[i] === ';' && parens === 0) {
+      take(body.slice(from, i));
+      from = i + 1;
+    }
+  }
+  take(body.slice(from));
+  return declarations;
+}
+
+/** At-rules whose blocks hold rules rather than declarations. */
+const GROUPING_AT_RULE = /^@(media|supports|container|layer|document)\b/;
+
+/**
+ * Every style rule in a stylesheet, as its selector, the at-rules it sits
+ * inside, and its declarations. Every rule inside a `@media` block carries that
+ * condition, the first and every one after it — the reader this replaced kept
+ * the at-rule only on the first rule of each block and read the rest as rules
+ * that apply at every width. At-rules that hold declarations, such as
+ * `@font-face`, are not style rules and are left out.
+ */
+function stylesheetRules(source: string): StyleRule[] {
+  const css = withoutComments(source);
+  const rules: StyleRule[] = [];
+  const conditions: string[] = [];
+  let prelude = '';
+  for (let i = 0; i < css.length; i++) {
+    const ch = css[i];
+    if (isQuote(ch)) {
+      const end = stringEnd(css, i);
+      prelude += css.slice(i, end);
+      i = end - 1;
+    } else if (ch === ';') {
+      prelude = '';
+    } else if (ch === '}') {
+      if (conditions.pop() === undefined)
+        throw new Error(`an unmatched } at ${i} in the stylesheet`);
+      prelude = '';
+    } else if (ch === '{') {
+      const head = prelude.trim();
+      prelude = '';
+      if (GROUPING_AT_RULE.test(head)) {
+        conditions.push(head);
+        continue;
+      }
+      const end = blockEnd(css, i + 1);
+      if (!head.startsWith('@')) {
+        rules.push({
+          selector: head,
+          conditions: [...conditions],
+          declarations: declarationsOf(css.slice(i + 1, end)),
+        });
+      }
+      i = end;
+    } else {
+      prelude += ch;
+    }
+  }
+  if (conditions.length > 0) throw new Error(`an unclosed ${conditions.at(-1)} in the stylesheet`);
   return rules;
 }
 
+const shippedRules = stylesheetRules(stylesCss);
+
+/** A list split at the commas that are not inside parentheses, such as a selector list. */
+function splitTopLevel(list: string): string[] {
+  const parts: string[] = [];
+  let parens = 0;
+  let from = 0;
+  for (let i = 0; i < list.length; i++) {
+    if (list[i] === '(') parens++;
+    else if (list[i] === ')') parens--;
+    else if (list[i] === ',' && parens === 0) {
+      parts.push(list.slice(from, i));
+      from = i + 1;
+    }
+  }
+  parts.push(list.slice(from));
+  return parts.map((part) => part.trim());
+}
+
 /** Whether a selector list reaches the element. A selector the DOM cannot parse reaches nothing. */
-function reaches(selector: string, element: Element): boolean {
-  if (selector.startsWith('@')) return false;
-  return selector.split(',').some((one) => {
+function reaches(selector: string, target: Element): boolean {
+  return splitTopLevel(selector).some((one) => {
     try {
-      return element.matches(one.trim());
+      return target.matches(one);
     } catch {
       return false;
     }
   });
 }
 
-/** The values a property takes in every rule that reaches the element, in stylesheet order. */
-function valuesReaching(element: Element, property: string): string[] {
-  return stylesheetRules()
-    .filter((rule) => reaches(rule.selector, element) && rule.declarations.has(property))
+/**
+ * The values a property takes in every rule that reaches the element, in
+ * stylesheet order — **at any window width**: a rule inside `@media` counts,
+ * because at some width it applies.
+ */
+function valuesReaching(target: Element, property: string): string[] {
+  return shippedRules
+    .filter((rule) => reaches(rule.selector, target) && rule.declarations.has(property))
     .map((rule) => rule.declarations.get(property) as string);
+}
+
+describe('the stylesheet reader these tests stand on', () => {
+  it('gives every rule inside a @media block its condition, not only the first', () => {
+    const rules = stylesheetRules(
+      'a { color: red; }\n@media (max-width: 600px) {\n  b { color: blue; }\n  c { max-height: 1px; }\n}\nd { color: green; }',
+    );
+
+    expect(rules.map((rule) => [rule.selector, rule.conditions])).toEqual([
+      ['a', []],
+      ['b', ['@media (max-width: 600px)']],
+      ['c', ['@media (max-width: 600px)']],
+      ['d', []],
+    ]);
+    expect(rules[2].declarations.get('max-height')).toBe('1px');
+  });
+
+  it('keeps a value that holds a semicolon or a colon whole', () => {
+    const [rule] = stylesheetRules(
+      'e { background: url("data:image/svg+xml;utf8,<svg/>") no-repeat; content: "a;b}"; color: red; }',
+    );
+
+    expect(rule.declarations.get('background')).toBe(
+      'url("data:image/svg+xml;utf8,<svg/>") no-repeat',
+    );
+    expect(rule.declarations.get('content')).toBe('"a;b}"');
+    expect(rule.declarations.get('color')).toBe('red');
+  });
+
+  it('reads the shipped stylesheet into clean selectors and property names', () => {
+    expect(shippedRules.length).toBeGreaterThan(0);
+    expect(shippedRules.filter((rule) => rule.conditions.length > 0).length).toBeGreaterThan(0);
+    for (const rule of shippedRules) {
+      expect(rule.selector).not.toMatch(/[{};]|^@/);
+      for (const property of rule.declarations.keys())
+        expect(property).toMatch(/^-{0,2}[a-z][a-z0-9-]*$/);
+    }
+  });
+});
+
+/**
+ * The terms of a `calc()` that only adds and subtracts lengths, each with its
+ * sign, such as `['+100vh', '-100%', '-8px']` — or null for any other value.
+ */
+function calcTerms(value: string): string[] | null {
+  const inner = /^calc\((.*)\)$/.exec(value.trim())?.[1];
+  if (inner === undefined) return null;
+  const parts = inner.trim().split(/\s+([+-])\s+/);
+  const terms = [`+${parts[0]}`];
+  for (let i = 1; i < parts.length; i += 2) terms.push(`${parts[i]}${parts[i + 1]}`);
+  return terms.every((term) => /^[+-]\d+(\.\d+)?(vh|%|px)$/.test(term)) ? terms : null;
 }
 
 describe('the open menu is bounded by the room below the header (#273)', () => {
   function openMenu(): HTMLElement {
     setupMenu(callbacks());
-    document.getElementById('menu-toggle')!.click();
-    const dropdown = document.getElementById('menu-dropdown')!;
+    element('menu-toggle').click();
+    const dropdown = element('menu-dropdown');
     expect(dropdown.classList.contains('hidden')).toBe(false);
     return dropdown;
   }
 
-  it('reaches the rendered menu with one height cap, and scrolls inside it', () => {
+  it('reaches the rendered menu with one height cap at any window width, and scrolls inside it', () => {
     const dropdown = openMenu();
     expect(valuesReaching(dropdown, 'max-height')).toHaveLength(1);
     expect(valuesReaching(dropdown, 'overflow-y')).toEqual(['auto']);
   });
 
-  it('takes the header height from the header rather than naming it', () => {
+  it('takes the header height from the header rather than naming it, in whatever order the terms are written', () => {
     const [cap] = valuesReaching(openMenu(), 'max-height');
     // The window height, less `100%` of the #menubar padding box the menu hangs
-    // from, less a small gap to the window edge, and nothing else.
-    const shape = /^calc\(100vh - 100% - (\d+)px\)$/.exec(cap ?? '');
-    expect(shape, `max-height is ${cap}`).not.toBeNull();
-    expect(Number(shape?.[1])).toBeLessThanOrEqual(16);
+    // from, less a small gap to the window edge, and nothing else. The order of
+    // the two subtractions is not the property, so it is not asserted.
+    const terms = calcTerms(cap ?? '');
+    expect(terms, `max-height is ${cap}`).not.toBeNull();
+    const gaps = (terms ?? []).filter((term) => term !== '+100vh' && term !== '-100%');
+    expect(terms, `max-height is ${cap}`).toEqual(expect.arrayContaining(['+100vh', '-100%']));
+    expect(gaps, `max-height is ${cap}`).toHaveLength(1);
+    expect(gaps[0]).toMatch(/^-\d+px$/);
+    expect(Number.parseFloat(gaps[0].slice(1))).toBeLessThanOrEqual(16);
+  });
+
+  it('reads a cap whose terms come in either order, and refuses a value that is not a sum of lengths', () => {
+    expect(calcTerms('calc(100vh - 8px - 100%)')).toEqual(['+100vh', '-8px', '-100%']);
+    expect(calcTerms('calc(100vh - 44px)')).toEqual(['+100vh', '-44px']);
+    expect(calcTerms('70vh')).toBeNull();
+  });
+});
+
+describe('the cap reads the header because the header is what the menu hangs from (#294)', () => {
+  /** Every position the element is given, by the stylesheet at any width and by its own style. */
+  function positions(target: HTMLElement): string[] {
+    return [...valuesReaching(target, 'position'), target.style.position].filter(
+      (value) => value !== '',
+    );
+  }
+
+  it('has #menubar as the nearest positioned box above the menu', () => {
+    // `100%` in the cap resolves against the containing block. Measured on the
+    // #294 step zero: with the menu inside a positioned wrapper the cap became
+    // 392 px at every header height, the menu ended at 413 of 400, and the page
+    // scrolled again with no error anywhere. Only this test sees that.
+    const dropdown = element('menu-dropdown');
+    const menubar = element('menubar');
+    expect(positions(dropdown)).toEqual(['absolute']);
+    expect(valuesReaching(dropdown, 'top')).toEqual(['100%']);
+
+    let box = dropdown.parentElement;
+    for (let depth = 0; box && box !== menubar && depth < 16; depth++) {
+      expect(
+        positions(box).every((value) => value === 'static'),
+        `<${box.tagName.toLowerCase()} class="${box.className}">`,
+      ).toBe(true);
+      box = box.parentElement;
+    }
+
+    expect(box).toBe(menubar);
+    expect(positions(menubar)).toEqual(['relative']);
+  });
+
+  it('keeps every panel in flow, with no position, height or scroll of its own', () => {
+    const dropdown = element('menu-dropdown');
+    const panels = Array.from(dropdown.querySelectorAll<HTMLElement>('.menu-panel'));
+    expect(panels.map((panel) => panel.id)).toEqual(['menu-root', ...SECTION_PANELS]);
+
+    for (const panel of panels) {
+      expect(panel.parentElement, panel.id).toBe(dropdown);
+      expect(
+        positions(panel).every((value) => value === 'static'),
+        panel.id,
+      ).toBe(true);
+      for (const property of ['height', 'max-height', 'overflow', 'overflow-y']) {
+        expect(valuesReaching(panel, property), `${panel.id} ${property}`).toEqual([]);
+      }
+    }
   });
 });
 
@@ -179,9 +693,8 @@ describe('the open menu is bounded by the room below the header (#273)', () => {
  * the real `setupMenu` binding, into the **real command** imported from
  * `insert-blocks.ts` rather than restated here, and then assert **what the
  * document became**. A wrong binding — the #204 shape, a control that points at
- * one capability and runs another — is what they exist to catch, and it is the
- * shape fourteen of the other fifteen entries still have nothing standing
- * against.
+ * one capability and runs another — is what they exist to catch; which handler
+ * every entry calls is pinned for all seventeen by the table above them.
  *
  * **The mapping is imported, not restated.** `insertMenuCallbacks` is the same
  * object `main.ts` spreads into `setupMenu`, so a swap between the two commands
