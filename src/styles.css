@@ -371,11 +371,14 @@ body {
   color: var(--muted);
 }
 
-/* The section entries are headings rather than commands, so they are set in
- * bold and the commands inside a section stay at normal weight: the owner
- * asked for the two to be told apart at a glance (#294). */
+/* The section entries are headings rather than commands, and the owner asked
+ * for the two to be told apart at a glance (#294): the headings take the face,
+ * size and weight of #filename in the header, and the commands inside a
+ * section keep the plain button text. A button does not inherit the page font
+ * by default, hence `font-family: inherit`. */
 #menu-root button {
-  font-weight: 600;
+  font-family: inherit;
+  font-weight: 500;
 }
 
 /* ── TEMPORARY, #294 comparison head: the accordion variant ──
@@ -427,7 +430,9 @@ body {
     visibility 0s 400ms;
 }
 
-#menu-dropdown.menu-accordion .menu-panel button {
+/* Only the entries inside a section are indented: the root is a .menu-panel
+ * too, and its headers keep the menu own left edge. */
+#menu-dropdown.menu-accordion .menu-panel:not(#menu-root) button {
   padding-left: 32px;
 }
 
@@ -462,13 +467,31 @@ body {
   order: 10;
 }
 
+/* The chevron points the way the section will move when its header is
+ * pressed: down while it is closed, up while it is open. The glyph points
+ * right, so it is turned a quarter either way, and it turns half round as the
+ * section opens or closes. */
 #menu-dropdown.menu-accordion .menu-chevron {
   display: inline-block;
+  transform: rotate(90deg);
   transition: transform 400ms ease;
 }
 
 #menu-dropdown.menu-accordion [aria-expanded="true"] .menu-chevron {
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
+}
+
+/* A hairline between one header and the next, half the width of the menu and
+ * centred, drawn as a background so it adds no height and no element. Only
+ * the headers carry it, never the entries inside a section; a header that
+ * follows an open section keeps its line, above it. The selector outranks
+ * `#menu-dropdown button:hover`, whose `background` shorthand would otherwise
+ * clear the line while the pointer is on the header. */
+#menu-dropdown.menu-accordion #menu-root button + button {
+  background-image: linear-gradient(var(--border), var(--border));
+  background-position: center top;
+  background-size: 50% 1px;
+  background-repeat: no-repeat;
 }
 
 @media (prefers-reduced-motion: reduce) {
