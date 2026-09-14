@@ -481,16 +481,19 @@ body {
   transform: rotate(-90deg);
 }
 
-/* A hairline between one header and the next, half the width of the menu and
- * centred, drawn as a background so it adds no height and no element. Only
+/* A hairline between one header and the next, a fifth of the width of the
+ * menu, set to the right: its end sits half an em, about one character, in
+ * from the right border, which puts it past the chevrons, since those end at
+ * the 16 px button padding. It is drawn as a background, so it adds no height
+ * and no element. Only
  * the headers carry it, never the entries inside a section; a header that
  * follows an open section keeps its line, above it. The selector outranks
  * `#menu-dropdown button:hover`, whose `background` shorthand would otherwise
  * clear the line while the pointer is on the header. */
 #menu-dropdown.menu-accordion #menu-root button + button {
   background-image: linear-gradient(var(--border), var(--border));
-  background-position: center top;
-  background-size: 50% 1px;
+  background-position: right 0.5em top;
+  background-size: 20% 1px;
   background-repeat: no-repeat;
 }
 
