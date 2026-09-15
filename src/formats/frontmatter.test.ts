@@ -61,4 +61,21 @@ describe('assembleMarkdown', () => {
     const reassembled = assembleMarkdown(bundle(raw, body));
     expect(reassembled).toBe(original);
   });
+
+  it('writes an empty block, which is a block and not the absence of one (#304)', () => {
+    expect(assembleMarkdown(bundle('', '# Body'))).toBe('---\n\n---\n# Body');
+    expect(assembleMarkdown(bundle('', ''))).toBe('---\n\n---\n');
+  });
+
+  it('respells the first rule of a body that would otherwise be read as a block (#304)', () => {
+    const body = '---\n\nWords\n\n---\n\nAfter';
+    const written = assembleMarkdown(bundle(null, body));
+    expect(written).toBe('***\n\nWords\n\n---\n\nAfter');
+    expect(splitFrontmatter(written).raw).toBeNull();
+  });
+
+  it('leaves a body alone when a block is written above it (#304)', () => {
+    const body = '---\n\nWords\n\n---\n\nAfter';
+    expect(assembleMarkdown(bundle('title: x', body))).toBe(`---\ntitle: x\n---\n${body}`);
+  });
 });
