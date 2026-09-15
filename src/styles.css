@@ -1729,12 +1729,30 @@ button.indicator-search[aria-pressed="true"],
 }
 
 /* ── Floating Toolbar ── */
+
+/*
+ * Every colour here comes from the theme (#319). The bar used to take
+ * `var(--text)` and its labels a written-down `#e0e0e0`, which is a near-black
+ * bar with pale labels in a light palette and a near-white bar with the same
+ * pale labels in a dark one: 1.05 to 1.17 to 1 in Dark, Solarized Dark and
+ * GitHub Dark. The bar now stands on `--surface`, a shade off the page, and the
+ * labels are `--text`, which is at least 10.61 to 1 in every palette.
+ *
+ * **Nothing here may change the toolbar's height.** It measures 31.59 px at
+ * every label the heading control shows, and `toolbar-placement.ts` flips the
+ * toolbar below a selection inside a band of that height plus 8 px (#267).
+ * A 1 px `border` was measured to make it 33.59, which is why anything drawn
+ * around the bar or under a button is a `box-shadow`, never a border.
+ *
+ * `src/ui/toolbar-contrast.test.ts` resolves these rules in every palette
+ * and asserts the label clears 4.5 to 1 at rest, under the pointer and active.
+ */
 .floating-toolbar {
   position: fixed;
   z-index: 200;
   display: flex;
   gap: 2px;
-  background: var(--text);
+  background: var(--surface);
   border-radius: 6px;
   padding: 4px;
   box-shadow: 0 4px 16px var(--shadow-lg);
@@ -1747,7 +1765,7 @@ button.indicator-search[aria-pressed="true"],
 .floating-toolbar button {
   background: none;
   border: none;
-  color: #e0e0e0;
+  color: var(--text);
   font-size: 13px;
   font-weight: 600;
   padding: 4px 8px;
@@ -1757,14 +1775,23 @@ button.indicator-search[aria-pressed="true"],
   line-height: 1.2;
 }
 
+/* An image rather than a colour so that it stacks on the active shade below
+ * instead of replacing it, the shape the Search button took on #312. */
 .floating-toolbar button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
+  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
 }
 
+/*
+ * Active is a shade and an accent line, not an accent fill. The fill used to
+ * carry `#fff`, which is below 4.5 to 1 in five palettes, and no colour the
+ * theme defines reaches 4.5 on the accent of Claude Warm, Solarized Light or
+ * Solarized Dark: the best of `#fff`, `--bg`, `--surface` and `--text` there is
+ * 4.22, 3.68 and 4.08. The label keeps `--text`, and the line under it, an
+ * inset shadow, takes no height.
+ */
 .floating-toolbar button.active {
-  background: var(--accent);
-  color: #fff;
+  background-color: var(--hover-overlay-strong);
+  box-shadow: inset 0 -2px var(--accent);
 }
 
 /*
