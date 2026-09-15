@@ -20,6 +20,7 @@ import shippedPage from '../../index.html?raw';
 import { type MenuCallbacks, setupMenu } from '../ui/menu';
 import { insertMenuCallbacks } from './insert-blocks';
 import { codeBlockRoutes } from './insert-code-block';
+import { htmlToMarkdown } from './markdown/serialize';
 import { createEditor, type EditorInstance } from './setup';
 
 vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
@@ -417,5 +418,144 @@ describe('every printable ASCII character in a code block in a cell comes back a
     );
 
     expect(failing).toEqual([]);
+  });
+});
+
+/**
+ * Text a clipboard puts straight into a cell, a list item or a blockquote (#313).
+ *
+ * The editor never renders bare text in those containers, which is why every row
+ * above reaches the serializer with a paragraph around it. **A paste does not**:
+ * `cleanPastedHtml` hands the clipboard HTML to `htmlToMarkdown` before any node
+ * exists, and `<li>text</li>` is how the web writes a tight list. On the first
+ * head of #313 eight of these nine shapes lost their words at the paste.
+ *
+ * Each shape is asserted twice. **Through `htmlToMarkdown`**, which is the unit
+ * the paste calls: the markdown it writes, and the cell that markdown opens as.
+ * **Through the paste**, a real `ClipboardEvent` into a paragraph: the cell as it
+ * lands, before any save, which is where the loss used to be visible, and then
+ * saved, opened and saved again. Both assert every word of the clipboard beside
+ * the nodes.
+ */
+describe('a clipboard that puts text straight into a container keeps every word (#313)', () => {
+  const SHAPES: ReadonlyArray<readonly [string, string, string, string]> = [
+    [
+      'a list item holding text',
+      '<ul><li>text</li></ul>',
+      '<ul><li>text</li></ul>',
+      '<bulletList(listItem(paragraph("text")))>',
+    ],
+    [
+      'text, then a list',
+      'intro<ul><li>a</li></ul>',
+      'intro<ul><li>a</li></ul>',
+      '<paragraph("intro"), bulletList(listItem(paragraph("a")))>',
+    ],
+    [
+      'a blockquote holding text',
+      '<blockquote>quoted</blockquote>',
+      '<blockquote>quoted</blockquote>',
+      '<blockquote(paragraph("quoted"))>',
+    ],
+    [
+      'a list item holding text and a nested list',
+      '<ul><li>one<ul><li>inner</li></ul></li></ul>',
+      '<ul><li>one<ul><li>inner</li></ul></li></ul>',
+      '<bulletList(listItem(paragraph("one"), bulletList(listItem(paragraph("inner")))))>',
+    ],
+    [
+      'an ordered list of text items',
+      '<ol><li>first</li><li>second</li></ol>',
+      '<ol><li>first</li><li>second</li></ol>',
+      '<orderedList(listItem(paragraph("first")), listItem(paragraph("second")))>',
+    ],
+    [
+      'a blockquote holding text, then a paragraph',
+      '<blockquote>q<p>r</p></blockquote>',
+      '<blockquote>q<p>r</p></blockquote>',
+      '<blockquote(paragraph("q"), paragraph("r"))>',
+    ],
+    [
+      'a heading, then text',
+      '<h2>Title</h2>tail text',
+      '<h2>Title</h2>tail text',
+      '<heading("Title"), paragraph("tail text")>',
+    ],
+    [
+      'two paragraphs, then text',
+      '<p>one</p><p>two</p>loose',
+      'one<p>two</p><p>loose</p>',
+      '<paragraph("one"), paragraph("two"), paragraph("loose")>',
+    ],
+    [
+      'inline content only',
+      'plain <strong>bold</strong> text',
+      'plain **bold** text',
+      '<paragraph("plain ", bold("bold"), " text")>',
+    ],
+    [
+      'an indented cell, the way a web page writes one',
+      '\n      lead\n      <ul>\n        <li>one</li>\n        <li>two</li>\n      </ul>\n      tail\n    ',
+      'lead<ul><li>one</li><li>two</li></ul>tail',
+      '<paragraph("lead"), bulletList(listItem(paragraph("one")), listItem(paragraph("two"))), paragraph("tail")>',
+    ],
+    [
+      'text, then a paragraph',
+      'lead<p>two</p>',
+      'lead<p>two</p>',
+      '<paragraph("lead"), paragraph("two")>',
+    ],
+  ];
+
+  /** The first cell of the first table, header or body. */
+  function firstCell(editor: EditorInstance): string {
+    const table = editor.editor.state.doc.content.content.find(
+      (node) => node.type.name === 'table',
+    );
+    if (!table) throw new Error('the document holds no table');
+    return table.child(0).child(0).content.toString();
+  }
+
+  /** The words of a clipboard cell, as a person reads them. */
+  function wordsOf(html: string): string[] {
+    const holder = document.createElement('div');
+    // A space before every tag, so words on either side of one stay two words.
+    holder.innerHTML = html.replace(/</g, ' <');
+    return (holder.textContent ?? '').match(/[A-Za-z]+/g) ?? [];
+  }
+
+  function expectWords(cellNodes: string, html: string): void {
+    for (const word of wordsOf(html)) expect(cellNodes, word).toContain(word);
+  }
+
+  it.each(SHAPES)('%s, through htmlToMarkdown', (_label, cell, written, nodes) => {
+    const markdown = htmlToMarkdown(`<table><tr><td>${cell}</td></tr></table>`);
+    expect(markdown).toBe(`| ${written} |\n| --- |`);
+
+    const editor = open(markdown);
+    expect(firstCell(editor)).toBe(nodes);
+    expectWords(firstCell(editor), cell);
+    expect(editor.getMarkdown()).toBe(markdown);
+  });
+
+  it.each(SHAPES)('%s, through the paste', (_label, cell, written, nodes) => {
+    const editor = open('before');
+    editor.editor.commands.setTextSelection(editor.editor.state.doc.content.size - 1);
+    const data = new DataTransfer();
+    data.setData('text/html', `<p>x</p><table><tr><td>${cell}</td></tr></table>`);
+    data.setData('text/plain', 'x');
+    editor.editor.view.dom.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+    );
+
+    // Before any save: this is where the words used to be gone.
+    expect(firstCell(editor)).toBe(nodes);
+    expectWords(firstCell(editor), cell);
+
+    const saved = editor.getMarkdown();
+    expect(saved.split('\n')).toContain(`| ${written} |`);
+    editor.setMarkdown(saved);
+    expect(firstCell(editor)).toBe(nodes);
+    expect(editor.getMarkdown()).toBe(saved);
   });
 });

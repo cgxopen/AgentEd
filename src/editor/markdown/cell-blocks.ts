@@ -21,6 +21,19 @@
  * A cell that holds nothing but paragraphs, rules and tables in the shapes
  * `cellContent` already wrote correctly does not come here, so what #278, #282
  * and #93 write is untouched.
+ *
+ * ── Text that sits directly in a container, and why the walk is over nodes ──
+ *
+ * The editor always puts a paragraph inside a list item, a blockquote and a
+ * cell, so HTML it renders never holds bare text there. **A paste does**:
+ * `cleanPastedHtml` runs this serializer over the clipboard HTML before any node
+ * exists, and `<li>text</li>` is how the web writes a tight list. The first head
+ * of #313 walked `children`, which holds elements only, and the text between
+ * them was never written: measured on it, eight of nine clipboard shapes lost
+ * their words at the moment of the paste. **So the walk is over `childNodes`**:
+ * a run of text and inline elements between two blocks is written as a
+ * paragraph the file does not spell, in its place, and a run that is nothing
+ * but whitespace, which carries no words, is left out.
  */
 
 /** What the caller writes itself, so this module needs no turndown of its own. */
@@ -34,23 +47,61 @@ export interface CellWriters {
 /** The blocks that have no spelling on a cell line other than their HTML. */
 const BLOCK_WITHOUT_INLINE_SPELLING = /^(H[1-6]|UL|OL|BLOCKQUOTE|PRE)$/;
 
+/** Every element the walk treats as a block of its own. Anything else is inline. */
+const BLOCK_ELEMENT = /^(P|H[1-6]|UL|OL|BLOCKQUOTE|PRE|HR|TABLE)$/;
+
+const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
+
 /**
- * Whether a cell holds something `cellContent` cannot write as markdown: one of
- * the blocks above, or **two paragraphs side by side**, which a cell line can
- * only tell apart as `<p>`. A paragraph beside a rule or a table is not that
- * case; #282 and #278 write those.
+ * What a container holds, in order: **text**, which is a paragraph or a run of
+ * text and inline elements with no paragraph around it, or a **block**. A run
+ * made of whitespace alone is left out; a paragraph is kept even when empty,
+ * because an empty paragraph is a node the editor put there.
  */
-export function needsCellBlockSpelling(cell: Element): boolean {
-  const children = Array.from(cell.children);
-  return children.some(
-    (child, index) =>
-      BLOCK_WITHOUT_INLINE_SPELLING.test(child.nodeName.toUpperCase()) ||
-      (isParagraph(child) && isParagraph(children[index - 1])),
-  );
+type Part =
+  | { readonly kind: 'text'; readonly nodes: readonly Node[] }
+  | { readonly kind: 'block'; readonly element: Element };
+
+function partsOf(container: Element): Part[] {
+  const parts: Part[] = [];
+  let run: Node[] = [];
+  const endRun = () => {
+    if (run.some((node) => node.nodeType !== TEXT_NODE || (node.textContent ?? '').trim() !== '')) {
+      parts.push({ kind: 'text', nodes: run });
+    }
+    run = [];
+  };
+  for (const node of Array.from(container.childNodes)) {
+    const name = node.nodeName.toUpperCase();
+    if (node.nodeType !== ELEMENT_NODE || !BLOCK_ELEMENT.test(name)) {
+      run.push(node);
+      continue;
+    }
+    endRun();
+    parts.push(
+      name === 'P'
+        ? { kind: 'text', nodes: Array.from(node.childNodes) }
+        : { kind: 'block', element: node as Element },
+    );
+  }
+  endRun();
+  return parts;
 }
 
-function isParagraph(element: Element | undefined): boolean {
-  return element?.nodeName.toUpperCase() === 'P';
+/**
+ * Whether a cell holds something `cellContent` cannot write as markdown: one of
+ * the blocks above, or **two runs of text side by side**, two paragraphs or a
+ * paragraph beside bare text, which a cell line can only tell apart as `<p>`. A
+ * paragraph beside a rule or a table is not that case; #282 and #278 write those.
+ */
+export function needsCellBlockSpelling(cell: Element): boolean {
+  const parts = partsOf(cell);
+  return parts.some((part, index) =>
+    part.kind === 'block'
+      ? BLOCK_WITHOUT_INLINE_SPELLING.test(part.element.nodeName.toUpperCase())
+      : parts[index - 1]?.kind === 'text',
+  );
 }
 
 /**
@@ -91,20 +142,35 @@ function attributeValue(value: string): string {
   return `"${value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"`;
 }
 
-/** Every block of a container, in order, on one line. */
+/**
+ * Every part of a container, in order, on one line.
+ *
+ * Text is written bare where it opens the container or follows a block, and as
+ * `<p>` where it follows other text, or the two are one on reading. **A run
+ * after a block was built both ways, bare and as `<p>`**, and measured on the
+ * #313 second head both read back as the same nodes over nineteen shapes; bare
+ * is the shorter, so it is the one written.
+ */
 export function cellBlocks(container: Element, writers: CellWriters): string {
-  const children = Array.from(container.children);
-  return children.map((child, index) => cellBlock(child, children[index - 1], writers)).join('');
+  const parts = partsOf(container);
+  return parts
+    .map((part, index) => {
+      if (part.kind === 'block') return cellBlock(part.element, writers);
+      const holder = container.ownerDocument.createElement('p');
+      for (const node of part.nodes) holder.appendChild(node.cloneNode(true));
+      const text = writers.inline(holder);
+      return parts[index - 1]?.kind === 'text' ? `<p>${text}</p>` : text;
+    })
+    .join('');
 }
 
-function cellBlock(block: Element, before: Element | undefined, writers: CellWriters): string {
+/**
+ * A block, as its element. `BLOCK_ELEMENT` names a heading, the two lists, a
+ * blockquote, a code block, a rule and a table, and a paragraph, which
+ * `cellBlocks` writes itself; so what reaches the last line is a table.
+ */
+function cellBlock(block: Element, writers: CellWriters): string {
   const name = block.nodeName.toUpperCase();
-  if (name === 'P') {
-    // The first paragraph is the cell text it always was; one that follows
-    // another paragraph needs its own element, or the two are one on reading.
-    const text = writers.inline(block);
-    return isParagraph(before) ? `<p>${text}</p>` : text;
-  }
   if (/^H[1-6]$/.test(name)) {
     const tag = name.toLowerCase();
     return `<${tag}>${writers.inline(block)}</${tag}>`;
@@ -113,11 +179,7 @@ function cellBlock(block: Element, before: Element | undefined, writers: CellWri
   if (name === 'BLOCKQUOTE') return `<blockquote>${cellBlocks(block, writers)}</blockquote>`;
   if (name === 'PRE') return codeBlock(block);
   if (name === 'HR') return '<hr>';
-  if (name === 'TABLE') return writers.table(block as HTMLTableElement);
-  // Nothing else is a block the schema lets a cell hold. Written as its inline
-  // content rather than dropped, so an unforeseen element loses its shape and
-  // keeps its words.
-  return writers.inline(block);
+  return writers.table(block as HTMLTableElement);
 }
 
 function list(block: Element, writers: CellWriters): string {
