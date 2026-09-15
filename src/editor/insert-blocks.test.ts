@@ -387,10 +387,15 @@ describe('Insert Checklist outside a checklist keeps what it did', () => {
     ['an ordered list', '1. one\n2. two', caret('paragraph', 0, 0), '1. - [ ] one\n2. two'],
     ['a blockquote', '> quoted', caret('paragraph', 1), '> - [ ] quoted'],
     [
+      // The checklist is in the cell as the entry made it, and since #300 it is
+      // written as the task list it is. Until #300 this row expected
+      // `| - [ ] 1 |`, the flattened text the next open reads as a paragraph:
+      // the row was pinning the loss. That the checklist comes back a checklist
+      // is asserted in `cell-blocks.test.ts`, node beside bytes.
       'a table cell',
       '| a | b |\n| --- | --- |\n| 1 | 2 |',
       caret('paragraph', 1, 2),
-      '| a | b |\n| --- | --- |\n| - [ ] 1 | 2 |',
+      '| a | b |\n| --- | --- |\n| <ul><li><input type="checkbox"> 1</li></ul> | 2 |',
     ],
     ['a code block', '```\ncode\n```', caret('codeBlock', 1), '- [ ] ```\n  code\n  ```'],
     [

@@ -101,9 +101,23 @@ describe('the spelling survives the document model, not just the text', () => {
     const editor = editorWith('| a      | b      |\n| ------ | ------ |\n| c      | d      |');
     // Type into the first body cell: the column keeps its width, and only
     // that cell's content changes.
-    editor.editor.commands.setTextSelection(editor.editor.state.doc.content.size - 6);
+    //
+    // The caret goes after the `c`, inside its paragraph. Until #300 this took
+    // the position six before the end of the document, which is the boundary of
+    // the second body cell: `insertContent` there made a paragraph `X` beside
+    // the paragraph `d`, two paragraphs in one cell, and the cell was written
+    // `X  d` and read back as one. The test passed over a lost paragraph. Since
+    // #300 two paragraphs are written as two, so the fixture now makes the one
+    // paragraph the test always meant to type into.
+    let afterC = -1;
+    editor.editor.state.doc.descendants((node, pos) => {
+      if (afterC < 0 && node.isText && node.text === 'c') afterC = pos + 1;
+      return afterC < 0;
+    });
+    editor.editor.commands.setTextSelection(afterC);
     editor.editor.commands.insertContent('X');
     const saved = editor.getMarkdown();
+    expect(saved).toContain('| cX     | d      |');
     expect(saved).toContain('| ------ | ------ |');
     expect(saved.split('\n').filter((l) => l.startsWith('|'))).toHaveLength(3);
   });
