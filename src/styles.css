@@ -376,11 +376,17 @@ body {
  *
  * A closed panel stays laid out at height 0 rather than leaving the layout:
  * `display: flex` on `.menu-panel` wins over the `hidden` attribute. That is
- * what lets the height slide, and what keeps the menu one width, as wide as
- * its widest entry in any section. `overflow: clip` hides the entries of a
- * folding panel without making it a scroll container. `interpolate-size` lets
- * `height` move to and from `auto`; a runtime without it opens without the
- * slide. `flex-shrink: 0` keeps a panel from being squeezed when the cap is
+ * what lets the height slide, and what keeps the menu as wide as its widest
+ * entry in any section. **One width holds while the menu does not scroll.**
+ * Where the window is too short for the open section, a classic scrollbar
+ * takes its width on top of that: measured in Chromium at 600x400, 277.48 px
+ * becomes 292.48 while File, Edit or Insert is open, and on Windows the
+ * scrollbar is classic and stays drawn (#312). Accepted by the owner on
+ * 2026-09-15 rather than reserving the gutter at every size.
+ *
+ * `overflow: clip` hides the entries of a folding panel without making it a
+ * scroll container. `interpolate-size` lets `height` move to and from `auto`;
+ * a runtime without it opens without the slide. `flex-shrink: 0` keeps a panel from being squeezed when the cap is
  * reached, so the menu scrolls rather than the panel. The delayed `visibility`
  * keeps a folding panel visible until it has folded, and keeps the entries of
  * a folded one out of the Tab order. */
