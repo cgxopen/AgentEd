@@ -19,6 +19,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import requirementsMd from '../../REQUIREMENTS.md?raw';
+import { markdownToHtml } from '../editor/markdown/parse';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import { decodeFileText } from '../platform/decode';
@@ -303,6 +304,90 @@ describe('what #304 does not reach, pinned so that a change to it is announced',
     expect(cycles[0].nodes).toEqual(['paragraph:After']);
     expect(cycles[0].written).toBe('---\n\nWords\n\n---\nAfter\n');
     expectSettled(cycles);
+  });
+
+  // #314, closed as covered by that exception: the second line of three
+  // hyphens is inside a fenced block. Measured on `7672d9a`.
+  const FENCE_ON_DISK = '---\n\nIntro\n\n```\n---\n```\n\nAfter\n';
+  const byteLength = (text: string) => new TextEncoder().encode(text).length;
+
+  it('a file on disk whose second line of three hyphens is inside a fence is read without the block', async () => {
+    const cycles = await threeCycles(FENCE_ON_DISK);
+    const [first] = cycles;
+    // The rule opens a block holding the text above the fence and its opening
+    // line; the fence's own `---` closes it; the text after it opens as code.
+    expect(first.metadata).toBe('\nIntro\n\n```');
+    expect(first.panel).toBe(true);
+    expect(first.nodes).toEqual(['codeBlock:\nAfter\n']);
+    expectSettled(cycles);
+  });
+
+  it('its first unedited save appends a fence line and keeps every byte the file had', async () => {
+    const [first] = await threeCycles(FENCE_ON_DISK);
+    expect(byteLength(FENCE_ON_DISK)).toBe(31);
+    expect(byteLength(first.written)).toBe(35);
+    expect(first.written).toBe(`${FENCE_ON_DISK}\`\`\`\n`);
+  });
+
+  it('a markdown parser reads that saved file as it was, with an empty code block at its end', async () => {
+    const [first] = await threeCycles(FENCE_ON_DISK);
+    expect(markdownToHtml(FENCE_ON_DISK)).toBe(
+      '<hr>\n<p>Intro</p>\n<pre><code>---\n</code></pre>\n<p>After</p>\n',
+    );
+    expect(markdownToHtml(first.written)).toBe(
+      '<hr>\n<p>Intro</p>\n<pre><code>---\n</code></pre>\n<p>After</p>\n<pre><code>\n</code></pre>\n',
+    );
+  });
+
+  it('the same document typed into the editor is written with *** and reopens as it was', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host);
+    editor.setMarkdown('');
+    editor.editor.commands.focus();
+    type(editor, '---');
+    type(editor, 'Intro');
+    press(editor, 'Enter');
+    type(editor, '```');
+    press(editor, 'Enter');
+    type(editor, '---');
+    // Three presses leave a fenced block at its end.
+    press(editor, 'Enter');
+    press(editor, 'Enter');
+    press(editor, 'Enter');
+    type(editor, 'After');
+    expect(nodesOf(editor)).toEqual([
+      'horizontalRule',
+      'paragraph:Intro',
+      'codeBlock:---',
+      'paragraph:After',
+    ]);
+    const state = new AppState();
+    state.filePath = PATH;
+    const saved = await saveFromEditor(editor, state);
+    editor.destroy();
+    host.remove();
+
+    expect(saved).toBe('***\n\nIntro\n\n```\n---\n```\n\nAfter\n');
+    const cycles = await threeCycles(saved);
+    const [reopened] = cycles;
+    expect(reopened.metadata).toBeNull();
+    expect(reopened.panel).toBe(false);
+    // A fenced block read from a file holds its final newline, whatever it holds.
+    expect(reopened.nodes).toEqual([
+      'horizontalRule',
+      'paragraph:Intro',
+      'codeBlock:---\n',
+      'paragraph:After',
+    ]);
+    expect(reopened.written).toBe(saved);
+    expectSettled(cycles);
+  });
+
+  it('is described in REQUIREMENTS as what was measured', () => {
+    expect(requirementsMd).toContain('**The first unedited save appends a fence line**');
+    expect(requirementsMd).toContain('No byte of the file is lost; what is lost is the document.');
+    expect(requirementsMd).not.toContain('the block loses its content on the first save');
   });
 });
 
