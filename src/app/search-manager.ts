@@ -9,8 +9,16 @@ import { type SearchPanel, setupSearchPanel } from '../ui/search-panel';
 import { showToast } from '../ui/toast';
 
 export interface SearchManager {
+  /** Open the panel in find mode and put the caret in the find field, whether or not it was open. */
   openFind(): void;
   openReplace(): void;
+  /**
+   * The header button's command (#312): close the panel when it is open,
+   * otherwise open it as `openFind` does. Deliberately not what `Ctrl+F`
+   * calls — at the keyboard Escape already closes the panel, and a second
+   * `Ctrl+F` returns to the find field instead.
+   */
+  toggleFind(): void;
   close(): void;
   findNext(): void;
   findPrevious(): void;
@@ -18,6 +26,12 @@ export interface SearchManager {
   replaceAll(): Promise<void>;
   installKeyboardListeners(): void;
   isOpen(): boolean;
+  /**
+   * Call `listener` with the new state every time the panel opens or closes,
+   * by any route. Every route reaches the panel through this manager, which is
+   * what lets one listener keep the header button's pressed state true.
+   */
+  onOpenChange(listener: (open: boolean) => void): void;
   /** Exposed for tests. */
   readonly panel: SearchPanel;
 }
@@ -94,6 +108,14 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     onClose: () => manager.close(),
   });
 
+  const openListeners: Array<(open: boolean) => void> = [];
+
+  function announceIfChanged(wasOpen: boolean): void {
+    const open = panel.isOpen();
+    if (open === wasOpen) return;
+    for (const listener of openListeners) listener(open);
+  }
+
   function openFromShortcut(mode: 'find' | 'replace'): void {
     const wasOpen = panel.isOpen();
     if (!wasOpen) onOpen?.();
@@ -101,6 +123,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     else panel.openFind();
     const q = panel.getQuery();
     if (q) runSearch(q);
+    announceIfChanged(wasOpen);
   }
 
   async function performReplaceAll(): Promise<void> {
@@ -136,8 +159,14 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     openReplace() {
       openFromShortcut('replace');
     },
+    toggleFind() {
+      if (panel.isOpen()) manager.close();
+      else openFromShortcut('find');
+    },
     close() {
+      const wasOpen = panel.isOpen();
       panel.close();
+      announceIfChanged(wasOpen);
       // Intentionally do NOT clear the engine here. Closing the panel
       // hides the UI but keeps the last query + highlights live so
       // F3 / Shift+F3 can keep walking matches without re-opening
@@ -165,6 +194,9 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     },
     isOpen() {
       return panel.isOpen();
+    },
+    onOpenChange(listener) {
+      openListeners.push(listener);
     },
     installKeyboardListeners() {
       document.addEventListener('keydown', (e) => {

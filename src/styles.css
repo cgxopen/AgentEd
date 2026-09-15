@@ -322,18 +322,33 @@ body {
   display: none;
 }
 
+/* Every row of the menu, header or entry, is a rounded rectangle set in from
+ * the menu edges (#312), and the pointer shades that rectangle rather than a
+ * band running edge to edge. The inset is a margin, so the panel behind a
+ * section's entries still runs edge to edge; the side padding gives the inset
+ * back, so the text stands where it did and the menu keeps its width.
+ *
+ * The shade is an overlay rather than a surface colour. It used to be
+ * `var(--surface)`, which is the colour of `.menu-panel` itself, so an entry
+ * under the pointer did not change at all while a header, on `var(--bg)`, did.
+ * A translucent overlay composes over whichever ground the row stands on, and
+ * every palette defines it. It sets `background-color` alone, so the hairline
+ * between headers, a `background-image`, stays drawn on top of it. A disabled
+ * entry is not shaded: it cannot be chosen, and a shade would say it can. */
 #menu-dropdown button {
   background: none;
   border: none;
-  padding: 8px 16px;
+  margin: 0 4px;
+  padding: 8px 12px;
+  border-radius: 4px;
   text-align: left;
   font-size: 14px;
   cursor: pointer;
   color: var(--text);
 }
 
-#menu-dropdown button:hover {
-  background: var(--surface);
+#menu-dropdown button:hover:not(:disabled) {
+  background-color: var(--hover-overlay-strong);
 }
 
 #menu-dropdown button {
@@ -394,7 +409,7 @@ body {
 }
 
 #menu-dropdown .menu-panel button {
-  padding-left: 32px;
+  padding-left: 28px;
 }
 
 /* The headers are headings rather than commands, and the owner asked for the
@@ -408,13 +423,14 @@ body {
 }
 
 /* A hairline between one header and the next, a fifth of the width of the
- * menu, set to the right: its end sits half an em, about one character, in
- * from the right border, which puts it past the chevrons, since those end at
- * the 16 px button padding. It is drawn as a background, so it adds no height
- * and no element. Only the headers carry it, never the entries inside a
- * section; a header that follows an open section keeps its line, above it.
- * The selector outranks `#menu-dropdown button:hover`, whose `background`
- * shorthand would otherwise clear the line while the pointer is on the header. */
+ * header, set to the right: its end sits half an em, about one character, in
+ * from the right edge of the header, which puts it past the chevrons, since
+ * those end at the 12 px button padding. It is drawn as a background, so it
+ * adds no height and no element. Only the headers carry it, never the entries
+ * inside a section; a header that follows an open section keeps its line,
+ * above it. The selector outranks `#menu-dropdown button`, whose
+ * `background: none` shorthand would otherwise clear the line. The pointer
+ * shade sets `background-color` alone and no longer competes with it (#312). */
 #menu-dropdown .menu-section ~ .menu-section {
   background-image: linear-gradient(var(--border), var(--border));
   background-position: right 0.5em top;
@@ -547,9 +563,30 @@ button.indicator-search {
   color: var(--muted);
   line-height: 0;
 }
+/* The hover shade is an image rather than a colour so that it stacks on the
+ * pressed shade below instead of replacing it: under the pointer, a press
+ * that opens or closes the panel still changes what the button shows. */
 button.indicator-search:hover {
   color: var(--text);
-  background: var(--hover-overlay);
+  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
+}
+
+/* Lit while the search panel is open (#312), so the button says that the next
+ * press closes it. An overlay rather than the accent the panel's own option
+ * toggles use: this is a place in the bar, not an option switched on, and the
+ * overlay reads as part of whichever palette the bar is drawn in. */
+button.indicator-search[aria-pressed="true"],
+#overflow-popover .indicator[aria-pressed="true"] {
+  color: var(--text);
+  background-color: var(--hover-overlay-strong);
+}
+
+/* The copy in the overflow menu has no side padding of its own, so the shade
+ * is given some and the text is kept where the other entries' text is. */
+#overflow-popover .indicator[aria-pressed="true"] {
+  border-radius: 4px;
+  margin-inline: -4px;
+  padding-inline: 4px;
 }
 
 .indicator-overflow {
