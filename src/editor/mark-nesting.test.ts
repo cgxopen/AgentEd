@@ -194,7 +194,14 @@ describe('the schema the fix depends on', () => {
     // weaker than checking a built value and it is what is available: it
     // catches the swap, which is the mistake that was actually made, and it
     // says so rather than implying more.
-    const chain = setupSource.slice(setupSource.indexOf('StarterKit.configure'));
+    const anchor = setupSource.indexOf('StarterKit.configure');
+    // Named, so a swapped order fails as the ordering problem it is rather than
+    // as a slice one character long.
+    expect(
+      anchor,
+      'setup.ts no longer spells StarterKit.configure: if it now reads StarterKit.extend(…).configure(…), that is the order this test refuses',
+    ).toBeGreaterThanOrEqual(0);
+    const chain = setupSource.slice(anchor);
     const configureAt = chain.indexOf('.configure(');
     const extendAt = chain.indexOf('.extend(');
     expect(configureAt).toBeGreaterThanOrEqual(0);
