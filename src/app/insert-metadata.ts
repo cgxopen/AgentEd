@@ -16,9 +16,11 @@ import type { AppState } from './state';
  * the template writes it. `insert-metadata.test.ts` pins that every other line
  * equals the template.
  *
- * **Not empty, and measured rather than preferred.** An empty block makes the
- * panel appear and writes nothing: `assembleMarkdown` drops a block whose text
- * is empty, so the file on disk would never acquire one (#297 step zero).
+ * **Not empty, and measured rather than preferred.** On the #297 step zero an
+ * empty block made the panel appear and wrote nothing, because `assembleMarkdown`
+ * dropped a block whose text was empty. #304 made an empty block a block, so it
+ * now reaches the file; the route still writes the template block, as #297
+ * decided.
  */
 
 const TEMPLATE_ID = 'blank-frontmatter';
