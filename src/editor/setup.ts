@@ -21,6 +21,7 @@ import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
 import { replaceDocument } from './document-load';
+import { HistoryStaysWithFocus } from './history-focus';
 import {
   type CanWriteCompanions,
   type ConfirmAssetsDir,
@@ -634,6 +635,9 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
 
   return [
     starterKitWithLocalSchemaRules(),
+    // Undo and redo reach the document only while it has focus (#306). Its
+    // place in this list does not matter: it listens on the document.
+    HistoryStaysWithFocus,
     MarkdownComment,
     Underline,
     Link.configure({
