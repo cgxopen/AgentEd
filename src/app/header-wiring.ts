@@ -1,6 +1,7 @@
 import { setCloseEnabled } from '../ui/menu';
 import type { AppContext } from './context';
 import type { DocumentActions } from './document-actions';
+import type { SearchManager } from './search-manager';
 import type { AppState } from './state';
 
 export interface HeaderControls {
@@ -47,10 +48,31 @@ export function setupHeader(state: AppState): HeaderControls {
 
 /** Second-phase wiring — indicator click handlers that need the full context. */
 export function wireHeaderIndicators(ctx: AppContext, _docActions: DocumentActions): void {
-  document.getElementById('indicator-search')!.addEventListener('click', () => {
-    ctx.searchManager.openFind();
-  });
+  wireSearchButton(ctx.searchManager);
   // Token number/unit are hover-only (title tooltips); no click handlers.
+}
+
+/**
+ * The magnifier is a toggle (#312): it opens the panel when it is closed and
+ * closes it when it is open, and `aria-pressed` says which while the panel is
+ * open, so the next press is not a guess. `Ctrl+F` keeps `openFind`, which
+ * returns to the find field; the two are different commands on purpose.
+ *
+ * The pressed state follows the panel rather than the button, so Escape, the
+ * close cross, `Ctrl+F` and the Edit menu all move it too. Below the collapse
+ * breakpoint the overflow menu holds the only copy of this button a pointer
+ * can reach, and that copy is drawn when the menu opens; it is drawn again
+ * here when the state changes under an open menu.
+ */
+export function wireSearchButton(searchManager: SearchManager): void {
+  const button = document.getElementById('indicator-search')!;
+  button.setAttribute('aria-pressed', String(searchManager.isOpen()));
+  button.addEventListener('click', () => searchManager.toggleFind());
+  searchManager.onOpenChange((open) => {
+    button.setAttribute('aria-pressed', String(open));
+    const popover = document.getElementById('overflow-popover');
+    if (popover && !popover.classList.contains('hidden')) renderOverflowPopover(popover);
+  });
 }
 
 function setupOverflowPopover(): void {
@@ -105,6 +127,33 @@ export function isOfferedInOverflow(ind: HTMLElement): boolean {
   return ind.offsetParent === null;
 }
 
+/**
+ * The copy of `ind` the overflow menu shows, forwarding its click to `ind`.
+ *
+ * **Its text is the indicator's text, or its accessible name when it has
+ * none.** The magnifier holds an icon and no text, and a copy of its
+ * `textContent` was whitespace: measured in Chromium on `059ade0` at 700 px, a
+ * strip 94 by 4 px with a tooltip and nothing to see (#312).
+ *
+ * **It carries `aria-pressed` when the indicator does**, so a toggle below the
+ * breakpoint says what the next press will do, as it does in the bar. The copy
+ * is drawn when the menu opens and does not follow the indicator afterwards;
+ * whoever changes a pressed state under an open menu draws it again.
+ *
+ * Exported for its test.
+ */
+export function overflowClone(ind: HTMLElement): HTMLElement {
+  const clone = document.createElement('span');
+  clone.className = 'indicator';
+  const text = ind.textContent ?? '';
+  clone.textContent = text.trim() !== '' ? text : (ind.getAttribute('aria-label') ?? '');
+  clone.title = ind.title;
+  const pressed = ind.getAttribute('aria-pressed');
+  if (pressed !== null) clone.setAttribute('aria-pressed', pressed);
+  clone.addEventListener('click', () => ind.click());
+  return clone;
+}
+
 function renderOverflowPopover(popover: HTMLElement): void {
   popover.innerHTML = '';
   const indicators = Array.from(
@@ -112,12 +161,7 @@ function renderOverflowPopover(popover: HTMLElement): void {
   );
   for (const ind of indicators) {
     if (!isOfferedInOverflow(ind)) continue;
-    const clone = document.createElement('span');
-    clone.className = 'indicator';
-    clone.textContent = ind.textContent;
-    clone.title = ind.title;
-    clone.addEventListener('click', () => ind.click());
-    popover.appendChild(clone);
+    popover.appendChild(overflowClone(ind));
   }
   if (popover.childElementCount === 0) {
     const empty = document.createElement('span');
