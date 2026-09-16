@@ -9,7 +9,7 @@
  * button's second press closes, the chord's second press returns to the field.
  *
  * **What is covered here, and what is not.** The behaviour is fully observable
- * without layout — a click, `isOpen()`, `aria-pressed` — and is asserted over
+ * without layout — a click, `isOpen()`, `aria-expanded` — and is asserted over
  * the shipped markup, a real editor and the real manager. How the lit button
  * looks is not: the rules that draw it are read out of the stylesheet and run
  * against the element rendered here, which says which rule reaches it and with
@@ -77,7 +77,12 @@ beforeEach(() => {
 });
 
 const button = () => element('indicator-search');
-const pressed = () => button().getAttribute('aria-pressed');
+/**
+ * What the button says about the panel. `aria-expanded` since #324: the button
+ * reveals a surface, which is what the other three controls in this bar that
+ * open one say, rather than switching an option on.
+ */
+const expanded = () => button().getAttribute('aria-expanded');
 const findInput = () => element('search-input') as HTMLInputElement;
 
 function chord(key: string, init: Partial<KeyboardEventInit> = {}): void {
@@ -91,10 +96,10 @@ async function nextFrame(): Promise<void> {
 
 /**
  * **Each row asserts one of the two properties.** The rows in the first block
- * read whether the panel is open and never the pressed state; the rows in the
- * second read the pressed state and change the panel by some route other than
+ * read whether the panel is open and never the expanded state; the rows in the
+ * second read the expanded state and change the panel by some route other than
  * the button's own press. Written with both assertions in one row, removing the
- * pressed state reddened every row the swap of the two commands reddened, so
+ * state reddened every row the swap of the two commands reddened, so
  * that reversal witnessed nothing the other did not.
  */
 describe('the magnifier is a toggle, and Ctrl+F is not (#312)', () => {
@@ -153,31 +158,34 @@ describe('the magnifier is a toggle, and Ctrl+F is not (#312)', () => {
   });
 });
 
-describe('the pressed state follows the panel, whatever moved it (#312)', () => {
-  it('ships unpressed', () => {
-    expect(pressed()).toBe('false');
+describe('the expanded state follows the panel, whatever moved it (#312, #324)', () => {
+  it('ships collapsed, naming the panel it opens', () => {
+    expect(button().getAttribute('aria-controls')).toBe('search-panel');
+    expect(document.getElementById('search-panel')).not.toBeNull();
+    expect(button().hasAttribute('aria-pressed')).toBe(false);
+    expect(expanded()).toBe('false');
   });
 
   it('lights when the button opens the panel', () => {
     button().click();
 
-    expect(pressed()).toBe('true');
+    expect(expanded()).toBe('true');
   });
 
   it('goes dark when the toggle closes the panel', () => {
     manager.openFind();
     manager.toggleFind();
 
-    expect(pressed()).toBe('false');
+    expect(expanded()).toBe('false');
   });
 
   it('lights on Ctrl+F and on Ctrl+H', () => {
     chord('f', { ctrlKey: true });
-    expect(pressed()).toBe('true');
+    expect(expanded()).toBe('true');
 
     manager.close();
     chord('h', { ctrlKey: true });
-    expect(pressed()).toBe('true');
+    expect(expanded()).toBe('true');
   });
 
   it('goes dark on Escape in the find field', () => {
@@ -185,7 +193,7 @@ describe('the pressed state follows the panel, whatever moved it (#312)', () => 
 
     findInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
-    expect(pressed()).toBe('false');
+    expect(expanded()).toBe('false');
   });
 
   it('goes dark on the close cross', () => {
@@ -193,7 +201,7 @@ describe('the pressed state follows the panel, whatever moved it (#312)', () => 
 
     element('search-close').click();
 
-    expect(pressed()).toBe('false');
+    expect(expanded()).toBe('false');
   });
 
   it('stays lit through F3 and Shift+F3', () => {
@@ -202,14 +210,14 @@ describe('the pressed state follows the panel, whatever moved it (#312)', () => 
     chord('F3');
     chord('F3', { shiftKey: true });
 
-    expect(pressed()).toBe('true');
+    expect(expanded()).toBe('true');
   });
 
   it('reaches the copy in the overflow menu', () => {
-    expect(overflowClone(button()).getAttribute('aria-pressed')).toBe('false');
+    expect(overflowClone(button()).getAttribute('aria-expanded')).toBe('false');
 
     manager.openFind();
-    expect(overflowClone(button()).getAttribute('aria-pressed')).toBe('true');
+    expect(overflowClone(button()).getAttribute('aria-expanded')).toBe('true');
   });
 
   it('draws that copy again when the panel changes under an open overflow menu', () => {
@@ -226,7 +234,7 @@ describe('the pressed state follows the panel, whatever moved it (#312)', () => 
 
     chord('f', { ctrlKey: true });
 
-    expect(Array.from(popover.children, (copy) => copy.getAttribute('aria-pressed'))).toEqual([
+    expect(Array.from(popover.children, (copy) => copy.getAttribute('aria-expanded'))).toEqual([
       'true',
     ]);
   });
@@ -237,11 +245,12 @@ describe('the copy in the overflow menu says what it is (#312)', () => {
     expect(overflowClone(button()).textContent).toBe('Find');
   });
 
-  it('keeps the text of an indicator that has some, and no pressed state it does not have', () => {
+  it('keeps the text of an indicator that has some, and no state it does not have', () => {
     const spell = overflowClone(element('spellcheck-toggle'));
 
     expect(spell.textContent).toBe('Spell: off');
     expect(spell.hasAttribute('aria-pressed')).toBe(false);
+    expect(spell.hasAttribute('aria-expanded')).toBe(false);
   });
 });
 
@@ -264,30 +273,30 @@ function hoverRulesReaching(target: Element, property: string): string[] {
     .map((rule) => rule.declarations.get(property) as string);
 }
 
-describe('the lit shade, as the stylesheet gives it (#312)', () => {
-  afterAll(() => button().setAttribute('aria-pressed', 'false'));
+describe('the lit shade, as the stylesheet gives it (#312, #324)', () => {
+  afterAll(() => button().setAttribute('aria-expanded', 'false'));
 
-  it('shades the pressed button with the strong overlay and the unpressed one not at all', () => {
-    button().setAttribute('aria-pressed', 'true');
+  it('shades the expanded button with the strong overlay and the collapsed one not at all', () => {
+    button().setAttribute('aria-expanded', 'true');
     expect(valuesReaching(shippedRules, button(), 'background-color')).toEqual([
       'var(--hover-overlay-strong)',
     ]);
 
-    button().setAttribute('aria-pressed', 'false');
+    button().setAttribute('aria-expanded', 'false');
     expect(valuesReaching(shippedRules, button(), 'background-color')).toEqual([]);
   });
 
   it('draws the hover as an image over that colour, so the pointer never hides a press', () => {
     for (const state of ['true', 'false']) {
-      button().setAttribute('aria-pressed', state);
+      button().setAttribute('aria-expanded', state);
       expect(hoverRulesReaching(button(), 'background')).toEqual([]);
       expect(hoverRulesReaching(button(), 'background-color')).toEqual([]);
       expect(hoverRulesReaching(button(), 'background-image')).toHaveLength(1);
     }
   });
 
-  it('shades the pressed copy in the overflow menu the same way', () => {
-    button().setAttribute('aria-pressed', 'true');
+  it('shades the expanded copy in the overflow menu the same way', () => {
+    button().setAttribute('aria-expanded', 'true');
     const copy = overflowClone(button());
     element('overflow-popover').appendChild(copy);
 
