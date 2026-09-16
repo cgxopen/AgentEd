@@ -24,6 +24,7 @@ import { followPaletteWithTheWindow } from './app/window-appearance';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockRoutes } from './editor/insert-code-block';
+import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { applyWindowAppearance, getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
@@ -278,6 +279,7 @@ setupMenu(
     onFindNext: () => ctx.searchManager.findNext(),
     onFindPrevious: () => ctx.searchManager.findPrevious(),
     ...historyMenuCallbacks(editor),
+    ...selectAllMenuCallbacks(editor),
     ...tableMenuCallbacks(editor),
     ...codeBlock,
     ...insertMenuCallbacks(ctx.editor),
