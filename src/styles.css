@@ -292,16 +292,22 @@ body {
  *
  * **31px keeps the header at the 44px it has always been**: 31 plus the
  * menubar's 6px of padding above and below plus its 1px border. */
-/* The outline itself, which is now worn by two kinds of thing: every button of
- * the family, and the run of counts, which is one frame around the group
- * rather than one per number (#332, owner request after the first artifact).
+/* ── The two kinds of thing in the bar, and how a reader tells them apart ──
  *
- * **The reading rule the bar gained says outlined means it can be pressed**,
- * and a frame around the counts spends some of that. What keeps it legible is
- * that it is one long box around three numbers rather than three boxes: a
- * readout, which is what the counts are. The alternative, a lighter border for
- * the readout, is one token away and is the way back if it reads as a control
- * on the artifact. */
+ * Everything in the bar that is more than bare text wears the same box: one
+ * height, one radius, one padding. **What says which kind it is, is how that
+ * box is filled** (#332, owner decision on the third artifact):
+ *
+ * - **an outline means it can be pressed** — every button of the family;
+ * - **a background means it cannot** — the run of counts, and the «Metadata»
+ *   badge, which are readouts.
+ *
+ * The rule is worth more than either half of it. An earlier head gave the
+ * readout an outline too, on the reading that one long box around three numbers
+ * is a readout rather than a control; the owner looked at it on the artifact
+ * and took this instead, which does not ask the reader to tell a long frame
+ * from a short one. R-C12 wanted the badges quiet, and a background is quieter
+ * than a line. */
 .header-frame {
   display: inline-flex;
   align-items: center;
@@ -310,18 +316,23 @@ body {
   height: 31px;
   flex-shrink: 0;
   padding: 0 9px;
-  border: 1px solid var(--border);
   border-radius: 4px;
 }
 
-/* What a button adds to the outline: it is pressable, it takes the text colour
- * and it reacts to the pointer. */
+/* Outlined: a button. */
 .header-edge-button {
   background: none;
+  border: 1px solid var(--border);
   color: var(--text);
   cursor: pointer;
   font: inherit;
   line-height: 1;
+}
+
+/* Filled: a readout. No border, no pointer, no hover, no tab stop — the
+ * background is the whole of what it says about itself. */
+.header-readout {
+  background: var(--hover-overlay);
 }
 
 /* The members whose whole content is a drawing are square; the members whose
@@ -596,12 +607,12 @@ body {
   font-weight: 600;
 }
 
-/* The framed members of the family take their padding from the family rule,
- * which the `.indicator` padding would otherwise overrule by coming later in
- * the sheet at the same specificity. Written as an exclusion rather than by
- * moving either rule: the family rule also carries `color`, and moving it below
- * would have it overrule the accent `.spellcheck-on` gives its own button. */
-.indicator:not(.header-edge-button) {
+/* Whatever wears the box takes the box's padding, which the `.indicator` one
+ * would otherwise overrule by coming later in the sheet at the same
+ * specificity. Written as an exclusion rather than by moving either rule: the
+ * button rule also carries `color`, and moving it below would have it overrule
+ * the accent `.spellcheck-on` gives its own button. */
+.indicator:not(.header-frame) {
   padding: 2px 0;
 }
 
@@ -2289,14 +2300,12 @@ button.indicator-search[aria-expanded="true"],
   font-size: 12px;
 }
 
-/* «Metadata» is a span and stays the quiet chip R-C12 describes; «Images» is a
- * button and takes the family frame, which is the reading rule the bar gained
- * with #332 — outlined means it can be pressed. */
+/* «Metadata» is a span, so it is a readout and carries the background; «Images»
+ * is a button, so it carries the outline. Both wear the same box: the pill the
+ * badges used to be is gone, because a shape of its own was a third thing to
+ * read in a bar that now says what it means with two. */
 span.document-badge {
   cursor: help;
-  background: var(--hover-overlay);
-  border-radius: 10px;
-  padding: 2px 8px;
 }
 
 button.document-badge {

@@ -180,28 +180,45 @@ describe('one rule gives every button in the bar its form', () => {
     expect(icons.map(({ svg }) => weight(svg))).toEqual(['2', '2', 'currentColor', '2']);
   });
 
-  it('frames the run of counts as one readout, wearing the same outline', () => {
-    // Owner request on #332, after the second artifact: one frame around the
-    // three counts, the height of the buttons and the same line. It is the same
-    // declarations rather than a second set of numbers, which is what keeps the
-    // two the same shape when either moves.
+  it('tells a readout from a button by how the box is filled, not by the box', () => {
+    // Owner decision on the third artifact, and it replaced an earlier head in
+    // which the readout was outlined too: an outline means it can be pressed, a
+    // background means it cannot. So the box is shared and the fill is what
+    // differs — which is the half a reader sees.
     const readout = element('count-readout');
+    const badge = element('badge-metadata');
     const button = element('spellcheck-toggle');
-    for (const property of ['border', 'border-radius', 'height', 'padding', 'display']) {
-      expect(valuesReaching(atEveryWidth, readout, property).at(-1), property).toBe(
-        valuesReaching(atEveryWidth, button, property).at(-1),
-      );
+    const box = (el: Element, property: string) =>
+      valuesReaching(atEveryWidth, el, property).at(-1);
+
+    for (const property of ['height', 'border-radius', 'padding', 'display', 'align-items']) {
+      expect(box(readout, property), `readout / ${property}`).toBe(box(button, property));
+      expect(box(badge, property), `badge / ${property}`).toBe(box(button, property));
     }
-    // It wears the outline and nothing else: it cannot be pressed, so it takes
-    // no pointer, no hover and no tab stop. That is the other half of the
-    // reading rule the frame carries.
-    expect(readout.tagName.toLowerCase()).toBe('div');
-    expect(readout.className).toBe('header-frame');
-    expect(valuesReaching(atEveryWidth, readout, 'cursor')).toEqual([]);
-    const hovered = rules
-      .filter((rule) => rule.selector.includes(':hover'))
-      .some((rule) => reaches(rule.selector.replaceAll(':hover', ''), readout));
-    expect(hovered).toBe(false);
+
+    // The fill, which is the whole of the difference.
+    for (const el of [readout, badge]) {
+      expect(box(el, 'background'), 'a readout is filled').toBe('var(--hover-overlay)');
+      expect(box(el, 'border'), 'a readout is not outlined').toBeUndefined();
+    }
+    expect(box(button, 'border')).toBe('1px solid var(--border)');
+    expect(box(button, 'background')).toBe('none');
+  });
+
+  it('gives a readout nothing that says it can be pressed', () => {
+    for (const id of ['count-readout', 'badge-metadata']) {
+      const el = element(id);
+      expect(el.tagName.toLowerCase(), id).not.toBe('button');
+      expect(el.className, id).not.toMatch(/header-edge-button/);
+      expect(el.getAttribute('tabindex'), id).toBeNull();
+      const hovered = rules
+        .filter((rule) => rule.selector.includes(':hover'))
+        .some((rule) => reaches(rule.selector.replaceAll(':hover', ''), el));
+      expect(hovered, id).toBe(false);
+    }
+    // `cursor: help` on the badge is the one exception and it is deliberate:
+    // the badge says what it is on hover and has said so since R-C12.
+    expect(valuesReaching(atEveryWidth, element('count-readout'), 'cursor')).toEqual([]);
   });
 
   it('keeps the counts themselves spans, inside that frame', () => {
