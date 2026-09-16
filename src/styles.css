@@ -273,18 +273,61 @@ body {
   gap: 6px;
 }
 
-#menu-toggle {
+/* ── The two buttons at the ends of the header ──
+ *
+ * The hamburger on the left and the Appearance trigger on the right are one
+ * pair, and since #330 one rule sizes both. Both boxes are declared here and
+ * both symbols are drawn as inline SVG, so neither depends on a font.
+ *
+ * **Why that matters, measured rather than reasoned.** The hamburger used to
+ * hold a `U+2630` character, and a button that declares no `font-family` does
+ * not inherit the page's: its height was the line box of whatever font the
+ * platform hands a form control at 18px. That is Arial in Chromium on Linux,
+ * where the same character measured 21, 24, 25 or 26 px of line box across the
+ * fonts available; it is something else in the WebView2 this ships on, and
+ * something else again in the WebKit the other two targets draw with. A second
+ * box matched by hand against one of those is a pair on one machine and not on
+ * the others — which is exactly what happened: the two measured equal here and
+ * arrived visibly unequal on Windows.
+ *
+ * **31px keeps the header at the 44px it has always been**: 31 plus the
+ * menubar's 6px of padding above and below plus its 1px border. */
+.header-edge-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 31px;
+  height: 31px;
+  flex-shrink: 0;
+  padding: 0;
   background: none;
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 4px 10px;
-  font-size: 18px;
-  cursor: pointer;
   color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  line-height: 0;
 }
 
-#menu-toggle:hover {
-  background: var(--border);
+/* Both symbols draw 14 by 14 px of ink inside the same 16px box, with the same
+ * 2px stroke, so the pair reads as one weight at both ends of the bar. */
+.header-edge-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  pointer-events: none;
+}
+
+/* One hover for the pair, and it is the bar's own overlay rather than the solid
+ * fill the hamburger carried (#330, owner decision once the two became twins).
+ * It is what the magnifier and the indicators a few centimetres away use since
+ * #312 and #324: an overlay reads as part of whichever palette the bar is drawn
+ * in, where a solid fill of `--border` read as a pressed key. Measured before
+ * it was unified: the fill was opaque in all seven palettes and the overlay 4
+ * to 6 per cent, so hovering one button and hovering its twin did visibly
+ * different things. */
+.header-edge-button:hover {
+  background: var(--hover-overlay);
 }
 
 #menu-dropdown {
@@ -2133,46 +2176,9 @@ button.indicator-search[aria-expanded="true"],
 }
 
 /* ── Appearance menu (Mode + Palette) ── */
-/* The trigger holds an inline SVG since #330, so the line box is collapsed and
- * the padding is what gives the button its size.
- *
- * **It is sized against the hamburger at the other end of the header**, which
- * the owner asked for on #330 once the first build was in his hands: two ends,
- * two buttons of one size. The hamburger is a bordered 38.1 by 31 px box whose
- * height comes from 18px of text metrics, and its three bars draw 13.25 by
- * 13.25 px of ink; this is 39 by 31 with 13 by 13 of ink — measured in Chromium
- * at 1024px in Claude Warm. The two cannot be tied to one number in the sheet:
- * one is a glyph the font sizes and the other is an icon this file sizes. So
- * the numbers are written here with what they were matched against, and the
- * hamburger is not touched — `#330` leaves the left menu alone.
- *
- * The border is `--border`, the same token the hamburger uses, so the frame
- * follows the palette as its twin does. */
-button.appearance-menu-trigger {
-  background: none;
-  border: 1px solid var(--border);
-  cursor: pointer;
-  font: inherit;
-  line-height: 0;
-  color: var(--text);
-  padding: 7px 11px;
-  border-radius: 4px;
-}
-
-/* The half-filled circle. 15px of box draws 13px of circle, which is the ink
- * the hamburger's three bars draw; the magnifier two controls away is 14px and
- * is not what this is measured against. `currentColor` on the outline and on
- * the filled half both, so the symbol takes the palette's text colour the way
- * the indicators beside it do. */
-.appearance-trigger-icon {
-  width: 15px;
-  height: 15px;
-  display: block;
-  pointer-events: none;
-}
-button.appearance-menu-trigger:hover {
-  background: var(--hover-overlay);
-}
+/* The trigger's box, its symbol and its hover all come from
+ * `.header-edge-button` and `.header-edge-icon`, which it shares with the
+ * hamburger at the other end. Nothing about the button itself is left here. */
 
 /* Hangs from the bottom of the header, its right edge on the trigger's right
  * edge. The `right` here is the resting value — the trigger is the last child

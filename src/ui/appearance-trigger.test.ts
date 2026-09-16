@@ -25,7 +25,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { ThemeManager } from '../app/theme-manager';
 import stylesCss from '../styles.css?raw';
-import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
+import { reaches, stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { popoverRight, setupAppearanceMenu } from './appearance-menu';
 
 const rules = stylesheetRules(stylesCss);
@@ -82,6 +82,27 @@ describe('the trigger carries the half-filled circle as an inline SVG', () => {
   });
 });
 
+describe('the hamburger, which this change reached to make the pair (#330)', () => {
+  it('holds an SVG hidden from the accessibility tree, and keeps its name', () => {
+    // It held `U+2630` and nothing else, so the accessible name was already
+    // `aria-label` rather than the character; with the character gone the name
+    // is the only thing left and a row says so.
+    const hamburger = element('menu-toggle');
+    const svg = hamburger.querySelector('svg') as SVGElement;
+    expect(svg.getAttribute('aria-hidden')).toBe('true');
+    expect(svg.getAttribute('stroke')).toBe('currentColor');
+    expect(hamburger.textContent?.trim()).toBe('');
+    expect(hamburger.getAttribute('aria-label')).toBe('Menu');
+    expect(hamburger.getAttribute('aria-expanded')).toBe('false');
+    expect(hamburger.getAttribute('aria-controls')).toBe('menu-dropdown');
+  });
+
+  it('is still the first control in the left-hand group', () => {
+    const group = document.querySelector('.header-left') as HTMLElement;
+    expect(group.firstElementChild?.id).toBe('menu-toggle');
+  });
+});
+
 describe('the button keeps everything about it that is not the icon', () => {
   it('keeps its tooltip and its accessible name', () => {
     const trigger = element('appearance-menu-trigger');
@@ -103,31 +124,63 @@ describe('the button keeps everything about it that is not the icon', () => {
 });
 
 describe('the stylesheet reaches what the page rendered', () => {
-  it('sizes the icon and the button against the hamburger at the other end', () => {
-    // The owner asked for one size across the two ends of the header. Nothing
-    // in the sheet can tie them: the hamburger's box comes from text metrics
-    // and this one from an icon size, so the numbers are matched by hand and
-    // the row records which they are. 15px of icon is 13px of drawn circle
-    // against the hamburger's 13.25px of drawn bars, and 7 by 11 of padding
-    // with a 1px border is 39 by 31 against its 38.1 by 31.
+  it('is sized by the same rules as the hamburger, for every property that has a size', () => {
+    // The owner asked for one size across the two ends of the header, and the
+    // first attempt matched numbers by hand against a box the font decides:
+    // equal here, visibly unequal on Windows. So the rows below assert the
+    // mechanism rather than the numbers — the two buttons are reached by the
+    // same declarations, which is what makes them equal on a platform this
+    // harness cannot see.
     const trigger = element('appearance-menu-trigger');
-    const svg = trigger.querySelector('svg') as SVGElement;
-    expect(valuesReaching(rules, svg, 'width')).toEqual(['15px']);
-    expect(valuesReaching(rules, svg, 'height')).toEqual(['15px']);
-    // The `*` reset declares `padding: 0` first and this rule is the last to
-    // reach the button, so the last value is the one that stands.
-    expect(valuesReaching(rules, trigger, 'padding').at(-1)).toBe('7px 11px');
-
-    // The frame is the hamburger's own token, so the two follow the palette
-    // together. A value of `none` here is the button unframed again.
     const hamburger = element('menu-toggle');
-    expect(valuesReaching(rules, trigger, 'border')).toEqual(['1px solid var(--border)']);
-    expect(valuesReaching(rules, trigger, 'border')).toEqual(
-      valuesReaching(rules, hamburger, 'border'),
-    );
-    expect(valuesReaching(rules, trigger, 'border-radius')).toEqual(
-      valuesReaching(rules, hamburger, 'border-radius'),
-    );
+    for (const property of [
+      'width',
+      'height',
+      'padding',
+      'border',
+      'border-radius',
+      'display',
+      'align-items',
+      'justify-content',
+      'line-height',
+    ]) {
+      expect(valuesReaching(rules, trigger, property), property).toEqual(
+        valuesReaching(rules, hamburger, property),
+      );
+    }
+    // And the size is a declared one rather than one a font arrives at.
+    expect(valuesReaching(rules, trigger, 'width').at(-1)).toBe('31px');
+    expect(valuesReaching(rules, trigger, 'height').at(-1)).toBe('31px');
+    expect(valuesReaching(rules, trigger, 'font-size')).toEqual([]);
+    expect(valuesReaching(rules, hamburger, 'font-size')).toEqual([]);
+  });
+
+  it('draws both symbols at one size, in one weight, from one rule', () => {
+    const circle = element('appearance-menu-trigger').querySelector('svg') as SVGElement;
+    const bars = element('menu-toggle').querySelector('svg') as SVGElement;
+    for (const property of ['width', 'height']) {
+      expect(valuesReaching(rules, circle, property)).toEqual(
+        valuesReaching(rules, bars, property),
+      );
+    }
+    expect(valuesReaching(rules, circle, 'width').at(-1)).toBe('16px');
+    // One viewBox and one stroke: the ink each draws is then a property of the
+    // path, which is in the page rather than in a font.
+    expect(circle.getAttribute('viewBox')).toBe(bars.getAttribute('viewBox'));
+    expect(circle.getAttribute('stroke-width')).toBe(bars.getAttribute('stroke-width'));
+  });
+
+  it('hovers the two the same way', () => {
+    const trigger = element('appearance-menu-trigger');
+    const hamburger = element('menu-toggle');
+    const hover = rules.filter((rule) => rule.selector.includes(':hover'));
+    const shadeOn = (el: Element) =>
+      hover
+        .filter((rule) => reaches(rule.selector.replaceAll(':hover', ''), el))
+        .flatMap((rule) => (rule.declarations.get('background') ?? '').trim())
+        .filter((value) => value !== '');
+    expect(shadeOn(trigger)).toEqual(['var(--hover-overlay)']);
+    expect(shadeOn(trigger)).toEqual(shadeOn(hamburger));
   });
 
   it('collapses the trigger line box, since what is inside it is no longer text', () => {
