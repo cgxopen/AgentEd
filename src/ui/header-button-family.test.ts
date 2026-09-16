@@ -180,6 +180,39 @@ describe('one rule gives every button in the bar its form', () => {
     expect(icons.map(({ svg }) => weight(svg))).toEqual(['2', '2', 'currentColor', '2']);
   });
 
+  it('frames the run of counts as one readout, wearing the same outline', () => {
+    // Owner request on #332, after the second artifact: one frame around the
+    // three counts, the height of the buttons and the same line. It is the same
+    // declarations rather than a second set of numbers, which is what keeps the
+    // two the same shape when either moves.
+    const readout = element('count-readout');
+    const button = element('spellcheck-toggle');
+    for (const property of ['border', 'border-radius', 'height', 'padding', 'display']) {
+      expect(valuesReaching(atEveryWidth, readout, property).at(-1), property).toBe(
+        valuesReaching(atEveryWidth, button, property).at(-1),
+      );
+    }
+    // It wears the outline and nothing else: it cannot be pressed, so it takes
+    // no pointer, no hover and no tab stop. That is the other half of the
+    // reading rule the frame carries.
+    expect(readout.tagName.toLowerCase()).toBe('div');
+    expect(readout.className).toBe('header-frame');
+    expect(valuesReaching(atEveryWidth, readout, 'cursor')).toEqual([]);
+    const hovered = rules
+      .filter((rule) => rule.selector.includes(':hover'))
+      .some((rule) => reaches(rule.selector.replaceAll(':hover', ''), readout));
+    expect(hovered).toBe(false);
+  });
+
+  it('keeps the counts themselves spans, inside that frame', () => {
+    for (const id of ['token-number', 'token-unit', 'word-count', 'char-count']) {
+      const el = element(id);
+      expect(el.tagName.toLowerCase(), id).toBe('span');
+      expect(el.parentElement?.id, id).toBe('count-readout');
+      expect(el.className, id).not.toMatch(/header-frame|header-edge-button/);
+    }
+  });
+
   it('leaves the spans out of the family', () => {
     // R-C12 keeps the informative chips quiet; the frame is the reading rule
     // for what can be pressed, so nothing that cannot be pressed carries it.

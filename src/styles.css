@@ -292,16 +292,32 @@ body {
  *
  * **31px keeps the header at the 44px it has always been**: 31 plus the
  * menubar's 6px of padding above and below plus its 1px border. */
-.header-edge-button {
+/* The outline itself, which is now worn by two kinds of thing: every button of
+ * the family, and the run of counts, which is one frame around the group
+ * rather than one per number (#332, owner request after the first artifact).
+ *
+ * **The reading rule the bar gained says outlined means it can be pressed**,
+ * and a frame around the counts spends some of that. What keeps it legible is
+ * that it is one long box around three numbers rather than three boxes: a
+ * readout, which is what the counts are. The alternative, a lighter border for
+ * the readout, is one token away and is the way back if it reads as a control
+ * on the artifact. */
+.header-frame {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   height: 31px;
   flex-shrink: 0;
   padding: 0 9px;
-  background: none;
   border: 1px solid var(--border);
   border-radius: 4px;
+}
+
+/* What a button adds to the outline: it is pressable, it takes the text colour
+ * and it reacts to the pointer. */
+.header-edge-button {
+  background: none;
   color: var(--text);
   cursor: pointer;
   font: inherit;

@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { isOfferedInOverflow } from '../app/header-wiring';
 import { createEditor, type EditorInstance } from '../editor/setup';
+import { shippedElement } from '../test-support/shipped-markup';
 import {
   anyImageIn,
   type DocumentBadges,
@@ -38,12 +39,7 @@ vi.mock('./toast', () => ({ showToast: vi.fn() }));
  * still fails loudly if the row is renamed or removed.
  */
 function mountShippedRow(): void {
-  const start = shippedPage.indexOf('<div id="header-indicators">');
-  const end = shippedPage.indexOf('</div>', start);
-  if (start === -1 || end === -1) {
-    throw new Error('index.html no longer has a #header-indicators block');
-  }
-  document.body.innerHTML = shippedPage.slice(start, end + '</div>'.length);
+  document.body.innerHTML = shippedElement(shippedPage, '<div id="header-indicators">');
 }
 
 /**
