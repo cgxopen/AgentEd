@@ -29,6 +29,7 @@ import shippedPage from '../../index.html?raw';
 import { clearImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
+import { shippedElement } from '../test-support/shipped-markup';
 import { setupDocumentBadges } from '../ui/document-badges';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
 import type { AppContext } from './context';
@@ -98,15 +99,9 @@ interface Rig {
 
 /** The shipped indicator row and the shipped metadata panel. */
 function mountShippedChrome(): void {
-  const slice = (openTag: string, closeTag: string): string => {
-    const start = shippedPage.indexOf(openTag);
-    const end = shippedPage.indexOf(closeTag, start);
-    if (start === -1 || end === -1) throw new Error(`index.html no longer has ${openTag}`);
-    return shippedPage.slice(start, end + closeTag.length);
-  };
   document.body.innerHTML =
-    slice('<div id="header-indicators">', '</div>') +
-    slice('<details id="frontmatter-panel"', '</details>');
+    shippedElement(shippedPage, '<div id="header-indicators">') +
+    shippedElement(shippedPage, '<details id="frontmatter-panel"');
 }
 
 function rig(): Rig {

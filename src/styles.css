@@ -292,20 +292,57 @@ body {
  *
  * **31px keeps the header at the 44px it has always been**: 31 plus the
  * menubar's 6px of padding above and below plus its 1px border. */
-.header-edge-button {
+/* ── The two kinds of thing in the bar, and how a reader tells them apart ──
+ *
+ * Everything in the bar that is more than bare text wears the same box: one
+ * height, one radius, one padding. **What says which kind it is, is how that
+ * box is filled** (#332, owner decision on the third artifact):
+ *
+ * - **an outline means it can be pressed** — every button of the family;
+ * - **a background means it cannot** — the run of counts, and the «Metadata»
+ *   badge, which are readouts.
+ *
+ * The rule is worth more than either half of it. An earlier head gave the
+ * readout an outline too, on the reading that one long box around three numbers
+ * is a readout rather than a control; the owner looked at it on the artifact
+ * and took this instead, which does not ask the reader to tell a long frame
+ * from a short one. R-C12 wanted the badges quiet, and a background is quieter
+ * than a line. */
+.header-frame {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 31px;
+  gap: 6px;
   height: 31px;
   flex-shrink: 0;
-  padding: 0;
+  padding: 0 9px;
+  border-radius: 4px;
+}
+
+/* Outlined: a button. */
+.header-edge-button {
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
   color: var(--text);
   cursor: pointer;
   font: inherit;
+  line-height: 1;
+}
+
+/* Filled: a readout. No border, no pointer, no hover, no tab stop — the
+ * background is the whole of what it says about itself. */
+.header-readout {
+  background: var(--hover-overlay);
+}
+
+/* The members whose whole content is a drawing are square; the members whose
+ * label carries information — a count, a state — are as wide as that label.
+ * One box rule with one modifier rather than two rules: everything that makes
+ * the form a form lives above, and what is below is the width a symbol needs
+ * and a word does not. */
+.header-edge-button--icon {
+  width: 31px;
+  padding: 0;
   line-height: 0;
 }
 
@@ -327,7 +364,7 @@ body {
  * to 6 per cent, so hovering one button and hovering its twin did visibly
  * different things. */
 .header-edge-button:hover {
-  background: var(--hover-overlay);
+  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
 }
 
 #menu-dropdown {
@@ -547,24 +584,36 @@ body {
 }
 
 /* ── Header indicators (replaces statusbar) ── */
+/* No padding of its own: the group is a run of items in a row whose gap is the
+ * distance between them, and a padding here is a second distance that applies
+ * to one pair only — the last item inside against the first one outside. It
+ * measured 14px against the 6px of every other pair, and it moved as the bar
+ * filled, since which item is last depends on what the document has (#332). */
 #header-indicators {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  padding-right: 8px;
 }
 
 .indicator {
   color: var(--text);
   white-space: nowrap;
-  padding: 2px 0;
   /* Tabular nums on the whole indicator so digits don't shift labels */
   font-variant-numeric: tabular-nums;
 }
 
 .indicator-primary {
   font-weight: 600;
+}
+
+/* Whatever wears the box takes the box's padding, which the `.indicator` one
+ * would otherwise overrule by coming later in the sheet at the same
+ * specificity. Written as an exclusion rather than by moving either rule: the
+ * button rule also carries `color`, and moving it below would have it overrule
+ * the accent `.spellcheck-on` gives its own button. */
+.indicator:not(.header-frame) {
+  padding: 2px 0;
 }
 
 /* Word / character counts sit next to the token count (R-C12). Muted so the
@@ -587,12 +636,6 @@ body {
    button-styled so it's clearly clickable. The off / on classes drive
    the opacity contrast: dimmed when disabled, full strength when on. */
 button.spellcheck-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  padding: 2px 4px;
-  border-radius: 4px;
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
@@ -603,27 +646,16 @@ button.spellcheck-toggle.spellcheck-on {
   opacity: 1;
   color: var(--accent);
 }
-button.spellcheck-toggle:hover {
-  background: var(--hover-overlay);
-}
-
 /* Header search button — lupă icon, sized to the surrounding indicator
    baseline. Hover mirrors spellcheck-toggle. */
 button.indicator-search {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
   color: var(--muted);
-  line-height: 0;
 }
 /* The hover shade is an image rather than a colour so that it stacks on the
  * pressed shade below instead of replacing it: under the pointer, a press
  * that opens or closes the panel still changes what the button shows. */
 button.indicator-search:hover {
   color: var(--text);
-  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
 }
 
 /* Lit while the search panel is open (#312), so the button says that the next
@@ -649,15 +681,11 @@ button.indicator-search[aria-expanded="true"],
 }
 
 .indicator-overflow {
-  background: none;
-  border: none;
   color: var(--muted);
   cursor: help;
-  padding: 2px 4px;
   font-family: inherit;
   font-size: inherit;
   letter-spacing: 1px;
-  line-height: 1;
 }
 
 .indicator-overflow:hover {
@@ -906,13 +934,6 @@ button.indicator-search[aria-expanded="true"],
 .tiptap .search-result-current {
   background: rgba(250, 204, 21, 0.7);
   outline: 1px solid rgba(202, 138, 4, 0.9);
-}
-
-.indicator-search-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-  pointer-events: none;
 }
 
 .tiptap {
@@ -2275,14 +2296,14 @@ button.indicator-search[aria-expanded="true"],
  */
 .document-badge {
   color: var(--muted);
-  background: var(--hover-overlay);
-  border: none;
-  border-radius: 10px;
-  padding: 2px 8px;
   font: inherit;
   font-size: 12px;
 }
 
+/* «Metadata» is a span, so it is a readout and carries the background; «Images»
+ * is a button, so it carries the outline. Both wear the same box: the pill the
+ * badges used to be is gone, because a shape of its own was a third thing to
+ * read in a bar that now says what it means with two. */
 span.document-badge {
   cursor: help;
 }
@@ -2303,17 +2324,8 @@ button.document-badge:hover {
 }
 
 button.cluster-indicator {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
   color: var(--text);
-  padding: 2px 8px;
-  border-radius: 4px;
   font-weight: 500;
-}
-button.cluster-indicator:hover {
-  background: var(--hover-overlay);
 }
 
 .cluster-popover {

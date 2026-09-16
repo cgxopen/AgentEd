@@ -15,7 +15,7 @@
     <div id="app">
       <header id="menubar">
         <div class="header-left">
-          <button id="menu-toggle" class="header-edge-button" aria-label="Menu" aria-expanded="false" aria-controls="menu-dropdown">
+          <button id="menu-toggle" class="header-frame header-edge-button header-edge-button--icon" aria-label="Menu" aria-expanded="false" aria-controls="menu-dropdown">
             <svg class="header-edge-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
               <path d="M2 2h12" />
               <path d="M2 8h12" />
@@ -27,23 +27,31 @@
         </div>
         <div class="header-right">
           <div id="header-indicators">
-            <span id="token-number" class="indicator indicator-primary" title="– tokens">–</span>
-            <span id="token-unit" class="indicator indicator-collapse-600">tokens</span>
-            <span id="word-count" class="indicator indicator-secondary indicator-collapse-800">– words</span>
-            <span id="char-count" class="indicator indicator-secondary indicator-collapse-1000">– characters</span>
-            <button id="spellcheck-toggle" type="button" class="indicator spellcheck-toggle spellcheck-off" title="Click to enable spell-check for this session">Spell: off</button>
-            <button id="indicator-search" type="button" class="indicator indicator-search indicator-collapse-800" title="Find (Ctrl+F)" aria-label="Find" aria-expanded="false" aria-controls="search-panel">
-              <svg class="indicator-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="7" cy="7" r="4.5" />
-                <path d="m13.5 13.5-3.2-3.2" />
+            <div id="count-readout" class="header-frame header-readout">
+              <span id="token-number" class="indicator indicator-primary" title="– tokens">–</span>
+              <span id="token-unit" class="indicator indicator-collapse-600">tokens</span>
+              <span id="word-count" class="indicator indicator-secondary indicator-collapse-800">– words</span>
+              <span id="char-count" class="indicator indicator-secondary indicator-collapse-1000">– characters</span>
+            </div>
+            <button id="spellcheck-toggle" type="button" class="indicator header-frame header-edge-button spellcheck-toggle spellcheck-off" title="Click to enable spell-check for this session">Spell: off</button>
+            <button id="indicator-search" type="button" class="indicator header-frame header-edge-button header-edge-button--icon indicator-search indicator-collapse-800" title="Find (Ctrl+F)" aria-label="Find" aria-expanded="false" aria-controls="search-panel">
+              <svg class="header-edge-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="6.5" cy="6.5" r="4.5" />
+                <path d="M10 10 14 14" />
               </svg>
             </button>
-            <span id="badge-metadata" class="indicator document-badge indicator-collapse-600" style="display:none" aria-hidden="true"></span>
-            <button id="badge-images" type="button" class="indicator document-badge indicator-collapse-600" style="display:none" aria-hidden="true" aria-expanded="false" aria-controls="assets-popover"></button>
-            <button id="cluster-indicator" type="button" class="indicator cluster-indicator indicator-collapse-600" style="display:none" aria-hidden="true" aria-expanded="false" aria-controls="cluster-popover"></button>
+            <span id="badge-metadata" class="indicator header-frame header-readout document-badge indicator-collapse-600" style="display:none" aria-hidden="true"></span>
+            <button id="badge-images" type="button" class="indicator header-frame header-edge-button document-badge indicator-collapse-600" style="display:none" aria-hidden="true" aria-expanded="false" aria-controls="assets-popover"></button>
+            <button id="cluster-indicator" type="button" class="indicator header-frame header-edge-button cluster-indicator indicator-collapse-600" style="display:none" aria-hidden="true" aria-expanded="false" aria-controls="cluster-popover"></button>
           </div>
-          <button id="overflow-toggle" class="indicator-overflow" aria-label="More indicators" aria-expanded="false" aria-controls="overflow-popover" title="Hover any indicator for details">...</button>
-          <button id="appearance-menu-trigger" type="button" class="header-edge-button appearance-menu-trigger" aria-label="Appearance settings" aria-expanded="false" aria-controls="appearance-popover" title="Appearance">
+          <button id="overflow-toggle" class="indicator-overflow header-frame header-edge-button header-edge-button--icon" aria-label="More indicators" aria-expanded="false" aria-controls="overflow-popover" title="Hover any indicator for details">
+            <svg class="header-edge-icon" viewBox="0 0 16 16" fill="currentColor" stroke="none" aria-hidden="true">
+              <circle cx="2.5" cy="8" r="1.5" />
+              <circle cx="8" cy="8" r="1.5" />
+              <circle cx="13.5" cy="8" r="1.5" />
+            </svg>
+          </button>
+          <button id="appearance-menu-trigger" type="button" class="header-frame header-edge-button header-edge-button--icon appearance-menu-trigger" aria-label="Appearance settings" aria-expanded="false" aria-controls="appearance-popover" title="Appearance">
             <svg class="header-edge-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="8" cy="8" r="6" />
               <path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" />
