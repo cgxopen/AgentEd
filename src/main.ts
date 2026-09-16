@@ -20,11 +20,12 @@ import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
+import { followPaletteWithTheWindow } from './app/window-appearance';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockRoutes } from './editor/insert-code-block';
 import { createEditor } from './editor/setup';
-import { getPlatformIO, requestFolderAccess } from './platform/index';
+import { applyWindowAppearance, getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
@@ -306,6 +307,14 @@ setupMenu(
 // ThemeManager — it reads + writes the manager, which owns
 // persistence and applies the theme to the document.
 ctx.appearanceMenu = setupAppearanceMenu(themeManager);
+
+// The window frame takes the palette's own surface colour where the platform
+// has a frame of its own to paint (#326). Through `src/platform`, which is
+// where every OS call lives; on the web and on a Windows without the
+// mechanism this asks for something nobody does, silently.
+followPaletteWithTheWindow(themeManager, (appearance) => {
+  void applyWindowAppearance(appearance);
+});
 
 setupKeyboard({
   onSave: () => {

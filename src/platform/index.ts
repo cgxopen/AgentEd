@@ -1,7 +1,7 @@
 import { isTauri } from './detect';
-import type { PlatformIO } from './types';
+import type { PlatformIO, WindowAppearance } from './types';
 
-export type { FileEntry, FileResult, PlatformIO } from './types';
+export type { FileEntry, FileResult, PlatformIO, WindowAppearance } from './types';
 
 let _io: PlatformIO | null = null;
 
@@ -59,4 +59,22 @@ export async function requestFolderAccess(): Promise<boolean> {
   const grantable = io as Partial<{ requestFolderAccess(): Promise<boolean> }>;
   if (typeof grantable.requestFolderAccess !== 'function') return false;
   return await grantable.requestFolderAccess();
+}
+
+/**
+ * Ask the host window to take the appearance the palette describes (#326).
+ *
+ * **A function here rather than a member on `PlatformIO`**, for the reason
+ * `requestFolderAccess` above is one: a window frame is a capability one target
+ * has, and an interface every target implements is where that went wrong twice.
+ *
+ * **Nothing anywhere branches on whether it worked.** A browser tab has no
+ * frame; a Windows without the mechanism keeps the system default; both are the
+ * documented fallback rather than a failure, so this answers `void` and never
+ * rejects.
+ */
+export async function applyWindowAppearance(appearance: WindowAppearance): Promise<void> {
+  if (!isTauri) return;
+  const { applyWindowAppearance: apply } = await import('./tauri');
+  await apply(appearance);
 }
