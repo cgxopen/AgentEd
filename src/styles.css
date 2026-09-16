@@ -296,16 +296,26 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 31px;
   height: 31px;
   flex-shrink: 0;
-  padding: 0;
+  padding: 0 9px;
   background: none;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
   cursor: pointer;
   font: inherit;
+  line-height: 1;
+}
+
+/* The members whose whole content is a drawing are square; the members whose
+ * label carries information — a count, a state — are as wide as that label.
+ * One box rule with one modifier rather than two rules: everything that makes
+ * the form a form lives above, and what is below is the width a symbol needs
+ * and a word does not. */
+.header-edge-button--icon {
+  width: 31px;
+  padding: 0;
   line-height: 0;
 }
 
@@ -327,7 +337,7 @@ body {
  * to 6 per cent, so hovering one button and hovering its twin did visibly
  * different things. */
 .header-edge-button:hover {
-  background: var(--hover-overlay);
+  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
 }
 
 #menu-dropdown {
@@ -558,13 +568,21 @@ body {
 .indicator {
   color: var(--text);
   white-space: nowrap;
-  padding: 2px 0;
   /* Tabular nums on the whole indicator so digits don't shift labels */
   font-variant-numeric: tabular-nums;
 }
 
 .indicator-primary {
   font-weight: 600;
+}
+
+/* The framed members of the family take their padding from the family rule,
+ * which the `.indicator` padding would otherwise overrule by coming later in
+ * the sheet at the same specificity. Written as an exclusion rather than by
+ * moving either rule: the family rule also carries `color`, and moving it below
+ * would have it overrule the accent `.spellcheck-on` gives its own button. */
+.indicator:not(.header-edge-button) {
+  padding: 2px 0;
 }
 
 /* Word / character counts sit next to the token count (R-C12). Muted so the
@@ -587,12 +605,6 @@ body {
    button-styled so it's clearly clickable. The off / on classes drive
    the opacity contrast: dimmed when disabled, full strength when on. */
 button.spellcheck-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  padding: 2px 4px;
-  border-radius: 4px;
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
@@ -603,27 +615,16 @@ button.spellcheck-toggle.spellcheck-on {
   opacity: 1;
   color: var(--accent);
 }
-button.spellcheck-toggle:hover {
-  background: var(--hover-overlay);
-}
-
 /* Header search button — lupă icon, sized to the surrounding indicator
    baseline. Hover mirrors spellcheck-toggle. */
 button.indicator-search {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
   color: var(--muted);
-  line-height: 0;
 }
 /* The hover shade is an image rather than a colour so that it stacks on the
  * pressed shade below instead of replacing it: under the pointer, a press
  * that opens or closes the panel still changes what the button shows. */
 button.indicator-search:hover {
   color: var(--text);
-  background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
 }
 
 /* Lit while the search panel is open (#312), so the button says that the next
@@ -649,15 +650,11 @@ button.indicator-search[aria-expanded="true"],
 }
 
 .indicator-overflow {
-  background: none;
-  border: none;
   color: var(--muted);
   cursor: help;
-  padding: 2px 4px;
   font-family: inherit;
   font-size: inherit;
   letter-spacing: 1px;
-  line-height: 1;
 }
 
 .indicator-overflow:hover {
@@ -2275,16 +2272,18 @@ button.indicator-search[aria-expanded="true"],
  */
 .document-badge {
   color: var(--muted);
-  background: var(--hover-overlay);
-  border: none;
-  border-radius: 10px;
-  padding: 2px 8px;
   font: inherit;
   font-size: 12px;
 }
 
+/* «Metadata» is a span and stays the quiet chip R-C12 describes; «Images» is a
+ * button and takes the family frame, which is the reading rule the bar gained
+ * with #332 — outlined means it can be pressed. */
 span.document-badge {
   cursor: help;
+  background: var(--hover-overlay);
+  border-radius: 10px;
+  padding: 2px 8px;
 }
 
 button.document-badge {
@@ -2303,17 +2302,8 @@ button.document-badge:hover {
 }
 
 button.cluster-indicator {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
   color: var(--text);
-  padding: 2px 8px;
-  border-radius: 4px;
   font-weight: 500;
-}
-button.cluster-indicator:hover {
-  background: var(--hover-overlay);
 }
 
 .cluster-popover {

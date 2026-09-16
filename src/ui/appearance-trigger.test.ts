@@ -177,15 +177,27 @@ describe('the stylesheet reaches what the page rendered', () => {
     const shadeOn = (el: Element) =>
       hover
         .filter((rule) => reaches(rule.selector.replaceAll(':hover', ''), el))
-        .flatMap((rule) => (rule.declarations.get('background') ?? '').trim())
-        .filter((value) => value !== '');
-    expect(shadeOn(trigger)).toEqual(['var(--hover-overlay)']);
+        .flatMap((rule) =>
+          [rule.declarations.get('background'), rule.declarations.get('background-image')]
+            .filter((value) => value !== undefined)
+            .map((value) => (value as string).trim()),
+        );
+    // An image rather than a colour since #332: the family grew members that
+    // carry a background colour of their own while they are lit, and an image
+    // stacks on that where a colour would replace it — the property the
+    // magnifier had alone before the family had it.
+    expect(shadeOn(trigger)).toEqual([
+      'linear-gradient(var(--hover-overlay), var(--hover-overlay))',
+    ]);
     expect(shadeOn(trigger)).toEqual(shadeOn(hamburger));
   });
 
   it('collapses the trigger line box, since what is inside it is no longer text', () => {
+    // Two values reach it since #332 gave the family members that keep a label
+    // a line box to put it in: `1` from the base rule and `0` from the modifier
+    // the drawing-only members carry. The last one is the one that stands.
     const trigger = element('appearance-menu-trigger');
-    expect(valuesReaching(rules, trigger, 'line-height')).toEqual(['0']);
+    expect(valuesReaching(rules, trigger, 'line-height').at(-1)).toBe('0');
     expect(valuesReaching(rules, trigger, 'font-size')).toEqual([]);
   });
 
