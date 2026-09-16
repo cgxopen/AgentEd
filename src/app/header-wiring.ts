@@ -54,22 +54,29 @@ export function wireHeaderIndicators(ctx: AppContext, _docActions: DocumentActio
 
 /**
  * The magnifier is a toggle (#312): it opens the panel when it is closed and
- * closes it when it is open, and `aria-pressed` says which while the panel is
- * open, so the next press is not a guess. `Ctrl+F` keeps `openFind`, which
- * returns to the find field; the two are different commands on purpose.
+ * closes it when it is open, and it says which while the panel is open, so the
+ * next press is not a guess. `Ctrl+F` keeps `openFind`, which returns to the
+ * find field; the two are different commands on purpose.
  *
- * The pressed state follows the panel rather than the button, so Escape, the
- * close cross, `Ctrl+F` and the Edit menu all move it too. Below the collapse
- * breakpoint the overflow menu holds the only copy of this button a pointer
- * can reach, and that copy is drawn when the menu opens; it is drawn again
- * here when the state changes under an open menu.
+ * **It says it with `aria-expanded`, naming the panel** (#324). It shipped with
+ * `aria-pressed`, taken from the option toggles a few centimetres away inside
+ * the search panel; the controls that do what this one does — the Images badge,
+ * the cluster indicator, the overflow menu — are in this same bar and each says
+ * `aria-expanded` with `aria-controls`. This button reveals a surface rather
+ * than switching an option on, so it now says the same thing they do.
+ *
+ * The state follows the panel rather than the button, so Escape, the close
+ * cross, `Ctrl+F` and the Edit menu all move it too. Below the collapse
+ * breakpoint the overflow menu holds the only copy of this button a pointer can
+ * reach, and that copy is drawn when the menu opens; it is drawn again here
+ * when the state changes under an open menu.
  */
 export function wireSearchButton(searchManager: SearchManager): void {
   const button = document.getElementById('indicator-search')!;
-  button.setAttribute('aria-pressed', String(searchManager.isOpen()));
+  button.setAttribute('aria-expanded', String(searchManager.isOpen()));
   button.addEventListener('click', () => searchManager.toggleFind());
   searchManager.onOpenChange((open) => {
-    button.setAttribute('aria-pressed', String(open));
+    button.setAttribute('aria-expanded', String(open));
     const popover = document.getElementById('overflow-popover');
     if (popover && !popover.classList.contains('hidden')) renderOverflowPopover(popover);
   });
@@ -135,10 +142,13 @@ export function isOfferedInOverflow(ind: HTMLElement): boolean {
  * `textContent` was whitespace: measured in Chromium on `059ade0` at 700 px, a
  * strip 94 by 4 px with a tooltip and nothing to see (#312).
  *
- * **It carries `aria-pressed` when the indicator does**, so a toggle below the
- * breakpoint says what the next press will do, as it does in the bar. The copy
- * is drawn when the menu opens and does not follow the indicator afterwards;
- * whoever changes a pressed state under an open menu draws it again.
+ * **It carries whichever state attribute the indicator carries**, so a control
+ * below the breakpoint says what the next press will do, as it does in the bar.
+ * `aria-expanded` is what the magnifier and the two popover indicators say, and
+ * `aria-pressed` is kept here because a copy that dropped it would be the #312
+ * defect again the day an indicator is spelled that way. The copy is drawn when
+ * the menu opens and does not follow the indicator afterwards; whoever changes
+ * a state under an open menu draws it again.
  *
  * Exported for its test.
  */
@@ -148,8 +158,10 @@ export function overflowClone(ind: HTMLElement): HTMLElement {
   const text = ind.textContent ?? '';
   clone.textContent = text.trim() !== '' ? text : (ind.getAttribute('aria-label') ?? '');
   clone.title = ind.title;
-  const pressed = ind.getAttribute('aria-pressed');
-  if (pressed !== null) clone.setAttribute('aria-pressed', pressed);
+  for (const attribute of ['aria-expanded', 'aria-pressed']) {
+    const state = ind.getAttribute(attribute);
+    if (state !== null) clone.setAttribute(attribute, state);
+  }
   clone.addEventListener('click', () => ind.click());
   return clone;
 }

@@ -580,16 +580,20 @@ button.indicator-search:hover {
 /* Lit while the search panel is open (#312), so the button says that the next
  * press closes it. An overlay rather than the accent the panel's own option
  * toggles use: this is a place in the bar, not an option switched on, and the
- * overlay reads as part of whichever palette the bar is drawn in. */
-button.indicator-search[aria-pressed="true"],
-#overflow-popover .indicator[aria-pressed="true"] {
+ * overlay reads as part of whichever palette the bar is drawn in.
+ *
+ * The state is read from `aria-expanded` since #324, which is what this button
+ * and the other two indicators that reveal a surface now say. The shade itself
+ * is unchanged, so what moved is which attribute lights it. */
+button.indicator-search[aria-expanded="true"],
+#overflow-popover .indicator[aria-expanded="true"] {
   color: var(--text);
   background-color: var(--hover-overlay-strong);
 }
 
 /* The copy in the overflow menu has no side padding of its own, so the shade
  * is given some and the text is kept where the other entries' text is. */
-#overflow-popover .indicator[aria-pressed="true"] {
+#overflow-popover .indicator[aria-expanded="true"] {
   border-radius: 4px;
   margin-inline: -4px;
   padding-inline: 4px;
