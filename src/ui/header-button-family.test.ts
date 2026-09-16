@@ -125,6 +125,61 @@ describe('one rule gives every button in the bar its form', () => {
     }
   });
 
+  it('gives the bar one distance, so no pair of neighbours sits further apart', () => {
+    // The owner found this on the artifact and it measured 14px against the 6px
+    // of every other pair: `#header-indicators` carried a `padding-right` of
+    // its own, which is a second distance applying to exactly one pair — the
+    // last item inside the group against the first one outside it. Which item
+    // is last depends on what the document has, so the wide pair moved as the
+    // bar filled. The row asserts the cause rather than the gap, since the
+    // harness performs no layout: one `gap` on both rows of the bar, and no
+    // padding on either container to add to it.
+    const containers = ['.header-right', '#header-indicators'];
+    const gaps = containers.map((selector) => {
+      const el = document.querySelector(selector) as HTMLElement;
+      return valuesReaching(atEveryWidth, el, 'gap').at(-1);
+    });
+    expect(gaps).toEqual(['6px', '6px']);
+    for (const selector of containers) {
+      const el = document.querySelector(selector) as HTMLElement;
+      for (const property of ['padding', 'padding-right', 'padding-left', 'margin-right']) {
+        const value = valuesReaching(atEveryWidth, el, property).at(-1);
+        expect(value === undefined || value === '0', `${selector} / ${property}`).toBe(true);
+      }
+    }
+  });
+
+  it('draws every symbol in the family at one size and one weight', () => {
+    // The magnifier was 14px of box against the 16px the others use, and drew
+    // 11 by 11.25 px of ink against their 14 by 14 — a square button holding a
+    // drawing a fifth smaller, which is what the owner saw as *not quite
+    // square*. What is assertable here is the geometry the ink comes from: one
+    // icon rule, one viewBox and one stroke. The ink itself was measured in
+    // Chromium and is on the issue.
+    const icons = SQUARE.map((id) => {
+      const svg = element(id).querySelector('svg');
+      if (!svg) throw new Error(`${id} holds no drawing`);
+      return { id, svg };
+    });
+    for (const { id, svg } of icons) {
+      expect(svg.getAttribute('class'), id).toBe('header-edge-icon');
+      expect(svg.getAttribute('viewBox'), id).toBe('0 0 16 16');
+      expect(svg.getAttribute('aria-hidden'), id).toBe('true');
+      for (const property of ['width', 'height']) {
+        expect(valuesReaching(atEveryWidth, svg, property).at(-1), `${id} / ${property}`).toBe(
+          '16px',
+        );
+      }
+    }
+    // The dots are filled and the other three are stroked, so the weight that
+    // has to agree is the weight of whatever each one draws with.
+    const weight = (svg: Element) =>
+      svg.getAttribute('stroke') === 'none'
+        ? svg.getAttribute('fill')
+        : svg.getAttribute('stroke-width');
+    expect(icons.map(({ svg }) => weight(svg))).toEqual(['2', '2', 'currentColor', '2']);
+  });
+
   it('leaves the spans out of the family', () => {
     // R-C12 keeps the informative chips quiet; the frame is the reading rule
     // for what can be pressed, so nothing that cannot be pressed carries it.

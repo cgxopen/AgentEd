@@ -557,12 +557,16 @@ body {
 }
 
 /* ── Header indicators (replaces statusbar) ── */
+/* No padding of its own: the group is a run of items in a row whose gap is the
+ * distance between them, and a padding here is a second distance that applies
+ * to one pair only — the last item inside against the first one outside. It
+ * measured 14px against the 6px of every other pair, and it moved as the bar
+ * filled, since which item is last depends on what the document has (#332). */
 #header-indicators {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  padding-right: 8px;
 }
 
 .indicator {
@@ -903,13 +907,6 @@ button.indicator-search[aria-expanded="true"],
 .tiptap .search-result-current {
   background: rgba(250, 204, 21, 0.7);
   outline: 1px solid rgba(202, 138, 4, 0.9);
-}
-
-.indicator-search-icon {
-  width: 14px;
-  height: 14px;
-  display: block;
-  pointer-events: none;
 }
 
 .tiptap {
