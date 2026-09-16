@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import {
@@ -20,6 +21,7 @@ import type {
   FileSnapshot,
   PickedFile,
   PlatformIO,
+  WindowAppearance,
 } from './types';
 
 export class TauriIO implements PlatformIO {
@@ -191,5 +193,30 @@ export class TauriIO implements PlatformIO {
 
   async openWithSystem(path: string): Promise<void> {
     await shellOpen(path);
+  }
+}
+
+/**
+ * Hands the colour to the Rust side, which sets it on the window frame where
+ * the operating system has that mechanism and does nothing where it has not
+ * (#326).
+ *
+ * **A module function rather than a member on `PlatformIO`**, which is the
+ * shape the owner chose on 2026-08-30 for `requestFolderAccess`: a capability
+ * only one target has does not belong in an interface every target implements.
+ *
+ * **The failure is swallowed here, and this is the only place it can be**:
+ * `invoke` rejects when the command is missing or the window has gone, and
+ * both of those mean *the frame stays as it is*, which is the documented
+ * fallback rather than something a caller should hear about.
+ */
+export async function applyWindowAppearance(appearance: WindowAppearance): Promise<void> {
+  try {
+    await invoke('set_window_appearance', {
+      caption: appearance.caption,
+      dark: appearance.dark,
+    });
+  } catch {
+    // The frame keeps the system default. See the doc comment above.
   }
 }

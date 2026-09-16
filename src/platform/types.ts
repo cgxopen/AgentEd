@@ -238,3 +238,22 @@ export interface PlatformIO {
    */
   openWithSystem(path: string): Promise<void>;
 }
+
+/**
+ * What the palette says the window frame should look like (#326).
+ *
+ * Both fields are **computed from the live tokens** rather than written down:
+ * `caption` is whatever `--surface` resolves to in the palette now on, and
+ * `dark` is decided from that colour's own luminance. A table of seven values
+ * in TypeScript would be the thing #319 was: a colour restated beside the
+ * stylesheet, free to drift from it.
+ */
+export interface WindowAppearance {
+  /** The colour the workspace gives the frame, as `#rrggbb`. */
+  readonly caption: string;
+  /**
+   * Whether `caption` is dark, and therefore whether anything the system
+   * draws on it — the window title, the caption buttons — has to be light.
+   */
+  readonly dark: boolean;
+}
