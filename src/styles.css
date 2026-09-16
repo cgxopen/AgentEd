@@ -259,12 +259,18 @@ body {
   min-width: 0;
 }
 
+/* No reservation on the right: the window controls are drawn by the system on
+ * the native title bar above this webview, not inside it. `decorations` has
+ * never been false in `src-tauri/tauri.conf.json` — in any of the 18 commits
+ * that touched the file — so the 128px this rule reserved until #330 was
+ * clear of nothing. The last child is the Appearance trigger, and its right
+ * edge now lands on the menubar's own 16px padding, where the hamburger's left
+ * edge is. Whoever turns the title bar off gives the header its own controls
+ * and puts the room back here, beside them. */
 .header-right {
   display: flex;
   align-items: center;
   gap: 6px;
-  /* Keep clear of native window controls on Windows/Linux. */
-  margin-right: 128px;
 }
 
 #menu-toggle {
@@ -656,9 +662,6 @@ button.indicator-search[aria-expanded="true"],
 }
 
 @media (max-width: 600px) {
-  .header-right {
-    margin-right: 96px;
-  }
   .indicator-collapse-600 {
     display: none;
   }
@@ -2129,26 +2132,45 @@ button.indicator-search[aria-expanded="true"],
   border: 1px solid var(--border);
 }
 
-/* ── Appearance kebab menu (Mode + Palette) ── */
+/* ── Appearance menu (Mode + Palette) ── */
+/* The trigger holds an inline SVG since #330, so the line box is collapsed and
+ * the padding is what gives the button its height: 14px of icon inside 4px top
+ * and bottom is the 22px the ellipsis had, and the hit area loses 4px of width
+ * (34 by 22 to 30 by 22, measured in Chromium at 1024px). */
 button.appearance-menu-trigger {
   background: none;
   border: none;
   cursor: pointer;
   font: inherit;
-  font-size: 18px;
-  line-height: 1;
+  line-height: 0;
   color: var(--text);
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
+}
+
+/* The half-filled circle, at the size the header magnifier uses. `currentColor`
+ * on the outline and on the filled half both, so the symbol takes the palette's
+ * text colour the way the indicators beside it do. */
+.appearance-trigger-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+  pointer-events: none;
 }
 button.appearance-menu-trigger:hover {
   background: var(--hover-overlay);
 }
 
+/* Hangs from the bottom of the header, its right edge on the trigger's right
+ * edge. The `right` here is the resting value — the trigger is the last child
+ * of `.header-right`, so at rest its right edge is the menubar's own 16px
+ * padding — and `setupAppearanceMenu` overwrites it from the button's rectangle
+ * at every open, which is what keeps the two together when anything in the
+ * header changes width. */
 .appearance-popover {
   position: absolute;
   top: calc(100% + 4px);
-  right: 12px;
+  right: 16px;
   z-index: 60;
   width: min(240px, calc(100vw - 24px));
   background: var(--bg);
@@ -2221,14 +2243,6 @@ button.appearance-menu-trigger:hover {
   box-shadow: 0 0 0 2px var(--accent);
   border-color: var(--bg);
 }
-@media (max-width: 600px) {
-  .appearance-popover {
-    right: 8px;
-    left: 8px;
-    width: auto;
-  }
-}
-
 /* ── Cluster indicator + popover ── */
 /* ── R-C12 document-kind badges ──
  *

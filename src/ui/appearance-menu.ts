@@ -24,6 +24,28 @@ export interface AppearanceMenu {
   refresh: () => void;
 }
 
+/**
+ * The popover's `right`, inside the menubar, that puts its right edge on the
+ * trigger's right edge (#330).
+ *
+ * The popover is a child of the menubar, which is the whole width of the
+ * window, so `right` is the distance from the menubar's right edge — and the
+ * trigger's own distance from it is exactly that. Before #330 the value was a
+ * constant in the stylesheet, 12px, while the button sat 144px from the edge
+ * behind a reservation for window controls that are not drawn in this webview:
+ * the popover opened 132px to the right of the button that opened it, measured
+ * in Chromium at 1200, 1024, 1000, 800 and 700px.
+ *
+ * **It is arithmetic on rectangles and nothing else**, because the harness
+ * reports every rectangle as zero — `popover-placement.ts` is split the same
+ * way and says so at greater length. What this returns is asserted directly;
+ * that the number reaches the element, and the element is where the number
+ * says, is the manual pass.
+ */
+export function popoverRight(menubarRight: number, triggerRight: number): number {
+  return menubarRight - triggerRight;
+}
+
 const MODE_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -77,8 +99,30 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
 
   function openPopover(): void {
     refresh();
+    anchor();
     popover!.classList.remove('hidden');
     button!.setAttribute('aria-expanded', 'true');
+  }
+
+  /**
+   * Put the popover's right edge on the trigger's, before it is shown.
+   *
+   * Read at every open rather than once: the trigger is the last child of a
+   * group whose width follows the indicators beside it, so its position moves
+   * with the document as well as with the window. A resize while the popover is
+   * open leaves it where it opened — the same as the three popovers placed by
+   * `popoverPlacement`, and the window controls of the frame are the way out of
+   * an open popover on Windows anyway. Without a menubar there is nothing to
+   * measure against and the stylesheet's resting value stands.
+   */
+  function anchor(): void {
+    const menubar = document.getElementById('menubar');
+    if (!menubar) return;
+    const right = popoverRight(
+      menubar.getBoundingClientRect().right,
+      button!.getBoundingClientRect().right,
+    );
+    popover!.style.right = `${right}px`;
   }
 
   function closePopover(): void {
