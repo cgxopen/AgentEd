@@ -11,6 +11,7 @@ export interface MenuCallbacks {
   onFindPrevious: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onSelectAll: () => void;
   onInsertTable: () => void;
   onInsertMedia: () => void;
   onInsertCodeBlock: () => void;
@@ -178,6 +179,7 @@ export function setupMenu(callbacks: MenuCallbacks, readHistory: () => HistoryAv
   bind('menu-find-prev', callbacks.onFindPrevious);
   bind('menu-undo', callbacks.onUndo);
   bind('menu-redo', callbacks.onRedo);
+  bind('menu-select-all', callbacks.onSelectAll);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);

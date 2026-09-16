@@ -50,6 +50,7 @@ function spies(): MenuCallbacks {
     onFindPrevious: vi.fn(),
     onUndo: vi.fn(),
     onRedo: vi.fn(),
+    onSelectAll: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
     onInsertCodeBlock: vi.fn(),
