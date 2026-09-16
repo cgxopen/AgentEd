@@ -2134,26 +2134,39 @@ button.indicator-search[aria-expanded="true"],
 
 /* ── Appearance menu (Mode + Palette) ── */
 /* The trigger holds an inline SVG since #330, so the line box is collapsed and
- * the padding is what gives the button its height: 14px of icon inside 4px top
- * and bottom is the 22px the ellipsis had, and the hit area loses 4px of width
- * (34 by 22 to 30 by 22, measured in Chromium at 1024px). */
+ * the padding is what gives the button its size.
+ *
+ * **It is sized against the hamburger at the other end of the header**, which
+ * the owner asked for on #330 once the first build was in his hands: two ends,
+ * two buttons of one size. The hamburger is a bordered 38.1 by 31 px box whose
+ * height comes from 18px of text metrics, and its three bars draw 13.25 by
+ * 13.25 px of ink; this is 39 by 31 with 13 by 13 of ink — measured in Chromium
+ * at 1024px in Claude Warm. The two cannot be tied to one number in the sheet:
+ * one is a glyph the font sizes and the other is an icon this file sizes. So
+ * the numbers are written here with what they were matched against, and the
+ * hamburger is not touched — `#330` leaves the left menu alone.
+ *
+ * The border is `--border`, the same token the hamburger uses, so the frame
+ * follows the palette as its twin does. */
 button.appearance-menu-trigger {
   background: none;
-  border: none;
+  border: 1px solid var(--border);
   cursor: pointer;
   font: inherit;
   line-height: 0;
   color: var(--text);
-  padding: 4px 8px;
+  padding: 7px 11px;
   border-radius: 4px;
 }
 
-/* The half-filled circle, at the size the header magnifier uses. `currentColor`
- * on the outline and on the filled half both, so the symbol takes the palette's
- * text colour the way the indicators beside it do. */
+/* The half-filled circle. 15px of box draws 13px of circle, which is the ink
+ * the hamburger's three bars draw; the magnifier two controls away is 14px and
+ * is not what this is measured against. `currentColor` on the outline and on
+ * the filled half both, so the symbol takes the palette's text colour the way
+ * the indicators beside it do. */
 .appearance-trigger-icon {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   display: block;
   pointer-events: none;
 }
