@@ -173,6 +173,46 @@ if (!builtinHeading) {
       'built-in one (#97). See the heading rule in src/editor/markdown/serialize.ts.',
   );
 }
+/*
+ * The four elements whose text is not content (#311).
+ *
+ * Turndown keeps the **text** of an element it has no rule for, and DOMPurify
+ * has already taken the element itself away — so a `<style>` arrived as a
+ * paragraph holding its CSS, a `<script>` as a paragraph holding its source, a
+ * `<title>` as its title and a `<noscript>` as its fallback text. Nothing ever
+ * executed: the script source reached the document as text, never as a script.
+ * What it was is the artifact class R-C13 names in as many words — *converts to
+ * clean markdown with no artifacts (no stray `http` fragments, no leftover
+ * markup)*.
+ *
+ * **Every paste from Excel hit it**, which is how it was found: Excel wraps its
+ * grid in a document whose `<style>` holds the Office stylesheet inside an HTML
+ * comment, so the whole of `mso-displayed-decimal-separator …` arrived as a
+ * paragraph above the table. Measured by the owner on Windows against the same
+ * clipboard in GitHub, which shows none of it.
+ *
+ * **Why this address rather than the paste path, which was the open question.**
+ * `htmlToMarkdown` is also the save path, so the line had to be shown not to
+ * cost a file anything. Measured at `c201e4e` and with the line, on a markdown
+ * file holding a raw `<style>`, `<script>`, `<title>` and `<noscript>` block:
+ * **173 bytes in, 38 bytes out, identical either way.** Such a file already
+ * loses all four on an untouched open and save, because DOMPurify removes them
+ * on the way in, long before this function runs — so there is nothing left for
+ * this line to take. It adds no R-C2 exception because it changes no file.
+ *
+ * `<template>` is not listed and does not need to be: its content is a document
+ * fragment the parser never puts in the tree, so it arrives empty already.
+ *
+ * **The one place a `<script>` is deliberately kept is untouched**, and that was
+ * measured rather than assumed: a raw HTML table is written back as the file's
+ * own bytes (#283, and REQUIREMENTS says *including markup the editor does not
+ * show, such as a `<script>` that DOMPurify removes from the view*). Those bytes
+ * ride on an attribute and are written by the kept-table rule, which never walks
+ * the elements below — a table carrying a `<script>`, a `<caption>` and a
+ * `colspan` round-trips byte-identically with this line in place.
+ */
+turndown.remove(['style', 'script', 'title', 'noscript']);
+
 turndown.addRule('heading', {
   filter: builtinHeading.filter,
   replacement: (content, node, options) =>
