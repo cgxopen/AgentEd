@@ -159,9 +159,21 @@ describe('the address this was put at costs a file nothing (#311)', () => {
    * function is reached — so the line takes nothing a save would otherwise
    * have written, and adds no R-C2 exception.
    *
-   * **This row does not approve that loss.** It records that the loss is
-   * older than this change and unmoved by it; whether a raw block ought to
-   * survive a round trip is a question of its own, raised on the issue.
+   * **The loss is now recorded rather than unapproved** (#343). It was an
+   * undocumented exception to R-C2, which REQUIREMENTS calls a defect in its
+   * own words; the owner chose on 2026-09-17 to write it down rather than
+   * carry the bytes the way #283 carries a raw HTML table. R-C2 now holds the
+   * Known exception, and this row is what it points at.
+   *
+   * **What it guards is the shape of the loss rather than a switch.** There is
+   * no one-line reversal to build against it: telling DOMPurify to keep
+   * `style`, `title` and `noscript` leaves the figures exactly where they are
+   * and turns **no** test red, because the schema has no node for them and the
+   * parser drops them a layer below the sanitizer. So this row reddens if the
+   * blocks ever stop vanishing cleanly — if one leaves its text behind, as it
+   * did before #311, if it takes a neighbouring word with it, or if the file
+   * stops holding still — which is every direction the exception could quietly
+   * change under.
    */
   it('a file holding the four blocks raw has already lost them before the save path runs', () => {
     const file = [
@@ -191,6 +203,42 @@ describe('the address this was put at costs a file nothing (#311)', () => {
       expect(out).not.toContain(gone);
     }
     expect(out).toBe('# Notes\n\nBetween the blocks.\n\nThe end.');
+  });
+
+  /**
+   * The reach the Known exception claims, which is the whole of it (#343).
+   *
+   * The bullet under R-C2 says each of the four, inline inside a paragraph, a
+   * blockquote, a list item or a table cell, is removed with its text and the
+   * words on either side close up. That is sixteen combinations and they are
+   * driven here rather than reasoned about, because a sentence in REQUIREMENTS
+   * is read as product truth and this one would otherwise rest on a
+   * measurement nothing holds.
+   */
+  it.each([
+    ['a paragraph', (block: string) => `before ${block} after`, 'before after'],
+    ['a blockquote', (block: string) => `> before ${block} after`, '> before after'],
+    ['a list item', (block: string) => `- before ${block} after`, '- before after'],
+    [
+      'a table cell',
+      (block: string) => `| h |\n| --- |\n| before ${block} after |`,
+      '| h |\n| --- |\n| before after |',
+    ],
+  ] as Array<
+    [string, (block: string) => string, string]
+  >)('inline inside %s, all four are removed and the words close up', (_host, wrap, expected) => {
+    for (const [block, leftover] of [
+      ['<style>.x{color:red}</style>', '.x{color:red}'],
+      ['<script>alert(1)</script>', 'alert(1)'],
+      ['<title>Book One</title>', 'Book One'],
+      ['<noscript>fallback</noscript>', 'fallback'],
+    ] as Array<[string, string]>) {
+      const instance = editorWith(wrap(block));
+      const out = saved(instance);
+
+      expect(out, block).toBe(expected);
+      expect(out, block).not.toContain(leftover);
+    }
   });
 
   /**
