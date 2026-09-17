@@ -8,7 +8,38 @@
   /* Core surfaces */
   --bg: #ffffff;
   --text: #1a1a1a;
-  --border: #e0e0e0;
+  /*
+   * The line that draws a control, and every edge in the product (#321).
+   *
+   * Thirty-one rules name this token, and they are two different jobs under one
+   * value: the edges of panels, cards, fields and table cells — and, since
+   * #332, **the outline that says a thing in the menubar can be pressed**. The
+   * second job is what WCAG 1.4.11 asks 3 to 1 of: visual information required
+   * to identify a user interface component.
+   *
+   * **It was 1.00 to 1.42 against `--surface` in all seven palettes**, not only
+   * in the two the defect was first seen in. In both Solarized palettes it was
+   * *the same hex as `--surface`* — `#eee8d5` and `#073642` — so the outline
+   * #332 had just made the sign of pressable was not drawn at all there, and
+   * the bar read as a row of bare words beside two filled readouts.
+   *
+   * **Each value is the nearest colour on that palette's own hue that clears
+   * 3.05 against the ground that binds**, which is `--surface` in every palette:
+   * a light palette's `--bg` is lighter than its surface and a dark palette's is
+   * darker, so the surface is the harder of the two either way. The 3.05 is
+   * margin over the 3.0 floor rather than a second rule. Against `--bg` every
+   * value then measures 3.19 or better.
+   *
+   * The figures are asserted in `ui/theme-border-contrast.test.ts`, computed
+   * from these tokens rather than written down here, so a value edited to
+   * something quieter turns a row red.
+   *
+   * **The other half of #332 is deliberately not touched**: a readout is filled
+   * with `--hover-overlay`, which measures 1.08 to 1.20 against the bar. A
+   * readout that is quieter than a button is what that rule is for (owner
+   * decision, 2026-09-17); only the outline is held to a floor.
+   */
+  --border: #909090;
   --accent: #2563eb;
   --muted: #6b7280;
   --surface: #f9fafb;
@@ -59,7 +90,7 @@
 :root[data-theme="dark"] {
   --bg: #1a1a1a;
   --text: #e5e5e5;
-  --border: #2e2e2e;
+  --border: #6f6f6f;
   --accent: #60a5fa;
   --muted: #9ca3af;
   --surface: #242424;
@@ -87,7 +118,7 @@
 :root[data-theme="claude"] {
   --bg: #f7f3ed;
   --text: #2d1e12;
-  --border: #e5d9c8;
+  --border: #898278;
   --accent: #b8653f;
   --muted: #7a6a5a;
   --surface: #efe6d8;
@@ -114,7 +145,7 @@
 :root[data-theme="solarized-light"] {
   --bg: #fdf6e3;
   --text: #073642;
-  --border: #eee8d5;
+  --border: #878479;
   --accent: #268bd2;
   --muted: #586e75;
   --surface: #eee8d5;
@@ -141,7 +172,7 @@
 :root[data-theme="solarized-dark"] {
   --bg: #002b36;
   --text: #eee8d5;
-  --border: #073642;
+  --border: #628087;
   --accent: #268bd2;
   --muted: #93a1a1;
   --surface: #073642;
@@ -169,7 +200,7 @@
 :root[data-theme="github-light"] {
   --bg: #ffffff;
   --text: #1f2328;
-  --border: #d1d9e0;
+  --border: #8a8f94;
   --accent: #0969da;
   --muted: #636c76;
   --surface: #f6f8fa;
@@ -196,7 +227,7 @@
 :root[data-theme="github-dark"] {
   --bg: #0d1117;
   --text: #c9d1d9;
-  --border: #30363d;
+  --border: #63686d;
   --accent: #58a6ff;
   --muted: #8b949e;
   --surface: #161b22;
@@ -1758,11 +1789,40 @@ button.indicator-search[aria-expanded="true"],
   display: none;
 }
 
+/*
+ * Cancel, and every dialog button that is not the primary or the danger one.
+ *
+ * **The `color` is the whole of #321's second half, and it used to be absent.**
+ * The rule gave a background, a border and a padding and named no label colour,
+ * so the label fell through to the browser's `ButtonText`. Nothing in this
+ * repository declares `color-scheme`, so that keyword resolves to **black in
+ * every palette** — read out of a running Chromium rather than out of this
+ * sheet, `rgb(0, 0, 0)` in all seven. On the four light palettes it passed for
+ * `--text` and nobody looked; on the three dark ones the label measured **1.21
+ * in Dark, 1.40 in Solarized Dark and 1.11 in GitHub Dark**, which is a button
+ * with no readable word in it.
+ *
+ * **`--text` rather than `--muted`**, which was the first shape asked for. The
+ * grey clears 4.5 everywhere too, at 4.71 to 6.86, but it quietens the label in
+ * the four light palettes where nothing was wrong. `--text` changes nothing
+ * perceptible there — the label was already effectively black — and repairs the
+ * three dark ones outright, at 12.05 or better in all seven.
+ *
+ * **Why it shipped beside the border change** (owner decision, 2026-09-17):
+ * with `--border` at 3 to 1 this button is now crisply drawn, so an invisible
+ * label inside it is more conspicuous than it was, not less.
+ *
+ * `.dialog-fields input` has the same shape — neither `color` nor `background`
+ * declared, so it takes the browser's field colours — and is **not** repaired
+ * here. It is a white box with black text inside a dark dialog, which is a
+ * different symptom, and it is raised on #321 rather than fixed in this diff.
+ */
 .dialog-actions button {
   padding: 6px 16px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
+  color: var(--text);
   font-size: 13px;
   cursor: pointer;
 }
