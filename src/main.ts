@@ -26,6 +26,7 @@ import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockRoutes } from './editor/insert-code-block';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
+import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
 import { applyWindowAppearance, getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
@@ -281,6 +282,7 @@ setupMenu(
     ...historyMenuCallbacks(editor),
     ...selectAllMenuCallbacks(editor),
     ...tableMenuCallbacks(editor),
+    ...tableShapeMenuCallbacks(editor),
     ...codeBlock,
     ...insertMenuCallbacks(ctx.editor),
     ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
@@ -302,12 +304,13 @@ setupMenu(
     },
   },
   () => historyAvailability(editor),
+  () => tableShapeAvailability(editor),
 );
 
-// Appearance (Mode + Palette) lives in its own kebab menu in the
-// header, not the hamburger. The menu is a pure view over
-// ThemeManager — it reads + writes the manager, which owns
-// persistence and applies the theme to the document.
+// Appearance (Mode + Palette) opens from its own trigger at the right of the
+// header — the half-filled circle since #330, and not the hamburger beside
+// it. The menu is a pure view over ThemeManager — it reads + writes the
+// manager, which owns persistence and applies the theme to the document.
 ctx.appearanceMenu = setupAppearanceMenu(themeManager);
 
 // The window frame takes the palette's own surface colour where the platform

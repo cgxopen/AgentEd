@@ -19,6 +19,13 @@ export interface MenuCallbacks {
   onInsertHorizontalRule: () => void;
   onInsertMetadata: () => void;
   onInsertEmoji: () => void;
+  onAddRowAbove: () => void;
+  onAddRowBelow: () => void;
+  onDeleteRow: () => void;
+  onAddColumnBefore: () => void;
+  onAddColumnAfter: () => void;
+  onDeleteColumn: () => void;
+  onDeleteTable: () => void;
   onToggleSidebar: () => void;
   onAbout: () => void;
 }
@@ -32,6 +39,30 @@ export interface HistoryAvailability {
   readonly canUndo: boolean;
   readonly canRedo: boolean;
 }
+
+/**
+ * Which entries of the Table section can be chosen where the caret is (#292),
+ * keyed by the entry. Read when the menu opens, the way the history is;
+ * `tableShapeAvailability` in `editor/table-shape.ts` records what each rule
+ * refuses and why.
+ */
+export type TableShapeAvailability = Readonly<Record<string, boolean>>;
+
+/**
+ * The Table entries, each with the key it is greyed from. The ids are the
+ * markup's, and a key the reading does not carry greys its entry: a reading
+ * that forgot one fails closed, rather than offering a route that would do
+ * nothing.
+ */
+const TABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
+  ['menu-table-add-row-above', 'addRowAbove'],
+  ['menu-table-add-row-below', 'addRowBelow'],
+  ['menu-table-delete-row', 'deleteRow'],
+  ['menu-table-add-column-before', 'addColumnBefore'],
+  ['menu-table-add-column-after', 'addColumnAfter'],
+  ['menu-table-delete-column', 'deleteColumn'],
+  ['menu-table-delete-table', 'deleteTable'],
+];
 
 /** A section header and the panel below it that it opens and folds. */
 interface Section {
@@ -59,8 +90,9 @@ function readSections(dropdown: HTMLElement): Section[] {
 }
 
 /**
- * The hamburger menu, as an accordion (#294): five section headers, each with
- * its panel directly below it. Pressing a header opens its section, and the
+ * The hamburger menu, as an accordion (#294): six section headers, each with
+ * its panel directly below it — five until #292 gave the shape of a table a
+ * section of its own. Pressing a header opens its section, and the
  * headers below slide down; pressing it again folds it. One section is open at
  * a time, so opening one folds any other.
  *
@@ -68,15 +100,23 @@ function readSections(dropdown: HTMLElement): Section[] {
  * entry that can be chosen. The menu always reopens with every section folded.
  * Escape closes the whole menu, which is the owner decision recorded on #294.
  *
- * `readHistory` is required rather than optional, so a caller that forgot it
- * does not build: without it Undo and Redo would stay enabled over nothing.
+ * `readHistory` and `readTableShape` are required rather than optional, so a
+ * caller that forgot one does not build: without them Undo, Redo and the seven
+ * Table entries would stay enabled over nothing.
  */
-export function setupMenu(callbacks: MenuCallbacks, readHistory: () => HistoryAvailability): void {
+export function setupMenu(
+  callbacks: MenuCallbacks,
+  readHistory: () => HistoryAvailability,
+  readTableShape: () => TableShapeAvailability,
+): void {
   const toggle = required('menu-toggle');
   const dropdown = required('menu-dropdown');
   const sections = readSections(dropdown);
   const undoEntry = required('menu-undo') as HTMLButtonElement;
   const redoEntry = required('menu-redo') as HTMLButtonElement;
+  const tableEntries = TABLE_ENTRIES.map(
+    ([id, key]) => [required(id) as HTMLButtonElement, key] as const,
+  );
 
   function isOpen(): boolean {
     return !dropdown.classList.contains('hidden');
@@ -95,20 +135,31 @@ export function setupMenu(callbacks: MenuCallbacks, readHistory: () => HistoryAv
   }
 
   /**
-   * Greys Undo and Redo when there is nothing for them to do, so a press is
-   * never silent (the #275 shape). It runs as the menu opens, which is before
-   * any section can be opened and so before a header moves focus to the first
-   * entry that can be chosen: that selector skips disabled entries, and it
-   * must read the state this sets rather than the state of the last opening.
+   * Greys every entry that has nothing to do, so a press is never silent (the
+   * #275 shape): Undo and Redo from the history (#295), and the seven Table
+   * entries from where the caret is (#292).
+   *
+   * **It runs as the menu opens, which is before any section can be opened and
+   * so before a header moves focus to the first entry that can be chosen: that
+   * selector skips disabled entries, and it must read the state this sets
+   * rather than the state of the last opening.** Until #292 that order had no
+   * witness — STATUS recorded it as such — because Undo and Redo are the fifth
+   * and sixth entries of Edit, and Find is enabled whichever way they are
+   * greyed. **Add Row Above is the first entry of the Table section and is
+   * greyed with the caret in a header row**, so the order is asserted now: a
+   * row in `menu.test.ts` opens that section and expects focus on Add Row
+   * Below.
    */
-  function refreshHistoryEntries(): void {
+  function refreshEntries(): void {
     const { canUndo, canRedo } = readHistory();
     undoEntry.disabled = !canUndo;
     redoEntry.disabled = !canRedo;
+    const table = readTableShape();
+    for (const [entry, key] of tableEntries) entry.disabled = table[key] !== true;
   }
 
   function open(): void {
-    refreshHistoryEntries();
+    refreshEntries();
     unfold(null);
     dropdown.classList.remove('hidden');
     syncExpanded();
@@ -187,6 +238,13 @@ export function setupMenu(callbacks: MenuCallbacks, readHistory: () => HistoryAv
   bind('menu-insert-horizontal-rule', callbacks.onInsertHorizontalRule);
   bind('menu-insert-metadata', callbacks.onInsertMetadata);
   bind('menu-insert-emoji', callbacks.onInsertEmoji);
+  bind('menu-table-add-row-above', callbacks.onAddRowAbove);
+  bind('menu-table-add-row-below', callbacks.onAddRowBelow);
+  bind('menu-table-delete-row', callbacks.onDeleteRow);
+  bind('menu-table-add-column-before', callbacks.onAddColumnBefore);
+  bind('menu-table-add-column-after', callbacks.onAddColumnAfter);
+  bind('menu-table-delete-column', callbacks.onDeleteColumn);
+  bind('menu-table-delete-table', callbacks.onDeleteTable);
   bind('menu-toggle-sidebar', callbacks.onToggleSidebar);
   bind('menu-about', callbacks.onAbout);
 }

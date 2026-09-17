@@ -481,7 +481,7 @@ body {
   font-family: "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
-/* The menu is an accordion (#294): five section headers, each with its panel
+/* The menu is an accordion (#294): six section headers, each with its panel
  * directly below it in the markup, so the Tab order is the order on screen.
  * Pressing a header opens its panel and the headers below slide down; one
  * section is open at a time.

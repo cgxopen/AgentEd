@@ -31,6 +31,12 @@ import { type MenuCallbacks, setupMenu } from './menu';
 
 const STORE_KEY = 'agented:emoji-frequent';
 
+/**
+ * The Table entries are not what this file tests, so the menu greys all seven:
+ * an entry whose key the reading does not carry is greyed (#292).
+ */
+const noTableShape = () => ({});
+
 function spies(): MenuCallbacks {
   return {
     onNew: vi.fn(),
@@ -53,6 +59,13 @@ function spies(): MenuCallbacks {
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
+    onAddRowAbove: vi.fn(),
+    onAddRowBelow: vi.fn(),
+    onDeleteRow: vi.fn(),
+    onAddColumnBefore: vi.fn(),
+    onAddColumnAfter: vi.fn(),
+    onDeleteColumn: vi.fn(),
+    onDeleteTable: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
@@ -89,10 +102,11 @@ function openWithMenu(markdown: string, caret: number): EditorInstance {
   instance = createEditor(host);
   instance.setMarkdown(markdown);
   instance.editor.commands.setTextSelection(caret);
-  setupMenu({ ...spies(), ...emojiMenuCallbacks(instance.editor) }, () => ({
-    canUndo: false,
-    canRedo: false,
-  }));
+  setupMenu(
+    { ...spies(), ...emojiMenuCallbacks(instance.editor) },
+    () => ({ canUndo: false, canRedo: false }),
+    noTableShape,
+  );
   return instance;
 }
 

@@ -24,6 +24,12 @@ import { tableMenuCallbacks } from '../app/table-dialog';
 import { type MenuCallbacks, setupMenu } from '../ui/menu';
 import { createEditor, type EditorInstance } from './setup';
 
+/**
+ * The Table entries are not what this file tests, so the menu greys all seven:
+ * an entry whose key the reading does not carry is greyed (#292).
+ */
+const noTableShape = () => ({});
+
 /** Undo and Redo are not what this file tests, so the menu greys them. */
 const nothingToUndo = () => ({ canUndo: false, canRedo: false });
 
@@ -49,6 +55,13 @@ function spies(): MenuCallbacks {
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
+    onAddRowAbove: vi.fn(),
+    onAddRowBelow: vi.fn(),
+    onDeleteRow: vi.fn(),
+    onAddColumnBefore: vi.fn(),
+    onAddColumnAfter: vi.fn(),
+    onDeleteColumn: vi.fn(),
+    onDeleteTable: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
@@ -71,7 +84,7 @@ function openWithMenu(markdown: string): EditorInstance {
   document.body.appendChild(host);
   instance = createEditor(host);
   if (markdown.length > 0) instance.setMarkdown(markdown);
-  setupMenu({ ...spies(), ...tableMenuCallbacks(instance.editor) }, nothingToUndo);
+  setupMenu({ ...spies(), ...tableMenuCallbacks(instance.editor) }, nothingToUndo, noTableShape);
   instance.editor.commands.focus();
   return instance;
 }
@@ -261,6 +274,34 @@ describe('Insert Table inside a table adds a new table after it', () => {
       editor.destroy();
       instance = null;
     }
+  });
+
+  /**
+   * **The number the looping rows above have owed since #280.** They call
+   * `openWithMenu` once per fixture inside a single test, and each call wires
+   * the dialog again over the same markup — so the confirm button ends up
+   * carrying one listener per iteration. What was never counted is whether any
+   * of them reaches the document under test.
+   *
+   * Measured here rather than reasoned about: after the menu has been wired
+   * twice, **one press is one `docChanged` transaction** on the live editor.
+   * The older listeners close over editors that have been destroyed, so they
+   * reach no document anybody is looking at. The row reddens the day one of
+   * them does.
+   */
+  it('is one press and one document change, after the menu has been wired twice', () => {
+    openWithMenu(TABLE).destroy();
+    instance = null;
+    const editor = openWithMenu(TABLE);
+    caret('paragraph', 1, 2)(editor);
+    let changes = 0;
+    editor.editor.on('transaction', ({ transaction }) => {
+      if (transaction.docChanged) changes += 1;
+    });
+
+    pressInsertTable();
+
+    expect(changes).toBe(1);
   });
 
   it('is one step of undo, which gives the document back exactly', () => {

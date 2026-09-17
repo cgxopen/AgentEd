@@ -23,6 +23,12 @@ import { type MenuCallbacks, setupMenu } from '../ui/menu';
 import { selectAllMenuCallbacks } from './select-all-route';
 import { createEditor, type EditorInstance } from './setup';
 
+/**
+ * The Table entries are not what this file tests, so the menu greys all seven:
+ * an entry whose key the reading does not carry is greyed (#292).
+ */
+const noTableShape = () => ({});
+
 function spies(): MenuCallbacks {
   return {
     onNew: vi.fn(),
@@ -45,6 +51,13 @@ function spies(): MenuCallbacks {
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
+    onAddRowAbove: vi.fn(),
+    onAddRowBelow: vi.fn(),
+    onDeleteRow: vi.fn(),
+    onAddColumnBefore: vi.fn(),
+    onAddColumnAfter: vi.fn(),
+    onDeleteColumn: vi.fn(),
+    onDeleteTable: vi.fn(),
     onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
@@ -75,10 +88,11 @@ function openWithMenu(markdown: string): EditorInstance {
   document.body.appendChild(host);
   instance = createEditor(host);
   instance.setMarkdown(markdown);
-  setupMenu({ ...spies(), ...selectAllMenuCallbacks(instance.editor) }, () => ({
-    canUndo: false,
-    canRedo: false,
-  }));
+  setupMenu(
+    { ...spies(), ...selectAllMenuCallbacks(instance.editor) },
+    () => ({ canUndo: false, canRedo: false }),
+    noTableShape,
+  );
   return instance;
 }
 
