@@ -136,7 +136,7 @@ describe('a code block can be made with nothing selected', () => {
     // reads `coordsAtPos` and `getBoundingClientRect`, which happy-dom answers
     // with zeroes. The placement is not testable here and is not the claim.
     const editor = open('some text');
-    setupToolbar(editor.editor, { onLink: () => {} });
+    setupToolbar(editor.editor, { onLink: () => {}, onImageDescription: () => {} });
     const toolbar = document.getElementById('floating-toolbar');
     if (toolbar === null) throw new Error('setupToolbar rendered no toolbar');
 
@@ -197,7 +197,7 @@ describe('the inline code button still makes an inline span', () => {
 
     const editor = open('hello world');
     editor.editor.commands.selectAll();
-    inlineButton.action(editor.editor, { onLink: () => {} });
+    inlineButton.action(editor.editor, { onLink: () => {}, onImageDescription: () => {} });
 
     expect(editor.editor.isActive('code')).toBe(true);
     expect(editor.editor.isActive('codeBlock')).toBe(false);
@@ -252,14 +252,14 @@ describe('the inline code button still makes an inline span', () => {
 
     const forBlock = open('hello world');
     forBlock.editor.commands.selectAll();
-    blockButton.action(forBlock.editor, { onLink: () => {} });
+    blockButton.action(forBlock.editor, { onLink: () => {}, onImageDescription: () => {} });
     const blockResult = forBlock.getMarkdown().trim();
     forBlock.destroy();
     instance = null;
 
     const forInline = open('hello world');
     forInline.editor.commands.selectAll();
-    inlineButton.action(forInline.editor, { onLink: () => {} });
+    inlineButton.action(forInline.editor, { onLink: () => {}, onImageDescription: () => {} });
     const inlineResult = forInline.getMarkdown().trim();
 
     expect(blockResult).toBe('```\nhello world\n```');
@@ -455,7 +455,7 @@ describe('the chord and the toolbar button still leave a fence', () => {
     // dispatched `click` reaches nothing, which is worth knowing rather than
     // rediscovering.
     const editor = open('```\ncode\n```');
-    setupToolbar(editor.editor, { onLink: () => {} });
+    setupToolbar(editor.editor, { onLink: () => {}, onImageDescription: () => {} });
     const caret = insideTheFence(editor);
     editor.editor.commands.setTextSelection({ from: caret, to: caret + 4 });
     const button = Array.from(document.querySelectorAll('#floating-toolbar button')).find(

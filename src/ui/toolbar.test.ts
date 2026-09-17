@@ -1,3 +1,4 @@
+import { NodeSelection } from '@tiptap/pm/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEditor, type EditorInstance } from '../editor/setup';
 // Vite's `?raw` import — the shipped source and stylesheet as text, no Node
@@ -14,16 +15,18 @@ let instance: EditorInstance | null = null;
 function mountEditorWithToolbar(
   markdown: string,
   onLink = vi.fn(),
+  onImageDescription = vi.fn(),
 ): {
   editor: EditorInstance;
   onLink: ReturnType<typeof vi.fn>;
+  onImageDescription: ReturnType<typeof vi.fn>;
 } {
   const host = document.createElement('div');
   document.body.appendChild(host);
   instance = createEditor(host);
   instance.setMarkdown(markdown);
-  setupToolbar(instance.editor, { onLink });
-  return { editor: instance, onLink };
+  setupToolbar(instance.editor, { onLink, onImageDescription });
+  return { editor: instance, onLink, onImageDescription };
 }
 
 function toolbarButton(title: string): HTMLButtonElement {
@@ -419,5 +422,153 @@ describe('the bar is not offered for a whole-document selection (#336)', () => {
     // what is read, and a row pins which, so a later change of key is a change
     // somebody made on purpose.
     expect(positionToolbarSource()).toContain('instanceof AllSelection');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The control the bar offers for one kind of selection only (#291)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * **What these rows can and cannot see.** Whether a control is drawn is an
+ * attribute, and an attribute is observable. What the bar then *looks like* is
+ * not: happy-dom lays nothing out, so the widths — 338.66 px on a text
+ * selection against 372.66 px on an image — and the height of 32.00 px that
+ * keeps `toolbarTop` where it was are browser measurements, recorded in the
+ * pull request and judged by the manual pass.
+ *
+ * **`shippedButtons` still describes the whole bar**, which is what the owner
+ * decision asked to be said plainly. It lists twelve entries and the bar
+ * renders twelve buttons, one per entry, at every selection: the first row
+ * below asserts exactly that. What the twelfth entry adds is a *rule about
+ * when it is drawn*, carried on the entry itself as `appliesTo` — so the
+ * exported table still says everything the bar can hold, and the second row
+ * reads that table rather than naming the control.
+ */
+describe('the image description control is drawn only for an image (#291)', () => {
+  /** The selection a click on an image leaves: the node itself. */
+  function selectTheImage(editor: EditorInstance): void {
+    let at = -1;
+    editor.editor.state.doc.descendants((node, pos) => {
+      if (at >= 0 || node.type.name !== 'image') return at < 0;
+      at = pos;
+      return false;
+    });
+    editor.editor.view.dispatch(
+      editor.editor.state.tr.setSelection(NodeSelection.create(editor.editor.state.doc, at)),
+    );
+  }
+
+  const WITH_IMAGE = 'One two three.\n\n![Holiday Photo.png](assets/Holiday-Photo.png)';
+
+  it('renders one button per entry of shippedButtons, at every selection', () => {
+    const { editor } = mountEditorWithToolbar(WITH_IMAGE);
+    const all = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('#floating-toolbar button'));
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 8 });
+    expect(all()).toHaveLength(shippedButtons.length);
+    selectTheImage(editor);
+    expect(all()).toHaveLength(shippedButtons.length);
+    expect(all().map((b) => b.title)).toEqual(shippedButtons.map((entry) => entry.title));
+  });
+
+  /**
+   * **The behaviour itself, named rather than derived.** The row below reads
+   * each entry rule out of `shippedButtons`, which is what catches a rule
+   * moved onto the wrong control — and, measured, it is **green when the rule
+   * is deleted**, because an entry with no rule is drawn everywhere and the
+   * row then expects exactly that. So the property this control exists for is
+   * pinned here, by tooltip: absent on a text selection, drawn on an image.
+   * Removing the rule reddens this row.
+   */
+  it('is absent for a text selection and drawn for an image', () => {
+    const { editor } = mountEditorWithToolbar(WITH_IMAGE);
+    const drawn = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('#floating-toolbar button'))
+        .filter((b) => !b.hidden)
+        .map((b) => b.title);
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 8 });
+    expect(drawn()).not.toContain('Image description');
+    expect(drawn()).toContain('Bold (Ctrl+B)');
+
+    selectTheImage(editor);
+
+    expect(drawn()).toContain('Image description');
+    expect(drawn()).toHaveLength(shippedButtons.length);
+  });
+
+  /**
+   * **The row over the wiring rather than over the rule**, and the difference
+   * was measured rather than assumed. It reads each entry rule out of
+   * `shippedButtons` and asserts the bar agrees with it, so what it catches is
+   * a control drawn against what its own entry says: a pass that never ran, an
+   * index that slipped, a rule consulted for the wrong button. **It cannot
+   * catch a rule that is wrong**, because the rule is where it reads the
+   * answer — deleting the rule and inverting it both left this row green,
+   * which is what the row above exists for.
+   */
+  it('draws each entry exactly where its own rule says, for both selections', () => {
+    const { editor } = mountEditorWithToolbar(WITH_IMAGE);
+    const buttons = () =>
+      Array.from(document.querySelectorAll<HTMLButtonElement>('#floating-toolbar button'));
+
+    for (const select of [
+      () => editor.editor.commands.setTextSelection({ from: 1, to: 8 }),
+      () => selectTheImage(editor),
+    ]) {
+      select();
+      const rendered = buttons();
+      shippedButtons.forEach((entry, i) => {
+        const rule = isActionEntry(entry) ? entry.appliesTo : undefined;
+        const expected = rule === undefined ? true : rule(editor.editor);
+        expect(
+          !rendered[i].hidden,
+          `${entry.title} on ${editor.editor.state.selection.constructor.name}`,
+        ).toBe(expected);
+      });
+    }
+  });
+
+  it('carries a drawn symbol and no words, with its name in the tooltip', () => {
+    mountEditorWithToolbar(WITH_IMAGE);
+    const button = toolbarButton('Image description');
+
+    expect(button.textContent).toBe('');
+    expect(button.querySelector('svg')).not.toBeNull();
+    expect(button.querySelector('svg')?.getAttribute('stroke')).toBe('currentColor');
+  });
+
+  it('opens the dialog rather than acting on the editor itself', () => {
+    const { editor, onImageDescription } = mountEditorWithToolbar(WITH_IMAGE);
+    selectTheImage(editor);
+    const before = editor.getMarkdown();
+
+    toolbarButton('Image description').dispatchEvent(
+      new MouseEvent('mousedown', { bubbles: true, cancelable: true }),
+    );
+
+    expect(onImageDescription).toHaveBeenCalledTimes(1);
+    expect(editor.getMarkdown()).toBe(before);
+  });
+
+  /**
+   * The #265 order, applied to a second cause. A control that comes and goes
+   * changes the width of the bar, and `positionToolbar` centres the bar on the
+   * selection from a rectangle it takes **once** — so the visibility has to be
+   * settled before that rectangle is taken. Read out of the source, the way
+   * the reveal before the measurement is read above, because a layout-free
+   * harness cannot see a bar centred against a width it no longer has.
+   */
+  it('settles which controls are drawn before it measures the bar', () => {
+    const body = positionToolbarSource();
+    const visibility = body.indexOf('updateVisibleControls()');
+    const reveal = body.indexOf("toolbar.classList.remove('hidden')");
+    const measure = body.indexOf('getBoundingClientRect()');
+
+    expect(visibility, 'positionToolbar settles the visible controls').toBeGreaterThan(-1);
+    expect(visibility).toBeLessThan(reveal);
+    expect(reveal).toBeLessThan(measure);
   });
 });

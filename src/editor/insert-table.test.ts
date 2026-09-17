@@ -55,6 +55,7 @@ function spies(): MenuCallbacks {
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
+    onImageDescription: vi.fn(),
     onAddRowAbove: vi.fn(),
     onAddRowBelow: vi.fn(),
     onDeleteRow: vi.fn(),
