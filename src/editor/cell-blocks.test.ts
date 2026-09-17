@@ -79,7 +79,6 @@ function spies(): MenuCallbacks {
     onAddColumnAfter: vi.fn(),
     onDeleteColumn: vi.fn(),
     onDeleteTable: vi.fn(),
-    onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
 }

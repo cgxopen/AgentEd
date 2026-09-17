@@ -54,6 +54,7 @@ describe('on a desktop build (#146)', () => {
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      onVisibleChange: () => {},
       setOnRequestAccess: () => {},
     };
 
@@ -97,6 +98,7 @@ describe('an unreadable path on the desktop (#184)', () => {
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      onVisibleChange: () => {},
       setOnRequestAccess: () => {},
     };
 

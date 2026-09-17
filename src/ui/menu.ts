@@ -27,7 +27,6 @@ export interface MenuCallbacks {
   onAddColumnAfter: () => void;
   onDeleteColumn: () => void;
   onDeleteTable: () => void;
-  onToggleSidebar: () => void;
   onAbout: () => void;
 }
 
@@ -96,9 +95,10 @@ function readSections(dropdown: HTMLElement): Section[] {
 }
 
 /**
- * The hamburger menu, as an accordion (#294): six section headers, each with
- * its panel directly below it — five until #292 gave the shape of a table a
- * section of its own. Pressing a header opens its section, and the
+ * The hamburger menu, as an accordion (#294): five section headers, each with
+ * its panel directly below it — five, then six when #292 gave the shape of a
+ * table a section of its own, and five again since #347 moved the one entry of
+ * View onto a header control. Pressing a header opens its section, and the
  * headers below slide down; pressing it again folds it. One section is open at
  * a time, so opening one folds any other.
  *
@@ -252,7 +252,6 @@ export function setupMenu(
   bind('menu-table-add-column-after', callbacks.onAddColumnAfter);
   bind('menu-table-delete-column', callbacks.onDeleteColumn);
   bind('menu-table-delete-table', callbacks.onDeleteTable);
-  bind('menu-toggle-sidebar', callbacks.onToggleSidebar);
   bind('menu-about', callbacks.onAbout);
 }
 

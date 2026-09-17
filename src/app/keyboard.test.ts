@@ -16,6 +16,7 @@ beforeEach(() => {
     onOpen: vi.fn(),
     onLink: vi.fn(),
     onCodeBlock: vi.fn(),
+    onToggleSidebar: vi.fn(),
   };
   setupKeyboard(handlers);
 });
@@ -76,6 +77,54 @@ describe('Ctrl+K opens the link dialog', () => {
   it('ignores K with no modifier', () => {
     press({ key: 'k', code: 'KeyK' });
     expect(handlers.onLink).not.toHaveBeenCalled();
+  });
+});
+
+describe('Ctrl+Shift+E opens the files panel, or closes it (#347)', () => {
+  it('fires on the uppercase key a real keyboard reports with Shift held', () => {
+    // This is the spelling a browser actually delivers: with Shift down,
+    // `e.key` is the capital. A branch matching only the lowercase one is what
+    // left Ctrl+Shift+V bound to nothing (#32), and what still leaves Save As
+    // unreachable from the keyboard today.
+    const event = press({ key: 'E', code: 'KeyE', ctrlKey: true, shiftKey: true });
+
+    expect(handlers.onToggleSidebar).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('fires on Cmd+Shift+E', () => {
+    press({ key: 'E', code: 'KeyE', metaKey: true, shiftKey: true });
+    expect(handlers.onToggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires on a layout that reports another character for the E key', () => {
+    press({ key: 'Ə', code: 'KeyE', ctrlKey: true, shiftKey: true });
+    expect(handlers.onToggleSidebar).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves Ctrl+E to the editor, which owns inline code', () => {
+    // Without Shift this chord belongs to the `code` mark in the editor keymap,
+    // and nothing here may take it: the handler below must not run, and the
+    // event must reach the editor unclaimed.
+    const event = press({ key: 'e', code: 'KeyE', ctrlKey: true });
+
+    expect(handlers.onToggleSidebar).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('ignores Shift+E with no Ctrl, which is how a capital E is typed', () => {
+    press({ key: 'E', code: 'KeyE', shiftKey: true });
+    expect(handlers.onToggleSidebar).not.toHaveBeenCalled();
+  });
+
+  it('claims none of its neighbours', () => {
+    press({ key: 'E', code: 'KeyE', ctrlKey: true, shiftKey: true });
+
+    expect(handlers.onSave).not.toHaveBeenCalled();
+    expect(handlers.onSaveAs).not.toHaveBeenCalled();
+    expect(handlers.onOpen).not.toHaveBeenCalled();
+    expect(handlers.onLink).not.toHaveBeenCalled();
+    expect(handlers.onCodeBlock).not.toHaveBeenCalled();
   });
 });
 

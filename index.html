@@ -57,6 +57,12 @@
               <path d="M8 2a6 6 0 0 1 0 12z" fill="currentColor" stroke="none" />
             </svg>
           </button>
+          <button id="sidebar-toggle" type="button" class="header-frame header-edge-button header-edge-button--icon sidebar-toggle" aria-label="Files panel" aria-expanded="false" aria-controls="sidebar" title="Files panel (Ctrl+Shift+E)">
+            <svg class="header-edge-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="2" width="12" height="12" rx="1.5" />
+              <path d="M10 2v12" />
+            </svg>
+          </button>
         </div>
         <nav id="menu-dropdown" class="hidden">
           <button id="menu-section-file" class="menu-section" aria-expanded="false" aria-controls="menu-panel-file">File <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
@@ -99,10 +105,6 @@
             <button id="menu-table-delete-column">Delete Column</button>
             <button id="menu-table-delete-table">Delete Table</button>
           </div>
-          <button id="menu-section-view" class="menu-section" aria-expanded="false" aria-controls="menu-panel-view">View <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
-          <div id="menu-panel-view" class="menu-panel" role="group" aria-label="View" hidden>
-            <button id="menu-toggle-sidebar">Toggle Sidebar</button>
-          </div>
           <button id="menu-section-help" class="menu-section" aria-expanded="false" aria-controls="menu-panel-help">Help <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
           <div id="menu-panel-help" class="menu-panel" role="group" aria-label="Help" hidden>
             <button id="menu-about">About AgentEd</button>
@@ -114,13 +116,6 @@
         <aside id="appearance-popover" class="appearance-popover hidden" role="dialog" aria-label="Appearance settings"></aside>
       </header>
       <div id="main-area">
-        <aside id="sidebar" class="hidden">
-          <div id="sidebar-header">
-            <span>Files</span>
-            <button id="sidebar-close">&times;</button>
-          </div>
-          <div id="sidebar-tree"></div>
-        </aside>
         <div id="editor-stack">
           <div id="search-panel" class="search-panel" hidden>
             <div class="search-row search-row-find">
@@ -161,6 +156,12 @@
           </details>
           <main id="editor"></main>
         </div>
+        <aside id="sidebar" class="hidden">
+          <div id="sidebar-header">
+            <span>Files</span>
+          </div>
+          <div id="sidebar-tree"></div>
+        </aside>
       </div>
     </div>
     <div id="table-dialog" class="dialog-overlay hidden">

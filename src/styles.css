@@ -689,15 +689,23 @@ button.indicator-search:hover {
   color: var(--text);
 }
 
-/* Lit while the search panel is open (#312), so the button says that the next
- * press closes it. An overlay rather than the accent the panel's own option
- * toggles use: this is a place in the bar, not an option switched on, and the
- * overlay reads as part of whichever palette the bar is drawn in.
+/* Lit while the surface it reveals is open (#312), so the button says that the
+ * next press closes it. An overlay rather than the accent the search panel's own
+ * option toggles use: this is a place in the bar, not an option switched on, and
+ * the overlay reads as part of whichever palette the bar is drawn in.
  *
- * The state is read from `aria-expanded` since #324, which is what this button
- * and the other two indicators that reveal a surface now say. The shade itself
- * is unchanged, so what moved is which attribute lights it. */
+ * The state is read from `aria-expanded` since #324, which is what these buttons
+ * and the other indicators that reveal a surface now say. The shade itself is
+ * unchanged, so what moved is which attribute lights it.
+ *
+ * **The files panel control joins it at #347**, at the far right of the bar, so
+ * the two controls that reveal a surface say «open» the same way. Measured
+ * against the bar it is drawn on: 1.16 to 1.46 across the seven palettes,
+ * weakest in `solarized-light` and `github-light`. The glyph does not change
+ * with the state — under #332 the glyph says what a control is and the fill says
+ * what it is doing, and a glyph that moved would read as a different control. */
 button.indicator-search[aria-expanded="true"],
+button.sidebar-toggle[aria-expanded="true"],
 #overflow-popover .indicator[aria-expanded="true"] {
   color: var(--text);
   background-color: var(--hover-overlay-strong);
@@ -2090,14 +2098,45 @@ button.indicator-search[aria-expanded="true"],
   margin: 4px 0;
 }
 
-/* ── Sidebar ── */
+/* ── The files panel, on the right and drawn as a card (#347) ──
+ *
+ * It is the **last** child of `#main-area`, so the flex row puts it after the
+ * editor stack; the side is the markup order and there is no `order` to read
+ * against it. It **takes its own room rather than covering the document**,
+ * which is the owner decision of 2026-09-17: the editor is where the person
+ * was typing, and a panel that covers it hides the work to show the
+ * neighbourhood. Measured: the editor goes from 1024 to 796 px at 1024x768,
+ * from 683 to 455 at 150 per cent scaling, and from 600 to **372** at the
+ * 600x400 minimum, where the text column is 292 px. A table wider than the
+ * editor scrolls sideways where it did not before — 796 px of room against 809
+ * of content at 1024x768 — which is that decision costing what it costs.
+ *
+ * **The border draws the card and the shadow decorates it**, measured in all
+ * seven palettes rather than assumed. `--border` is at 3 to 1 since #340 and
+ * measures 3.05 to 3.09 against the surface it encloses in every palette, while
+ * `--surface` against `--bg` is 1.05 to 1.15 — a fill this close to its ground
+ * would be no edge at all on its own. The shadow, read pixel by pixel out of
+ * the captures, reaches 1.20 of contrast in `light` and **1.03 in
+ * `github-dark`**, where it is effectively absent: it is black over near-black
+ * and has nowhere to go. So nothing rests on it, and the two palettes that
+ * carry it least are the dark ones rather than the Solarized pair the issue
+ * expected.
+ *
+ * **The gap is from the window edges, which the left side is not**: top, right
+ * and bottom clear the frame by 8 px, and the left edge sits against the editor,
+ * which already keeps 40 px of padding of its own. Eight more pixels there
+ * would come out of the 292 px text column at the minimum window. */
 #sidebar {
   width: 220px;
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 8px 8px 8px 0;
   background: var(--surface);
+  box-shadow: 0 2px 8px var(--shadow-md);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  /* The rounded corners clip the tree, which has square ones. */
   overflow: hidden;
 }
 
@@ -2105,23 +2144,17 @@ button.indicator-search[aria-expanded="true"],
   display: none;
 }
 
+/* One child since #347, the close cross having gone: on the right it landed 26
+ * px under the header control that opens and closes this panel, two doors to
+ * one room with one of them looking like a stray. What the panel is called is
+ * all that is left here. */
 #sidebar-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
   font-weight: 600;
-}
-
-#sidebar-header button {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--muted);
-  line-height: 1;
 }
 
 #sidebar-tree {

@@ -76,6 +76,7 @@ function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall |
     isVisible: () => lastShow !== null,
     toggle: () => {},
     setOnFileClick: () => {},
+    onVisibleChange: () => {},
     setOnRequestAccess: () => {},
   };
   return { sidebar, lastShow: () => lastShow };
@@ -282,6 +283,7 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       isVisible: () => panel !== null,
       toggle: () => {},
       setOnFileClick: () => {},
+      onVisibleChange: () => {},
       setOnRequestAccess: () => {},
     };
     const reporter: ErrorReporter = { silent: () => {}, toast: () => {}, dialog: async () => {} };

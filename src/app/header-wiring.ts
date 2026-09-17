@@ -1,4 +1,5 @@
 import { setCloseEnabled } from '../ui/menu';
+import type { Sidebar } from '../ui/sidebar';
 import type { AppContext } from './context';
 import type { DocumentActions } from './document-actions';
 import type { SearchManager } from './search-manager';
@@ -49,7 +50,42 @@ export function setupHeader(state: AppState): HeaderControls {
 /** Second-phase wiring — indicator click handlers that need the full context. */
 export function wireHeaderIndicators(ctx: AppContext, _docActions: DocumentActions): void {
   wireSearchButton(ctx.searchManager);
+  wireSidebarButton(ctx.sidebar);
   // Token number/unit are hover-only (title tooltips); no click handlers.
+}
+
+/**
+ * The files panel opens and closes from the last control of the header (#347),
+ * which also says which of the two the next press will do.
+ *
+ * **It is the `wireSearchButton` shape below, deliberately.** Both controls
+ * reveal a surface rather than switch an option on, so both say `aria-expanded`
+ * with `aria-controls` — the #312 and #324 reading — and a screen reader
+ * announces «Files panel, button, expanded» or «collapsed». The lit shade is
+ * the same one, `--hover-overlay-strong` on `[aria-expanded="true"]`, so the
+ * two ends of the bar say «open» the same way.
+ *
+ * **The state follows the panel and not the button**, which is what makes it
+ * true rather than merely written: the chord, a document switch that draws a
+ * tree, and the folder offer all move it, because each of them goes through
+ * `setVisible` in `ui/sidebar.ts` and that is what publishes the change.
+ *
+ * This control sits outside `#header-indicators`, so no collapse breakpoint
+ * reaches it and the overflow menu never holds a copy of it — measured at every
+ * width from 400 to 1400 px, where the bar overflows at none of them.
+ */
+export function wireSidebarButton(sidebar: Sidebar): void {
+  // Named rather than the `!` its neighbours use, which is the `required` shape
+  // of `ui/menu.ts`: without this control the panel has the chord and nothing
+  // that says whether it is open, so a markup edit that drops it is a boot
+  // failure that names itself rather than a TypeError on the next line.
+  const button = document.getElementById('sidebar-toggle');
+  if (!button) throw new Error('the header markup has no #sidebar-toggle');
+  button.setAttribute('aria-expanded', String(sidebar.isVisible()));
+  button.addEventListener('click', () => sidebar.toggle());
+  sidebar.onVisibleChange((visible) => {
+    button.setAttribute('aria-expanded', String(visible));
+  });
 }
 
 /**

@@ -54,10 +54,18 @@ const FAMILY = [
   'cluster-indicator',
   'overflow-toggle',
   'appearance-menu-trigger',
+  // The files panel control, which took the last seat at #347.
+  'sidebar-toggle',
 ];
 
 /** The members whose whole content is a drawing, and are therefore square. */
-const SQUARE = ['menu-toggle', 'indicator-search', 'overflow-toggle', 'appearance-menu-trigger'];
+const SQUARE = [
+  'menu-toggle',
+  'indicator-search',
+  'overflow-toggle',
+  'appearance-menu-trigger',
+  'sidebar-toggle',
+];
 
 /** What the family rule owns for every member alike. */
 const FORM = ['border', 'border-radius', 'display', 'align-items', 'justify-content', 'height'];
@@ -177,7 +185,7 @@ describe('one rule gives every button in the bar its form', () => {
       svg.getAttribute('stroke') === 'none'
         ? svg.getAttribute('fill')
         : svg.getAttribute('stroke-width');
-    expect(icons.map(({ svg }) => weight(svg))).toEqual(['2', '2', 'currentColor', '2']);
+    expect(icons.map(({ svg }) => weight(svg))).toEqual(['2', '2', 'currentColor', '2', '2']);
   });
 
   it('tells a readout from a button by how the box is filled, not by the box', () => {
