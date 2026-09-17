@@ -22,13 +22,15 @@ import { type MenuCallbacks, setupMenu } from './menu';
 const bothAvailable = () => ({ canUndo: true, canRedo: true });
 
 /**
- * Every Table entry enabled. The rows that click an entry need it choosable,
- * and a greyed entry cannot be chosen; **when each of the seven is greyed is
- * asserted in `editor/table-shape.test.ts`, over a real editor and a real
- * table**. What is asserted here is that the reading reaches the entries at
- * all, and the order in which it is read (#292, #307).
+ * Every entry the reading can grey, enabled. The rows that click an entry need
+ * it choosable, and a greyed entry cannot be chosen; **when each is greyed is
+ * asserted over a real editor in `editor/table-shape.test.ts` for the seven
+ * Table entries and in `editor/image-description.test.ts` for the eighth entry
+ * of Edit**. What is asserted here is that the reading reaches the entries at
+ * all, and the order in which it is read (#292, #291, #307).
  */
-const everyTableEntry = () => ({
+const everyEntryOffered = () => ({
+  imageDescription: true,
   addRowAbove: true,
   addRowBelow: true,
   deleteRow: true,
@@ -60,6 +62,7 @@ function callbacks(): MenuCallbacks {
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
+    onImageDescription: vi.fn(),
     onAddRowAbove: vi.fn(),
     onAddRowBelow: vi.fn(),
     onDeleteRow: vi.fn(),
@@ -103,12 +106,12 @@ function isShown(target: Element): boolean {
 
 describe('setupMenu', () => {
   it('binds every entry the hamburger menu ships', () => {
-    expect(() => setupMenu(callbacks(), bothAvailable, everyTableEntry)).not.toThrow();
+    expect(() => setupMenu(callbacks(), bothAvailable, everyEntryOffered)).not.toThrow();
   });
 
   it('opens About from the Help entry', () => {
     const handlers = callbacks();
-    setupMenu(handlers, bothAvailable, everyTableEntry);
+    setupMenu(handlers, bothAvailable, everyEntryOffered);
 
     element('menu-about').click();
 
@@ -116,7 +119,7 @@ describe('setupMenu', () => {
   });
 
   it('closes the menu when About is chosen', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     const dropdown = element('menu-dropdown');
 
     element('menu-toggle').click();
@@ -170,6 +173,7 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-edit', 'Undo', 'menu-undo', 'onUndo'],
   ['menu-panel-edit', 'Redo', 'menu-redo', 'onRedo'],
   ['menu-panel-edit', 'Select All', 'menu-select-all', 'onSelectAll'],
+  ['menu-panel-edit', 'Image description', 'menu-image-description', 'onImageDescription'],
   ['menu-panel-insert', 'Insert Table', 'menu-insert-table', 'onInsertTable'],
   ['menu-panel-insert', 'Insert Media', 'menu-insert-media', 'onInsertMedia'],
   ['menu-panel-insert', 'Insert Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
@@ -234,7 +238,7 @@ describe('every entry runs its own command, reached the way a person reaches it 
     ENTRIES,
   )('%s holds %s, and choosing it runs its handler and no other', (panel, label, id, handler) => {
     const handlers = callbacks();
-    setupMenu(handlers, bothAvailable, everyTableEntry);
+    setupMenu(handlers, bothAvailable, everyEntryOffered);
 
     openSection(panel);
     const entry = element(id);
@@ -299,7 +303,7 @@ function pressEscape(): void {
 
 describe('the menu is an accordion (#294)', () => {
   it('opens with every section folded, and each header directly above its own panel', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
 
     element('menu-toggle').click();
 
@@ -326,7 +330,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('opens each section below its own header, the headers staying, with focus on its first entry', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
 
     for (const panel of SECTION_PANELS) {
       openSection(panel);
@@ -343,7 +347,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('moves focus past a first entry that cannot be chosen', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     (element('menu-new') as HTMLButtonElement).disabled = true;
 
     openSection('menu-panel-file');
@@ -352,7 +356,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('folds an open section when its header is pressed again', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
 
     for (const panel of SECTION_PANELS) {
       openSection(panel);
@@ -370,7 +374,7 @@ describe('the menu is an accordion (#294)', () => {
   it('keeps one section open at a time, folding the open one when another opens', () => {
     // Several open at once was measured and not offered: with the planned
     // contents it scrolls 125 to 213 px even at 1024x768, where one fits.
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     element('menu-toggle').click();
 
     for (const panel of [...SECTION_PANELS, SECTION_PANELS[0]]) {
@@ -382,7 +386,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('reopens with every section folded however it was closed', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     const closers: ReadonlyArray<readonly [string, () => void]> = [
       ['a click outside', () => document.body.click()],
       ['the toggle', () => element('menu-toggle').click()],
@@ -405,7 +409,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('closes the whole menu on Escape from inside a section, with focus on the toggle', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     openSection('menu-panel-insert');
     expect(element('menu-panel-insert').contains(document.activeElement)).toBe(true);
 
@@ -417,7 +421,7 @@ describe('the menu is an accordion (#294)', () => {
   });
 
   it('leaves focus where it is when Escape closes a menu that focus had already left', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     const elsewhere = document.createElement('button');
     document.body.appendChild(elsewhere);
     openSection('menu-panel-insert');
@@ -433,7 +437,7 @@ describe('the menu is an accordion (#294)', () => {
     // Measured before #294 in Chromium: after an entry was chosen, focus stayed
     // on it while nobody could see it, and the next Tab started from there.
     const handlers = callbacks();
-    setupMenu(handlers, bothAvailable, everyTableEntry);
+    setupMenu(handlers, bothAvailable, everyEntryOffered);
     openSection('menu-panel-view');
     element('menu-toggle-sidebar').focus();
 
@@ -499,10 +503,15 @@ function greyedTableEntries(): string[] {
 
 /** A caret in the header row of a GFM table: the two refused entries (#292, h1). */
 const inAHeaderRow = () => ({
-  ...everyTableEntry(),
+  ...everyEntryOffered(),
   addRowAbove: false,
   deleteRow: false,
 });
+
+/** Whether the image description entry can be chosen. */
+function imageEntryGreyed(): boolean {
+  return (element('menu-image-description') as HTMLButtonElement).disabled;
+}
 
 describe('the Table entries are greyed from where the caret is (#292)', () => {
   it('greys every entry whose key the reading refuses, and no other', () => {
@@ -522,7 +531,7 @@ describe('the Table entries are greyed from where the caret is (#292)', () => {
   });
 
   it('takes the reading at every opening rather than once at boot', () => {
-    let availability = everyTableEntry();
+    let availability = everyEntryOffered();
     setupMenu(callbacks(), bothAvailable, () => availability);
 
     element('menu-toggle').click();
@@ -533,6 +542,26 @@ describe('the Table entries are greyed from where the caret is (#292)', () => {
     element('menu-toggle').click();
 
     expect(greyedTableEntries()).toEqual(['menu-table-add-row-above', 'menu-table-delete-row']);
+  });
+
+  /**
+   * The eighth entry of Edit is greyed from the same reading, and it is the
+   * only entry outside the Table section that is (#291). Over a real editor
+   * and a real image, when it is greyed is `image-description.test.ts`.
+   */
+  it('greys the image description entry when no image is selected, and offers it when one is', () => {
+    let availability: Record<string, boolean> = { ...everyEntryOffered(), imageDescription: false };
+    setupMenu(callbacks(), bothAvailable, () => availability);
+
+    element('menu-toggle').click();
+    expect(imageEntryGreyed()).toBe(true);
+    expect(greyedTableEntries()).toEqual([]);
+
+    pressEscape();
+    availability = everyEntryOffered();
+    element('menu-toggle').click();
+
+    expect(imageEntryGreyed()).toBe(false);
   });
 
   /**
@@ -577,7 +606,7 @@ describe('the Table entries are greyed from where the caret is (#292)', () => {
 
 describe('the open menu is bounded by the room below the header (#273)', () => {
   function openMenu(): HTMLElement {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     element('menu-toggle').click();
     const dropdown = element('menu-dropdown');
     expect(dropdown.classList.contains('hidden')).toBe(false);
@@ -725,7 +754,7 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
   });
 
   it('keeps the slide of a menu panel and the turn of its chevron, for everyone else', () => {
-    setupMenu(callbacks(), bothAvailable, everyTableEntry);
+    setupMenu(callbacks(), bothAvailable, everyEntryOffered);
     openSection('menu-panel-insert');
     const chevron = sectionHeader('menu-panel-insert').querySelector('.menu-chevron') as Element;
     const transitionsOn = (target: Element): string =>
@@ -800,7 +829,7 @@ function menuOverEditor(editor: EditorInstance): void {
       ...insertMenuCallbacks(editor.editor),
     },
     bothAvailable,
-    everyTableEntry,
+    everyEntryOffered,
   );
 }
 

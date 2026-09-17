@@ -1757,6 +1757,13 @@ button.indicator-search[aria-expanded="true"],
   display: block;
 }
 
+#image-description-text {
+  width: 360px;
+  max-width: 70vw;
+  background: var(--bg);
+  color: var(--text);
+}
+
 #link-url {
   width: 360px;
   max-width: 70vw;
@@ -1767,6 +1774,23 @@ button.indicator-search[aria-expanded="true"],
 /* Why an address was refused. A refusal with no reason reads as a broken
  * application — the same finding as #13, where a close that silently did
  * nothing looked like a freeze. */
+/* The one line that explains a field rather than refusing a value (#291).
+ * Every other line inside a dialog is a refusal, which is why this is its own
+ * class and not a variant of `.dialog-error`: it is muted rather than red, it
+ * is always there rather than hidden until something is wrong, and it sits
+ * above the field instead of under it. It takes the same 12 px and 1.4 line
+ * height, so the two read as one family. Measured on the built page: the
+ * dialog goes from 400 x 168 to 400 x 206, the note two lines at the field
+ * width, and it fits the window at 1024x768, at 600x400 and at 150 per cent
+ * scaling. */
+.dialog-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: -8px 0 12px;
+  max-width: 360px;
+}
+
 .dialog-error {
   color: var(--danger);
   font-size: 12px;
@@ -1904,6 +1928,19 @@ button.indicator-search[aria-expanded="true"],
   cursor: pointer;
   font-family: inherit;
   line-height: 1.2;
+}
+
+/* A control whose label would be a word carries a drawn symbol instead (#291),
+ * the shape #330 and #332 gave the header buttons — and `display: block` is
+ * what makes it the same shape rather than only the same picture. Measured on
+ * the built page: an inline SVG sits on the text baseline and takes the bar
+ * from 31.59 px to 35.59, where a block takes it to 32.00. The bar height is
+ * what `toolbarTop` places against and what the flip band of #336 is built
+ * from, so those four pixels are not decoration. */
+.floating-toolbar button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 /* An image rather than a colour so that it stacks on the active shade below

@@ -59,7 +59,7 @@ function renderedToolbar(): { bar: HTMLElement; plain: HTMLElement; active: HTML
   document.body.appendChild(host);
   instance = createEditor(host);
   instance.setMarkdown('**bold** plain');
-  setupToolbar(instance.editor, { onLink: vi.fn() });
+  setupToolbar(instance.editor, { onLink: vi.fn(), onImageDescription: vi.fn() });
   instance.editor.commands.setTextSelection({ from: 2, to: 4 });
   const bar = document.getElementById('floating-toolbar');
   if (!bar) throw new Error('setupToolbar rendered no toolbar');

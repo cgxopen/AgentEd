@@ -77,6 +77,7 @@
             <button id="menu-undo">Undo <span class="menu-shortcut">Ctrl+Z</span></button>
             <button id="menu-redo">Redo <span class="menu-shortcut">Ctrl+Y</span></button>
             <button id="menu-select-all">Select All <span class="menu-shortcut">Ctrl+A</span></button>
+            <button id="menu-image-description">Image description</button>
           </div>
           <button id="menu-section-insert" class="menu-section" aria-expanded="false" aria-controls="menu-panel-insert">Insert <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
           <div id="menu-panel-insert" class="menu-panel" role="group" aria-label="Insert" hidden>
@@ -172,6 +173,19 @@
         <div class="dialog-actions">
           <button id="table-cancel">Cancel</button>
           <button id="table-confirm" class="primary">Insert</button>
+        </div>
+      </div>
+    </div>
+    <div id="image-description-dialog" class="dialog-overlay hidden">
+      <div class="dialog">
+        <div class="dialog-title">Image description</div>
+        <div class="dialog-note">Read out instead of the picture, and shown wherever the image cannot be loaded.</div>
+        <div class="dialog-fields">
+          <label>Description <input id="image-description-text" type="text" autocomplete="off" placeholder="A dog asleep on a sofa" /></label>
+        </div>
+        <div class="dialog-actions">
+          <button id="image-description-cancel">Cancel</button>
+          <button id="image-description-confirm" class="primary">Save</button>
         </div>
       </div>
     </div>

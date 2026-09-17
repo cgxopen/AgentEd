@@ -8,6 +8,7 @@ import { installDropGuard } from './app/drop-guard';
 import { createErrorReporter } from './app/error-reporter';
 import { setupFileAssociation } from './app/file-association';
 import { setupHeader, wireHeaderIndicators } from './app/header-wiring';
+import { imageDescriptionRoutes } from './app/image-description-dialog';
 import { createImageInsertReporter } from './app/image-insert-report';
 import { metadataMenuCallbacks } from './app/insert-metadata';
 import { setupKeyboard } from './app/keyboard';
@@ -22,6 +23,7 @@ import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
 import { followPaletteWithTheWindow } from './app/window-appearance';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
+import { imageDescriptionAvailability } from './editor/image-description';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockRoutes } from './editor/insert-code-block';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
@@ -109,9 +111,13 @@ ctx.setMarkdown = setMarkdown;
 // other dialogs); the toolbar reaches it by late binding, as it does for
 // docActions.
 let linkDialog!: LinkDialog;
+let imageDescription!: { readonly onImageDescription: () => void };
 ctx.statusbar = setupStatusbar(editor);
 setupSpellcheckToggle(state);
-setupToolbar(editor, { onLink: () => linkDialog.open() });
+setupToolbar(editor, {
+  onLink: () => linkDialog.open(),
+  onImageDescription: () => imageDescription.onImageDescription(),
+});
 
 // Ctrl/Cmd+click follows a link; a plain click still places the caret (#25).
 installLinkOpener(editorEl, {
@@ -247,6 +253,9 @@ ctx.sidebar.setOnRequestAccess(() => {
 });
 
 linkDialog = setupLinkDialog(editor);
+// One object for the two doors of #291 — the toolbar button and the Edit
+// entry — so a handler moved onto another entry is a change made in one place.
+imageDescription = imageDescriptionRoutes(editor);
 // One object, spread into the menu and into the keyboard, so a swap between
 // the two routes is made in one place and the tests drive that place (#279).
 const codeBlock = codeBlockRoutes(editor);
@@ -283,6 +292,7 @@ setupMenu(
     ...selectAllMenuCallbacks(editor),
     ...tableMenuCallbacks(editor),
     ...tableShapeMenuCallbacks(editor),
+    ...imageDescription,
     ...codeBlock,
     ...insertMenuCallbacks(ctx.editor),
     ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
@@ -304,7 +314,8 @@ setupMenu(
     },
   },
   () => historyAvailability(editor),
-  () => tableShapeAvailability(editor),
+  // One reading, answered by the module that owns each entry.
+  () => ({ ...tableShapeAvailability(editor), ...imageDescriptionAvailability(editor) }),
 );
 
 // Appearance (Mode + Palette) opens from its own trigger at the right of the

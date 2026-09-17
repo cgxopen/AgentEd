@@ -19,6 +19,7 @@ export interface MenuCallbacks {
   onInsertHorizontalRule: () => void;
   onInsertMetadata: () => void;
   onInsertEmoji: () => void;
+  onImageDescription: () => void;
   onAddRowAbove: () => void;
   onAddRowBelow: () => void;
   onDeleteRow: () => void;
@@ -41,20 +42,25 @@ export interface HistoryAvailability {
 }
 
 /**
- * Which entries of the Table section can be chosen where the caret is (#292),
- * keyed by the entry. Read when the menu opens, the way the history is;
- * `tableShapeAvailability` in `editor/table-shape.ts` records what each rule
- * refuses and why.
+ * Which entries can be chosen where the caret is, keyed by the entry. Read
+ * when the menu opens, the way the history is (#292, #291).
+ *
+ * Two modules answer it and neither knows about the other:
+ * `tableShapeAvailability` in `editor/table-shape.ts` for the seven Table
+ * entries, and `imageDescriptionAvailability` in `editor/image-description.ts`
+ * for the eighth entry of Edit. Each records what its rules refuse and why.
  */
-export type TableShapeAvailability = Readonly<Record<string, boolean>>;
+export type EntryAvailability = Readonly<Record<string, boolean>>;
 
 /**
- * The Table entries, each with the key it is greyed from. The ids are the
- * markup's, and a key the reading does not carry greys its entry: a reading
- * that forgot one fails closed, rather than offering a route that would do
- * nothing.
+ * Every entry that is greyed from that reading, with the key it is greyed
+ * from — the seven of the Table section and the image description in Edit.
+ * The ids are the markup's, and a key the reading does not carry greys its
+ * entry: a reading that forgot one fails safe, rather than offering a route
+ * that would do nothing.
  */
-const TABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
+const GREYABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
+  ['menu-image-description', 'imageDescription'],
   ['menu-table-add-row-above', 'addRowAbove'],
   ['menu-table-add-row-below', 'addRowBelow'],
   ['menu-table-delete-row', 'deleteRow'],
@@ -100,21 +106,21 @@ function readSections(dropdown: HTMLElement): Section[] {
  * entry that can be chosen. The menu always reopens with every section folded.
  * Escape closes the whole menu, which is the owner decision recorded on #294.
  *
- * `readHistory` and `readTableShape` are required rather than optional, so a
- * caller that forgot one does not build: without them Undo, Redo and the seven
- * Table entries would stay enabled over nothing.
+ * `readHistory` and `readAvailability` are required rather than optional, so a
+ * caller that forgot one does not build: without them Undo, Redo, the seven
+ * Table entries and the image description would stay enabled over nothing.
  */
 export function setupMenu(
   callbacks: MenuCallbacks,
   readHistory: () => HistoryAvailability,
-  readTableShape: () => TableShapeAvailability,
+  readAvailability: () => EntryAvailability,
 ): void {
   const toggle = required('menu-toggle');
   const dropdown = required('menu-dropdown');
   const sections = readSections(dropdown);
   const undoEntry = required('menu-undo') as HTMLButtonElement;
   const redoEntry = required('menu-redo') as HTMLButtonElement;
-  const tableEntries = TABLE_ENTRIES.map(
+  const greyableEntries = GREYABLE_ENTRIES.map(
     ([id, key]) => [required(id) as HTMLButtonElement, key] as const,
   );
 
@@ -137,7 +143,7 @@ export function setupMenu(
   /**
    * Greys every entry that has nothing to do, so a press is never silent (the
    * #275 shape): Undo and Redo from the history (#295), and the seven Table
-   * entries from where the caret is (#292).
+   * entries and the image description from where the caret is (#292, #291).
    *
    * **It runs as the menu opens, which is before any section can be opened and
    * so before a header moves focus to the first entry that can be chosen: that
@@ -154,8 +160,8 @@ export function setupMenu(
     const { canUndo, canRedo } = readHistory();
     undoEntry.disabled = !canUndo;
     redoEntry.disabled = !canRedo;
-    const table = readTableShape();
-    for (const [entry, key] of tableEntries) entry.disabled = table[key] !== true;
+    const available = readAvailability();
+    for (const [entry, key] of greyableEntries) entry.disabled = available[key] !== true;
   }
 
   function open(): void {
@@ -231,6 +237,7 @@ export function setupMenu(
   bind('menu-undo', callbacks.onUndo);
   bind('menu-redo', callbacks.onRedo);
   bind('menu-select-all', callbacks.onSelectAll);
+  bind('menu-image-description', callbacks.onImageDescription);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);

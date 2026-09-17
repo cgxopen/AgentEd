@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import { AllSelection } from '@tiptap/pm/state';
+import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
 import {
   activeHeadingLevels,
@@ -13,18 +14,25 @@ import { toolbarTop } from './toolbar-placement';
 export interface ToolbarHandlers {
   /** Open the link dialog (#25). Owned by the app layer, which has the DOM. */
   onLink: () => void;
+  /** Open the image description dialog (#291), the same way. */
+  onImageDescription: () => void;
 }
 
 /**
- * An entry that runs a command when it is pressed. Ten of the eleven.
+ * An entry that runs a command when it is pressed. Eleven of the twelve.
  *
- * Counted at `6205bd1` in `shippedButtons`: B, I, U, S, the link, inline code,
- * the fenced block, the heading control, the bullet list, the ordered list and
- * the quote. Ten carry an action; the heading control is the other shape below.
- * The figure this replaces said twelve of thirteen and had been stale for long
- * enough that nobody could say since when — a comment asserting a shape the
- * code does not have, which is what CLAUDE.md forbids, paid here because this
- * diff touches the file.
+ * Counted in `shippedButtons` at this head: B, I, U, S, the link, inline code,
+ * the fenced block, the heading control, the bullet list, the ordered list,
+ * the quote and the image description. Eleven carry an action; the heading
+ * control is the other shape below. **Twelve entries and eleven drawn at a
+ * time**: the image description is drawn only with an image selected, which is
+ * the rule below, so a text selection still meets the eleven this comment
+ * counted before #291 — measured on the built page, 338.66 px of bar on a
+ * text selection and 372.66 on an image.
+ *
+ * The figure before that one said twelve of thirteen and had been stale for
+ * long enough that nobody could say since when, which is why it is counted
+ * here rather than carried.
  */
 export interface ToolbarButton {
   readonly kind?: 'action';
@@ -32,6 +40,23 @@ export interface ToolbarButton {
   title: string;
   action: (editor: Editor, handlers: ToolbarHandlers) => void;
   isActive: (editor: Editor) => boolean;
+  /**
+   * The drawn symbol this control carries instead of a label (#291). The bar
+   * is where the room is tightest and every other control is one or two
+   * characters, so a control whose name is a word is drawn rather than
+   * written — the shape #330 and #332 gave the header buttons. `label` stays
+   * the empty string for such a control, and `title` is where its name is
+   * read.
+   */
+  icon?: () => SVGSVGElement;
+  /**
+   * The selections this control is offered for, or absent for the ten that
+   * are offered for every one (#291). A control that means something only on
+   * an image is **not drawn at all** on a text selection, rather than drawn
+   * inert: owner decision of 2026-09-17, taken against a bar 34 px wider for
+   * every selection in a session.
+   */
+  appliesTo?: (editor: Editor) => boolean;
 }
 
 /**
@@ -79,6 +104,34 @@ function headingLevelAt(editor: Editor): HeadingChoice['level'] {
     if (editor.isActive('heading', { level })) return level;
   }
   return null;
+}
+
+/**
+ * The symbol on the image description button: a frame with a horizon inside
+ * it, in `currentColor` so it takes the palette the bar already carries.
+ *
+ * Built rather than written as markup: nothing in this application assigns
+ * `innerHTML`, and a drawn symbol is no reason to start. The header does the
+ * same picture in `index.html`, where it is markup rather than a string.
+ */
+function imageSymbol(): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.5');
+  svg.setAttribute('aria-hidden', 'true');
+  const frame = document.createElementNS(NS, 'rect');
+  frame.setAttribute('x', '1.5');
+  frame.setAttribute('y', '3');
+  frame.setAttribute('width', '13');
+  frame.setAttribute('height', '10');
+  frame.setAttribute('rx', '1.5');
+  const horizon = document.createElementNS(NS, 'path');
+  horizon.setAttribute('d', 'M3 11l3.5-3.5 2.5 2.5 2-2L13 11');
+  svg.append(frame, horizon);
+  return svg;
 }
 
 const buttons: ToolbarEntry[] = [
@@ -207,6 +260,20 @@ const buttons: ToolbarEntry[] = [
     },
     isActive: (e) => e.isActive('blockquote'),
   },
+  {
+    // The twelfth control, and the first the bar offers for one kind of
+    // selection only (#291). Its name is read in the tooltip, in the menu
+    // entry and in the title of the dialog it opens — the three places a
+    // person reads words — and the button itself carries the symbol above.
+    label: '',
+    title: 'Image description',
+    icon: imageSymbol,
+    appliesTo: (e) => hasImageSelected(e),
+    action: (_e, handlers) => {
+      handlers.onImageDescription();
+    },
+    isActive: () => false,
+  },
 ];
 
 /**
@@ -225,7 +292,8 @@ function createToolbarButtons(
   const elements: HTMLButtonElement[] = [];
   for (const btn of buttons) {
     const el = document.createElement('button');
-    el.textContent = btn.label;
+    if (isActionEntry(btn) && btn.icon) el.appendChild(btn.icon());
+    else el.textContent = btn.label;
     el.title = btn.title;
     // The class the stylesheet gives a steady width, so a label that follows
     // the caret does not move the toolbar under the pointer.
@@ -276,6 +344,27 @@ function bindToolbarEvents(
   editor: Editor,
   btnElements: HTMLButtonElement[],
 ): void {
+  /**
+   * Which controls this selection is offered (#291). Ten of the twelve are
+   * offered for every selection and carry no rule; the image description is
+   * drawn only for an image.
+   *
+   * **It runs before the bar is measured, and that order is the repair of
+   * #265 applied to a second cause.** A hidden control changes the width of
+   * the bar — 338.66 px on a text selection against 372.66 on an image,
+   * measured on the built page — and `positionToolbar` centres the bar on
+   * what is selected from a rectangle it takes once. Toggling after that
+   * measurement would centre every image selection against the width of the
+   * bar it no longer has.
+   */
+  function updateVisibleControls() {
+    for (let i = 0; i < buttons.length; i++) {
+      const entry = buttons[i];
+      if (!isActionEntry(entry) || !entry.appliesTo) continue;
+      btnElements[i].hidden = !entry.appliesTo(editor);
+    }
+  }
+
   function updateActiveStates() {
     for (let i = 0; i < buttons.length; i++) {
       const entry = buttons[i];
@@ -302,9 +391,10 @@ function bindToolbarEvents(
 
     // ── Nothing to offer on a whole-document selection (#336) ──
     //
-    // Owner decision of 2026-09-16: the bar carries eleven controls and none of
-    // them has an evident use applied to a whole document, so it is not shown
-    // for one. Before this it was shown and could not be reached — the
+    // Owner decision of 2026-09-16: the bar carried eleven controls and none of
+    // them had an evident use applied to a whole document, so it is not shown
+    // for one. The twelfth, added by #291, is drawn for an image alone and so
+    // has none there either — a whole-document selection is not a node. Before this it was shown and could not be reached — the
     // placement put it 40.0 px below the window, measured at both window sizes
     // and at every scroll position.
     //
@@ -312,7 +402,8 @@ function bindToolbarEvents(
     // rule.** `Ctrl+A` and the Select All entry both produce an `AllSelection`;
     // a drag or a Shift+arrow across every word produces a `TextSelection`,
     // which keeps its bar — someone who dragged deliberately may well be about
-    // to press one of the eleven, and the band now keeps that bar on screen.
+    // to press one of the controls it draws, and the band now keeps that bar on
+    // screen.
     //
     // Measured rather than reasoned, on two documents — one opening with a
     // paragraph, one opening with a table and ending with a fenced block:
@@ -350,6 +441,8 @@ function bindToolbarEvents(
     // paint. That is an argument from the rendering model rather than a
     // measurement, and WebView2 is not Chromium — a flash on the first reveal
     // of a session is what the manual pass watches for.
+    // Before the reveal and so before the measurement: see the note above.
+    updateVisibleControls();
     toolbar.classList.remove('hidden');
     const rect = toolbar.getBoundingClientRect();
 
