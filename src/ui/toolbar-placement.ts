@@ -80,12 +80,36 @@ const GAP = 8;
  * - where the band is shorter than the thing being placed the popover shrinks
  *   and the toolbar cannot, so the two want opposite answers at that boundary.
  *
- * **Which bound wins when they cross.** The header floor, deliberately: the bar
- * overflows the bottom of the window rather than being drawn into the header,
- * because being drawn into the header is the defect #268 exists for. The cross
- * needs a window about 127 px tall — `headerBottom > viewportHeight - GAP -
- * toolbarHeight` — against the 400 px minimum, so it is a stated preference at
- * an unreachable boundary rather than a guard against a live state.
+ * **Where a selection too tall for either side puts the bar: the top of the
+ * band.** Owner decision of 2026-09-17, taken on the artifact of the first
+ * head, where the clamp had put it at the **bottom** of the band instead. His
+ * report is the mechanism exactly: dragging past the foot of the window left
+ * the bar at the bottom, and shortening the selection by one line at the top
+ * let the first branch fire again and the bar went back above.
+ *
+ * Both edges cover selected text — that is what a selection with no free edge
+ * means — so the choice is which line to cover. The top covers the first
+ * visible line of the selection and sits against the header, where it reads as
+ * part of it; the bottom covers the last visible line, which after a downward
+ * drag is where the pointer just stopped and where the eye is.
+ *
+ * **The counter-case, recorded rather than left to be discovered**: a drag made
+ * upwards ends with the pointer at the top, and there the bar now appears under
+ * it. Nothing here measures which drag is the common one, and this is a look
+ * the owner judges rather than a figure.
+ *
+ * **The flip is untouched for every case the sweep above covered.** The third
+ * branch is only reached when the second one would leave the window, and that
+ * sweep found no selection lacking room below — so for all 37 of them, and for
+ * every selection that fits on screen, this function answers exactly what it
+ * answered before #336.
+ *
+ * **What happens to the older reading, that the header floor wins when the two
+ * bounds cross.** It no longer arises: the third branch returns the header
+ * bottom outright rather than clamping between two bounds that could cross, so
+ * the bar can never be drawn into the header — the defect #268 exists for —
+ * whatever the window is. A window shorter than the bar and its gaps leaves the
+ * bar overflowing the foot, which is the same preference stated more simply.
  */
 export function toolbarTop(
   selectionTop: number,
@@ -95,23 +119,10 @@ export function toolbarTop(
   viewportHeight: number,
 ): number {
   const above = selectionTop - toolbarHeight - GAP;
-  const chosen = above >= headerBottom ? above : selectionBottom + GAP;
-  return withinBand(chosen, toolbarHeight, headerBottom, viewportHeight);
-}
+  if (above >= headerBottom) return above;
 
-/**
- * The chosen top, kept between the header bottom and the last row of pixels a
- * bar of this height can occupy while staying whole inside the window.
- *
- * `Math.max` is applied last on purpose — see the docblock above on which bound
- * wins when the two cross.
- */
-function withinBand(
-  top: number,
-  toolbarHeight: number,
-  headerBottom: number,
-  viewportHeight: number,
-): number {
-  const lowest = viewportHeight - GAP - toolbarHeight;
-  return Math.max(headerBottom, Math.min(top, lowest));
+  const below = selectionBottom + GAP;
+  if (below + toolbarHeight <= viewportHeight - GAP) return below;
+
+  return headerBottom;
 }

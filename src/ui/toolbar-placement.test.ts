@@ -142,54 +142,73 @@ describe('toolbarTop — the two boundaries (#268)', () => {
   });
 });
 
-describe('toolbarTop — the band, for a selection taller than the window (#336)', () => {
+describe('toolbarTop — a selection too tall for either side (#336)', () => {
   /**
    * **Every row here is built on a selection that is tall but is not the whole
    * document**, which is deliberate rather than incidental. A whole-document
-   * selection is also a selection taller than the screen, so a band row written
-   * on select-all would be satisfied by the hide in `toolbar.ts` and the two
+   * selection is also a selection taller than the screen, so a row written on
+   * select-all would be satisfied by the hide in `toolbar.ts` and the two
    * changes would not be independently witnessed. A drag of 24 lines is the
    * shape these use, and no selection type reaches this function at all — it
    * takes four numbers and a window.
    */
-  it('keeps the bar whole inside the window when the flip would put it past the foot', () => {
+  it('puts the bar at the top of the band when the flip would leave the window', () => {
     // The measured case at the default window: the selection start scrolled far
-    // above the viewport, its end at the foot, which before the band returned
-    // 776.4 in a 768 px window — 40.0 px below it, which is what was measured on
-    // the running application at 6205bd1.
+    // above the viewport, its end at the foot. The flip would answer 776.4 in a
+    // 768 px window — 40.0 px below it, which is what the running application
+    // did at 6205bd1.
     const headerBottom = 44;
     const viewportHeight = 768;
     const selectionBottom = 768.4;
-    const unclamped = selectionBottom + GAP;
-    expect(unclamped).toBeCloseTo(776.4, 5);
+    expect(selectionBottom + GAP).toBeCloseTo(776.4, 5);
 
     const top = toolbarTop(-2000, selectionBottom, TOOLBAR_H, headerBottom, viewportHeight);
-    expect(top).toBeCloseTo(viewportHeight - GAP - TOOLBAR_H, 5);
-    expect(top).toBeCloseTo(728.41, 2);
+    expect(top).toBe(headerBottom);
     expect(top + TOOLBAR_H).toBeLessThanOrEqual(viewportHeight);
   });
 
-  it('does the same at the minimum window, where the band is shorter', () => {
-    // 408.4 in a 400 px window before the band, which is the 600x400 figure.
-    const top = toolbarTop(-2000, 400.4, TOOLBAR_H, 44, 400);
-    expect(top).toBeCloseTo(400 - GAP - TOOLBAR_H, 5);
-    expect(top).toBeCloseTo(360.41, 2);
+  it('does the same at the minimum window', () => {
+    // 408.4 in a 400 px window before this, which is the 600x400 figure.
+    expect(toolbarTop(-2000, 400.4, TOOLBAR_H, 44, 400)).toBe(44);
+  });
+
+  it('follows the header bottom rather than a number of its own', () => {
+    // 44, 54, 64 and 87 are what the header computes to at 100, 125, 150 and
+    // 200 per cent scaling, and the top of the band is wherever the header ends.
+    for (const headerBottom of [44, 54, 64, 87]) {
+      expect(toolbarTop(-2000, 900, TOOLBAR_H, headerBottom, 768)).toBe(headerBottom);
+    }
   });
 
   it('reads the window height rather than assuming one', () => {
-    // The same selection in two windows must not give the same answer. This is
-    // the row that a constant in place of `window.innerHeight` would redden —
-    // the wiring itself cannot be reached here, and is the manual pass.
-    const tall = toolbarTop(-2000, 900, TOOLBAR_H, 44, 768);
-    const short = toolbarTop(-2000, 900, TOOLBAR_H, 44, 400);
-    expect(tall).not.toBeCloseTo(short, 5);
-    expect(tall - short).toBeCloseTo(368, 5);
+    // At the boundary, where the same selection fits below in one window and
+    // not in the other: a constant in place of `window.innerHeight` reddens
+    // here. The wiring itself cannot be reached in this harness and is the
+    // manual pass at 150 per cent scaling.
+    const selectionBottom = 380;
+    const below = selectionBottom + GAP;
+    expect(below + TOOLBAR_H).toBeLessThanOrEqual(768 - GAP);
+    expect(below + TOOLBAR_H).toBeGreaterThan(400 - GAP);
+
+    expect(toolbarTop(-2000, selectionBottom, TOOLBAR_H, 44, 768)).toBeCloseTo(below, 5);
+    expect(toolbarTop(-2000, selectionBottom, TOOLBAR_H, 44, 400)).toBe(44);
+  });
+
+  it('leaves the ordinary flip alone, which is every selection the #268 sweep covered', () => {
+    // The third branch must not swallow the second. A selection just under the
+    // header in a comfortable window has no room above and plenty below, which
+    // is all 37 of the selections that sweep measured.
+    const headerBottom = 44;
+    const selectionTop = headerBottom + 10;
+    const selectionBottom = selectionTop + 27.19;
+    expect(toolbarTop(selectionTop, selectionBottom, TOOLBAR_H, headerBottom, 768)).toBeCloseTo(
+      selectionBottom + GAP,
+      5,
+    );
   });
 
   it('leaves an ordinary selection exactly where it was', () => {
-    // The band must be invisible to everything that already fitted. A selection
-    // in the middle of a comfortable window takes the above branch and the
-    // clamp does not touch it.
+    // The change must be invisible to everything that already fitted above.
     for (const headerBottom of [44, 54, 64, 87]) {
       const selectionTop = headerBottom + 300;
       expect(
@@ -198,15 +217,16 @@ describe('toolbarTop — the band, for a selection taller than the window (#336)
     }
   });
 
-  it('keeps the header floor when the two bounds cross', () => {
-    // A window too short to hold the bar below the header at all. The stated
-    // preference: the bar overflows the foot rather than being drawn into the
-    // header, which is the defect #268 exists for. It needs a window about
-    // 127 px tall against the 400 px minimum, so this pins the choice rather
-    // than guarding a reachable state.
-    const headerBottom = 87;
-    const viewportHeight = 100;
-    expect(viewportHeight - GAP - TOOLBAR_H).toBeLessThan(headerBottom);
-    expect(toolbarTop(400, 500, TOOLBAR_H, headerBottom, viewportHeight)).toBe(headerBottom);
+  it('never answers above the header, whatever the window', () => {
+    // Including a window too short to hold the bar and its gaps at all, where
+    // the bar overflows the foot rather than being drawn into the header — the
+    // defect #268 exists for, pinned rather than left to the arithmetic.
+    for (const viewportHeight of [100, 200, 400, 768, 1200]) {
+      for (const headerBottom of [44, 54, 64, 87]) {
+        expect(
+          toolbarTop(-2000, 5000, TOOLBAR_H, headerBottom, viewportHeight),
+        ).toBeGreaterThanOrEqual(headerBottom);
+      }
+    }
   });
 });
