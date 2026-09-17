@@ -1,4 +1,5 @@
 import type { Editor } from '@tiptap/core';
+import { AllSelection } from '@tiptap/pm/state';
 import { toggleCodeBlock } from '../editor/insert-code-block';
 import {
   activeHeadingLevels,
@@ -15,7 +16,15 @@ export interface ToolbarHandlers {
 }
 
 /**
- * An entry that runs a command when it is pressed. Twelve of the thirteen.
+ * An entry that runs a command when it is pressed. Ten of the eleven.
+ *
+ * Counted at `6205bd1` in `shippedButtons`: B, I, U, S, the link, inline code,
+ * the fenced block, the heading control, the bullet list, the ordered list and
+ * the quote. Ten carry an action; the heading control is the other shape below.
+ * The figure this replaces said twelve of thirteen and had been stale for long
+ * enough that nobody could say since when — a comment asserting a shape the
+ * code does not have, which is what CLAUDE.md forbids, paid here because this
+ * diff touches the file.
  */
 export interface ToolbarButton {
   readonly kind?: 'action';
@@ -284,8 +293,36 @@ function bindToolbarEvents(
     // while it is open, and the toolbar hiding under it at an empty selection.
     closeHeadingLevels();
 
-    const { from, to, empty } = editor.state.selection;
+    const { selection } = editor.state;
+    const { from, to, empty } = selection;
     if (empty || from === to) {
+      toolbar.classList.add('hidden');
+      return;
+    }
+
+    // ── Nothing to offer on a whole-document selection (#336) ──
+    //
+    // Owner decision of 2026-09-16: the bar carries eleven controls and none of
+    // them has an evident use applied to a whole document, so it is not shown
+    // for one. Before this it was shown and could not be reached — the
+    // placement put it 40.0 px below the window, measured at both window sizes
+    // and at every scroll position.
+    //
+    // **It keys on the selection type, and the owner chose that over the wider
+    // rule.** `Ctrl+A` and the Select All entry both produce an `AllSelection`;
+    // a drag or a Shift+arrow across every word produces a `TextSelection`,
+    // which keeps its bar — someone who dragged deliberately may well be about
+    // to press one of the eleven, and the band now keeps that bar on screen.
+    //
+    // Measured rather than reasoned, on two documents — one opening with a
+    // paragraph, one opening with a table and ending with a fenced block:
+    // `Ctrl+A` and the entry gave `AllSelection` 0..size on both, a drag over
+    // every word gave `TextSelection` 1..34 and 4..48. **And the alternative
+    // key the issue offered is the same test**: asked for `from: 0, to: size`
+    // on four document shapes, ProseMirror clamped every one into the nearest
+    // textblock, so a `TextSelection` can never reach position 0 or the
+    // document size. Reading the type says what reading the range would.
+    if (selection instanceof AllSelection) {
       toolbar.classList.add('hidden');
       return;
     }
@@ -334,7 +371,10 @@ function bindToolbarEvents(
 
     left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
     toolbar.style.left = `${left}px`;
-    toolbar.style.top = `${toolbarTop(start.top, end.bottom, rect.height, headerBottom)}px`;
+    // The window height is read here for the same reason the header bottom is,
+    // on the line above: it is not a constant this application may write down.
+    // It is what bounds the band the bar is kept inside (#336).
+    toolbar.style.top = `${toolbarTop(start.top, end.bottom, rect.height, headerBottom, window.innerHeight)}px`;
     updateActiveStates();
   }
 
