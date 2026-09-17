@@ -140,7 +140,13 @@ describe('a code block can be made with nothing selected', () => {
     const toolbar = document.getElementById('floating-toolbar');
     if (toolbar === null) throw new Error('setupToolbar rendered no toolbar');
 
-    editor.editor.commands.selectAll();
+    // An ordinary selection over part of the document. It was `selectAll` until
+    // #336, which was only ever a convenient way to make the selection
+    // non-empty; a whole-document selection is now one the bar is not offered
+    // for, so it would have made this row assert the new branch rather than the
+    // one it is about. The claim — shown on a selection, hidden when it
+    // collapses — is unchanged.
+    editor.editor.commands.setTextSelection({ from: 1, to: 5 });
     expect(editor.editor.state.selection.empty).toBe(false);
     expect(toolbar.classList.contains('hidden')).toBe(false);
 

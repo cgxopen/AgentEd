@@ -348,3 +348,76 @@ describe('floating toolbar — one heading control for six levels (#267)', () =>
     expect(matched[0]).toBe(headingTrigger());
   });
 });
+
+describe('the bar is not offered for a whole-document selection (#336)', () => {
+  /**
+   * **What these rows can and cannot see.** The decision to hide is a branch in
+   * `positionToolbar` reading the selection, and a branch is observable. Where
+   * the bar would have landed is not: happy-dom lays nothing out. That the bar
+   * was 40.0 px below the window before this — the reason the branch exists —
+   * was measured in a browser and is recorded in `toolbar-placement.ts`.
+   */
+  const hidden = () =>
+    (document.getElementById('floating-toolbar') as HTMLElement).classList.contains('hidden');
+
+  /** The widest text selection the document allows, which is what a drag leaves. */
+  function selectEveryWord(editor: EditorInstance): void {
+    let first = 0;
+    let last = 0;
+    editor.editor.state.doc.descendants((node, pos) => {
+      if (node.isText) {
+        if (first === 0) first = pos;
+        last = pos + node.nodeSize;
+      }
+    });
+    editor.editor.commands.setTextSelection({ from: first, to: last });
+  }
+
+  it('shows the bar for a selection of part of the document', () => {
+    const { editor } = mountEditorWithToolbar('One two three.\n\nFour five six.');
+    editor.editor.commands.setTextSelection({ from: 1, to: 8 });
+    expect(hidden()).toBe(false);
+  });
+
+  it('hides it for the selection Ctrl+A and the Select All entry produce', () => {
+    const { editor } = mountEditorWithToolbar('One two three.\n\nFour five six.');
+    editor.editor.commands.setTextSelection({ from: 1, to: 8 });
+    expect(hidden()).toBe(false);
+    editor.editor.commands.selectAll();
+    expect(hidden()).toBe(true);
+  });
+
+  it('keeps it for a drag across every word, which is the owner choice', () => {
+    // The row that tells the chosen key from the wider one. A selection over
+    // all the text is a `TextSelection`, and the owner decided on 2026-09-16
+    // that it keeps its bar — the band is what makes that bar reachable.
+    // Measured: such a selection is 1..34 on a document of three paragraphs and
+    // 4..48 on one opening with a table, never 0..size, because ProseMirror
+    // clamps a text selection into the nearest textblock.
+    const { editor } = mountEditorWithToolbar('One two three.\n\nFour five six.\n\nSeven eight.');
+    selectEveryWord(editor);
+    const { from, to } = editor.editor.state.selection;
+    expect(from).toBeGreaterThan(0);
+    expect(to).toBeLessThan(editor.editor.state.doc.content.size);
+    expect(hidden()).toBe(false);
+  });
+
+  it('hides it on an empty document, where the press had raised it over nothing', () => {
+    // The state in the owner capture of 2026-09-17: eleven controls above an
+    // empty document, none of which changed anything when pressed. Measured
+    // beside it and repaired by the same branch: the bar then stayed up through
+    // an arrow press, because an empty document has nowhere for the caret to go
+    // and so emits no selection update to take it down again.
+    const { editor } = mountEditorWithToolbar('');
+    editor.editor.commands.selectAll();
+    expect(hidden()).toBe(true);
+  });
+
+  it('reads the selection type rather than the range, and says so in the source', () => {
+    // Both would answer the same on every document — measured, since a text
+    // selection can never reach position 0 or the document size. The type is
+    // what is read, and a row pins which, so a later change of key is a change
+    // somebody made on purpose.
+    expect(positionToolbarSource()).toContain('instanceof AllSelection');
+  });
+});

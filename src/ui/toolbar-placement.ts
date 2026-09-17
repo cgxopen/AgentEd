@@ -47,14 +47,71 @@ const GAP = 8;
  * only reached near the top of the viewport, where the rest of the window is
  * underneath. A window would have to be about 150 px tall for both to fail,
  * against the 400 px minimum `tauri.conf.json` declares.
+ *
+ * ── The band, and how it composes with the measurement above (#336) ──
+ *
+ * **The flip stays exactly as it is and the band clamps its result.** They are
+ * not alternatives, and the paragraph above is not contradicted by the one
+ * below: that sweep was taken over selections that **fit on the screen**, and
+ * for those the clamp never fires. What it answers is the case outside the
+ * sweep, which nobody had swept.
+ *
+ * A selection whose start is scrolled above the viewport cannot take the first
+ * branch at all — `selectionTop` is small or negative, so nothing clears the
+ * header — and the second branch then measures from a selection bottom that
+ * has been scrolled to the foot of the window. Measured on `6205bd1`: **40.0 px
+ * below the window** on a whole-document selection at 1024x768 and at 600x400,
+ * at every scroll position, and **39.1 px below** on a 24-line selection at the
+ * default window, **14.5 px** on a 10-line one at the minimum. Before this the
+ * function took no window height, so no argument it received could have told it
+ * where the window ended; that is the whole of the defect.
+ *
+ * **Why the clamp is written here rather than taken from `popoverPlacement`,**
+ * which has kept three popovers inside a band since #296. Three things make it
+ * a shape to borrow rather than a function to call:
+ *
+ * - it returns a `maxHeight` as well as a `top`, because a popover taller than
+ *   its room scrolls inside itself; **the toolbar is one fixed height and has
+ *   nothing to cap**;
+ * - a popover sits beside the control that opened it and never covers what it
+ *   acts on, while a clamped toolbar sits **over the text of the selection it
+ *   acts on**, for exactly the selections with no free edge — a consequence
+ *   with no counterpart there, and one the manual pass judges by eye;
+ * - where the band is shorter than the thing being placed the popover shrinks
+ *   and the toolbar cannot, so the two want opposite answers at that boundary.
+ *
+ * **Which bound wins when they cross.** The header floor, deliberately: the bar
+ * overflows the bottom of the window rather than being drawn into the header,
+ * because being drawn into the header is the defect #268 exists for. The cross
+ * needs a window about 127 px tall — `headerBottom > viewportHeight - GAP -
+ * toolbarHeight` — against the 400 px minimum, so it is a stated preference at
+ * an unreachable boundary rather than a guard against a live state.
  */
 export function toolbarTop(
   selectionTop: number,
   selectionBottom: number,
   toolbarHeight: number,
   headerBottom: number,
+  viewportHeight: number,
 ): number {
   const above = selectionTop - toolbarHeight - GAP;
-  if (above >= headerBottom) return above;
-  return selectionBottom + GAP;
+  const chosen = above >= headerBottom ? above : selectionBottom + GAP;
+  return withinBand(chosen, toolbarHeight, headerBottom, viewportHeight);
+}
+
+/**
+ * The chosen top, kept between the header bottom and the last row of pixels a
+ * bar of this height can occupy while staying whole inside the window.
+ *
+ * `Math.max` is applied last on purpose — see the docblock above on which bound
+ * wins when the two cross.
+ */
+function withinBand(
+  top: number,
+  toolbarHeight: number,
+  headerBottom: number,
+  viewportHeight: number,
+): number {
+  const lowest = viewportHeight - GAP - toolbarHeight;
+  return Math.max(headerBottom, Math.min(top, lowest));
 }
