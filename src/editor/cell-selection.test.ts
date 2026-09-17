@@ -307,31 +307,47 @@ describe('what already works over a multi-cell selection, unchanged', () => {
     );
   });
 
-  it('pasting replaces the selected cells', () => {
-    const editor = open(TABLE);
-    selectCells(editor, 3, 5);
+  /**
+   * The one row of this file that #311 moved, kept apart from the block above so
+   * that block can go on saying `unchanged` truthfully.
+   */
+  describe('a paste over a multi-cell selection, moved by #311', () => {
+    it('pasting replaces the selected cells', () => {
+      const editor = open(TABLE);
+      selectCells(editor, 3, 5);
 
-    const data: Record<string, string> = { 'text/plain': 'PASTED' };
-    const event = {
-      clipboardData: {
-        types: Object.keys(data),
-        getData: (type: string) => data[type] ?? '',
-        files: [],
-      },
-      preventDefault: () => undefined,
-    } as unknown as ClipboardEvent;
-    const { view } = editor.editor;
-    const handled = view.someProp('handlePaste', (handler) =>
-      handler(view, event, view.state.selection.content()),
-    );
+      const data: Record<string, string> = { 'text/plain': 'PASTED' };
+      const event = {
+        clipboardData: {
+          types: Object.keys(data),
+          getData: (type: string) => data[type] ?? '',
+          files: [],
+        },
+        preventDefault: () => undefined,
+      } as unknown as ClipboardEvent;
+      const { view } = editor.editor;
+      const handled = view.someProp('handlePaste', (handler) =>
+        handler(view, event, view.state.selection.content()),
+      );
 
-    expect(handled).toBe(true);
-    // Measured on this build rather than assumed: the paste clears all
-    // three cells and the text lands in the last of them. That is what it
-    // does today, and this change must not move it.
-    expect(editor.getMarkdown()).toBe(
-      '| a | b | c |\n| --- | --- | --- |\n|  |  | PASTED |\n| 4 | 5 | 6 |',
-    );
+      expect(handled).toBe(true);
+      // **Moved by #311, owner decision of 2026-09-17.** This row used to pin
+      // `|  |  | PASTED |` — all three cells cleared and the text in the *last*
+      // of them — and said that was what the build did and must keep doing. What
+      // it actually pinned was one direction of a rule that ran on the drag:
+      // the content landed in the **head** cell, so the same three cells
+      // selected the other way put it in the first. The text now lands in the
+      // first selected cell in document order whichever way the drag ran, and
+      // the other selected cells are emptied.
+      //
+      // The shapes and both directions are asserted in `paste-over-cells.test.ts`;
+      // this row stays here because it reaches the paste through
+      // `view.someProp` rather than through a dispatched event, which is a
+      // second route to the same behaviour.
+      expect(editor.getMarkdown()).toBe(
+        '| a | b | c |\n| --- | --- | --- |\n| PASTED |  |  |\n| 4 | 5 | 6 |',
+      );
+    });
   });
 });
 

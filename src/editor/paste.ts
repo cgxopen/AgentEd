@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Fragment, DOMParser as ProseMirrorDOMParser, Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import {
+  CellSelection,
   __pastedCells as cellsInSlice,
   isInTable,
   handlePaste as pasteCellsIntoTable,
@@ -119,7 +120,14 @@ function insertLiteralText(view: EditorView, text: string): void {
     .map((line) => paragraph.create(null, line.length > 0 ? state.schema.text(line) : null));
   // Both ends open, so a single pasted line merges into the paragraph the
   // caret sits in instead of breaking the sentence in two.
-  view.dispatch(tr.replaceSelection(new Slice(Fragment.from(blocks), 1, 1)).scrollIntoView());
+  const slice = new Slice(Fragment.from(blocks), 1, 1);
+  // Over a selection of cells the literal paste is placed by the same rule as
+  // every other one (#311). `Ctrl+Shift+V` changes what the clipboard *means*
+  // — characters rather than markdown — and not which cell the gesture points
+  // at, so leaving it on the old rule would keep the direction-dependent
+  // placement alive in one gesture out of two.
+  if (placedOverSelectedCells(view, slice)) return;
+  view.dispatch(tr.replaceSelection(slice).scrollIntoView());
 }
 
 /**
@@ -228,9 +236,63 @@ function withoutTheTrailingMerge(slice: Slice): Slice {
   return new Slice(slice.content, slice.openStart, 0);
 }
 
+/**
+ * Content the table handler cannot read as cells, dropped over a selection of
+ * cells: it goes in the **first** selected cell and the others are emptied
+ * (#311, owner decision of 2026-09-17).
+ *
+ * ── What it replaces, and why that needed replacing ──
+ *
+ * `replaceSelection` over a `CellSelection` reaches `CellSelection.replace` in
+ * `prosemirror-tables`, and that method does not put the content in the first
+ * cell. Its constructor builds the range list with
+ * `cells.unshift($headCell.pos - tableStart)` — **the head cell, where the drag
+ * ended, is moved to the front** — and `replace` then gives `ranges[0]` the
+ * content and `Slice.empty` to every other range.
+ *
+ * So the rule was **anchor against head**, not first against last: measured at
+ * `c201e4e`, dragging `a1` to `a2` left `a1` empty and put everything in `a2`,
+ * and dragging the same two cells from `a2` to `a1` gave the mirror — content
+ * in `a1`, `a2` emptied. Which cell keeps the content depended on the direction
+ * the pointer travelled, which is not something the user chose or can see. The
+ * issue body recorded it as first against last, which is what a left-to-right
+ * drag looks like; that reading is corrected on the issue.
+ *
+ * On a two-by-two selection the old rule emptied **three** cells.
+ *
+ * ── The order, and why the loop runs backwards ──
+ *
+ * `selection.ranges` is in the package's own order, head first, so it is sorted
+ * by position here: document order is what *first selected cell* means, and it
+ * is the same cell whichever way the drag ran. The replacements are then applied
+ * **from the last range backwards**, so that every position still refers to the
+ * document the range was resolved against — an earlier replacement that changed
+ * a cell's length would otherwise move every range after it. The alternative is
+ * mapping each position forward through the steps already taken, which is what
+ * the package does; running backwards needs no mapping at all.
+ *
+ * Only a `CellSelection` is answered. A caret inside one cell, which is the
+ * other half of #311, keeps the behaviour it had — the owner chose candidate
+ * (e), today, for that half, and nothing here touches it.
+ */
+function placedOverSelectedCells(view: EditorView, slice: Slice): boolean {
+  const { selection } = view.state;
+  if (!(selection instanceof CellSelection)) return false;
+
+  const inDocumentOrder = [...selection.ranges].sort((a, b) => a.$from.pos - b.$from.pos);
+  const tr = view.state.tr.setMeta('preventAutolink', true);
+  for (let i = inDocumentOrder.length - 1; i >= 0; i--) {
+    const { $from, $to } = inDocumentOrder[i];
+    tr.replace($from.pos, $to.pos, i === 0 ? slice : Slice.empty);
+  }
+  view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
 function insertParsedHtml(view: EditorView, event: ClipboardEvent, html: string): void {
   const slice = parseSlice(view, html);
   if (placedAsCells(view, event, slice)) return;
+  if (placedOverSelectedCells(view, withoutTheTrailingMerge(slice))) return;
   view.dispatch(
     view.state.tr
       .replaceSelection(withoutTheTrailingMerge(slice))
@@ -258,6 +320,10 @@ function insertMarkdown(view: EditorView, event: ClipboardEvent, text: string): 
   // end when it is not.
   const slice = parseSlice(view, markdownToHtml(body, { breaks: true }));
   if (placedAsCells(view, event, slice)) return;
+  // The spaces a single line carried are set aside above; over a selection of
+  // cells there is no sentence to put them back into, so the cell takes the
+  // content alone.
+  if (placedOverSelectedCells(view, withoutTheTrailingMerge(slice))) return;
 
   const tr = view.state.tr.setMeta('preventAutolink', true);
   if (leading.length > 0) tr.insertText(leading);
