@@ -110,6 +110,7 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     isVisible: () => false,
     toggle: () => {},
     setOnFileClick: () => {},
+    onVisibleChange: () => {},
     setOnRequestAccess: () => {},
   });
 
@@ -197,6 +198,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
         isVisible: () => root !== null,
         toggle: () => {},
         setOnFileClick: () => {},
+        onVisibleChange: () => {},
         setOnRequestAccess: () => {},
       },
       shown: () => root,
@@ -283,6 +285,7 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      onVisibleChange: () => {},
       setOnRequestAccess: () => {},
     };
 
@@ -325,6 +328,7 @@ describe('#184 — which kind of nothing the panel is showing', () => {
       isVisible: () => true,
       toggle: () => {},
       setOnFileClick: () => {},
+      onVisibleChange: () => {},
       setOnRequestAccess: () => {},
     };
     return { state, sidebar, seen };

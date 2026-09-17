@@ -306,9 +306,6 @@ setupMenu(
         report: reportImageInsert,
       }).catch(console.error);
     },
-    onToggleSidebar: () => {
-      ctx.sidebar.toggle();
-    },
     onAbout: () => {
       void showAboutDialog().catch(console.error);
     },
@@ -343,6 +340,9 @@ setupKeyboard({
     void docActions.handleOpen().catch(console.error);
   },
   onLink: () => linkDialog.open(),
+  onToggleSidebar: () => {
+    ctx.sidebar.toggle();
+  },
   ...codeBlock,
 });
 

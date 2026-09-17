@@ -33,6 +33,17 @@ export interface Sidebar {
   isVisible: () => boolean;
   toggle: () => void;
   /**
+   * Run `listener` whenever the panel opens or closes, with the new state.
+   *
+   * **The state belongs to the panel, and every route through this module
+   * reports it** (#347): the header control that opens it, the chord, and the
+   * three `show*` calls a document switch makes. It is the shape
+   * `SearchManager.onOpenChange` already has, and for the same reason — the
+   * control that says «open» sits in the header, which this module knows
+   * nothing about and is not going to start knowing about.
+   */
+  onVisibleChange: (listener: (visible: boolean) => void) => void;
+  /**
    * Replace the click handler called when the user activates a file
    * entry in the tree. Receives the absolute disk path (joinPath of
    * rootPath + the node's relative path) and the rootPath itself, so
@@ -260,12 +271,27 @@ function renderFileNode(
 export function setupSidebar(): Sidebar {
   const panel = document.getElementById('sidebar')!;
   const treeEl = document.getElementById('sidebar-tree')!;
-  const closeBtn = document.getElementById('sidebar-close')!;
 
   // No-op default — replaced by main.ts via setOnFileClick once
   // the document actions are wired.
   let onFileClick: OnFileClick = () => {};
   let onRequestAccess: () => void = () => {};
+  const visibleListeners: Array<(visible: boolean) => void> = [];
+
+  /**
+   * The one place the panel is shown or hidden, so the state cannot be
+   * changed without being reported (#347).
+   *
+   * Listeners run on every call rather than only on a change: the cost is one
+   * attribute written to the same value, and the alternative is a second
+   * record of whether the panel is open, kept beside the class that already
+   * answers it. `showTree` reaching an already-open panel is the ordinary case
+   * — a document switch redraws the tree without closing anything.
+   */
+  function setVisible(visible: boolean): void {
+    panel.classList.toggle('hidden', !visible);
+    for (const listener of visibleListeners) listener(visible);
+  }
 
   /**
    * Hide the panel, and empty it (#184).
@@ -282,11 +308,9 @@ export function setupSidebar(): Sidebar {
    * where the panel is closed and still holding something.
    */
   function hidePanel(): void {
-    panel.classList.add('hidden');
+    setVisible(false);
     treeEl.innerHTML = '';
   }
-
-  closeBtn.addEventListener('click', hidePanel);
 
   function showTree(
     nodes: TreeNode[],
@@ -307,15 +331,12 @@ export function setupSidebar(): Sidebar {
       0,
       opensNonMarkdown,
     );
-    panel.classList.remove('hidden');
+    setVisible(true);
   }
 
   function toggle(): void {
-    if (panel.classList.contains('hidden')) {
-      panel.classList.remove('hidden');
-    } else {
-      hidePanel();
-    }
+    if (panel.classList.contains('hidden')) setVisible(true);
+    else hidePanel();
   }
 
   function setOnFileClick(handler: OnFileClick): void {
@@ -335,7 +356,7 @@ export function setupSidebar(): Sidebar {
     note.className = 'sidebar-note';
     note.textContent = NO_RELATED_ITEMS;
     treeEl.appendChild(note);
-    panel.classList.remove('hidden');
+    setVisible(true);
   }
 
   function setOnRequestAccess(handler: () => void): void {
@@ -359,7 +380,7 @@ export function setupSidebar(): Sidebar {
     // the keyboard and a screen reader can reach on their own terms.
     offer.addEventListener('click', () => onRequestAccess());
     treeEl.appendChild(offer);
-    panel.classList.remove('hidden');
+    setVisible(true);
   }
 
   return {
@@ -369,6 +390,9 @@ export function setupSidebar(): Sidebar {
     hide: hidePanel,
     isVisible: () => !panel.classList.contains('hidden'),
     toggle,
+    onVisibleChange: (listener) => {
+      visibleListeners.push(listener);
+    },
     setOnFileClick,
     setOnRequestAccess,
   };

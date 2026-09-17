@@ -117,9 +117,20 @@ describe('the button keeps everything about it that is not the icon', () => {
     expect(document.getElementById('appearance-popover')).not.toBeNull();
   });
 
-  it('is the last control in the right-hand group, which is what far right means', () => {
+  /**
+   * The seat #330 chose was the last one, its right edge on the menubar's own
+   * 16px padding, symmetric with the hamburger at the left end. **The owner
+   * superseded that on 2026-09-17**: the files panel control takes the last
+   * seat and the symmetry argument with it, and Appearance becomes an ordinary
+   * member of the run beside it. So the row asserts the new order rather than
+   * being deleted — what #330 bought is the *pair at the two ends*, and that is
+   * now the hamburger against the panel control, pinned in
+   * `header-button-family.test.ts`.
+   */
+  it('is the second-to-last control of the right-hand group, before the files panel', () => {
     const group = document.querySelector('.header-right') as HTMLElement;
-    expect(group.lastElementChild?.id).toBe('appearance-menu-trigger');
+    const ids = Array.from(group.children, (child) => child.id);
+    expect(ids.slice(-2)).toEqual(['appearance-menu-trigger', 'sidebar-toggle']);
   });
 });
 

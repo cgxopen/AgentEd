@@ -70,7 +70,6 @@ function callbacks(): MenuCallbacks {
     onAddColumnAfter: vi.fn(),
     onDeleteColumn: vi.fn(),
     onDeleteTable: vi.fn(),
-    onToggleSidebar: vi.fn(),
     onAbout: vi.fn(),
   };
 }
@@ -193,7 +192,6 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-table', 'Add Column After', 'menu-table-add-column-after', 'onAddColumnAfter'],
   ['menu-panel-table', 'Delete Column', 'menu-table-delete-column', 'onDeleteColumn'],
   ['menu-panel-table', 'Delete Table', 'menu-table-delete-table', 'onDeleteTable'],
-  ['menu-panel-view', 'Toggle Sidebar', 'menu-toggle-sidebar', 'onToggleSidebar'],
   ['menu-panel-help', 'About AgentEd', 'menu-about', 'onAbout'],
 ];
 
@@ -278,7 +276,6 @@ const SECTION_PANELS = [
   'menu-panel-edit',
   'menu-panel-insert',
   'menu-panel-table',
-  'menu-panel-view',
   'menu-panel-help',
 ];
 
@@ -312,17 +309,10 @@ describe('the menu is an accordion (#294)', () => {
     expect(expandedHeaders()).toEqual([]);
     const headers = Array.from(document.querySelectorAll('#menu-dropdown .menu-section'));
     expect(headers.map((header) => header.getAttribute('aria-controls'))).toEqual(SECTION_PANELS);
-    expect(headers.map(labelOf)).toEqual([
-      'File ›',
-      'Edit ›',
-      'Insert ›',
-      'Table ›',
-      'View ›',
-      'Help ›',
-    ]);
+    expect(headers.map(labelOf)).toEqual(['File ›', 'Edit ›', 'Insert ›', 'Table ›', 'Help ›']);
     // The order of the markup is the order of the keyboard. Measured on the
     // comparison build, where the panels followed all the headers: Tab from
-    // File visited Edit, Insert, View and Help before the entries of the open
+    // File visited Edit, Insert, Table and Help before the entries of the open
     // section.
     expect(Array.from(element('menu-dropdown').children, (child) => child.id)).toEqual(
       SECTION_PANELS.flatMap((panel) => [sectionHeader(panel).id, panel]),
@@ -438,12 +428,14 @@ describe('the menu is an accordion (#294)', () => {
     // on it while nobody could see it, and the next Tab started from there.
     const handlers = callbacks();
     setupMenu(handlers, bothAvailable, everyEntryOffered);
-    openSection('menu-panel-view');
-    element('menu-toggle-sidebar').focus();
+    // Help, which is the section holding one entry since #347 moved the one
+    // entry of View onto a header control and View went with it.
+    openSection('menu-panel-help');
+    element('menu-about').focus();
 
-    element('menu-toggle-sidebar').click();
+    element('menu-about').click();
 
-    expect(handlers.onToggleSidebar).toHaveBeenCalledTimes(1);
+    expect(handlers.onAbout).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(element('menu-toggle'));
   });
 });

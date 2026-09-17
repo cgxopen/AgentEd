@@ -279,6 +279,7 @@ describe('Ctrl+Shift+K reaches the code block', () => {
       onOpen: vi.fn(),
       onLink: vi.fn(),
       onCodeBlock: vi.fn(),
+      onToggleSidebar: vi.fn(),
     };
   }
 

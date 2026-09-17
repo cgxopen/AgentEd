@@ -31,14 +31,14 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **No silent writes, no silent overwrites** — nothing reaches disk without your say-so. If the file changed on disk while you were editing, AgentEd tells you and you choose: reload, overwrite, or save elsewhere. No lock files next to your documents, ever.
 - **A quiet header, not a status bar** — the live token count (`gpt-tokenizer`, cl100k_base, fully offline) with word and character counts, a spell-check toggle (off by default, so technical documents stay free of noisy underlines), and search — all in one row that stays out of the way.
 - **Context awareness** — open a `CLAUDE.md`, `AGENTS.md` or `.cursorrules` and the 📎 *N related* indicator shows the other context files in your project, one click away.
-- **A real menu** — File, Edit (Find and Replace, Undo, Redo, Select All, Image description), Insert (Table, Media, Code Block, Checklist, Horizontal Rule, Metadata, Emoji), Table (Add Row Above, Add Row Below, Delete Row, Add Column Before, Add Column After, Delete Column, Delete Table), View, Help. Everything the editor can do has a visible door — that is a design rule here, not an accident.
+- **A real menu** — File, Edit (Find and Replace, Undo, Redo, Select All, Image description), Insert (Table, Media, Code Block, Checklist, Horizontal Rule, Metadata, Emoji), Table (Add Row Above, Add Row Below, Delete Row, Add Column Before, Add Column After, Delete Column, Delete Table), Help. Everything the editor can do has a visible door — that is a design rule here, not an accident.
 - **Code blocks** — click the language label to set the language; a hover **Copy** button on every block; a fence with no language is a plain-text box that soft-wraps — the "prompt box" familiar from AI chat tools, in plain standard markdown.
 - **Images** — paste, drop, or Insert Media; saved to an `assets/` folder next to your file (created on first use, with confirmation), referenced with standard `![alt](path)` syntax, human-readable names. **Image description** — from the toolbar button on a selected image or from the Edit menu — writes what a screen reader reads out and what a renderer shows when the picture cannot be loaded.
 - **Metadata without the jargon** — a document's title, date and other front-matter fields live in a small panel, not in raw YAML in your face. Insert Metadata adds the block to any document; deleting every field removes it completely.
 - **New from Template** — four plain seeds: README, project document, meeting note, blank + metadata.
 - **Find & Replace** — an inline panel, match case / whole word / regex (safe-parse), `F3` navigation.
-- **Sidebar** — a file tree when your document has related structure around it.
-- **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle at the right end of the header). On Windows 11 the window frame follows your palette.
+- **Files panel** — a file tree when your document has related structure around it. It opens and closes from the panel button at the right end of the header, or with `Ctrl+Shift+E`, and the button shows which of the two the next press will do. It sits on the right, drawn as a card, and takes its own room rather than covering what you were writing.
+- **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle near the right end of the header, one place in from the panel button). On Windows 11 the window frame follows your palette.
 - **Multiple windows** — isolated instances, one file each.
 - **Offline by design** — AgentEd makes no network calls of its own. No telemetry, no account, no cloud.
 - **Lightweight** — an installer in the ~3 MB class, opens in seconds. No Electron.
@@ -75,6 +75,7 @@ This happens **once, at install**. The installed application starts quietly afte
 | `Ctrl+O` | Open |
 | `Ctrl+V` / `Ctrl+Shift+V` | Paste (reads markdown) / Paste as plain text |
 | `Ctrl+F` / `Ctrl+H` | Find / Replace |
+| `Ctrl+Shift+E` | Files panel (open / close) |
 | `F3` | Find next (Find Previous is in the Edit menu) |
 | `Shift+Enter` | Line break inside a paragraph |
 | `Tab` / `Shift+Tab` | Indent / dedent in lists; move between table cells |
