@@ -35,6 +35,7 @@
 import type { Editor } from '@tiptap/core';
 import { insertEmoji } from '../editor/insert-emoji';
 import { loadFrequentEmoji, recordEmojiUse } from '../preferences';
+import { editorRoom, withinRoom } from './editor-room';
 import { EMOJI } from './emoji-list';
 import { POPOVER_MARGIN, popoverPlacement } from './popover-placement';
 
@@ -143,9 +144,10 @@ export function arrowTarget(
 const ARROW_KEYS = new Set(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End']);
 
 /**
- * Against the caret, kept inside the window. Measured before it is placed, as
- * `heading-levels.ts` does: the element is in the document, so its height is a
- * real box.
+ * Against the caret, kept inside the room the editor has — which is the window
+ * until the files panel takes its own room beside it (#350). Measured before it
+ * is placed, as `heading-levels.ts` does: the element is in the document, so its
+ * height is a real box.
  */
 function position(element: HTMLElement, editor: Editor): void {
   editor.commands.scrollIntoView();
@@ -162,10 +164,13 @@ function position(element: HTMLElement, editor: Editor): void {
     window.innerHeight,
   );
   const width = element.getBoundingClientRect().width;
-  const left = Math.max(
-    POPOVER_MARGIN,
-    Math.min(caret.left, window.innerWidth - width - POPOVER_MARGIN),
-  );
+  // The room rather than the window (#350), and this is the surface that needed
+  // it most. Wherever the caret sits right of the clamp, `Math.min` used to put
+  // the palette at `innerWidth - width - POPOVER_MARGIN`, which lands its right
+  // edge on the right edge of the files panel card and covers the card end to
+  // end: measured at 220 px of the card 220 px wide, at 1024x768, at 600x400 and
+  // at 150 per cent scaling alike.
+  const left = withinRoom(caret.left, width, editorRoom(), POPOVER_MARGIN);
   element.style.left = `${Math.round(left)}px`;
   element.style.top = `${Math.round(placement.top)}px`;
   element.style.maxHeight = `${Math.round(placement.maxHeight)}px`;

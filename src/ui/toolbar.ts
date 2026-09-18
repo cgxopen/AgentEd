@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { AllSelection } from '@tiptap/pm/state';
 import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
+import { editorRoom, withinRoom } from './editor-room';
 import {
   activeHeadingLevels,
   closeHeadingLevels,
@@ -10,6 +11,9 @@ import {
   openHeadingLevels,
 } from './heading-levels';
 import { toolbarTop } from './toolbar-placement';
+
+/** Between the toolbar and each end of the room it is placed in (#350). */
+const TOOLBAR_MARGIN = 8;
 
 export interface ToolbarHandlers {
   /** Open the link dialog (#25). Owned by the app layer, which has the DOM. */
@@ -459,10 +463,15 @@ function bindToolbarEvents(
     const header = document.getElementById('menubar');
     const headerBottom = header === null ? 0 : header.getBoundingClientRect().bottom;
 
+    // The room is read here, on every placement, for the same reason the header
+    // bottom is read on the line above: it is not a constant this application
+    // may write down. Until #347 it was the window, and since the files panel
+    // takes its own room beside the editor it is not — measured on `3ff4d55`,
+    // the bar was drawn 102.4 px over the panel card at 1024x768 and 108.5 at
+    // 150 per cent scaling. With the panel closed `editorRoom` answers the
+    // window, so nothing about the placement without it moves.
     const centerX = (start.left + end.right) / 2;
-    let left = centerX - rect.width / 2;
-
-    left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
+    const left = withinRoom(centerX - rect.width / 2, rect.width, editorRoom(), TOOLBAR_MARGIN);
     toolbar.style.left = `${left}px`;
     // The window height is read here for the same reason the header bottom is,
     // on the line above: it is not a constant this application may write down.
