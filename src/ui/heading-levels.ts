@@ -28,6 +28,7 @@
  * lives only while the list is open.
  */
 
+import { editorRoom, withinRoom } from './editor-room';
 import { POPOVER_MARGIN, popoverPlacement } from './popover-placement';
 
 /** The class the stylesheet draws and positions the list with. */
@@ -209,8 +210,9 @@ export function openHeadingLevels(options: HeadingLevelsOptions): HeadingLevels 
  * Put it against the toolbar and keep it on screen.
  *
  * `position: fixed` in the stylesheet, so these are viewport coordinates.
- * The horizontal clamp is the same shape `language-popover` uses; the vertical
- * one is `popoverPlacement`, which is where the arithmetic is asserted.
+ * The horizontal clamp is `withinRoom`, which the other three surfaces that
+ * hang over the document also use and which is where that arithmetic is
+ * asserted; the vertical one is `popoverPlacement`, likewise.
  *
  * **None of this is observable in the test harness**, which reports every
  * rectangle as zero. It is verified in the manual pass and by the numbers
@@ -236,10 +238,13 @@ function position(element: HTMLElement, toolbar: HTMLElement): void {
   );
 
   const width = element.getBoundingClientRect().width;
-  const left = Math.max(
-    POPOVER_MARGIN,
-    Math.min(anchor.left, window.innerWidth - width - POPOVER_MARGIN),
-  );
+  // The room rather than the window (#350). This list hangs off the left edge of
+  // the toolbar and is 240 px against the bar at 338.66, so once the bar is
+  // inside the room this list is too — its own clamp can only lower the number
+  // the bar gives it. It is corrected anyway: a caller left reading a bound that
+  // is no longer the edge of anything is a repair waiting to come back the day
+  // its anchor moves.
+  const left = withinRoom(anchor.left, width, editorRoom(), POPOVER_MARGIN);
   element.style.left = `${Math.round(left)}px`;
   element.style.top = `${Math.round(placement.top)}px`;
   element.style.maxHeight = `${Math.round(placement.maxHeight)}px`;

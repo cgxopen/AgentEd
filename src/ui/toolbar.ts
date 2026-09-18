@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { AllSelection } from '@tiptap/pm/state';
 import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
+import { editorRoom, withinRoom } from './editor-room';
 import {
   activeHeadingLevels,
   closeHeadingLevels,
@@ -10,6 +11,9 @@ import {
   openHeadingLevels,
 } from './heading-levels';
 import { toolbarTop } from './toolbar-placement';
+
+/** Between the toolbar and each end of the room it is placed in (#350). */
+const TOOLBAR_MARGIN = 8;
 
 export interface ToolbarHandlers {
   /** Open the link dialog (#25). Owned by the app layer, which has the DOM. */
@@ -418,8 +422,40 @@ function bindToolbarEvents(
       return;
     }
 
-    const start = editor.view.coordsAtPos(from);
-    const end = editor.view.coordsAtPos(to);
+    // ── Each end of the selection is asked for its own side (#350, owner pass) ──
+    //
+    // `coordsAtPos` returns a flat cursor rectangle, and where a position sits
+    // between two things that are not adjacent — which is exactly a **soft line
+    // wrap** — `side` picks which of them answers. The default is 1, the thing
+    // *after* the position, so a selection ending on the space at a wrap used to
+    // report its end as **the start of the next line**. The bar was then centred
+    // on the midpoint between two points on different lines, which describes
+    // nothing.
+    //
+    // Found by the owner in the #350 manual pass and not by any row here, and
+    // the gesture matters: a double-click never reaches it, because it ends the
+    // selection inside the word. What reaches it is the ordinary way to take the
+    // last word on a line — drag across it and release past its right edge,
+    // which takes the trailing space with it. Instrumented in Chromium at
+    // 1024x768 on the selection `"sigma "`, drawn at 794.2 to 847.6: the end
+    // resolved to **152.0**, the start of the line below, and the bar landed at
+    // 303.8 rather than over the text. With the sides below it resolves to
+    // 847.5, and the bar centres on the selection.
+    //
+    // **What this moves, measured over both builds rather than argued**: 491
+    // placements across two window sizes, both panel states and both gestures —
+    // **485 identical, 6 moved**, every one of them the drag gesture at a wrap
+    // and every one of them from a wrong place to the right one. The regression
+    // half of #350 is amended for exactly those six, on the owner decision of
+    // 2026-09-18 to repair this here rather than after the merge.
+    //
+    // The vertical placement reads the same two values. `end.bottom` feeds the
+    // below-the-selection branch of `toolbarTop`, so that branch used to measure
+    // from the line below; `start.top` feeds the above branch, which is why the
+    // bar still looked right vertically in the states the owner photographed.
+    const start = editor.view.coordsAtPos(from, 1);
+    const end = editor.view.coordsAtPos(to, -1);
+    const painted = paintedOnOneLine(editor.view.dom);
 
     // ── The reveal comes before the measurement, and the order is the repair ──
     //
@@ -459,10 +495,15 @@ function bindToolbarEvents(
     const header = document.getElementById('menubar');
     const headerBottom = header === null ? 0 : header.getBoundingClientRect().bottom;
 
-    const centerX = (start.left + end.right) / 2;
-    let left = centerX - rect.width / 2;
-
-    left = Math.max(8, Math.min(left, window.innerWidth - rect.width - 8));
+    // The room is read here, on every placement, for the same reason the header
+    // bottom is read on the line above: it is not a constant this application
+    // may write down. Until #347 it was the window, and since the files panel
+    // takes its own room beside the editor it is not — measured on `3ff4d55`,
+    // the bar was drawn 102.4 px over the panel card at 1024x768 and 108.5 at
+    // 150 per cent scaling. With the panel closed `editorRoom` answers the
+    // window, so nothing about the placement without it moves.
+    const centerX = painted ? (painted.left + painted.right) / 2 : (start.left + end.right) / 2;
+    const left = withinRoom(centerX - rect.width / 2, rect.width, editorRoom(), TOOLBAR_MARGIN);
     toolbar.style.left = `${left}px`;
     // The window height is read here for the same reason the header bottom is,
     // on the line above: it is not a constant this application may write down.
@@ -480,6 +521,43 @@ function bindToolbarEvents(
     }, 150);
   });
   editor.on('focus', positionToolbar);
+}
+
+/**
+ * Where the selection is **painted**, when the whole of it is painted on one
+ * line - and null in every other case.
+ *
+ * This is the ground the bar is centred on where it exists, because a selection
+ * the browser drew on one line cannot honestly have its two ends on different
+ * ones. `coordsAtPos` resolves a position rather than reading a drawing, and at
+ * a soft wrap the position between the end of one line and the start of the
+ * next belongs to both: which one it answers with is a decision each engine
+ * makes for itself, and it is not a decision this bar should depend on.
+ *
+ * **Deliberately narrow.** A selection painted over more than one line returns
+ * null and the resolved positions are used, exactly as before - so a multi-line
+ * selection is placed where it always was. So is an image, whose node selection
+ * paints no range at all. What this changes is the one case where the drawing
+ * and the resolved positions disagree, which is the defect.
+ *
+ * Reading the document selection rather than asking ProseMirror is the point:
+ * these are the rectangles the engine actually painted.
+ */
+function paintedOnOneLine(editorDom: Element): { left: number; right: number } | null {
+  const selection = editorDom.ownerDocument.getSelection();
+  if (selection === null || selection.rangeCount === 0 || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  if (!editorDom.contains(range.commonAncestorContainer)) return null;
+  const drawn = Array.from(range.getClientRects()).filter((rect) => rect.width > 0);
+  if (drawn.length === 0) return null;
+  const top = Math.min(...drawn.map((rect) => rect.top));
+  // One line: every rectangle with any width shares a top, within the rounding
+  // a subpixel layout leaves behind.
+  if (drawn.some((rect) => Math.abs(rect.top - top) >= 2)) return null;
+  return {
+    left: Math.min(...drawn.map((rect) => rect.left)),
+    right: Math.max(...drawn.map((rect) => rect.right)),
+  };
 }
 
 export function setupToolbar(editor: Editor, handlers: ToolbarHandlers): void {

@@ -1,4 +1,5 @@
 import { LANGUAGE_PATTERN } from '../editor/code-block-input-rules';
+import { editorRoom, withinRoom } from './editor-room';
 import { POPOVER_MARGIN, POPOVER_OFFSET, popoverPlacement } from './popover-placement';
 
 /**
@@ -263,6 +264,15 @@ export function languagePopoverOffset(
  * Both messages are tried rather than one assumed longer, because how many
  * lines each wraps to depends on the font, and the font on Windows is not the
  * one this was measured with.
+ *
+ * **A copy with no refusal line in it throws**, which is the debt STATUS
+ * section 4 recorded against this file at the #288 and #290 reviews and which
+ * this change carries. It used to `break` out of the loop, and the function
+ * then returned the height of the popover as it stands — a real number, quietly
+ * describing the wrong popover, which would place the thing a little wrong
+ * forever and never say why. The probe is a deep clone of an element this module
+ * built with that line in it, so a missing line is this file having changed
+ * underneath itself rather than a state a user can reach.
  */
 function tallestHeight(element: HTMLElement): number {
   const probe = element.cloneNode(true) as HTMLElement;
@@ -272,12 +282,15 @@ function tallestHeight(element: HTMLElement): number {
   probe.style.left = '0px';
   probe.style.top = '0px';
   const line = probe.querySelector<HTMLElement>(`.${LANGUAGE_ERROR_CLASS}`);
-  line?.removeAttribute('role');
+  if (line === null) {
+    probe.remove();
+    throw new Error(`the language popover copy has no .${LANGUAGE_ERROR_CLASS} to measure`);
+  }
+  line.removeAttribute('role');
   document.body.appendChild(probe);
 
   let tallest = element.getBoundingClientRect().height;
   for (const message of [LANGUAGE_HAS_BACKTICK, LANGUAGE_HAS_SPACE]) {
-    if (line === null) break;
     line.textContent = message;
     line.hidden = false;
     tallest = Math.max(tallest, probe.getBoundingClientRect().height);
@@ -290,10 +303,12 @@ function tallestHeight(element: HTMLElement): number {
  * Put it against the label, and keep it on screen whether or not a refusal is
  * showing.
  *
- * `position: fixed` in the stylesheet, so these are viewport coordinates. The
- * horizontal clamp is against the viewport rather than against the editor,
- * because the popover is a child of the body. The ceiling is the header, read
- * rather than written down, for the reason `popoverPlacement` gives.
+ * `position: fixed` in the stylesheet, so these are viewport coordinates. Being
+ * a child of the body is why they are viewport coordinates and not why the
+ * clamp used to be the viewport: since #350 the horizontal clamp is **the room
+ * the editor has**, which is the window until the files panel takes its own
+ * room beside it. The ceiling is the header, read rather than written down, for
+ * the reason `popoverPlacement` gives.
  *
  * **None of the result is observable in the test harness**, which reports
  * every rectangle as zero. `language-popover.test.ts` drives this function
@@ -315,10 +330,12 @@ function position(element: HTMLElement, anchor: HTMLElement): void {
   );
 
   const width = element.offsetWidth;
-  const left = Math.max(
-    POPOVER_MARGIN,
-    Math.min(rect.left, window.innerWidth - width - POPOVER_MARGIN),
-  );
+  // The room rather than the window (#350). This anchor is the label at the top
+  // left of a fenced block, so it reaches the files panel card only where a list
+  // has pushed the block far enough right: measured, three list levels at
+  // 600x400 and seven at 150 per cent scaling, and not at all at 1024x768 down
+  // to eight. Rare is not never, and it is the same bound as the other three.
+  const left = withinRoom(rect.left, width, editorRoom(), POPOVER_MARGIN);
   element.style.left = `${Math.round(left)}px`;
   element.style[offset.edge] = `${Math.round(offset.px)}px`;
 }
