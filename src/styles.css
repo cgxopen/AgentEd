@@ -567,19 +567,35 @@ body {
  * rather than a separator; the rows are separated by their own height, and the
  * files panel card has no interior lines either. */
 
-/* The chevron points the way the section will move when its header is
- * pressed: down while it is closed, up while it is open. The glyph points
- * right, so it is turned a quarter either way, and it turns half round as the
- * section opens or folds. */
+/* The arrow sits before the section name and follows the disclosure
+ * convention (#362, owner decision of 2026-09-18): it points right while its
+ * section is closed and turns a quarter to point down while it is open, with
+ * the 400 ms of the slide. It replaced a glyph on the right that pointed the
+ * way the section would move - down while closed, up while open - chosen on
+ * the #294 artifacts; beside the files panel card that glyph read as too thin
+ * for its row, and its state was hard to read.
+ *
+ * An inline SVG in `currentColor`, the Copy icon precedent of R-C15, so it is
+ * the same drawing in every font. **It hangs in the left padding of the
+ * header** - 4 px of padding, 10 px of arrow, 4 px of gap - so the name starts
+ * at 18 px and the entries, at 28 px, stay 10 px deeper: header and entries
+ * still read as a tree, and the menu keeps its width, since no row got wider. */
+#menu-dropdown .menu-section {
+  justify-content: flex-start;
+  gap: 4px;
+  padding-left: 4px;
+}
+
 .menu-chevron {
-  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
   color: var(--muted);
-  transform: rotate(90deg);
   transition: transform 400ms ease;
 }
 
 .menu-section[aria-expanded="true"] .menu-chevron {
-  transform: rotate(-90deg);
+  transform: rotate(90deg);
 }
 
 /* No slide and no turn for someone who has asked the system for less motion.
