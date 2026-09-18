@@ -2133,11 +2133,14 @@ button.sidebar-toggle[aria-expanded="true"],
  * editor scrolls sideways where it did not before — 796 px of room against 809
  * of content at 1024x768 — which is that decision costing what it costs.
  *
- * **The border draws the card and the shadow decorates it**, measured in all
- * seven palettes rather than assumed. `--border` is at 3 to 1 since #340 and
- * measures 3.05 to 3.09 against the surface it encloses in every palette, while
- * `--surface` against `--bg` is 1.05 to 1.15 — a fill this close to its ground
- * would be no edge at all on its own. The shadow, read pixel by pixel out of
+ * **The card is the colour of the page, so the border alone draws it** (#358,
+ * owner decision of 2026-09-18, the move #351 made for the header). It stood
+ * on `--surface` until then, 1.05 to 1.16 off the page across the seven
+ * palettes, which was no edge on its own either. `--border` is at 3 to 1 since
+ * #340 and measures 3.19 to 3.54 against the card and the page alike, where it
+ * was 3.05 to 3.09 against the old fill. Nothing inside the panel fills with
+ * `--bg`, so nothing in it loses a fill: the hover and the active entry are
+ * the overlay tokens, 1.08 to 1.18 and 1.17 to 1.43 on this ground. The shadow, read pixel by pixel out of
  * the captures, reaches 1.20 of contrast in `light` and **1.03 in
  * `github-dark`**, where it is effectively absent: it is black over near-black
  * and has nowhere to go. So nothing rests on it, and the two palettes that
@@ -2153,7 +2156,7 @@ button.sidebar-toggle[aria-expanded="true"],
   border: 1px solid var(--border);
   border-radius: 8px;
   margin: 8px 8px 8px 0;
-  background: var(--surface);
+  background: var(--bg);
   box-shadow: 0 2px 8px var(--shadow-md);
   display: flex;
   flex-direction: column;

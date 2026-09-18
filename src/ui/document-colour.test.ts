@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import stylesCss from '../styles.css?raw';
 import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
-import { paletteTokens, resolveColour } from '../test-support/theme-colours';
+import { contrast, paletteTokens, resolveColour } from '../test-support/theme-colours';
 
 const rules = stylesheetRules(stylesCss);
 /** Colours never change inside a `@media` block of this sheet; see `theme-border-contrast.test.ts`. */
@@ -77,16 +77,42 @@ describe('the header is the document colour with no line under it (#351)', () =>
   });
 });
 
+describe('the files panel card is the document colour, and its border draws it (#358)', () => {
+  it('paints the card with the colour the page is painted with', () => {
+    const card = shippedElement('#sidebar');
+    card.classList.remove('hidden');
+
+    expect(last(card, 'background')).toBe(last(shippedElement('body'), 'background'));
+  });
+
+  it.each([
+    ...palettes.keys(),
+  ])('%s: the border stands off the card and the page at 3 to 1', (name) => {
+    // With the fill on the page colour the border is the only edge the card
+    // has, so its colour is read out of the sheet and held against the ground
+    // it is drawn on. Measured on the built page: 3.19 to 3.54.
+    const tokens = palettes.get(name) as Map<string, string>;
+    const card = shippedElement('#sidebar');
+    const border = last(card, 'border')?.match(/var\(--[\w-]+\)/)?.[0];
+    const ground = last(card, 'background');
+    if (border === undefined || ground === undefined) throw new Error('no border or no fill');
+
+    expect(
+      contrast(resolveColour(border, tokens), resolveColour(ground, tokens)),
+    ).toBeGreaterThanOrEqual(3);
+  });
+});
+
 /**
  * The regression half: every rule the owner decision leaves on `--surface` —
- * the sections inside the hamburger menu, the floating toolbar, the files panel
- * card, the metadata panel, table header cells and inline code among them — is
- * listed here, read out of the sheet. A rule that moves off the token, or a new
+ * the sections inside the hamburger menu, the floating toolbar, the metadata
+ * panel, table header cells and inline code among them — is listed here, read
+ * out of the sheet. The files panel card left the list with #358. A rule that moves off the token, or a new
  * one that takes it, changes this list, and the change is then a decision
  * rather than a side effect.
  */
-describe('everything else stays on --surface (#351)', () => {
-  it('names --surface where it did, less the header and the panel, plus the toggle hover', () => {
+describe('everything else stays on --surface (#351, #358)', () => {
+  it('names --surface where it did, less the header, the search panel and the files card, plus the toggle hover', () => {
     const onSurface = rules.flatMap((rule) =>
       [...rule.declarations]
         .filter(([, value]) => value.includes('var(--surface)'))
@@ -107,7 +133,6 @@ describe('everything else stays on --surface (#351)', () => {
       '.dialog-actions button:hover { background }',
       '.floating-toolbar { background }',
       '.emoji-palette-option:hover,\n.emoji-palette-option:focus-visible { background }',
-      '#sidebar { background }',
     ]);
   });
 });
