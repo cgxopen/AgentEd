@@ -239,7 +239,6 @@ export function setupMenu(
   bind('menu-redo', callbacks.onRedo);
   bind('menu-select-all', callbacks.onSelectAll);
   bind('menu-image-description', callbacks.onImageDescription);
-  bind('menu-spellcheck', callbacks.onToggleSpellcheck);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);
@@ -255,6 +254,16 @@ export function setupMenu(
   bind('menu-table-delete-column', callbacks.onDeleteColumn);
   bind('menu-table-delete-table', callbacks.onDeleteTable);
   bind('menu-about', callbacks.onAbout);
+
+  // **The one entry that leaves the menu open** (#360, owner decision of
+  // 2026-09-18 on the artifact): spell check is a setting read in the menu
+  // rather than an act that leaves it, so choosing it turns the state over in
+  // place and the person sees On become Off. The menu closes the way it always
+  // does from outside — a click outside the card, or Escape — or the person
+  // goes on through it. Every other entry closes the menu before its command.
+  required('menu-spellcheck').addEventListener('click', () => {
+    callbacks.onToggleSpellcheck();
+  });
 }
 
 export function setCloseEnabled(enabled: boolean): void {

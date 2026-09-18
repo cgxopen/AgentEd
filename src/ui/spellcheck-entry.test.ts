@@ -45,12 +45,13 @@ function wire(state: AppState): void {
   setupSpellcheckToggle(state);
 }
 
-/** Open the menu, then Edit, then choose the entry, as a person does. */
-function choose(): void {
+/** Open the menu, then Edit, as a person does. */
+function openEdit(): void {
   element('menu-toggle').click();
   element('menu-section-edit').click();
-  element('menu-spellcheck').click();
 }
+
+const menuOpen = () => !element('menu-dropdown').classList.contains('hidden');
 
 const entry = () => element('menu-spellcheck');
 const word = () => entry().querySelector('.menu-state')?.textContent;
@@ -102,14 +103,15 @@ describe('Edit carries it, and says its state (#360)', () => {
   it('chosen, turns the session setting on; chosen again, off', () => {
     const state = new AppState();
     wire(state);
+    openEdit();
 
-    choose();
+    entry().click();
     expect(state.spellcheckEnabled).toBe(true);
     expect(word()).toBe('On');
     expect(entry().getAttribute('aria-pressed')).toBe('true');
     expect(editor().getAttribute('spellcheck')).toBe('true');
 
-    choose();
+    entry().click();
     expect(state.spellcheckEnabled).toBe(false);
     expect(word()).toBe('Off');
     expect(entry().getAttribute('aria-pressed')).toBe('false');
@@ -126,10 +128,23 @@ describe('Edit carries it, and says its state (#360)', () => {
     expect(entry().getAttribute('aria-pressed')).toBe('true');
   });
 
+  it('leaves the menu open when chosen, so the new state is seen where it was chosen', () => {
+    // Owner decision of 2026-09-18 on the artifact: the one entry that does not
+    // close the menu. Every other entry closes it, and About stands for them.
+    wire(new AppState());
+    openEdit();
+
+    entry().click();
+    expect(menuOpen()).toBe(true);
+    expect(word()).toBe('On');
+
+    element('menu-about').click();
+    expect(menuOpen()).toBe(false);
+  });
+
   it('is never greyed, so it takes no part in the reading the menu makes when it opens', () => {
     wire(new AppState());
-    element('menu-toggle').click();
-    element('menu-section-edit').click();
+    openEdit();
 
     expect((entry() as HTMLButtonElement).disabled).toBe(false);
   });

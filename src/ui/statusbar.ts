@@ -108,8 +108,9 @@ export function setupStatusbar(editor: Editor): Statusbar {
  * state is a word on the right, **On** or **Off**, in the column the shortcuts
  * use. `aria-pressed` says the same to a screen reader, the precedent of the
  * search toggles, and the word is hidden from it so the state is not read
- * twice. The click is bound by `setupMenu`, which closes the menu first, to
- * `spellcheckMenuCallbacks` below.
+ * twice. The click is bound by `setupMenu` to `spellcheckMenuCallbacks`
+ * below, and **leaves the menu open** so the new state is seen where it was
+ * chosen (owner decision of 2026-09-18, the rule for a checkable entry).
  */
 export function setupSpellcheckToggle(state: AppState): void {
   const entry = document.getElementById('menu-spellcheck');

@@ -252,7 +252,9 @@ describe('every entry runs its own command, reached the way a person reaches it 
     for (const [name, spy] of Object.entries(handlers)) {
       expect(spy, name).toHaveBeenCalledTimes(name === handler ? 1 : 0);
     }
-    expect(isShown(element('menu-dropdown'))).toBe(false);
+    // Every entry closes the menu before its command, except spell check, which
+    // leaves it open so its new state is seen (#360, owner decision).
+    expect(isShown(element('menu-dropdown'))).toBe(id === 'menu-spellcheck');
   });
 });
 
