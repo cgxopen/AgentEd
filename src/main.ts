@@ -41,7 +41,7 @@ import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
 import { setupSidebar } from './ui/sidebar';
-import { setupSpellcheckToggle, setupStatusbar } from './ui/statusbar';
+import { setupSpellcheckToggle, setupStatusbar, spellcheckMenuCallbacks } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
 import { setupToolbar } from './ui/toolbar';
 
@@ -307,6 +307,7 @@ setupMenu(
     ...insertMenuCallbacks(ctx.editor),
     ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
     ...emojiMenuCallbacks(editor),
+    ...spellcheckMenuCallbacks(ctx.state),
     onInsertMedia: () => {
       void insertMedia({
         state: ctx.state,

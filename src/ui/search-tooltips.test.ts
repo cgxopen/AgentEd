@@ -69,7 +69,6 @@ describe('every other tooltip and menu shortcut is unchanged (#352)', () => {
     expect(others).toEqual([
       ['filename', 'Untitled'],
       ['token-number', '– tokens'],
-      ['spellcheck-toggle', 'Click to enable spell-check for this session'],
       ['indicator-search', 'Find (Ctrl+F)'],
       ['overflow-toggle', 'Hover any indicator for details'],
       ['appearance-menu-trigger', 'Appearance'],
@@ -90,6 +89,9 @@ describe('every other tooltip and menu shortcut is unchanged (#352)', () => {
       ['menu-undo', 'Ctrl+Z'],
       ['menu-redo', 'Ctrl+Y'],
       ['menu-select-all', 'Ctrl+A'],
+      // Not a key: the state word of the spell-check entry (#360), which sits
+      // in the shortcut column by owner decision and wears its class.
+      ['menu-spellcheck', 'Off'],
       ['menu-insert-code-block', 'Ctrl+Shift+K'],
     ]);
   });

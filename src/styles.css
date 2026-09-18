@@ -656,8 +656,8 @@ body {
 /* Whatever wears the box takes the box's padding, which the `.indicator` one
  * would otherwise overrule by coming later in the sheet at the same
  * specificity. Written as an exclusion rather than by moving either rule: the
- * button rule also carries `color`, and moving it below would have it overrule
- * the accent `.spellcheck-on` gives its own button. */
+ * button rules also carry `color`, and moving this one below would have it
+ * overrule theirs. */
 .indicator:not(.header-frame) {
   padding: 2px 0;
 }
@@ -678,22 +678,8 @@ body {
   opacity: 0.75;
 }
 
-/* Spell-check toggle (statusbar) — same baseline as other indicators,
-   button-styled so it's clearly clickable. The off / on classes drive
-   the opacity contrast: dimmed when disabled, full strength when on. */
-button.spellcheck-toggle {
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-button.spellcheck-toggle.spellcheck-off {
-  opacity: 0.5;
-}
-button.spellcheck-toggle.spellcheck-on {
-  opacity: 1;
-  color: var(--accent);
-}
 /* Header search button — lupă icon, sized to the surrounding indicator
-   baseline. Hover mirrors spellcheck-toggle. */
+   baseline. */
 button.indicator-search {
   color: var(--muted);
 }

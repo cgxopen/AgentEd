@@ -33,7 +33,6 @@
               <span id="word-count" class="indicator indicator-secondary indicator-collapse-800">– words</span>
               <span id="char-count" class="indicator indicator-secondary indicator-collapse-1000">– characters</span>
             </div>
-            <button id="spellcheck-toggle" type="button" class="indicator header-frame header-edge-button spellcheck-toggle spellcheck-off" title="Click to enable spell-check for this session">Spell: off</button>
             <button id="indicator-search" type="button" class="indicator header-frame header-edge-button header-edge-button--icon indicator-search indicator-collapse-800" title="Find (Ctrl+F)" aria-label="Find" aria-expanded="false" aria-controls="search-panel">
               <svg class="header-edge-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="6.5" cy="6.5" r="4.5" />
@@ -84,6 +83,7 @@
             <button id="menu-redo">Redo <span class="menu-shortcut">Ctrl+Y</span></button>
             <button id="menu-select-all">Select All <span class="menu-shortcut">Ctrl+A</span></button>
             <button id="menu-image-description">Image description</button>
+            <button id="menu-spellcheck" aria-pressed="false">Spell check <span class="menu-shortcut menu-state" aria-hidden="true">Off</span></button>
           </div>
           <button id="menu-section-insert" class="menu-section" aria-expanded="false" aria-controls="menu-panel-insert">Insert <span class="menu-chevron" aria-hidden="true">&#8250;</span></button>
           <div id="menu-panel-insert" class="menu-panel" role="group" aria-label="Insert" hidden>

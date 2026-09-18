@@ -20,6 +20,7 @@ export interface MenuCallbacks {
   onInsertMetadata: () => void;
   onInsertEmoji: () => void;
   onImageDescription: () => void;
+  onToggleSpellcheck: () => void;
   onAddRowAbove: () => void;
   onAddRowBelow: () => void;
   onDeleteRow: () => void;
@@ -238,6 +239,7 @@ export function setupMenu(
   bind('menu-redo', callbacks.onRedo);
   bind('menu-select-all', callbacks.onSelectAll);
   bind('menu-image-description', callbacks.onImageDescription);
+  bind('menu-spellcheck', callbacks.onToggleSpellcheck);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);

@@ -90,19 +90,31 @@ export function setupStatusbar(editor: Editor): Statusbar {
 }
 
 /**
- * Wire the statusbar's spell-check toggle.
+ * Keep the spell-check entry of the Edit menu, and the editor, in step with
+ * the session setting (#360; it was a header button until then).
  *
  *  - Reads the initial state from AppState (always `false` at boot per
  *    R-C9 — no persistence).
  *  - Mirrors changes onto the live `.ProseMirror` element via
  *    `setAttribute('spellcheck', …)` so the toggle is instant: no
  *    editor re-init, no lost selection / undo history.
- *  - Subscribes to `state.onSpellcheckChange` so external mutations
- *    (e.g. future keyboard shortcut) update the label too.
+ *  - Writes the state onto the entry whenever the setting changes, through
+ *    `state.onSpellcheckChange`, so the entry never has to be read when the
+ *    menu opens: it is never greyed, and the reading `refreshEntries` makes
+ *    there exists for the focus selector, which skips greyed entries only.
+ *
+ * **The entry is the first checkable one in the menu, and its shape is the
+ * owner decision of 2026-09-18**: the label stays **Spell check** and the
+ * state is a word on the right, **On** or **Off**, in the column the shortcuts
+ * use. `aria-pressed` says the same to a screen reader, the precedent of the
+ * search toggles, and the word is hidden from it so the state is not read
+ * twice. The click is bound by `setupMenu`, which closes the menu first, to
+ * `spellcheckMenuCallbacks` below.
  */
 export function setupSpellcheckToggle(state: AppState): void {
-  const toggle = document.getElementById('spellcheck-toggle') as HTMLButtonElement | null;
-  if (!toggle) return;
+  const entry = document.getElementById('menu-spellcheck');
+  const word = entry?.querySelector('.menu-state');
+  if (!entry || !word) throw new Error('the Edit menu has no spell-check entry');
 
   function applyToEditor(enabled: boolean): void {
     const editorEl = document.querySelector<HTMLElement>('.ProseMirror');
@@ -112,18 +124,9 @@ export function setupSpellcheckToggle(state: AppState): void {
   }
 
   function render(enabled: boolean): void {
-    if (!toggle) return;
-    toggle.textContent = enabled ? 'Spell: on' : 'Spell: off';
-    toggle.classList.toggle('spellcheck-on', enabled);
-    toggle.classList.toggle('spellcheck-off', !enabled);
-    toggle.title = enabled
-      ? 'Click to disable spell-check'
-      : 'Click to enable spell-check for this session';
+    entry?.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    if (word) word.textContent = enabled ? 'On' : 'Off';
   }
-
-  toggle.addEventListener('click', () => {
-    state.setSpellcheck(!state.spellcheckEnabled);
-  });
 
   state.onSpellcheckChange((enabled) => {
     render(enabled);
@@ -132,4 +135,15 @@ export function setupSpellcheckToggle(state: AppState): void {
 
   render(state.spellcheckEnabled);
   applyToEditor(state.spellcheckEnabled);
+}
+
+/**
+ * What choosing the entry does: turn the session setting over (#360). Spread
+ * into `setupMenu` by `main.ts`, the way the other entries that own their
+ * command are, so a test reaches the command the application runs.
+ */
+export function spellcheckMenuCallbacks(state: AppState): { onToggleSpellcheck: () => void } {
+  return {
+    onToggleSpellcheck: () => state.setSpellcheck(!state.spellcheckEnabled),
+  };
 }

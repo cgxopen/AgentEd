@@ -246,11 +246,13 @@ describe('the copy in the overflow menu says what it is (#312)', () => {
   });
 
   it('keeps the text of an indicator that has some, and no state it does not have', () => {
-    const spell = overflowClone(element('spellcheck-toggle'));
+    // The word count, since the spell-check toggle that stood here left the
+    // bar for the Edit menu at #360.
+    const words = overflowClone(element('word-count'));
 
-    expect(spell.textContent).toBe('Spell: off');
-    expect(spell.hasAttribute('aria-pressed')).toBe(false);
-    expect(spell.hasAttribute('aria-expanded')).toBe(false);
+    expect(words.textContent).toBe('– words');
+    expect(words.hasAttribute('aria-pressed')).toBe(false);
+    expect(words.hasAttribute('aria-expanded')).toBe(false);
   });
 });
 

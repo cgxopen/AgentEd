@@ -63,6 +63,7 @@ function callbacks(): MenuCallbacks {
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
     onImageDescription: vi.fn(),
+    onToggleSpellcheck: vi.fn(),
     onAddRowAbove: vi.fn(),
     onAddRowBelow: vi.fn(),
     onDeleteRow: vi.fn(),
@@ -142,7 +143,8 @@ describe('setupMenu', () => {
  * `menu.ts` turned 0 of 3075 tests red, because apart from four entries nothing
  * said which handler an entry calls. A menu where everything is reachable and
  * two entries are wired to each other is the #204 shape, and this is what now
- * stands against it for all twenty-one.
+ * stands against it for every entry the page renders, which the first row
+ * below counts.
  *
  * The rows click the entry the shipped `index.html` renders, reached the way a
  * person reaches it — the toggle, then the section, then the entry — through
@@ -173,6 +175,7 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-edit', 'Redo', 'menu-redo', 'onRedo'],
   ['menu-panel-edit', 'Select All', 'menu-select-all', 'onSelectAll'],
   ['menu-panel-edit', 'Image description', 'menu-image-description', 'onImageDescription'],
+  ['menu-panel-edit', 'Spell check', 'menu-spellcheck', 'onToggleSpellcheck'],
   ['menu-panel-insert', 'Insert Table', 'menu-insert-table', 'onInsertTable'],
   ['menu-panel-insert', 'Insert Media', 'menu-insert-media', 'onInsertMedia'],
   ['menu-panel-insert', 'Insert Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
@@ -780,7 +783,7 @@ describe('nothing in the stylesheet moves for someone who asked for less motion 
  * `insert-blocks.ts` rather than restated here, and then assert **what the
  * document became**. A wrong binding — the #204 shape, a control that points at
  * one capability and runs another — is what they exist to catch; which handler
- * every entry calls is pinned for all twenty-one by the table above them.
+ * every entry calls is pinned for all of them by the table above.
  *
  * **The mapping is imported, not restated.** `insertMenuCallbacks` is the same
  * object `main.ts` spreads into `setupMenu`, so a swap between the two commands
