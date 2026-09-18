@@ -29,6 +29,7 @@ import { codeBlockRoutes } from './editor/insert-code-block';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
+import { isTauri } from './platform/detect';
 import { applyWindowAppearance, getPlatformIO, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
@@ -358,6 +359,11 @@ setupKeyboard({
 });
 
 setupFileAssociation(docActions.openFilePath);
+
+// PROBE for #363 only - never merged.
+if (isTauri) {
+  void import('./platform/window-probe').then(({ wireProbeCaption }) => wireProbeCaption());
+}
 
 // The window's own close button, Alt+F4 and app quit are destructive paths
 // too, so they route through the same unsaved-changes gate (R-C3). Awaited

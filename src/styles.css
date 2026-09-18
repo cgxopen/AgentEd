@@ -2760,3 +2760,40 @@ button.cluster-indicator {
     transition: none;
   }
 }
+
+/* PROBE for #363 only - never merged. The fused bar at candidate B: a 24 px
+ * icon and a 15 px name, and three caption buttons 46 px wide. */
+#probe-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+#probe-brand img {
+  width: 24px;
+  height: 24px;
+}
+#probe-caption {
+  display: flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin: -6px -16px -6px 8px;
+}
+#probe-caption button {
+  width: 46px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 12px;
+  cursor: default;
+}
+#probe-caption button:hover {
+  background: var(--hover-overlay-strong);
+}
+#probe-caption #probe-close:hover {
+  background: #c42b1c;
+  color: #fff;
+}
