@@ -204,12 +204,13 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
   // this document's neighbourhood — and there has to be a grant to
   // offer.
   //
-  // `nothing-adjacent` gets no line: the folder answered, and on the web
-  // the user picked it a moment ago, so the absence is complete and they
-  // already know it. A permanent notice there is the shape #58, #61 and
-  // #130 refuse.
+  // `nothing-adjacent` gets no line **on a document switch**: the folder
+  // answered, and on the web the user picked it a moment ago, so the absence
+  // is complete and they already know it. A permanent notice there is the
+  // shape #58, #61 and #130 refuse. An open by hand is a question and does
+  // get the line (#354); that is `openSidebarByHand`, below.
   //
-  // **`!isTauri`, and it is not belt-and-braces.** `unknown` is the same
+  // **`isTauri` decides offer or unreadable, and it is not belt-and-braces.** `unknown` is the same
   // value on both platforms and does not mean the same thing.
   // `TauriIO.entryPresence` answers it when `fsExists` throws — a
   // path that cannot be read, which is #58's family — where `WebIO`
@@ -217,8 +218,9 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
   // grant to offer, and the desktop line would be a sentence about
   // folder access on a build with no such notion, over a click that
   // `requestFolderAccess` answers `false` to. An unreadable path on the
-  // desktop keeps the behaviour it had, which is hidden; whether that
-  // silence is right is #58's question and not this one's.
+  // desktop is `unreadable` instead: a document switch keeps the behaviour
+  // it had, which is hidden, and whether that silence is right is #58's
+  // question; an open by hand says the folder could not be read (#354).
   //
   // **What would replace the flag**, which CLAUDE.md asks be named beside
   // it and which was missing here until #201. The question underneath is
