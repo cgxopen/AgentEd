@@ -3,28 +3,33 @@
  * keeps the frame following it (#326).
  *
  * **The colour is read from the live token, never written down here.** The
- * stylesheet defines `--surface` seven times, and the value this hands the
+ * stylesheet defines `--bg` seven times, and the value this hands the
  * platform is whatever that resolves to in the palette now on — read back off
  * the root element after the theme has been applied. A table of seven colours
  * in this file would be the #319 defect in a new place: a colour restated
  * beside the stylesheet and free to drift from it.
  *
- * **Why `--surface`**: `#menubar` is painted with it, and the window frame sits
- * directly above the header, so the two read as one surface. `--bg`, the page
- * itself, is the alternative and is one token away.
+ * **Why `--bg`**: `#menubar` is painted with it, and the window frame sits
+ * directly above the header, so the two read as one surface. It was `--surface`
+ * from #326 until #351 moved the header onto the colour of the page, and the
+ * frame moved with it: left behind, it would have put the step of 1.05 to 1.16
+ * that #351 removed between the frame and the header instead. The token here
+ * and the header background are held to one value by
+ * `window-appearance.test.ts`, read out of the stylesheet.
  *
  * **Why the frame needs to know whether that colour is dark**: what the system
  * draws on the frame — the window title, the caption buttons — is not ours, and
  * every palette has exactly one readable choice for it. Measured from the
- * tokens: against `--surface`, white text is 1.05 to 1.24 in the four light
- * palettes and 13.00 to 17.30 in the three dark ones, and black is the other
- * way round. So the colour alone is not the message; the colour and which of
+ * tokens: against `--bg`, white text is 1.00 to 1.11 in the four light
+ * palettes and 15.01 to 18.92 in the three dark ones, and black is the other
+ * way round. Which of the two a palette needs is the same as it was on
+ * `--surface`, in all seven. So the colour alone is not the message; the colour and which of
  * the two it needs are.
  */
 import type { WindowAppearance } from '../platform';
 
 /** The token the frame takes its colour from. */
-export const FRAME_COLOUR_TOKEN = '--surface';
+export const FRAME_COLOUR_TOKEN = '--bg';
 
 /** `#rgb`, `#rrggbb`, `rgb(r g b)` and `rgba(r, g, b, a)`, as the three channels. */
 function channels(colour: string): [number, number, number] | null {
