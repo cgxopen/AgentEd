@@ -455,6 +455,7 @@ function bindToolbarEvents(
     // bar still looked right vertically in the states the owner photographed.
     const start = editor.view.coordsAtPos(from, 1);
     const end = editor.view.coordsAtPos(to, -1);
+    const painted = paintedOnOneLine(editor.view.dom);
 
     // ── The reveal comes before the measurement, and the order is the repair ──
     //
@@ -501,7 +502,7 @@ function bindToolbarEvents(
     // the bar was drawn 102.4 px over the panel card at 1024x768 and 108.5 at
     // 150 per cent scaling. With the panel closed `editorRoom` answers the
     // window, so nothing about the placement without it moves.
-    const centerX = (start.left + end.right) / 2;
+    const centerX = painted ? (painted.left + painted.right) / 2 : (start.left + end.right) / 2;
     const left = withinRoom(centerX - rect.width / 2, rect.width, editorRoom(), TOOLBAR_MARGIN);
     toolbar.style.left = `${left}px`;
     // The window height is read here for the same reason the header bottom is,
@@ -520,6 +521,43 @@ function bindToolbarEvents(
     }, 150);
   });
   editor.on('focus', positionToolbar);
+}
+
+/**
+ * Where the selection is **painted**, when the whole of it is painted on one
+ * line - and null in every other case.
+ *
+ * This is the ground the bar is centred on where it exists, because a selection
+ * the browser drew on one line cannot honestly have its two ends on different
+ * ones. `coordsAtPos` resolves a position rather than reading a drawing, and at
+ * a soft wrap the position between the end of one line and the start of the
+ * next belongs to both: which one it answers with is a decision each engine
+ * makes for itself, and it is not a decision this bar should depend on.
+ *
+ * **Deliberately narrow.** A selection painted over more than one line returns
+ * null and the resolved positions are used, exactly as before - so a multi-line
+ * selection is placed where it always was. So is an image, whose node selection
+ * paints no range at all. What this changes is the one case where the drawing
+ * and the resolved positions disagree, which is the defect.
+ *
+ * Reading the document selection rather than asking ProseMirror is the point:
+ * these are the rectangles the engine actually painted.
+ */
+function paintedOnOneLine(editorDom: Element): { left: number; right: number } | null {
+  const selection = editorDom.ownerDocument.getSelection();
+  if (selection === null || selection.rangeCount === 0 || selection.isCollapsed) return null;
+  const range = selection.getRangeAt(0);
+  if (!editorDom.contains(range.commonAncestorContainer)) return null;
+  const drawn = Array.from(range.getClientRects()).filter((rect) => rect.width > 0);
+  if (drawn.length === 0) return null;
+  const top = Math.min(...drawn.map((rect) => rect.top));
+  // One line: every rectangle with any width shares a top, within the rounding
+  // a subpixel layout leaves behind.
+  if (drawn.some((rect) => Math.abs(rect.top - top) >= 2)) return null;
+  return {
+    left: Math.min(...drawn.map((rect) => rect.left)),
+    right: Math.max(...drawn.map((rect) => rect.right)),
+  };
 }
 
 export function setupToolbar(editor: Editor, handlers: ToolbarHandlers): void {

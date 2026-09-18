@@ -644,3 +644,101 @@ describe('the bar centres on the selection, not on two different lines (#350)', 
     expect(bar.style.left).not.toBe(`${wrapped}px`);
   });
 });
+
+/**
+ * A selection as the engine paints it, which is what `paintedOnOneLine` reads.
+ *
+ * The rectangles are supplied rather than measured, because happy-dom paints
+ * nothing; what the rows below assert is which of the two readings the code
+ * centres on, not where the bar lands on a screen.
+ */
+function painted(editor: EditorInstance, rects: Array<[left: number, right: number, top: number]>) {
+  const range = {
+    commonAncestorContainer: editor.editor.view.dom,
+    getClientRects: () =>
+      rects.map(([left, right, top]) => ({
+        left,
+        right,
+        top,
+        width: right - left,
+        bottom: top + 20,
+      })),
+  };
+  const selection = {
+    rangeCount: rects.length === 0 ? 0 : 1,
+    isCollapsed: rects.length === 0,
+    getRangeAt: () => range,
+  };
+  const original = document.getSelection;
+  document.getSelection = (() => selection) as unknown as typeof document.getSelection;
+  return () => {
+    document.getSelection = original;
+  };
+}
+
+describe('the bar is centred on what the engine painted, not on a resolved position (#350)', () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+  });
+
+  it('centres on the painted rectangles even where the engine answers the line below on both sides', () => {
+    // **This is the state the owner met on Windows and the reason this reading
+    // exists.** Asking for the side before the position repairs it in Chromium
+    // and does not in WebView2, measured on `ea052b3`: the bar stayed in the
+    // middle of the editor for the last word of a line. So the engine here is
+    // driven as WebView2 behaves - answering the start of the line below
+    // whichever side is asked for - and the placement still has to be right.
+    //
+    // A selection the engine painted on one line cannot have its ends on two,
+    // so the drawing is taken over the resolved positions and no engine has to
+    // agree about anything. Without this reading the centre would be
+    // (700 + 40) / 2 = 370; with it, (700 + 760) / 2 = 730.
+    const { editor } = mountEditorWithToolbar('alpha beta gamma delta');
+    wrapAt(editor, 6, { selectionStart: 700, endOfThisLine: 40, startOfNextLine: 40 });
+    restore = painted(editor, [[700, 760, 100]]);
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 6 });
+
+    const bar = document.getElementById('floating-toolbar') as HTMLElement;
+    const width = bar.getBoundingClientRect().width;
+    expect(bar.style.left).toBe(`${Math.max(8, 730 - width / 2)}px`);
+    expect(bar.style.left).not.toBe(`${Math.max(8, 370 - width / 2)}px`);
+  });
+
+  it('falls back to the resolved positions when the selection covers more than one line', () => {
+    // Deliberately narrow: a selection the engine drew across two lines has no
+    // single line to be centred on, so it is placed exactly where it always
+    // was. Two rectangles with different tops, and the placement is the one the
+    // resolved positions give.
+    const { editor } = mountEditorWithToolbar('alpha beta gamma delta');
+    wrapAt(editor, 6, { selectionStart: 700, endOfThisLine: 300, startOfNextLine: 300 });
+    restore = painted(editor, [
+      [700, 900, 100],
+      [40, 300, 140],
+    ]);
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 6 });
+
+    const bar = document.getElementById('floating-toolbar') as HTMLElement;
+    const width = bar.getBoundingClientRect().width;
+    // (start.left 700 + end.right 300) / 2 = 500, the resolved reading.
+    expect(bar.style.left).toBe(`${Math.max(8, 500 - width / 2)}px`);
+  });
+
+  it('falls back when nothing is painted at all, which is a selected image', () => {
+    // A node selection paints no range, so the bar keeps the placement the
+    // resolved positions give it - which for an image is the box itself.
+    const { editor } = mountEditorWithToolbar('alpha beta gamma delta');
+    wrapAt(editor, 6, { selectionStart: 700, endOfThisLine: 760, startOfNextLine: 40 });
+    restore = painted(editor, []);
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 6 });
+
+    const bar = document.getElementById('floating-toolbar') as HTMLElement;
+    const width = bar.getBoundingClientRect().width;
+    expect(bar.style.left).toBe(`${Math.max(8, 730 - width / 2)}px`);
+  });
+});
