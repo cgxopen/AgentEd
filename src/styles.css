@@ -464,9 +464,8 @@ body {
  * `var(--surface)`, which is the colour of `.menu-panel` itself, so an entry
  * under the pointer did not change at all while a header, on `var(--bg)`, did.
  * A translucent overlay composes over whichever ground the row stands on, and
- * every palette defines it. It sets `background-color` alone, so the hairline
- * between headers, a `background-image`, stays drawn on top of it. A disabled
- * entry is not shaded: it cannot be chosen, and a shade would say it can. */
+ * every palette defines it. A disabled entry is not shaded: it cannot be
+ * chosen, and a shade would say it can. */
 #menu-dropdown button {
   background: none;
   border: none;
@@ -496,8 +495,10 @@ body {
   font-family: "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
-/* The menu is an accordion (#294): six section headers, each with its panel
- * directly below it in the markup, so the Tab order is the order on screen.
+/* The menu is an accordion (#294): five section headers - six while Table
+ * and View both had one, five since #347 moved View onto a header control -
+ * each with its panel directly below it in the markup, so the Tab order is
+ * the order on screen.
  * Pressing a header opens its panel and the headers below slide down; one
  * section is open at a time.
  *
@@ -560,21 +561,11 @@ body {
   font-weight: 500;
 }
 
-/* A hairline between one header and the next, a fifth of the width of the
- * header, set to the right: its end sits half an em, about one character, in
- * from the right edge of the header, which puts it past the chevrons, since
- * those end at the 12 px button padding. It is drawn as a background, so it
- * adds no height and no element. Only the headers carry it, never the entries
- * inside a section; a header that follows an open section keeps its line,
- * above it. The selector outranks `#menu-dropdown button`, whose
- * `background: none` shorthand would otherwise clear the line. The pointer
- * shade sets `background-color` alone and no longer competes with it (#312). */
-#menu-dropdown .menu-section ~ .menu-section {
-  background-image: linear-gradient(var(--border), var(--border));
-  background-position: right 0.5em top;
-  background-size: 20% 1px;
-  background-repeat: no-repeat;
-}
+/* No line between one header and the next (#362, owner decision of
+ * 2026-09-18). The hairline #294 drew there, a fifth of the header width and
+ * set right, read beside the files panel card as an underline of the chevrons
+ * rather than a separator; the rows are separated by their own height, and the
+ * files panel card has no interior lines either. */
 
 /* The chevron points the way the section will move when its header is
  * pressed: down while it is closed, up while it is open. The glyph points
