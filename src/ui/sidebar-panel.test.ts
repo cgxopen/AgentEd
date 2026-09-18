@@ -239,6 +239,16 @@ describe('the panel sits on the right and is drawn as a card', () => {
     expect(header.textContent?.trim()).toBe('Files');
     expect(document.getElementById('sidebar-close')).toBeNull();
   });
+
+  it('draws no line under its heading, the card border being the only rule it has', () => {
+    // Owner decision of 2026-09-18 on #369: the line under Files was the one
+    // rule left inside a card drawn by its own border on the page colour. Every
+    // border property is read, so the line cannot come back under another name.
+    const header = element('sidebar-header');
+    for (const property of ['border', 'border-bottom', 'border-top', 'border-block-end']) {
+      expect(valuesReaching(rules, header, property), property).toEqual([]);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
