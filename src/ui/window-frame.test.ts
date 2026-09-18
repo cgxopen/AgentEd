@@ -156,3 +156,38 @@ describe('the narrow band keeps the document name (#366)', () => {
     for (const badge of badges) expect(hiddenBelow(element(badge), 900), badge).toBe(true);
   });
 });
+
+describe('the caption buttons take the one hover of the bar (#368)', () => {
+  /** The value each rule naming `state` gives `property` on `target`, with `state` taken out. */
+  function inState(target: Element, state: string, property: string): string[] {
+    return rules
+      .filter((rule) => rule.conditions.length === 0 && rule.selector.includes(state))
+      .filter((rule) => reaches(rule.selector.replaceAll(state, ''), target))
+      .filter((rule) => rule.declarations.has(property))
+      .map((rule) => rule.declarations.get(property) as string);
+  }
+
+  it('shades minimize and maximize with the hover overlay, under the pointer and pressed', () => {
+    // Owner decision of 2026-09-18: one hover token for the whole bar. The
+    // caption buttons took the strong overlay until then, beside header buttons
+    // that took this one.
+    drawWindowFrame(controls());
+    for (const selector of ['.window-caption-minimize', '.window-caption-maximize']) {
+      for (const state of [':hover', ':active']) {
+        expect(
+          inState(element(selector), state, 'background-color'),
+          `${selector} ${state}`,
+        ).toEqual(['var(--hover-overlay)']);
+      }
+    }
+  });
+
+  it('keeps close red under the pointer, later in the sheet than the shared shade', () => {
+    drawWindowFrame(controls());
+    const close = element('.window-caption-close');
+    expect(inState(close, ':hover', 'background-color')).toEqual([
+      'var(--hover-overlay)',
+      '#c42b1c',
+    ]);
+  });
+});

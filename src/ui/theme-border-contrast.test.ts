@@ -79,12 +79,13 @@ function declared(target: Element, property: string): string | null {
 
 /**
  * The colour inside a shorthand such as `1px solid var(--border)`. The sheet
- * writes every border colour as a `var()` or a hex, so those are the two forms
- * read; anything else answers `null` rather than a guess, and the row that
- * asked then fails on a null instead of passing on a misread value.
+ * writes every border colour as a `var()`, a hex or, since #368 made the header
+ * controls transparent at rest, the keyword `transparent`, so those are the
+ * three forms read; anything else answers `null` rather than a guess, and the
+ * row that asked then fails on a null instead of passing on a misread value.
  */
 function colourOf(shorthand: string): string | null {
-  return /var\(--[\w-]+\)|#[0-9a-f]{3,8}\b/i.exec(shorthand)?.[0] ?? null;
+  return /var\(--[\w-]+\)|#[0-9a-f]{3,8}\b|\btransparent\b/i.exec(shorthand)?.[0] ?? null;
 }
 
 /** A colour expression painted over a stack of grounds, bottom first. */
@@ -133,9 +134,8 @@ describe('the border token can draw a control in every palette (#321)', () => {
 });
 
 /**
- * The six members of the menubar family (#332) - seven until the spell-check
- * toggle left the bar for the Edit menu at #360. Their outline is the whole of
- * what says they can be pressed, so it is the row 1.4.11 is about.
+ * Every pressable member of the menubar family: the six of #332 and the files
+ * panel control, which took the last seat at #347.
  */
 const MENUBAR_FAMILY = [
   'menu-toggle',
@@ -144,31 +144,122 @@ const MENUBAR_FAMILY = [
   'cluster-indicator',
   'overflow-toggle',
   'appearance-menu-trigger',
+  'sidebar-toggle',
 ];
 
-describe('the outline that means pressable is drawn in every palette (#332, #321)', () => {
-  it('every member of the family takes its outline from the sheet', () => {
-    mountShippedHeader();
-    for (const id of MENUBAR_FAMILY) {
-      expect(declared(element(id), 'border-color')).toBe('var(--border)');
-    }
-  });
+/** The two readouts of the bar: the run of counts and the «Metadata» badge. */
+const READOUTS = ['count-readout', 'badge-metadata'];
 
+/**
+ * The outline that said pressable from #332, and the 3 to 1 it was held to at
+ * #321, were retired at #368 (owner decision of 2026-09-18): at rest every
+ * header control is transparent. The border token keeps its floor above,
+ * because panels, cards and fields still draw with it.
+ */
+describe('every header control is transparent at rest (#368)', () => {
   it('the bar under them is the page colour the sheet names (#351)', () => {
     mountShippedHeader();
     expect(declared(element('menubar'), 'background')).toBe('var(--bg)');
   });
 
-  it.each(paletteNames)('%s: the outline stands off the bar it is drawn on', (name) => {
+  it('no member of the family draws a border or a fill', () => {
+    mountShippedHeader();
+    for (const id of MENUBAR_FAMILY) {
+      expect(declared(element(id), 'border-color'), id).toBe('transparent');
+      expect(declared(element(id), 'background'), id).toBe('none');
+    }
+  });
+
+  it('no readout draws a border or a fill', () => {
+    mountShippedHeader();
+    for (const id of READOUTS) {
+      expect(declared(element(id), 'border-color'), id).toBeNull();
+      expect(declared(element(id), 'background'), id).toBe('none');
+    }
+  });
+
+  /**
+   * The labels a readout holds in `--muted`: the word and character counts and
+   * the «Metadata» badge. Until #368 they sat on the readout fill, where they
+   * measured 4.31 in claude and 4.43 in light; on the bar they are text on the
+   * page colour, and this row holds them there at the 4.5 they need.
+   */
+  it.each(paletteNames)('%s: the muted labels of the readouts are readable on the bar', (name) => {
+    mountShippedHeader();
+    const tokens = palettes.get(name)!;
+    const bar = declared(element('menubar'), 'background');
+    if (bar === null) throw new Error('no rule gives the menubar a background');
+    for (const id of ['word-count', 'char-count', 'badge-metadata']) {
+      const el = element(id);
+      const colour = declared(el, 'color');
+      expect(colour, id).toBe('var(--muted)');
+      const fill = declared(el.closest('.header-readout') ?? el, 'background') ?? 'none';
+      const under = paint(tokens, ['var(--bg)', bar, fill]);
+      const ratio = contrast(resolveColour(colour as string, tokens), under);
+      expect(ratio, `#${id} in ${name}`).toBeGreaterThanOrEqual(TEXT);
+    }
+  });
+});
+
+/**
+ * **An accepted exception, and the figures it was accepted at** (owner, on
+ * #368, 2026-09-18). A lit control, one whose surface is open, is filled with
+ * `--hover-overlay-strong`, and that fill measures **1.165 to 1.429** against
+ * the bar and **1.08 to 1.21** against the pressed shade across the seven
+ * palettes: below the 3 to 1 a state indicator is held to, in all seven. No form
+ * the tokens allow reaches it as a difference between states, which the step
+ * zero of #368 measured, and the owner kept this one over a new token.
+ *
+ * The same shape as the Save and Discard rows below, which are accepted too:
+ * a row asserting 3 to 1 would be red on a head nobody means to change. The
+ * rows here hold the accepted figures **as a floor** instead, so a value edited
+ * to something quieter than what was accepted turns red rather than widening
+ * the exception without a decision.
+ */
+describe('the lit state is an accepted exception below 3 to 1 (#368)', () => {
+  /** The floors, the lowest figure of each measurement at acceptance, to two decimals. */
+  const LIT_AGAINST_BAR = 1.16;
+  const LIT_AGAINST_PRESSED = 1.08;
+
+  /** The shade the sheet gives `id` while its surface is open, and while it is pressed. */
+  function shades(id: string): { lit: string; pressed: string } {
+    const el = element(id);
+    el.setAttribute('aria-expanded', 'true');
+    const lit = declared(el, 'background-color');
+    el.setAttribute('aria-expanded', 'false');
+    const pressed = atEveryWidth
+      .filter((rule) => rule.selector.includes(':active'))
+      .filter((rule) => reaches(rule.selector.replaceAll(':active', ''), el))
+      .map((rule) => rule.declarations.get('background-image'))
+      .filter((value) => value !== undefined)
+      .at(-1);
+    if (lit === null || pressed === undefined)
+      throw new Error(`#${id} has no lit or no pressed shade`);
+    return { lit, pressed };
+  }
+
+  it.each(
+    paletteNames,
+  )('%s: lit stands off the bar and off pressed by what was accepted', (name) => {
     mountShippedHeader();
     const tokens = palettes.get(name)!;
     const bar = declared(element('menubar'), 'background');
     if (bar === null) throw new Error('no rule gives the menubar a background');
     for (const id of MENUBAR_FAMILY) {
-      const outline = declared(element(id), 'border-color');
-      if (outline === null) throw new Error(`no rule gives #${id} a border colour`);
-      const ratio = contrast(paint(tokens, [outline]), paint(tokens, ['var(--bg)', bar]));
-      expect(ratio, `#${id} in ${name}`).toBeGreaterThanOrEqual(NON_TEXT);
+      const { lit, pressed } = shades(id);
+      const ground = paint(tokens, ['var(--bg)', bar]);
+      const litOnBar = paint(tokens, ['var(--bg)', bar, lit]);
+      const pressedOnBar = paint(tokens, ['var(--bg)', bar, pressed]);
+      const againstBar = contrast(litOnBar, ground);
+      const againstPressed = contrast(litOnBar, pressedOnBar);
+      expect(againstBar, `#${id} lit against the bar in ${name}`).toBeGreaterThanOrEqual(
+        LIT_AGAINST_BAR,
+      );
+      expect(againstPressed, `#${id} lit against pressed in ${name}`).toBeGreaterThanOrEqual(
+        LIT_AGAINST_PRESSED,
+      );
+      // Stated rather than implied: this is the exception, not a pass.
+      expect(againstBar, `#${id} in ${name}`).toBeLessThan(NON_TEXT);
     }
   });
 });
@@ -274,24 +365,5 @@ describe('every control the sheet draws carries a label colour (#321)', () => {
     for (const control of controls) {
       expect(declared(control, 'color'), control.id || control.className).not.toBeNull();
     }
-  });
-});
-
-/**
- * The half of #332 that is deliberately left below the floor, pinned so that
- * leaving it there stays a decision rather than becoming an oversight.
- *
- * A readout is filled rather than outlined, and the fill measures about 1.1
- * against the bar. The owner took that on 2026-09-17: a readout quieter than a
- * button is what the rule is for. This row states the shape — the fill is an
- * overlay the sheet names — and asserts no ratio, because there is no floor
- * here to assert.
- */
-describe('the filled half of the menubar rule is unchanged (#332)', () => {
-  it('a readout is filled with the overlay, not outlined', () => {
-    mountShippedHeader();
-    const readout = element('count-readout');
-    expect(declared(readout, 'background')).toBe('var(--hover-overlay)');
-    expect(declared(readout, 'border-color')).toBeNull();
   });
 });

@@ -11,17 +11,17 @@
   /*
    * The line that draws a control, and every edge in the product (#321).
    *
-   * Thirty-one rules name this token, and they are two different jobs under one
-   * value: the edges of panels, cards, fields and table cells — and, since
-   * #332, **the outline that says a thing in the menubar can be pressed**. The
-   * second job is what WCAG 1.4.11 asks 3 to 1 of: visual information required
-   * to identify a user interface component.
+   * The rules that name this token draw the edges of panels, cards and table
+   * cells, and the line that is the whole of some controls: a dialog field, the
+   * Cancel button, the language field, the Refresh button. That second job is
+   * what WCAG 1.4.11 asks 3 to 1 of: visual information required to identify a
+   * user interface component. The header controls took it too, from #332 until
+   * #368, when they became transparent at rest and stopped drawing a line.
    *
    * **It was 1.00 to 1.42 against `--surface` in all seven palettes**, not only
    * in the two the defect was first seen in. In both Solarized palettes it was
-   * *the same hex as `--surface`* — `#eee8d5` and `#073642` — so the outline
-   * #332 had just made the sign of pressable was not drawn at all there, and
-   * the bar read as a row of bare words beside two filled readouts.
+   * *the same hex as `--surface`* — `#eee8d5` and `#073642` — so a control drawn
+   * by this line alone was not drawn at all there.
    *
    * **Each value is the nearest colour on that palette's own hue that clears
    * 3.05 against the ground that binds**, which is `--surface` in every palette:
@@ -33,11 +33,6 @@
    * The figures are asserted in `ui/theme-border-contrast.test.ts`, computed
    * from these tokens rather than written down here, so a value edited to
    * something quieter turns a row red.
-   *
-   * **The other half of #332 is deliberately not touched**: a readout is filled
-   * with `--hover-overlay`, which measures 1.08 to 1.18 against the bar. A
-   * readout that is quieter than a button is what that rule is for (owner
-   * decision, 2026-09-17); only the outline is held to a floor.
    */
   --border: #909090;
   --accent: #2563eb;
@@ -408,8 +403,14 @@ body {
   height: 10px;
 }
 
-.window-caption-button:hover {
-  background-color: var(--hover-overlay-strong);
+/* One hover for the whole bar, the header controls and these three alike
+ * (#368, owner decision of 2026-09-18): the caption buttons took the strong
+ * overlay until then, beside header buttons that took this one. Pressed is the
+ * same shade, which the issue allows, so the one step up is left to the lit
+ * state of the header controls. */
+.window-caption-button:hover,
+.window-caption-button:active {
+  background-color: var(--hover-overlay);
 }
 
 /* Close turns red under the pointer, as the system one does, with its glyph
@@ -439,22 +440,21 @@ body {
  * **31px keeps the header at the 44px it has always been**: 31 plus the
  * menubar's 6px of padding above and below plus its 1px border, which is
  * transparent since #351 and still takes its pixel. */
-/* ── The two kinds of thing in the bar, and how a reader tells them apart ──
+/* ── Every control in the bar, and what says which state it is in ──
  *
  * Everything in the bar that is more than bare text wears the same box: one
- * height, one radius, one padding. **What says which kind it is, is how that
- * box is filled** (#332, owner decision on the third artifact):
+ * height, one radius, one padding. **At rest the box is not drawn** (#368,
+ * owner decision of 2026-09-18): no outline and no fill, on a button and on a
+ * readout alike, because the bar is the title bar on Windows since #366 and
+ * the caption buttons beside it are flat. What is drawn is state:
  *
- * - **an outline means it can be pressed** — every button of the family;
- * - **a background means it cannot** — the run of counts, and the «Metadata»
- *   badge, which are readouts.
+ * - **hover and pressed**, one shade, `--hover-overlay`, and only on what can
+ *   be pressed: the counts and the «Metadata» badge take none;
+ * - **lit**, `--hover-overlay-strong`, on a control while its surface is open.
  *
- * The rule is worth more than either half of it. An earlier head gave the
- * readout an outline too, on the reading that one long box around three numbers
- * is a readout rather than a control; the owner looked at it on the artifact
- * and took this instead, which does not ask the reader to tell a long frame
- * from a short one. R-C12 wanted the badges quiet, and a background is quieter
- * than a line. */
+ * This reverses the rule of #332, under which an outline meant a button and a
+ * fill meant a readout. A readout now says what it is by taking no hover, no
+ * pointer and no tab stop. */
 .header-frame {
   display: inline-flex;
   align-items: center;
@@ -466,20 +466,22 @@ body {
   border-radius: 4px;
 }
 
-/* Outlined: a button. */
+/* A button. **The border stays, transparent**, as the one under the bar did at
+ * #351: a labelled member is as wide as its label plus its padding plus this
+ * border, so the widths the bar was measured at on #366 are the widths it keeps. */
 .header-edge-button {
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   color: var(--text);
   cursor: pointer;
   font: inherit;
   line-height: 1;
 }
 
-/* Filled: a readout. No border, no pointer, no hover, no tab stop — the
- * background is the whole of what it says about itself. */
+/* A readout: no fill since #368, and no border, pointer, hover or tab stop.
+ * Written out rather than left to the default, so that at rest is a statement. */
 .header-readout {
-  background: var(--hover-overlay);
+  background: none;
 }
 
 /* The members whose whole content is a drawing are square; the members whose
@@ -509,9 +511,39 @@ body {
  * in, where a solid fill of `--border` read as a pressed key. Measured before
  * it was unified: the fill was opaque in all seven palettes and the overlay 4
  * to 6 per cent, so hovering one button and hovering its twin did visibly
- * different things. */
-.header-edge-button:hover {
+ * different things.
+ *
+ * **Pressed is the same shade** (#368, owner decision of 2026-09-18), which the
+ * issue allows: no `:active` rule existed in the header before it, so a press
+ * showed nothing a hover had not. Written as an image for the same reason the
+ * hover is: it stacks on the lit colour below instead of replacing it. */
+.header-edge-button:hover,
+.header-edge-button:active {
   background-image: linear-gradient(var(--hover-overlay), var(--hover-overlay));
+}
+
+/* **Lit while the surface it reveals is open**, on every control in the bar that
+ * reveals one (#368, owner decision of 2026-09-18): the magnifier and the files
+ * panel control since #312 and #347, and since #368 the menu button, the
+ * overflow button, Appearance, «Images» and the related indicator. All of them
+ * say it with `aria-expanded` since #324, so one attribute lights all of them;
+ * the copy in the overflow list has its own rule, with the indicators.
+ *
+ * **An accepted exception below 3 to 1, in all seven palettes** (owner, on
+ * #368, 2026-09-18). Lit measures 1.165 to 1.429 against the bar and 1.08 to
+ * 1.21 against pressed, computed from the tokens by the #321 instrument; no form
+ * the tokens allow reaches 3 to 1 as a difference between states, and the owner
+ * kept this one over a new token. `ui/theme-border-contrast.test.ts` holds the
+ * figures as a floor, so a quieter value turns a row red rather than widening
+ * what was accepted.
+ *
+ * The glyph or the label goes to `--text`, so a label that rests `--muted` is
+ * not left muted on the fill: «Images» measured 3.94 to 4.82 there, below 4.5 in
+ * four palettes. The glyph does not change shape with the state: a glyph that
+ * moved would read as a different control. */
+.header-edge-button[aria-expanded="true"] {
+  color: var(--text);
+  background-color: var(--hover-overlay-strong);
 }
 
 #menu-dropdown {
@@ -798,23 +830,10 @@ button.indicator-search:hover {
   color: var(--text);
 }
 
-/* Lit while the surface it reveals is open (#312), so the button says that the
- * next press closes it. An overlay rather than the accent the search panel's own
- * option toggles use: this is a place in the bar, not an option switched on, and
- * the overlay reads as part of whichever palette the bar is drawn in.
- *
- * The state is read from `aria-expanded` since #324, which is what these buttons
- * and the other indicators that reveal a surface now say. The shade itself is
- * unchanged, so what moved is which attribute lights it.
- *
- * **The files panel control joins it at #347**, at the far right of the bar, so
- * the two controls that reveal a surface say «open» the same way. Measured
- * against the bar it is drawn on: 1.17 to 1.43 across the seven palettes since
- * the bar is `--bg` (#351), weakest in `solarized-light` and `github-light`. The glyph does not change
- * with the state — under #332 the glyph says what a control is and the fill says
- * what it is doing, and a glyph that moved would read as a different control. */
-button.indicator-search[aria-expanded="true"],
-button.sidebar-toggle[aria-expanded="true"],
+/* The copy of a lit control in the overflow list is lit the same way (#312):
+ * it carries the `aria-expanded` of the control it copies, and is a span rather
+ * than a member of the family, so the family rule does not reach it. The shade
+ * and the exception below 3 to 1 are those of `.header-edge-button[aria-expanded]`. */
 #overflow-popover .indicator[aria-expanded="true"] {
   color: var(--text);
   background-color: var(--hover-overlay-strong);
@@ -2586,10 +2605,10 @@ button.sidebar-toggle[aria-expanded="true"],
   font-size: 12px;
 }
 
-/* «Metadata» is a span, so it is a readout and carries the background; «Images»
- * is a button, so it carries the outline. Both wear the same box: the pill the
- * badges used to be is gone, because a shape of its own was a third thing to
- * read in a bar that now says what it means with two. */
+/* «Metadata» is a span, so it is a readout; «Images» is a button, so it takes
+ * the hover and the press. Both wear the same box, undrawn at rest since #368:
+ * the pill the badges used to be is gone, because a shape of its own was a
+ * third thing to read in the bar. */
 span.document-badge {
   cursor: help;
 }
@@ -2598,7 +2617,12 @@ button.document-badge {
   cursor: pointer;
 }
 
-button.document-badge:hover {
+/* The label goes to `--text` under the pointer and while pressed (#368): a
+ * press from the keyboard has no hover, and `--muted` on the pressed shade is
+ * 4.31 in claude and 4.43 in light, below the 4.5 a 12 px label needs. The lit
+ * state gives it `--text` from the family rule. */
+button.document-badge:hover,
+button.document-badge:active {
   color: var(--text);
 }
 
