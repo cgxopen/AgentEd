@@ -1,10 +1,12 @@
 /**
- * Issue #332 — the buttons of the menubar take one outlined form.
+ * Issue #332 — the buttons of the menubar take one form. Outlined until #368,
+ * which made every header control transparent at rest and moved what the form
+ * says into its states: hover, pressed and lit.
  *
  * **Said at the head: how the bar reads is layout and look, and no row below
  * sees it.** happy-dom performs no layout, so whether the bar is crowded,
- * whether the frame reads as *this can be pressed*, and whether the one
- * remaining chip looks out of place are the owner pass on the artifact. The
+ * a control with no frame at rest still reads as *this can be pressed*, and
+ * whether a lit control is seen at a glance are the owner pass on the artifact. The
  * figures that decided the shape were measured in Chromium against the built
  * page and are written on the issue.
  *
@@ -21,7 +23,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { isOfferedInOverflow, overflowClone } from '../app/header-wiring';
 import stylesCss from '../styles.css?raw';
-import { reaches, stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
+import {
+  reaches,
+  splitTopLevel,
+  stylesheetRules,
+  valuesReaching,
+} from '../test-support/stylesheet-rules';
 
 const rules = stylesheetRules(stylesCss);
 /**
@@ -86,6 +93,9 @@ describe('one rule gives every button in the bar its form', () => {
         expect(values(id, property), `${id} / ${property}`).toBe(first);
       }
     }
+    // The border is shared and drawn by nobody (#368): it keeps its pixel, so
+    // the widths #366 measured stay, and it is transparent, so no box shows.
+    expect(values(FAMILY[0], 'border')).toBe('1px solid transparent');
   });
 
   it('gives the drawing-only members a square and the labelled ones room for the label', () => {
@@ -188,15 +198,14 @@ describe('one rule gives every button in the bar its form', () => {
     expect(icons.map(({ svg }) => weight(svg))).toEqual(['2', '2', 'currentColor', '2', '2']);
   });
 
-  it('tells a readout from a button by how the box is filled, not by the box', () => {
-    // Owner decision on the third artifact, and it replaced an earlier head in
-    // which the readout was outlined too: an outline means it can be pressed, a
-    // background means it cannot. So the box is shared and the fill is what
-    // differs — which is the half a reader sees.
+  it('draws neither a button nor a readout at rest, in one shared box', () => {
+    // Owner decision of 2026-09-18 on #368, reversing the rule of #332 under
+    // which an outline meant a button and a fill meant a readout: at rest no
+    // header control draws either. The box is still shared, so the height,
+    // radius and padding are one; what tells the two apart is what follows,
+    // the hover and the press a readout does not take.
     const readout = element('count-readout');
     const badge = element('badge-metadata');
-    // The image badge, a labelled button, since the spell-check toggle that
-    // stood here left the bar at #360.
     const button = element('badge-images');
     const box = (el: Element, property: string) =>
       valuesReaching(atEveryWidth, el, property).at(-1);
@@ -205,14 +214,14 @@ describe('one rule gives every button in the bar its form', () => {
       expect(box(readout, property), `readout / ${property}`).toBe(box(button, property));
       expect(box(badge, property), `badge / ${property}`).toBe(box(button, property));
     }
-
-    // The fill, which is the whole of the difference.
     for (const el of [readout, badge]) {
-      expect(box(el, 'background'), 'a readout is filled').toBe('var(--hover-overlay)');
-      expect(box(el, 'border'), 'a readout is not outlined').toBeUndefined();
+      expect(box(el, 'background'), `${el.id} is not filled`).toBe('none');
+      expect(box(el, 'border'), `${el.id} is not outlined`).toBeUndefined();
     }
-    expect(box(button, 'border')).toBe('1px solid var(--border)');
-    expect(box(button, 'background')).toBe('none');
+    for (const id of FAMILY) {
+      expect(box(element(id), 'background'), `${id} is not filled`).toBe('none');
+      expect(box(element(id), 'border'), `${id} is not outlined`).toBe('1px solid transparent');
+    }
   });
 
   it('gives a readout nothing that says it can be pressed', () => {
@@ -221,10 +230,12 @@ describe('one rule gives every button in the bar its form', () => {
       expect(el.tagName.toLowerCase(), id).not.toBe('button');
       expect(el.className, id).not.toMatch(/header-edge-button/);
       expect(el.getAttribute('tabindex'), id).toBeNull();
-      const hovered = rules
-        .filter((rule) => rule.selector.includes(':hover'))
-        .some((rule) => reaches(rule.selector.replaceAll(':hover', ''), el));
-      expect(hovered, id).toBe(false);
+      for (const state of [':hover', ':active']) {
+        const shaded = rules
+          .filter((rule) => rule.selector.includes(state))
+          .some((rule) => reaches(rule.selector.replaceAll(state, ''), el));
+        expect(shaded, `${id} ${state}`).toBe(false);
+      }
     }
     // `cursor: help` on the badge is the one exception and it is deliberate:
     // the badge says what it is on hover and has said so since R-C12.
@@ -248,6 +259,113 @@ describe('one rule gives every button in the bar its form', () => {
       expect(el.tagName.toLowerCase(), id).toBe('span');
       expect(el.className, id).not.toMatch(/header-edge-button/);
     }
+  });
+});
+
+/**
+ * The states that replaced the frame (#368, owner decisions of 2026-09-18).
+ * `:hover` and `:active` match nothing in happy-dom, which has no pointer and no
+ * press, so each row takes the pseudo-class out of the selector and runs the
+ * rest against the element the page renders: the rule is read out of the sheet
+ * and its reach is measured, the pairing the head of this file describes.
+ */
+describe('hover, pressed and lit say what the frame used to (#368)', () => {
+  /** The declarations of every rule naming `state`, with `state` taken out, that reach `el`. */
+  function inState(el: Element, state: string, property: string): string[] {
+    return atEveryWidth
+      .filter((rule) => rule.selector.includes(state))
+      .filter((rule) => reaches(rule.selector.replaceAll(state, ''), el))
+      .filter((rule) => rule.declarations.has(property))
+      .map((rule) => (rule.declarations.get(property) as string).trim());
+  }
+
+  it('presses every member with the hover shade, as an image that stacks', () => {
+    for (const id of FAMILY) {
+      const el = element(id);
+      expect(inState(el, ':active', 'background-image'), id).toEqual(
+        inState(el, ':hover', 'background-image'),
+      );
+      expect(inState(el, ':active', 'background-image'), id).toEqual([
+        'linear-gradient(var(--hover-overlay), var(--hover-overlay))',
+      ]);
+      // A colour here would replace the lit shade under a press instead of
+      // stacking on it.
+      expect(inState(el, ':active', 'background-color'), id).toEqual([]);
+      expect(inState(el, ':active', 'background'), id).toEqual([]);
+    }
+  });
+
+  /**
+   * The specificity of one selector, as (ids, classes and attributes and
+   * pseudo-classes, types). Written for the forms this sheet uses in the header
+   * - ids, classes, attribute selectors, single-colon pseudo-classes, type
+   * names and descendant combinators - and not for `:is()`, `:not()` or `::`.
+   */
+  function specificity(selector: string): [number, number, number] {
+    const bare = selector.replace(/\[[^\]]*\]/g, '.a');
+    const ids = (bare.match(/#[\w-]+/g) ?? []).length;
+    const classes = (bare.match(/[.:][\w-]+/g) ?? []).length;
+    const types = (bare.match(/(^|[\s>+~])[a-z][\w-]*/gi) ?? []).length;
+    return [ids, classes, types];
+  }
+
+  /**
+   * The value the cascade gives `property` on `el` among the rules that apply at
+   * every width: the most specific selector of each reaching rule, and the later
+   * rule on a tie. Stylesheet order alone is not enough here: the resting label
+   * colours come later in the sheet than the lit rule and lose to it.
+   */
+  function cascaded(el: Element, property: string): string | undefined {
+    let best: { spec: [number, number, number]; value: string } | undefined;
+    for (const rule of atEveryWidth) {
+      if (!rule.declarations.has(property)) continue;
+      for (const one of splitTopLevel(rule.selector)) {
+        if (!reaches(one, el)) continue;
+        const spec = specificity(one);
+        const wins =
+          best === undefined ||
+          spec[0] > best.spec[0] ||
+          (spec[0] === best.spec[0] && spec[1] > best.spec[1]) ||
+          (spec[0] === best.spec[0] && spec[1] === best.spec[1] && spec[2] >= best.spec[2]);
+        if (wins) best = { spec, value: rule.declarations.get(property) as string };
+      }
+    }
+    return best?.value;
+  }
+
+  it('reads specificity the way the cascade does, for the selectors it meets', () => {
+    expect(specificity('.header-edge-button[aria-expanded="true"]')).toEqual([0, 2, 0]);
+    expect(specificity('button.indicator-search')).toEqual([0, 1, 1]);
+    expect(specificity('#overflow-popover .indicator[aria-expanded="true"]')).toEqual([1, 2, 0]);
+    expect(specificity('.document-badge')).toEqual([0, 1, 0]);
+  });
+
+  it('lights every control that reveals a surface, all eight of them, the same way', () => {
+    // The seven members of the family, each of which says `aria-expanded`, and
+    // the copy the overflow list draws of one of them.
+    const copy = overflowClone(element('indicator-search'));
+    element('overflow-popover').appendChild(copy);
+    const lit = [...FAMILY.map(element), copy];
+    expect(lit).toHaveLength(8);
+    for (const el of lit) {
+      const label = el.id || 'the overflow copy';
+      el.setAttribute('aria-expanded', 'true');
+      expect(cascaded(el, 'background-color'), label).toBe('var(--hover-overlay-strong)');
+      expect(cascaded(el, 'color'), label).toBe('var(--text)');
+      el.setAttribute('aria-expanded', 'false');
+      expect(cascaded(el, 'background-color'), label).toBeUndefined();
+    }
+    copy.remove();
+  });
+
+  it('turns the Images label to the text colour when it is pressed and when it is lit', () => {
+    const images = element('badge-images');
+    expect(cascaded(images, 'color')).toBe('var(--muted)');
+    expect(inState(images, ':active', 'color')).toEqual(['var(--text)']);
+    expect(inState(images, ':hover', 'color')).toEqual(['var(--text)']);
+    images.setAttribute('aria-expanded', 'true');
+    expect(cascaded(images, 'color')).toBe('var(--text)');
+    images.setAttribute('aria-expanded', 'false');
   });
 });
 

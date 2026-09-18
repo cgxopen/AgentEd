@@ -62,8 +62,9 @@ export function wireHeaderIndicators(ctx: AppContext, _docActions: DocumentActio
  * reveal a surface rather than switch an option on, so both say `aria-expanded`
  * with `aria-controls` — the #312 and #324 reading — and a screen reader
  * announces «Files panel, button, expanded» or «collapsed». The lit shade is
- * the same one, `--hover-overlay-strong` on `[aria-expanded="true"]`, so the
- * two ends of the bar say «open» the same way.
+ * the one every control in the bar takes since #368, `--hover-overlay-strong`
+ * on `.header-edge-button[aria-expanded="true"]`, so every control that reveals
+ * a surface says «open» the same way.
  *
  * **The state follows the panel and not the button**, which is what makes it
  * true rather than merely written: the chord, a document switch that draws a
