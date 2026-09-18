@@ -7,9 +7,9 @@
  * text is the owner pass on the artifact, in all seven palettes, and nothing
  * here. What these rows hold is the rule: each declaration is read out of the
  * shipped stylesheet and its selector run against the element the shipped page
- * carries. The frame half of the same decision is in
- * `app/window-appearance.test.ts`, which holds the frame token to what the
- * header and the page are painted with.
+ * carries. The frame half of that decision, the native frame read from the
+ * same token, went with #366: on Windows the header is the title bar, and
+ * elsewhere the system draws its own.
  */
 import { describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';

@@ -29,7 +29,7 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **WYSIWYG editing** — inline formatting, a floating toolbar on selection, and markdown input rules (`#` + space → heading, `-` + space → list, ``` → code block — optionally with a language, `[ ]` → task list). Tables, task lists, code blocks and images are edited visually.
 - **Clean round-trip** — the file you save is plain, portable markdown; opening and saving without edits never alters it. The handful of deliberate exceptions are documented, one by one, in [REQUIREMENTS.md](REQUIREMENTS.md).
 - **No silent writes, no silent overwrites** — nothing reaches disk without your say-so. If the file changed on disk while you were editing, AgentEd tells you and you choose: reload, overwrite, or save elsewhere. No lock files next to your documents, ever.
-- **A quiet header, not a status bar** — the live token count (`gpt-tokenizer`, cl100k_base, fully offline) with word and character counts, and search — all in one row that stays out of the way.
+- **A quiet header, not a status bar** — the live token count (`gpt-tokenizer`, cl100k_base, fully offline) with word and character counts, and search — all in one row that stays out of the way. On Windows that row is also the title bar: the AgentEd name at the left, the window buttons at the right, one bar instead of two.
 - **Context awareness** — open a `CLAUDE.md`, `AGENTS.md` or `.cursorrules` and the 📎 *N related* indicator shows the other context files in your project, one click away.
 - **A real menu** — File, Edit (Find and Replace, Undo, Redo, Select All, Image description, and Spell check — off by default, so technical documents stay free of noisy underlines), Insert (Table, Media, Code Block, Checklist, Horizontal Rule, Metadata, Emoji), Table (Add Row Above, Add Row Below, Delete Row, Add Column Before, Add Column After, Delete Column, Delete Table), Help. Everything the editor can do has a visible door — that is a design rule here, not an accident.
 - **Code blocks** — click the language label to set the language; a hover **Copy** button on every block; a fence with no language is a plain-text box that soft-wraps — the "prompt box" familiar from AI chat tools, in plain standard markdown.
@@ -38,7 +38,7 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **New from Template** — four plain seeds: README, project document, meeting note, blank + metadata.
 - **Find & Replace** — an inline panel, match case / whole word / regex (safe-parse), `F3` navigation.
 - **Files panel** — a file tree when your document has related structure around it. It opens and closes from the panel button at the right end of the header, or with `Ctrl+Shift+E`, and the button shows which of the two the next press will do. It sits on the right, drawn as a card, and takes its own room rather than covering what you were writing.
-- **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle near the right end of the header, one place in from the panel button). On Windows 11 the window frame follows your palette.
+- **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle near the right end of the header, one place in from the panel button). On Windows the whole bar, title bar included, is in the colour of your palette.
 - **Multiple windows** — isolated instances, one file each.
 - **Offline by design** — AgentEd makes no network calls of its own. No telemetry, no account, no cloud.
 - **Lightweight** — an installer in the ~3 MB class, opens in seconds. No Electron.
@@ -90,7 +90,6 @@ Honest edges, documented rather than discovered:
 - **A file that begins with a line of three hyphens** and has another such line further down opens with everything between them as metadata — the panel at the top — rather than as text. Tools that read front matter, Obsidian among them, read such a file the same way. AgentEd never writes a file in this shape itself, so this concerns files written by hand or by another tool. Where the second line of hyphens sits inside a code block, the file opens without that block and the text after it shows as code; saving loses no bytes, but the file keeps opening this way.
 - **Paste as plain text** in the right-click menu behaves like an ordinary paste — Windows hands the page the same content either way, so AgentEd cannot tell them apart. For a literal paste, use `Ctrl+Shift+V`.
 - **Insert Metadata** is not part of undo: `Ctrl+Z` does not remove the block it adds. Deleting every field in the panel removes the block as if it had never been there.
-- **On a wide-gamut display without Windows colour management**, the title bar and the page can show the same colour as two slightly different shades — the title bar is drawn by the system and the page by the browser engine, and only one of them is colour-managed there. Turning on *Settings → System → Display → Colour management → Automatically manage colour for apps* removes the difference; on managed and standard displays there is none.
 
 ---
 

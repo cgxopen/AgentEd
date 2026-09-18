@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "window-frame",
+  "description": "The window frame AgentEd draws itself on Windows, where the native title bar is off (#366)",
+  "platforms": [
+    "windows"
+  ],
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close"
+  ]
+}

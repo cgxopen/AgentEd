@@ -271,9 +271,9 @@ body {
  * owner decision of 2026-09-18): one surface from the window frame to the text.
  * It stood on `--surface` until then, a step of 1.05 to 1.16 off the page in
  * the seven palettes, with a line of `--border` below it. The native frame
- * reads the same token (`FRAME_COLOUR_TOKEN` in `app/window-appearance.ts`), so
- * the two move together or not at all; `app/window-appearance.test.ts` holds
- * them to one token.
+ * read the same token from #326 until #366, when on Windows the header became
+ * the title bar and there was no native frame left to colour; on Linux and
+ * macOS the system draws its own bar above this one, in its own colours.
  *
  * **The border stays, transparent**, so the header keeps the 44 px it had.
  * Measured in Chromium at 100, 125, 150 and 200 per cent: 44, 43.8, 43.67 and
@@ -304,18 +304,119 @@ body {
   min-width: 0;
 }
 
-/* No reservation on the right: the window controls are drawn by the system on
- * the native title bar above this webview, not inside it. `decorations` has
- * never been false in `src-tauri/tauri.conf.json` — in any of the 18 commits
- * that touched the file — so the 128px this rule reserved until #330 was
- * clear of nothing. The last child is the Appearance trigger, and its right
- * edge now lands on the menubar's own 16px padding, where the hamburger's left
- * edge is. Whoever turns the title bar off gives the header its own controls
- * and puts the room back here, beside them. */
+/* No reservation on the right where the system draws the window controls, on
+ * a native title bar above this webview: Linux and macOS, where
+ * `tauri.conf.json` leaves `decorations` at its default. The 128px this rule
+ * reserved until #330 was clear of nothing. The last child is then the files
+ * panel control, and its right edge lands on the menubar own 16px padding,
+ * where the hamburger left edge is.
+ *
+ * **On Windows the title bar is off and the header is the title bar** (#366):
+ * `ui/window-frame.ts` draws the caption buttons after this group and marks the
+ * bar `.window-frame-own`, and the group then sits against those buttons
+ * rather than wherever `space-between` would spread three groups - the probe on
+ * #365 put it in the middle of the bar, which the owner found. */
 .header-right {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+#menubar.window-frame-own .header-right {
+  margin-left: auto;
+}
+
+/* ── The window frame AgentEd draws itself, on Windows (#366) ──
+ *
+ * The brand at the left, candidate B of #363: the mark at 24 px and the name
+ * at 15 px, in the weight of the section headers. The mark is an inline SVG
+ * whose `.md_` is `currentColor`, so it takes the text colour of the palette;
+ * its paths take no pointer, so a press on the mark lands on the span that
+ * carries the drag region rather than on a path that does not. */
+.window-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.window-brand-mark {
+  display: block;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.window-brand-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* **In the narrow band the mark stands alone**, owner decision on #363. The
+ * name is 71.4 px at 15 px, measured, and below 701 px the document name needs
+ * it: with the name shown it falls to 131.6 px at 600 and 650, with it hidden
+ * it keeps the full 178.1 from 601 to 700. */
+@media (max-width: 700px) {
+  .window-brand-name {
+    display: none;
+  }
+}
+
+/* **The three badges go into the list below 901 px, where the bar is also the
+ * title bar**, owner decision on #366: the caption buttons take about 130 px,
+ * and with the badges in the bar the document name fell to 0 from 601 to 675
+ * px, even with the brand name hidden. With them in the list it is 131.6 px at
+ * worst. Only on the bar that draws its own frame: the web build and the Linux
+ * lane keep the collapse at 600 they had. The overflow list offers whatever the
+ * bar hides, so the badges reach it with nothing else changed. */
+@media (max-width: 900px) {
+  #menubar.window-frame-own :is(#badge-metadata, #badge-images, #cluster-indicator) {
+    display: none;
+  }
+}
+
+/* The caption buttons, 46 px wide and the full height of the bar, like the
+ * ones the system draws, flush with the right edge of the window. */
+.window-caption {
+  display: flex;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin: -6px -16px -6px 8px;
+}
+
+.window-caption-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: default;
+}
+
+.window-caption-button svg {
+  display: block;
+  width: 10px;
+  height: 10px;
+}
+
+.window-caption-button:hover {
+  background-color: var(--hover-overlay-strong);
+}
+
+/* Close turns red under the pointer, as the system one does, with its glyph
+ * white on it in every palette. */
+.window-caption-close:hover {
+  background-color: #c42b1c;
+  color: #fff;
 }
 
 /* ── The two buttons at the ends of the header ──

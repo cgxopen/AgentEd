@@ -240,20 +240,15 @@ export interface PlatformIO {
 }
 
 /**
- * What the palette says the window frame should look like (#326).
+ * The three buttons a window frame carries, for a window whose frame this
+ * build draws itself (#366).
  *
- * Both fields are **computed from the live tokens** rather than written down:
- * `caption` is whatever `--bg` resolves to in the palette now on, and
- * `dark` is decided from that colour's own luminance. A table of seven values
- * in TypeScript would be the thing #319 was: a colour restated beside the
- * stylesheet, free to drift from it.
+ * `close` **asks** to close: it raises the same close request the system
+ * button and Alt+F4 raise, so the unsaved-changes gate answers it (R-C3). It is
+ * never the call that closes without asking.
  */
-export interface WindowAppearance {
-  /** The colour the workspace gives the frame, as `#rrggbb`. */
-  readonly caption: string;
-  /**
-   * Whether `caption` is dark, and therefore whether anything the system
-   * draws on it — the window title, the caption buttons — has to be light.
-   */
-  readonly dark: boolean;
+export interface WindowControls {
+  minimize(): Promise<void>;
+  toggleMaximize(): Promise<void>;
+  close(): Promise<void>;
 }
