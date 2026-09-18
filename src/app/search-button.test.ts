@@ -321,13 +321,15 @@ describe('the hover shade of the menu rows (#312)', () => {
     expect(valuesReaching(shippedRules, panelOf(entry), 'background')).not.toContain(shades[0]);
   });
 
-  it('changes a section header under the pointer and leaves its hairline drawn', () => {
+  it('changes a section header under the pointer, which carries no line since #362', () => {
     const header = element('menu-section-edit');
 
     expect(hoverRulesReaching(header, 'background-color')).toEqual(['var(--hover-overlay-strong)']);
     expect(hoverRulesReaching(header, 'background')).toEqual([]);
     expect(hoverRulesReaching(header, 'background-image')).toEqual([]);
-    expect(valuesReaching(shippedRules, header, 'background-image')).toHaveLength(1);
+    // The hairline #294 drew between headers, which this row kept drawn under
+    // the shade, went with #362.
+    expect(valuesReaching(shippedRules, header, 'background-image')).toEqual([]);
   });
 
   it('does not shade an entry that cannot be chosen', () => {

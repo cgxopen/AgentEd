@@ -314,7 +314,8 @@ describe('the menu is an accordion (#294)', () => {
     expect(expandedHeaders()).toEqual([]);
     const headers = Array.from(document.querySelectorAll('#menu-dropdown .menu-section'));
     expect(headers.map((header) => header.getAttribute('aria-controls'))).toEqual(SECTION_PANELS);
-    expect(headers.map(labelOf)).toEqual(['File ›', 'Edit ›', 'Insert ›', 'Table ›', 'Help ›']);
+    // The names alone since #362: the arrow is a drawing, not a character.
+    expect(headers.map(labelOf)).toEqual(['File', 'Edit', 'Insert', 'Table', 'Help']);
     // The order of the markup is the order of the keyboard. Measured on the
     // comparison build, where the panels followed all the headers: Tab from
     // File visited Edit, Insert, Table and Help before the entries of the open
