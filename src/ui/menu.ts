@@ -1,3 +1,5 @@
+import { installHoverSwitch } from './menu-hover';
+
 export interface MenuCallbacks {
   onNew: () => void;
   onNewFromTemplate: () => void;
@@ -141,6 +143,21 @@ export function setupMenu(
     }
   }
 
+  // Hover moves between sections once one is open (#362), in its own module.
+  // A switch made by hover does what a press does, except that it moves focus
+  // only when focus was already in the menu, and then to the header it opened,
+  // so it never lands in the panel that just folded.
+  const hover = installHoverSwitch(
+    dropdown,
+    sections,
+    (section) => {
+      const focusWasInside = dropdown.contains(document.activeElement);
+      unfold(section.panel);
+      if (focusWasInside) section.header.focus();
+    },
+    () => sections.find((section) => !section.panel.hidden) ?? null,
+  );
+
   /**
    * Greys every entry that has nothing to do, so a press is never silent (the
    * #275 shape): Undo and Redo from the history (#295), and the seven Table
@@ -182,6 +199,7 @@ export function setupMenu(
    */
   function close(): void {
     const focusWasInside = dropdown.contains(document.activeElement);
+    hover.cancel();
     dropdown.classList.add('hidden');
     unfold(null);
     syncExpanded();
