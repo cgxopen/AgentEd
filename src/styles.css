@@ -2241,15 +2241,52 @@ button.sidebar-toggle[aria-expanded="true"],
   background: var(--hover-overlay);
 }
 
-/* The answer to a folder request that found nothing (#184). Quiet, and
-   not an action: no pointer and no hover, because nothing here takes a
-   click. */
+/* The answer to a question that found nothing, or a folder that could not
+   be read (#184, #354). Quiet, and not an action: no pointer and no hover,
+   because nothing here takes a click. */
 .sidebar-note {
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.45;
   color: var(--text-muted, inherit);
   opacity: 0.75;
+}
+
+/* The mark an open by hand holds while the folder is read (#354). It is
+   in the panel from the first frame and seen only from 200 ms: the delay is
+   the owner decision of 2026-09-18, so a folder of ordinary size is drawn
+   before anything appears and only a slow read shows it. A ring in the
+   border token with one side in the accent, turning; with reduced motion it
+   appears and does not turn. */
+.sidebar-reading {
+  width: 18px;
+  height: 18px;
+  margin: 16px auto;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation:
+    sidebar-reading-appear 0s linear 200ms forwards,
+    sidebar-reading-turn 0.8s linear 200ms infinite;
+}
+
+@keyframes sidebar-reading-appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes sidebar-reading-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-reading {
+    animation: sidebar-reading-appear 0s linear 200ms forwards;
+  }
 }
 
 /* The offer drawn where the tree would be, when no folder has been

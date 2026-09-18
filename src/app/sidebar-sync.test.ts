@@ -112,6 +112,9 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     setOnFileClick: () => {},
     onVisibleChange: () => {},
     setOnRequestAccess: () => {},
+    showUnreadable: () => {},
+    isCurrent: () => true,
+    setOnOpenByHand: () => {},
   });
 
   it('lists seven levels and no eighth, however deep the tree goes', async () => {
@@ -200,6 +203,9 @@ describe('the root a sidebar click asked to keep (#178)', () => {
         setOnFileClick: () => {},
         onVisibleChange: () => {},
         setOnRequestAccess: () => {},
+        showUnreadable: () => {},
+        isCurrent: () => true,
+        setOnOpenByHand: () => {},
       },
       shown: () => root,
     };
@@ -287,6 +293,9 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
 
     await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/notes'] }));
@@ -330,6 +339,9 @@ describe('#184 — which kind of nothing the panel is showing', () => {
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
     return { state, sidebar, seen };
   }
