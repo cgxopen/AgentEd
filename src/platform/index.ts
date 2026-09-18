@@ -1,7 +1,7 @@
 import { isTauri } from './detect';
-import type { PlatformIO, WindowAppearance } from './types';
+import type { PlatformIO, WindowControls } from './types';
 
-export type { FileEntry, FileResult, PlatformIO, WindowAppearance } from './types';
+export type { FileEntry, FileResult, PlatformIO, WindowControls } from './types';
 
 let _io: PlatformIO | null = null;
 
@@ -62,19 +62,22 @@ export async function requestFolderAccess(): Promise<boolean> {
 }
 
 /**
- * Ask the host window to take the appearance the palette describes (#326).
+ * The controls of the window frame this build draws itself, or `null` where
+ * it draws none (#366).
  *
- * **A function here rather than a member on `PlatformIO`**, for the reason
- * `requestFolderAccess` above is one: a window frame is a capability one target
- * has, and an interface every target implements is where that went wrong twice.
+ * **Which of the two is the window's answer**, `isDecorated()` in
+ * `tauri.ts`: the native title bar is off on Windows alone, by config, and a
+ * frame is drawn exactly where there is none. `isTauri` below answers only the
+ * question it owns - whether there is a desktop window to ask at all - since a
+ * browser tab has none, and the import it guards would fail there. What would
+ * replace it is a window API the web build can call; there is none.
  *
- * **Nothing anywhere branches on whether it worked.** A browser tab has no
- * frame; a Windows without the mechanism keeps the system default; both are the
- * documented fallback rather than a failure, so this answers `void` and never
- * rejects.
+ * **A function here rather than a member on `PlatformIO`**, the shape of
+ * `requestFolderAccess` above: a capability one target has does not belong in
+ * an interface every target implements.
  */
-export async function applyWindowAppearance(appearance: WindowAppearance): Promise<void> {
-  if (!isTauri) return;
-  const { applyWindowAppearance: apply } = await import('./tauri');
-  await apply(appearance);
+export async function ownWindowFrame(): Promise<WindowControls | null> {
+  if (!isTauri) return null;
+  const { ownWindowFrame: own } = await import('./tauri');
+  return await own();
 }

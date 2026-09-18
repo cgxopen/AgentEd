@@ -21,7 +21,6 @@ import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
-import { followPaletteWithTheWindow } from './app/window-appearance';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { imageDescriptionAvailability } from './editor/image-description';
 import { insertMenuCallbacks } from './editor/insert-blocks';
@@ -29,7 +28,7 @@ import { codeBlockRoutes } from './editor/insert-code-block';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
-import { applyWindowAppearance, getPlatformIO, requestFolderAccess } from './platform/index';
+import { getPlatformIO, ownWindowFrame, requestFolderAccess } from './platform/index';
 import { purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
@@ -44,6 +43,7 @@ import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar, spellcheckMenuCallbacks } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
 import { setupToolbar } from './ui/toolbar';
+import { drawWindowFrame } from './ui/window-frame';
 
 // Sweep deprecated localStorage keys before any preference read runs.
 // One-shot per launch; subsequent runs are no-ops.
@@ -332,13 +332,14 @@ setupMenu(
 // manager, which owns persistence and applies the theme to the document.
 ctx.appearanceMenu = setupAppearanceMenu(themeManager);
 
-// The window frame takes the palette's document colour, the one the header is
-// painted with, where the platform has a frame of its own to paint (#326, #351). Through `src/platform`, which is
-// where every OS call lives; on the web and on a Windows without the
-// mechanism this asks for something nobody does, silently.
-followPaletteWithTheWindow(themeManager, (appearance) => {
-  void applyWindowAppearance(appearance);
-});
+// On Windows the header and the title bar are one bar, drawn here (#366):
+// the platform hands over the window controls where the build has no native
+// frame, and nothing anywhere else.
+void ownWindowFrame()
+  .then((controls) => {
+    if (controls) drawWindowFrame(controls);
+  })
+  .catch((e: unknown) => console.error('[main] the window frame could not be drawn:', e));
 
 setupKeyboard({
   onSave: () => {

@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import {
@@ -21,7 +20,7 @@ import type {
   FileSnapshot,
   PickedFile,
   PlatformIO,
-  WindowAppearance,
+  WindowControls,
 } from './types';
 
 export class TauriIO implements PlatformIO {
@@ -197,26 +196,24 @@ export class TauriIO implements PlatformIO {
 }
 
 /**
- * Hands the colour to the Rust side, which sets it on the window frame where
- * the operating system has that mechanism and does nothing where it has not
- * (#326).
+ * The controls of a window whose frame AgentEd draws itself, or `null` when
+ * the system draws one (#366).
  *
- * **A module function rather than a member on `PlatformIO`**, which is the
- * shape the owner chose on 2026-08-30 for `requestFolderAccess`: a capability
- * only one target has does not belong in an interface every target implements.
+ * **The window answers, not the platform name.** On Windows the build turns
+ * the native title bar off, in `tauri.windows.conf.json`; on Linux and macOS
+ * it keeps it. `isDecorated()` is the fact that follows from that config, so a
+ * target that changes its config changes this answer with it.
  *
- * **The failure is swallowed here, and this is the only place it can be**:
- * `invoke` rejects when the command is missing or the window has gone, and
- * both of those mean *the frame stays as it is*, which is the documented
- * fallback rather than something a caller should hear about.
+ * `close` is `close()`, never `destroy()`: `close()` raises the close request
+ * `installCloseGuard` above listens to, so the unsaved-changes gate asks, as it
+ * does for the system button and Alt+F4 (R-C3).
  */
-export async function applyWindowAppearance(appearance: WindowAppearance): Promise<void> {
-  try {
-    await invoke('set_window_appearance', {
-      caption: appearance.caption,
-      dark: appearance.dark,
-    });
-  } catch {
-    // The frame keeps the system default. See the doc comment above.
-  }
+export async function ownWindowFrame(): Promise<WindowControls | null> {
+  const appWindow = getCurrentWindow();
+  if (await appWindow.isDecorated()) return null;
+  return {
+    minimize: () => appWindow.minimize(),
+    toggleMaximize: () => appWindow.toggleMaximize(),
+    close: () => appWindow.close(),
+  };
 }

@@ -30,87 +30,8 @@ fn emit_file_open(app: &tauri::AppHandle, path: &str) {
     }
 }
 
-/// The `COLORREF` a `#rrggbb` string describes, or `None` for anything else.
-///
-/// **The byte order is the whole of this function**: a `COLORREF` is
-/// `0x00BBGGRR`, so the red channel of the CSS value is the *low* byte. Getting
-/// it backwards gives a window frame in a plausible wrong colour — Solarized
-/// Dark's `#073642` would arrive as a blue-green `#423607` — which is why this
-/// is a function with a test rather than three lines inside the command.
-fn caption_colorref(hex: &str) -> Option<u32> {
-    let digits = hex.strip_prefix('#')?;
-    if digits.len() != 6 || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
-        return None;
-    }
-    let value = u32::from_str_radix(digits, 16).ok()?;
-    let (r, g, b) = (value >> 16 & 0xff, value >> 8 & 0xff, value & 0xff);
-    Some(b << 16 | g << 8 | r)
-}
-
-/// The colour the system should draw the window title and the caption buttons
-/// in, given whether the frame colour is dark. White or black, and nothing
-/// between: the frontend measured that every palette has exactly one readable
-/// answer, and this is that answer rather than a shade of its own.
-fn caption_text_colorref(dark: bool) -> u32 {
-    if dark {
-        0x00ff_ffff
-    } else {
-        0x0000_0000
-    }
-}
-
-/// Give the window frame the colour the palette resolved to (#326).
-///
-/// **It answers nothing and reports nothing.** Where the attribute is not
-/// supported — Windows 10, and every target that is not Windows — the frame
-/// keeps the system default, silently, which is what the issue asks for. A
-/// failed `HRESULT` from DWM is discarded here for that reason, and that
-/// discard is the promise: an error dialog about a title bar would be worse
-/// than the default bar.
-#[tauri::command]
-fn set_window_appearance(window: tauri::Window, caption: String, dark: bool) {
-    // Read and refused on every target, not only the one that can use it: a
-    // value this cannot parse is nothing to ask the window for, and saying so
-    // in one place keeps the two helpers under the tests that pin them.
-    let Some(colour) = caption_colorref(&caption) else {
-        return;
-    };
-    let text = caption_text_colorref(dark);
-    #[cfg(not(windows))]
-    let _ = (&window, colour, text);
-    #[cfg(windows)]
-    {
-        use windows_sys::Win32::Graphics::Dwm::{
-            DwmSetWindowAttribute, DWMWA_CAPTION_COLOR, DWMWA_TEXT_COLOR,
-        };
-        let Ok(handle) = window.hwnd() else {
-            return;
-        };
-        let hwnd = handle.0 as _;
-        // SAFETY: `hwnd` is the live window handle Tauri just answered with,
-        // and each attribute takes a `u32` of exactly four bytes, which is what
-        // the size argument says. The return value is deliberately unused, per
-        // the doc comment above.
-        unsafe {
-            DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_CAPTION_COLOR as u32,
-                std::ptr::addr_of!(colour).cast(),
-                4,
-            );
-            DwmSetWindowAttribute(
-                hwnd,
-                DWMWA_TEXT_COLOR as u32,
-                std::ptr::addr_of!(text).cast(),
-                4,
-            );
-        }
-    }
-}
-
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![set_window_appearance])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
@@ -134,36 +55,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::{caption_colorref, caption_text_colorref};
-
-    /// Issue #326 — a `COLORREF` puts blue in the high byte and red in the low
-    /// one, the opposite way round from the CSS value it is built from.
-    #[test]
-    fn a_caption_colour_is_read_into_the_byte_order_dwm_expects() {
-        // Solarized Dark's `--surface`, whose three channels all differ, so a
-        // swap cannot pass unnoticed.
-        assert_eq!(caption_colorref("#073642"), Some(0x0042_3607));
-        assert_eq!(caption_colorref("#ffffff"), Some(0x00ff_ffff));
-        assert_eq!(caption_colorref("#000000"), Some(0));
-    }
-
-    /// Anything that is not one `#rrggbb` is refused rather than guessed at:
-    /// the frame then keeps the colour it has.
-    #[test]
-    fn a_value_that_is_not_a_six_digit_hex_colour_sets_nothing() {
-        for value in ["", "#fff", "f9fafb", "#f9fafg", "#f9fafbff", "rgb(1,2,3)"] {
-            assert_eq!(caption_colorref(value), None, "should refuse {value}");
-        }
-    }
-
-    /// The frontend decides which of the two a palette needs; this only says
-    /// what the two are.
-    #[test]
-    fn the_caption_text_is_white_on_a_dark_frame_and_black_on_a_light_one() {
-        assert_eq!(caption_text_colorref(true), 0x00ff_ffff);
-        assert_eq!(caption_text_colorref(false), 0);
-    }
-
     /// Issue #65 — drag & drop of an image did nothing on Windows because
     /// `dragDropEnabled` had never been set and Tauri defaults it to
     /// `true`, replacing the webview's own drag-drop handler with its own.
@@ -189,6 +80,48 @@ mod tests {
             "the main window must leave drag & drop to the webview, or the \
              HTML5 drop event never reaches the editor on Windows (#65)"
         );
+    }
+
+    /// Issue #366 - the Windows window is the base window with no native
+    /// title bar, and nothing else.
+    ///
+    /// Tauri merges `tauri.windows.conf.json` over `tauri.conf.json` with JSON
+    /// Merge Patch, which replaces an array whole: `app.windows` has to be
+    /// restated in full on Windows just to turn `decorations` off. Restated,
+    /// the two can drift - a minimum size changed in one file and not the
+    /// other, or the #65 drag-and-drop line lost on the one target it is for.
+    /// So the two window objects are held equal here, apart from that key.
+    #[test]
+    fn the_windows_window_is_the_base_window_without_decorations() {
+        let base: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
+            .expect("tauri.conf.json should parse");
+        let windows: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.windows.conf.json"))
+                .expect("tauri.windows.conf.json should parse");
+
+        let base_windows = base["app"]["windows"].as_array().expect("base windows");
+        let own_windows = windows["app"]["windows"]
+            .as_array()
+            .expect("windows windows");
+        assert_eq!(own_windows.len(), base_windows.len(), "one window each");
+
+        let mut expected = base_windows[0].clone();
+        expected["decorations"] = serde_json::Value::Bool(false);
+        assert_eq!(own_windows[0], expected);
+        assert!(
+            base_windows[0].get("decorations").is_none(),
+            "the base keeps the native bar on Linux and macOS by leaving the default"
+        );
+
+        // Nothing else in the Windows file: it exists for this one key.
+        let keys: Vec<&String> = windows.as_object().expect("an object").keys().collect();
+        assert_eq!(keys, ["app"]);
+        let app: Vec<&String> = windows["app"]
+            .as_object()
+            .expect("an object")
+            .keys()
+            .collect();
+        assert_eq!(app, ["windows"]);
     }
 
     /// Issue #249, decision 4 of #220 - `svg` is not in the shell `open`

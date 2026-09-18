@@ -19,20 +19,6 @@ tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 
-# The one call the window frame needs (#326): `DwmSetWindowAttribute`, for the
-# caption colour and the colour of what the system draws on it. Owner approval
-# of 2026-09-16, under Q1.
-#
-# **No crate and no feature is added to the Windows build by this line.**
-# Counted with `cargo tree --target x86_64-pc-windows-msvc` before it was
-# written: `windows-sys` is already in the graph at 0.59.0, 0.60.2 and 0.61.2,
-# `Win32_Graphics_Dwm` is already enabled on it, and the function itself is
-# already linked, because `window-vibrancy` — a non-optional Windows dependency
-# of `tauri` — calls it. What this adds is a direct edge to a crate that is
-# already there.
-[target."cfg(windows)".dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }
-
 [profile.release]
 strip = true
 lto = true
