@@ -572,3 +572,75 @@ describe('the image description control is drawn only for an image (#291)', () =
     expect(reveal).toBeLessThan(measure);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Each end of the selection is asked for its own side (#350, the owner pass)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A soft line wrap, as `coordsAtPos` describes one.
+ *
+ * The real method returns a flat cursor rectangle, and at a wrap the position
+ * sits between the end of one line and the start of the next. Asking for what
+ * lies **after** it answers with the next line; asking for what lies
+ * **before** it answers with this one. That is the whole of the defect and the
+ * whole of the repair, so the stub answers exactly that and nothing else.
+ *
+ * **This is the half of the placement a layout-free harness can see.** Where
+ * the bar then lands on a real screen is the manual pass, as everything else
+ * in this family is; what is asserted here is which of the two answers the
+ * code asks for.
+ */
+function wrapAt(
+  editor: EditorInstance,
+  end: number,
+  coords: { endOfThisLine: number; startOfNextLine: number; selectionStart: number },
+): { sides: Array<{ pos: number; side: number | undefined }> } {
+  const sides: Array<{ pos: number; side: number | undefined }> = [];
+  const flat = (x: number) => ({ left: x, right: x, top: 100, bottom: 120 });
+  editor.editor.view.coordsAtPos = ((pos: number, side?: number) => {
+    sides.push({ pos, side });
+    if (pos !== end) return flat(coords.selectionStart);
+    return flat(side !== undefined && side < 0 ? coords.endOfThisLine : coords.startOfNextLine);
+  }) as typeof editor.editor.view.coordsAtPos;
+  return { sides };
+}
+
+describe('the bar centres on the selection, not on two different lines (#350)', () => {
+  it('asks for the start after the position and the end before it', () => {
+    // The contract in one row: the selection begins where what follows it is
+    // drawn, and ends where what precedes it is drawn. Both default to 1, which
+    // is what put the end of a wrapped line at the start of the next one.
+    const { editor } = mountEditorWithToolbar('alpha beta gamma delta');
+    const { sides } = wrapAt(editor, 6, {
+      selectionStart: 700,
+      endOfThisLine: 760,
+      startOfNextLine: 40,
+    });
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 6 });
+
+    expect(sides).toContainEqual({ pos: 1, side: 1 });
+    expect(sides).toContainEqual({ pos: 6, side: -1 });
+  });
+
+  it('places the bar on the line the selection is drawn on', () => {
+    // Driven through the stub above, which is the defect itself: with the
+    // default side the end of this selection answers 40, the start of the line
+    // below, and the centre falls at (700 + 40) / 2 = 370. With the side this
+    // code now asks for it answers 760 and the centre falls at 730, over the
+    // text. The figures are the shape of the one instrumented in Chromium,
+    // where the end resolved to 152.0 against a selection drawn at 794 to 848.
+    const { editor } = mountEditorWithToolbar('alpha beta gamma delta');
+    wrapAt(editor, 6, { selectionStart: 700, endOfThisLine: 760, startOfNextLine: 40 });
+
+    editor.editor.commands.setTextSelection({ from: 1, to: 6 });
+
+    const bar = document.getElementById('floating-toolbar') as HTMLElement;
+    const width = bar.getBoundingClientRect().width;
+    const wrapped = Math.max(8, 370 - width / 2);
+    const onTheLine = Math.max(8, 730 - width / 2);
+    expect(bar.style.left).toBe(`${onTheLine}px`);
+    expect(bar.style.left).not.toBe(`${wrapped}px`);
+  });
+});

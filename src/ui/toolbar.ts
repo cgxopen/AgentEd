@@ -422,8 +422,39 @@ function bindToolbarEvents(
       return;
     }
 
-    const start = editor.view.coordsAtPos(from);
-    const end = editor.view.coordsAtPos(to);
+    // ── Each end of the selection is asked for its own side (#350, owner pass) ──
+    //
+    // `coordsAtPos` returns a flat cursor rectangle, and where a position sits
+    // between two things that are not adjacent — which is exactly a **soft line
+    // wrap** — `side` picks which of them answers. The default is 1, the thing
+    // *after* the position, so a selection ending on the space at a wrap used to
+    // report its end as **the start of the next line**. The bar was then centred
+    // on the midpoint between two points on different lines, which describes
+    // nothing.
+    //
+    // Found by the owner in the #350 manual pass and not by any row here, and
+    // the gesture matters: a double-click never reaches it, because it ends the
+    // selection inside the word. What reaches it is the ordinary way to take the
+    // last word on a line — drag across it and release past its right edge,
+    // which takes the trailing space with it. Instrumented in Chromium at
+    // 1024x768 on the selection `"sigma "`, drawn at 794.2 to 847.6: the end
+    // resolved to **152.0**, the start of the line below, and the bar landed at
+    // 303.8 rather than over the text. With the sides below it resolves to
+    // 847.5, and the bar centres on the selection.
+    //
+    // **What this moves, measured over both builds rather than argued**: 491
+    // placements across two window sizes, both panel states and both gestures —
+    // **485 identical, 6 moved**, every one of them the drag gesture at a wrap
+    // and every one of them from a wrong place to the right one. The regression
+    // half of #350 is amended for exactly those six, on the owner decision of
+    // 2026-09-18 to repair this here rather than after the merge.
+    //
+    // The vertical placement reads the same two values. `end.bottom` feeds the
+    // below-the-selection branch of `toolbarTop`, so that branch used to measure
+    // from the line below; `start.top` feeds the above branch, which is why the
+    // bar still looked right vertically in the states the owner photographed.
+    const start = editor.view.coordsAtPos(from, 1);
+    const end = editor.view.coordsAtPos(to, -1);
 
     // ── The reveal comes before the measurement, and the order is the repair ──
     //
