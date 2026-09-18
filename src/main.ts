@@ -17,7 +17,7 @@ import { installLinkOpener } from './app/link-open';
 import { insertMedia } from './app/media-picker';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
-import { refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
+import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
@@ -245,10 +245,20 @@ ctx.sidebar.setOnRequestAccess(() => {
     // and silence would answer a question with an absence.
     //
     // The check lives here rather than in `refreshSidebar` because this
-    // is the only place that knows a question was put. Every other route
-    // into that state reaches it without anyone asking, and stays
-    // silent.
+    // is one of the two places that know a question was put; the other is
+    // the open by hand below (#354). A document switch into that state
+    // reaches it without anyone asking, and stays silent.
     if (!ctx.sidebar.isVisible()) ctx.sidebar.showNothingRelated();
+  })().catch(console.error);
+});
+
+// An open by hand is a question, so the panel is drawn again for the
+// document on screen, and every state answers (#354). The header control and
+// `Ctrl+Shift+E` both reach it, through `toggle`.
+ctx.sidebar.setOnOpenByHand((ticket) => {
+  void (async () => {
+    const io = await getPlatformIO();
+    await openSidebarByHand(ctx.state, ctx.sidebar, io, ticket);
   })().catch(console.error);
 });
 

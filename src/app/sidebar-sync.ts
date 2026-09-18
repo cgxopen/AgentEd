@@ -167,9 +167,26 @@ async function walkRecursive(
 }
 
 /**
- * Refresh the sidebar to reflect the current document. Hides the panel
- * when there is no root to list; otherwise lists the resolved root and
- * renders a recursive tree.
+ * What the panel holds for the current document, decided and read but not
+ * yet drawn (#354). Four answers, because an open by hand and a document
+ * switch draw the last two differently: a switch hides for both, and an open
+ * by hand answers each with its own sentence.
+ */
+export type SidebarView =
+  | {
+      readonly kind: 'tree';
+      readonly nodes: TreeNode[];
+      readonly rootName: string;
+      readonly rootPath: string;
+      readonly opensNonMarkdown: boolean;
+    }
+  | { readonly kind: 'offer' }
+  | { readonly kind: 'nothing' }
+  | { readonly kind: 'unreadable' };
+
+/**
+ * Decide what the panel holds for the current document, and read the folder
+ * when it holds a tree.
  *
  * Two ways to a root, in this order (R-C6, #178). The document's own
  * adjacent structure comes first and is unchanged, so a document opened
@@ -178,16 +195,8 @@ async function walkRecursive(
  * click came from stand in — `state.sidebarRootFromClick`, which is set
  * on that route and `null` on every other one, so File then Open, the
  * file association and the context popover all hide exactly as they did.
- *
- * **When the panel first appears is not changed by any of this.** A
- * document that arrives with no adjacent structure and no kept root
- * hides the panel, which is the trigger R-C6 always had.
  */
-export async function refreshSidebar(
-  state: AppState,
-  sidebar: Sidebar,
-  io: PlatformIO,
-): Promise<void> {
+export async function resolveSidebarView(state: AppState, io: PlatformIO): Promise<SidebarView> {
   const decision = await shouldShowSidebar(state.filePath, io);
 
   // **The offer, and the two things that earn it** (#184). Nothing was
@@ -235,17 +244,13 @@ export async function refreshSidebar(
   // that was granted: there is nothing to offer.
   const root = decision.kind === 'tree' ? decision.root : state.sidebarRootFromClick;
   if (!root) {
-    if (decision.kind === 'no-folder-access' && !isTauri) {
-      sidebar.showAccessOffer();
-      return;
-    }
-    sidebar.hide();
-    return;
+    if (decision.kind === 'no-folder-access') return { kind: isTauri ? 'unreadable' : 'offer' };
+    return { kind: 'nothing' };
   }
 
   const flatEntries = await walkRecursive(io, root);
 
-  const tree: TreeNode[] = buildTree(
+  const nodes: TreeNode[] = buildTree(
     flatEntries.map((e) => ({
       path: e.relativePath,
       kind: e.isDirectory ? ('directory' as const) : ('file' as const),
@@ -265,5 +270,70 @@ export async function refreshSidebar(
   // Not a field on `PlatformIO`, deliberately: that interface is built
   // by hand in twenty-two test files, and a new member would be
   // twenty-two edits to state something this layer already knows.
-  sidebar.showTree(tree, basename(root), root, isTauri);
+  return {
+    kind: 'tree',
+    nodes,
+    rootName: basename(root),
+    rootPath: root,
+    opensNonMarkdown: isTauri,
+  };
+}
+
+/** Draw a tree answer; the one draw both routes share. */
+function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>): void {
+  sidebar.showTree(view.nodes, view.rootName, view.rootPath, view.opensNonMarkdown);
+}
+
+/**
+ * Refresh the sidebar to reflect the current document, on a document switch.
+ * Hides the panel when there is no root to list; otherwise lists the resolved
+ * root and renders a recursive tree.
+ *
+ * **When the panel first appears is not changed by any of this.** A
+ * document that arrives with no adjacent structure and no kept root
+ * hides the panel, which is the trigger R-C6 always had. **Nobody asked**,
+ * so `nothing` and `unreadable` both hide, silently (#354).
+ */
+export async function refreshSidebar(
+  state: AppState,
+  sidebar: Sidebar,
+  io: PlatformIO,
+): Promise<void> {
+  const view = await resolveSidebarView(state, io);
+  if (view.kind === 'tree') drawTree(sidebar, view);
+  else if (view.kind === 'offer') sidebar.showAccessOffer();
+  else sidebar.hide();
+}
+
+/**
+ * Draw the panel the user has just opened by hand (#354). **An open by hand
+ * is a question**, the line R-A2 draws for Refresh, so every state answers:
+ * the tree, the offer, or one of the two sentences — never an empty card.
+ *
+ * **Nothing is drawn unless `ticket` is still current.** The panel opened
+ * before the folder was read, and every `show*` opens it; a read that landed
+ * after the user closed it again would reopen it by itself. The same holds
+ * for a read overtaken by a newer open or by a document switch.
+ *
+ * A read that throws is answered as a folder that could not be read, which is
+ * what it is; the reading mark is not left spinning.
+ */
+export async function openSidebarByHand(
+  state: AppState,
+  sidebar: Sidebar,
+  io: PlatformIO,
+  ticket: number,
+): Promise<void> {
+  let view: SidebarView;
+  try {
+    view = await resolveSidebarView(state, io);
+  } catch (e) {
+    console.error('[agented] the files panel could not be read:', e);
+    view = { kind: 'unreadable' };
+  }
+  if (!sidebar.isCurrent(ticket)) return;
+  if (view.kind === 'tree') drawTree(sidebar, view);
+  else if (view.kind === 'offer') sidebar.showAccessOffer();
+  else if (view.kind === 'nothing') sidebar.showNothingRelated();
+  else sidebar.showUnreadable();
 }

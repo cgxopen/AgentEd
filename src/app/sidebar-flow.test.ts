@@ -78,6 +78,9 @@ function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall |
     setOnFileClick: () => {},
     onVisibleChange: () => {},
     setOnRequestAccess: () => {},
+    showUnreadable: () => {},
+    isCurrent: () => true,
+    setOnOpenByHand: () => {},
   };
   return { sidebar, lastShow: () => lastShow };
 }
@@ -285,6 +288,9 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
     const reporter: ErrorReporter = { silent: () => {}, toast: () => {}, dialog: async () => {} };
     actions = createDocumentActions({

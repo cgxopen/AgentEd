@@ -25,13 +25,36 @@ export interface Sidebar {
    */
   showAccessOffer: () => void;
   /**
-   * Show the panel holding the answer to a folder request that found
-   * nothing (#184). Only the handler that ran the picker calls it.
+   * Show the panel holding the answer to a question that found nothing
+   * (#184, #354): a folder request, or the panel opened by hand.
    */
   showNothingRelated: () => void;
+  /**
+   * Show the panel holding the answer for a folder that could not be read
+   * (#354). Only an open by hand reaches it; a document switch into the same
+   * state stays silent.
+   */
+  showUnreadable: () => void;
   hide: () => void;
   isVisible: () => boolean;
+  /**
+   * Close the panel, or open it by hand. **An open by hand is a question**
+   * (#354), so it does not bring back what was there: the panel opens holding
+   * the reading mark and the handler set with `setOnOpenByHand` draws the
+   * answer.
+   */
   toggle: () => void;
+  /**
+   * Whether the draw that `ticket` names is still the latest thing asked of
+   * the panel, and the panel is still open. A read that lands after the user
+   * closed the panel, or after anything else was drawn, is not drawn.
+   */
+  isCurrent: (ticket: number) => boolean;
+  /**
+   * Replace the handler run when the panel is opened by hand. It receives the
+   * ticket for that open, to ask `isCurrent` before it draws.
+   */
+  setOnOpenByHand: (handler: (ticket: number) => void) => void;
   /**
    * Run `listener` whenever the panel opens or closes, with the new state.
    *
@@ -79,6 +102,35 @@ type OnFileClick = (absPath: string, rootPath: string) => void;
 export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
 
 /**
+ * The answer when the user asked and nothing is beside the document (#184,
+ * #130, #354). Owner wording of 2026-08-30.
+ *
+ * **It names no step, because the question is finished**: the folder was
+ * read, and the answer is complete. That is the case #148's rule is about —
+ * a step is named only where one works, and here there is nothing left to do.
+ *
+ * **It is shown only to whoever asked**, and two acts ask: accepting the
+ * folder offer, and opening the panel by hand (#354, the line R-A2 draws for
+ * Refresh). A document switch into this state stays silent, because nobody
+ * asked; a notice there would be the permanent one #58, #61 and #130 refuse.
+ * What separates them is not a flag on the decision but where the knowledge
+ * lives — the handler that ran the picker and the open by hand are the only
+ * two things that know a question was put.
+ */
+export const NO_RELATED_ITEMS = 'No related files or folders';
+
+/**
+ * The answer to an open by hand when the folder beside the document could
+ * not be read (#354). Owner wording of 2026-09-18.
+ *
+ * Reached on the desktop, where `entryPresence` answers `unknown` because the
+ * file system refused the lookup. `NO_RELATED_ITEMS` would be false there:
+ * nothing was read, so nothing was established about the folder. It names no
+ * step, because none was measured to work (#173).
+ */
+export const FOLDER_UNREADABLE = 'This folder could not be read';
+
+/**
  * The line drawn where the tree would be when nothing could be looked at
  * (#184). Owner wording of 2026-08-30, and it is also recorded on the
  * issue — two places that can disagree, which is the gap found at the
@@ -92,24 +144,6 @@ export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in t
  * Exported so a test reads what the user reads rather than a copy of it
  * (#50).
  */
-/**
- * The answer when the user asked for a folder and it holds nothing
- * beside the document (#184, #130). Owner wording of 2026-08-30.
- *
- * **It names no step, because the question is finished**: the grant was
- * given, the folder was read, and the answer is complete. That is the
- * case #148's rule is about — a step is named only where one works, and
- * here there is nothing left to do.
- *
- * **It is shown only to whoever asked.** Every other route into this
- * state stays silent, because the user picked that folder themselves
- * and already knows what is in it; a notice there would be the
- * permanent one #58, #61 and #130 refuse. What separates them is not a
- * flag on the decision but where the knowledge lives — the handler that
- * ran the picker is the only thing that knows a question was put.
- */
-export const NO_RELATED_ITEMS = 'No related files or folders';
-
 export const NO_FOLDER_ACCESS_OFFER =
   'AgentEd has not been given access to a folder, so it cannot see what is beside this ' +
   'document. Choose one.';
@@ -276,7 +310,21 @@ export function setupSidebar(): Sidebar {
   // the document actions are wired.
   let onFileClick: OnFileClick = () => {};
   let onRequestAccess: () => void = () => {};
+  let onOpenByHand: (ticket: number) => void = () => {};
   const visibleListeners: Array<(visible: boolean) => void> = [];
+  /**
+   * Counts what has been asked of the panel (#354). Every hide and every draw
+   * moves it, so a ticket taken at an open by hand is current only while
+   * nothing has happened to the panel since.
+   */
+  let generation = 0;
+
+  /** Empty the panel for the next thing drawn in it, and count that. */
+  function clear(): void {
+    generation++;
+    treeEl.innerHTML = '';
+    treeEl.removeAttribute('aria-busy');
+  }
 
   /**
    * The one place the panel is shown or hidden, so the state cannot be
@@ -309,7 +357,7 @@ export function setupSidebar(): Sidebar {
    */
   function hidePanel(): void {
     setVisible(false);
-    treeEl.innerHTML = '';
+    clear();
   }
 
   function showTree(
@@ -318,7 +366,7 @@ export function setupSidebar(): Sidebar {
     rootPath: string,
     opensNonMarkdown: boolean,
   ): void {
-    treeEl.innerHTML = '';
+    clear();
     const header = document.createElement('div');
     header.className = 'sidebar-root';
     header.textContent = `\u{1F4C4} ${rootName}`;
@@ -334,9 +382,33 @@ export function setupSidebar(): Sidebar {
     setVisible(true);
   }
 
+  /**
+   * Open by hand: the panel opens at once, holding the reading mark, and the
+   * handler draws the answer when the folder has been read (#354).
+   *
+   * **The mark is drawn at once and seen only after 200 ms** — the delay is
+   * in the stylesheet, on `.sidebar-reading` — so a folder of ordinary size is
+   * drawn before anything appears, and only a slow read shows it (owner
+   * decision of 2026-09-18). `aria-busy` says the same to a screen reader.
+   */
+  function openByHand(): void {
+    clear();
+    const mark = document.createElement('div');
+    mark.className = 'sidebar-reading';
+    mark.setAttribute('aria-hidden', 'true');
+    treeEl.appendChild(mark);
+    treeEl.setAttribute('aria-busy', 'true');
+    setVisible(true);
+    onOpenByHand(generation);
+  }
+
   function toggle(): void {
-    if (panel.classList.contains('hidden')) setVisible(true);
+    if (panel.classList.contains('hidden')) openByHand();
     else hidePanel();
+  }
+
+  function isCurrent(ticket: number): boolean {
+    return ticket === generation && !panel.classList.contains('hidden');
   }
 
   function setOnFileClick(handler: OnFileClick): void {
@@ -351,10 +423,19 @@ export function setupSidebar(): Sidebar {
    * any of the three replaces any other without leaving itself behind.
    */
   function showNothingRelated(): void {
-    treeEl.innerHTML = '';
+    showNote(NO_RELATED_ITEMS);
+  }
+
+  function showUnreadable(): void {
+    showNote(FOLDER_UNREADABLE);
+  }
+
+  /** One of the two answers that are a sentence and nothing else. */
+  function showNote(text: string): void {
+    clear();
     const note = document.createElement('div');
     note.className = 'sidebar-note';
-    note.textContent = NO_RELATED_ITEMS;
+    note.textContent = text;
     treeEl.appendChild(note);
     setVisible(true);
   }
@@ -371,7 +452,7 @@ export function setupSidebar(): Sidebar {
    * one leaving anything of itself behind.
    */
   function showAccessOffer(): void {
-    treeEl.innerHTML = '';
+    clear();
     const offer = document.createElement('button');
     offer.type = 'button';
     offer.className = 'sidebar-access-offer';
@@ -387,9 +468,14 @@ export function setupSidebar(): Sidebar {
     showTree,
     showAccessOffer,
     showNothingRelated,
+    showUnreadable,
     hide: hidePanel,
     isVisible: () => !panel.classList.contains('hidden'),
     toggle,
+    isCurrent,
+    setOnOpenByHand: (handler) => {
+      onOpenByHand = handler;
+    },
     onVisibleChange: (listener) => {
       visibleListeners.push(listener);
     },

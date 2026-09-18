@@ -56,6 +56,9 @@ describe('on a desktop build (#146)', () => {
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
 
     await refreshSidebar(state, sidebar, mockIO(['/proj/notes']));
@@ -100,6 +103,9 @@ describe('an unreadable path on the desktop (#184)', () => {
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
 
     const unreadable: PlatformIO = { ...mockIO([]), entryPresence: async () => 'unknown' };

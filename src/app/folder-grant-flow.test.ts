@@ -86,6 +86,9 @@ function harness() {
     setOnFileClick: () => {},
     onVisibleChange: () => {},
     setOnRequestAccess: () => {},
+    showUnreadable: () => {},
+    isCurrent: () => true,
+    setOnOpenByHand: () => {},
   };
   return {
     granted,
@@ -160,6 +163,9 @@ describe('#184 — a folder that was asked for and holds nothing', () => {
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
     const refresh = () => refreshSidebar(state, sidebar, io);
 
@@ -201,6 +207,9 @@ describe('#184 — a folder that was asked for and holds nothing', () => {
       setOnFileClick: () => {},
       onVisibleChange: () => {},
       setOnRequestAccess: () => {},
+      showUnreadable: () => {},
+      isCurrent: () => true,
+      setOnOpenByHand: () => {},
     };
 
     await refreshSidebar(state, sidebar, io);
