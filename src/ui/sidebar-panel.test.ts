@@ -211,12 +211,10 @@ describe('the panel sits on the right and is drawn as a card', () => {
   });
 
   it('draws its edge with the token that is at 3 to 1, not with its fill', () => {
-    // Measured in all seven palettes: `--surface` against `--bg` is 1.05 to
-    // 1.15, so the fill is no edge on its own, while `--border` is 3.05 to 3.09
-    // against the surface it encloses since #340. The numbers are on the issue;
-    // what is here is that the edge is that token.
+    // Since #358 the card is the colour of the page, so its fill is no edge at
+    // all and the border is the whole of it. The fill and the contrast of the
+    // border against it, per palette, are in `document-colour.test.ts`.
     expect(declared(element('sidebar'), 'border')).toContain('var(--border)');
-    expect(declared(element('sidebar'), 'background')).toBe('var(--surface)');
   });
 
   it('takes its own room rather than covering the document', () => {
