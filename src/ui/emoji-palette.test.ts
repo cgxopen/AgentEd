@@ -60,6 +60,7 @@ function spies(): MenuCallbacks {
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
     onImageDescription: vi.fn(),
+    onToggleSpellcheck: vi.fn(),
     onAddRowAbove: vi.fn(),
     onAddRowBelow: vi.fn(),
     onDeleteRow: vi.fn(),

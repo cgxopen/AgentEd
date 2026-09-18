@@ -48,7 +48,7 @@ function element(id: string): HTMLElement {
 /** Every button the issue named, plus the two ends #330 already framed. */
 const FAMILY = [
   'menu-toggle',
-  'spellcheck-toggle',
+  // The spell-check toggle left the bar for the Edit menu at #360.
   'indicator-search',
   'badge-images',
   'cluster-indicator',
@@ -90,7 +90,7 @@ describe('one rule gives every button in the bar its form', () => {
 
   it('gives the drawing-only members a square and the labelled ones room for the label', () => {
     // The one property that cannot be shared: a 31px square around the words
-    // `Spell: off` is not a thing that can exist, so width and the side padding
+    // of the image badge is not a thing that can exist, so width and the side padding
     // ride on the modifier the drawing-only members carry.
     for (const id of FAMILY) {
       const width = valuesReaching(rules, element(id), 'width').at(-1);
@@ -195,7 +195,9 @@ describe('one rule gives every button in the bar its form', () => {
     // differs — which is the half a reader sees.
     const readout = element('count-readout');
     const badge = element('badge-metadata');
-    const button = element('spellcheck-toggle');
+    // The image badge, a labelled button, since the spell-check toggle that
+    // stood here left the bar at #360.
+    const button = element('badge-images');
     const box = (el: Element, property: string) =>
       valuesReaching(atEveryWidth, el, property).at(-1);
 
@@ -251,21 +253,15 @@ describe('one rule gives every button in the bar its form', () => {
 
 describe('nothing the issue said it would not move has moved', () => {
   it('keeps every state attribute where it was', () => {
-    // Spell is measured rather than assumed: it carries no state attribute at
-    // all, and its text is what states the state. That is why it keeps its text
-    // while the drawing-only members do not have one to keep.
-    expect(element('spellcheck-toggle').getAttribute('aria-pressed')).toBeNull();
-    expect(element('spellcheck-toggle').getAttribute('aria-expanded')).toBeNull();
-    expect(element('spellcheck-toggle').textContent?.trim()).toBe('Spell: off');
+    // The spell-check toggle carried no state attribute and stated its state
+    // in its text; it left the bar for the Edit menu at #360, where the entry
+    // carries `aria-pressed` instead (`statusbar.test.ts`).
     for (const id of ['indicator-search', 'badge-images', 'cluster-indicator', 'overflow-toggle']) {
       expect(element(id).getAttribute('aria-expanded'), id).toBe('false');
     }
   });
 
   it('keeps every tooltip and every accessible name', () => {
-    expect(element('spellcheck-toggle').getAttribute('title')).toBe(
-      'Click to enable spell-check for this session',
-    );
     expect(element('indicator-search').getAttribute('title')).toBe('Find (Ctrl+F)');
     expect(element('indicator-search').getAttribute('aria-label')).toBe('Find');
     expect(element('overflow-toggle').getAttribute('title')).toBe(

@@ -128,7 +128,6 @@ describe('index.html header markup', () => {
     'token-unit',
     'word-count',
     'char-count',
-    'spellcheck-toggle',
   ])('ships the "%s" indicator in the header', (id) => {
     expect(shippedPage).toContain(`id="${id}"`);
   });

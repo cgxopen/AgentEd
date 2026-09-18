@@ -142,7 +142,7 @@ export class AppState {
    * Session-only spellcheck flag. Defaults to `false` (R-C9) because
    * technical documents are full of identifiers and code blocks that
    * browser spell-checkers underline as misspellings. The user can opt
-   * in for the current session via the statusbar toggle; the flag is
+   * in for the current session from the Edit menu (#360); the flag is
    * **not** written to localStorage — every launch starts OFF.
    */
   private _spellcheckEnabled = false;

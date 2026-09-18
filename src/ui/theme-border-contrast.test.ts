@@ -133,12 +133,12 @@ describe('the border token can draw a control in every palette (#321)', () => {
 });
 
 /**
- * The seven members of the menubar family (#332). Their outline is the whole of
+ * The six members of the menubar family (#332) - seven until the spell-check
+ * toggle left the bar for the Edit menu at #360. Their outline is the whole of
  * what says they can be pressed, so it is the row 1.4.11 is about.
  */
 const MENUBAR_FAMILY = [
   'menu-toggle',
-  'spellcheck-toggle',
   'indicator-search',
   'badge-images',
   'cluster-indicator',
