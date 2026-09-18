@@ -134,9 +134,10 @@ describe('Edit carries it, and says its state (#360)', () => {
     wire(new AppState());
     openEdit();
 
+    // Only whether the menu stays: what the entry then reads is the row above,
+    // so a reversal of the one does not redden the other.
     entry().click();
     expect(menuOpen()).toBe(true);
-    expect(word()).toBe('On');
 
     element('menu-about').click();
     expect(menuOpen()).toBe(false);
