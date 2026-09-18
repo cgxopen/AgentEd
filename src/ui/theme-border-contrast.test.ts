@@ -154,9 +154,9 @@ describe('the outline that means pressable is drawn in every palette (#332, #321
     }
   });
 
-  it('the bar under them is a surface the sheet names', () => {
+  it('the bar under them is the page colour the sheet names (#351)', () => {
     mountShippedHeader();
-    expect(declared(element('menubar'), 'background')).toBe('var(--surface)');
+    expect(declared(element('menubar'), 'background')).toBe('var(--bg)');
   });
 
   it.each(paletteNames)('%s: the outline stands off the bar it is drawn on', (name) => {

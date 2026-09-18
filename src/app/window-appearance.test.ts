@@ -1,5 +1,6 @@
 /**
- * Issue #326 — the window frame takes the palette's own surface colour.
+ * Issue #326 — the window frame takes the palette's own colour; since #351 the
+ * colour of the document, which is what the header is painted with.
  *
  * **What no harness can see, said first.** The title bar is drawn by the
  * operating system outside the page: headless Chromium has none, WebView2 draws
@@ -13,8 +14,9 @@
  * platform, driven through a fake that records what it was handed.
  */
 import { describe, expect, it, vi } from 'vitest';
+import shippedPage from '../../index.html?raw';
 import stylesCss from '../styles.css?raw';
-import { stylesheetRules } from '../test-support/stylesheet-rules';
+import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { contrast, paletteTokens, resolveColour } from '../test-support/theme-colours';
 import {
   appearanceFor,
@@ -23,8 +25,27 @@ import {
   readWindowAppearance,
 } from './window-appearance';
 
-const palettes = paletteTokens(stylesheetRules(stylesCss));
+const rules = stylesheetRules(stylesCss);
+const palettes = paletteTokens(rules);
 const paletteNames = [...palettes.keys()];
+
+/**
+ * The shipped page's body, parsed rather than mounted, and without the head and
+ * the module script: happy-dom fetches a stylesheet link even in a parsed
+ * document, measured while writing these rows. A selector run against these
+ * elements is run against the markup the editor ships.
+ */
+const shipped = new DOMParser().parseFromString(
+  shippedPage.slice(shippedPage.indexOf('<body>'), shippedPage.indexOf('<script')),
+  'text/html',
+);
+
+/** The background the last rule reaching the shipped element gives it, in sheet order. */
+function paintedWith(selector: string): string | undefined {
+  const target = shipped.querySelector(selector);
+  if (!target) throw new Error(`the shipped page has no ${selector}`);
+  return valuesReaching(rules, target, 'background').at(-1);
+}
 
 /** A theme manager as far as this wiring is concerned: two lists of listeners. */
 function fakeTheme() {
@@ -44,9 +65,9 @@ function fakeTheme() {
 
 /** The palette on the document, as the theme manager leaves it. */
 function wearPalette(name: string): void {
-  const surface = palettes.get(name)?.get(FRAME_COLOUR_TOKEN);
-  if (surface === undefined) throw new Error(`no ${FRAME_COLOUR_TOKEN} in ${name}`);
-  document.documentElement.style.setProperty(FRAME_COLOUR_TOKEN, surface);
+  const colour = palettes.get(name)?.get(FRAME_COLOUR_TOKEN);
+  if (colour === undefined) throw new Error(`no ${FRAME_COLOUR_TOKEN} in ${name}`);
+  document.documentElement.style.setProperty(FRAME_COLOUR_TOKEN, colour);
 }
 
 describe('the colour the frame is asked for, per palette (#326)', () => {
@@ -57,36 +78,44 @@ describe('the colour the frame is asked for, per palette (#326)', () => {
   it('takes the token the header bar is painted with, so the frame continues it', () => {
     // Without this the token is a constant both the code and these rows read,
     // and pointing it at another one would move the frame with every row still
-    // green. The stylesheet is what decides instead: whatever `#menubar` is
-    // painted with is what the frame asks for.
-    const menubar = stylesheetRules(stylesCss).find(
-      (rule) => rule.selector === '#menubar' && rule.declarations.has('background'),
-    );
-
-    expect(menubar?.declarations.get('background')).toBe(`var(${FRAME_COLOUR_TOKEN})`);
+    // green. The stylesheet is what decides instead: whatever the shipped
+    // header is painted with is what the frame asks for. This is the row a
+    // change to the stylesheet alone turns red (#351).
+    expect(paintedWith('#menubar')).toBe(`var(${FRAME_COLOUR_TOKEN})`);
   });
 
-  it.each(paletteNames)('%s: hands over that palette own surface colour', (name) => {
-    const surface = palettes.get(name)?.get(FRAME_COLOUR_TOKEN) as string;
-    const appearance = appearanceFor(surface);
+  it('takes the colour of the page behind the text, so frame, header and page are one', () => {
+    // The half #351 decided: the frame is the document colour, not merely the
+    // header colour. With the header alone as witness, a header and a frame
+    // moved back to `--surface` together would pass.
+    expect(paintedWith('body')).toBe(`var(${FRAME_COLOUR_TOKEN})`);
+  });
 
-    expect(appearance?.caption).toBe(surface.trim().toLowerCase());
+  it.each(paletteNames)('%s: hands over that palette own document colour', (name) => {
+    const tokens = palettes.get(name) as Map<string, string>;
+    const appearance = appearanceFor(tokens.get(FRAME_COLOUR_TOKEN) as string);
+
+    // Resolved rather than compared as text: two palettes write `--bg` as
+    // `#fff`, and the platform takes six digits only (`caption_colorref`).
+    const { r, g, b } = resolveColour(`var(${FRAME_COLOUR_TOKEN})`, tokens);
+    const hex = [r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('');
+    expect(appearance?.caption).toBe(`#${hex}`);
   });
 
   it.each(paletteNames)('%s: says dark when white is the readable caption text', (name) => {
     const tokens = palettes.get(name) as Map<string, string>;
-    const surface = resolveColour(`var(${FRAME_COLOUR_TOKEN})`, tokens);
+    const ground = resolveColour(`var(${FRAME_COLOUR_TOKEN})`, tokens);
     const white = { r: 255, g: 255, b: 255, a: 1 };
     const black = { r: 0, g: 0, b: 0, a: 1 };
 
     // The same arithmetic the #319 rows use, against the same tokens: the
     // frame is dark exactly when what the system writes on it must be light.
     const appearance = appearanceFor(tokens.get(FRAME_COLOUR_TOKEN) as string);
-    expect(appearance?.dark).toBe(contrast(white, surface) > contrast(black, surface));
+    expect(appearance?.dark).toBe(contrast(white, ground) > contrast(black, ground));
 
     // And the readable one clears AA, which is what makes the flag worth
-    // sending: 13.00 at worst on the dark palettes, 16.98 on the light ones.
-    const readable = appearance?.dark ? contrast(white, surface) : contrast(black, surface);
+    // sending: 15.01 at worst on the dark palettes, 19.00 on the light ones.
+    const readable = appearance?.dark ? contrast(white, ground) : contrast(black, ground);
     expect(readable).toBeGreaterThanOrEqual(4.5);
   });
 
@@ -103,10 +132,10 @@ describe('the colour the frame is asked for, per palette (#326)', () => {
 
   it('reads the token off the document, so the palette on screen is what is sent', () => {
     wearPalette('solarized-dark');
-    expect(readWindowAppearance()).toEqual({ caption: '#073642', dark: true });
+    expect(readWindowAppearance()).toEqual({ caption: '#002b36', dark: true });
 
     wearPalette('claude');
-    expect(readWindowAppearance()).toEqual({ caption: '#efe6d8', dark: false });
+    expect(readWindowAppearance()).toEqual({ caption: '#f7f3ed', dark: false });
   });
 });
 
@@ -118,7 +147,7 @@ describe('the frame follows the palette, whatever moved it (#326)', () => {
     followPaletteWithTheWindow(fakeTheme(), apply);
 
     expect(apply).toHaveBeenCalledTimes(1);
-    expect(apply).toHaveBeenLastCalledWith({ caption: '#242424', dark: true });
+    expect(apply).toHaveBeenLastCalledWith({ caption: '#1a1a1a', dark: true });
   });
 
   it('asks again on a palette switch, with the colour the new palette resolved to', () => {
@@ -131,7 +160,7 @@ describe('the frame follows the palette, whatever moved it (#326)', () => {
     theme.switchPalette();
 
     expect(apply).toHaveBeenCalledTimes(2);
-    expect(apply).toHaveBeenLastCalledWith({ caption: '#161b22', dark: true });
+    expect(apply).toHaveBeenLastCalledWith({ caption: '#0d1117', dark: true });
   });
 
   it('asks again on a mode switch', () => {
@@ -143,7 +172,7 @@ describe('the frame follows the palette, whatever moved it (#326)', () => {
     wearPalette('github-dark');
     theme.switchMode();
 
-    expect(apply).toHaveBeenLastCalledWith({ caption: '#161b22', dark: true });
+    expect(apply).toHaveBeenLastCalledWith({ caption: '#0d1117', dark: true });
   });
 
   it('asks again when the system light-or-dark preference moves under Auto', () => {
@@ -167,7 +196,7 @@ describe('the frame follows the palette, whatever moved it (#326)', () => {
     wearPalette('dark');
     for (const listener of systemListeners) listener();
 
-    expect(apply).toHaveBeenLastCalledWith({ caption: '#242424', dark: true });
+    expect(apply).toHaveBeenLastCalledWith({ caption: '#1a1a1a', dark: true });
     query.mockRestore();
   });
 

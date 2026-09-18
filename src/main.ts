@@ -321,8 +321,8 @@ setupMenu(
 // manager, which owns persistence and applies the theme to the document.
 ctx.appearanceMenu = setupAppearanceMenu(themeManager);
 
-// The window frame takes the palette's own surface colour where the platform
-// has a frame of its own to paint (#326). Through `src/platform`, which is
+// The window frame takes the palette's document colour, the one the header is
+// painted with, where the platform has a frame of its own to paint (#326, #351). Through `src/platform`, which is
 // where every OS call lives; on the web and on a Windows without the
 // mechanism this asks for something nobody does, silently.
 followPaletteWithTheWindow(themeManager, (appearance) => {

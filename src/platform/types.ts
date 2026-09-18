@@ -243,7 +243,7 @@ export interface PlatformIO {
  * What the palette says the window frame should look like (#326).
  *
  * Both fields are **computed from the live tokens** rather than written down:
- * `caption` is whatever `--surface` resolves to in the palette now on, and
+ * `caption` is whatever `--bg` resolves to in the palette now on, and
  * `dark` is decided from that colour's own luminance. A table of seven values
  * in TypeScript would be the thing #319 was: a colour restated beside the
  * stylesheet, free to drift from it.
