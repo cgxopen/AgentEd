@@ -604,7 +604,9 @@ body {
  * floats over the document. The strong overlay it had measured 1.16 to 1.43
  * against the card and put the muted shortcut beside the name below 4.5 in four
  * palettes; this one measures 1.08 to 1.18 and leaves two, Light at 4.43 and
- * Paper Warm at 4.31. */
+ * Paper Warm at 4.31. Since #390 no entry shows a shortcut, and the muted text
+ * those figures hold for is what still wears `.menu-shortcut`: the On or Off
+ * of Spell check and the folder beside each name in the Open Recent card. */
 #menu-dropdown button {
   background: none;
   border: none;
@@ -689,8 +691,18 @@ body {
     visibility 0s 400ms;
 }
 
+/* The entries carry no shortcut text since #390: a chord is the tooltip of
+ * its entry. The menu is as wide as its widest entry, and the owner asked for
+ * that plus about a fifth rather than a tight fit, so each entry keeps 2em
+ * more room on its right than the 12 px every row has. In em, so the room
+ * follows the font the entries are drawn in and the widest entry, whichever
+ * that is. Measured in Chromium with the entries in Arial: 199.91 px with no
+ * extra room, 227.91 with it, against about 230 for the widest name, New from
+ * Template, plus a fifth. The Open Recent card is not a panel, so its rows
+ * keep the 12 px. */
 #menu-dropdown .menu-panel button {
   padding-left: 28px;
+  padding-right: calc(12px + 2em);
 }
 
 /* The headers are headings rather than commands, and the owner asked for the

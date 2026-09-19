@@ -8,7 +8,8 @@
  * while the caret is in the search field; they now name F3 as well, which
  * works anywhere once a search is made (owner decision of the same day, after
  * F3 and Shift+F3 were measured walking the matches on Windows and Chromium).
- * Find Previous keeps Shift+F3 in the Edit menu, for the same measurement.
+ * Find Previous keeps Shift+F3 in the Edit menu, for the same measurement: as
+ * the text beside the entry until #390, and as its tooltip since.
  *
  * **The text is observable here**, so it is read from the shipped `index.html`
  * rather than from a copy. What a key does is not asserted in this file: F3
@@ -49,18 +50,19 @@ describe('the search tooltips name keys that work (#352)', () => {
     expect(titleOf(id)).toBe(title);
   });
 
-  it('keeps Shift+F3 beside Find Previous in the Edit menu', () => {
-    const shortcut = shipped.querySelector('#menu-find-prev .menu-shortcut');
-    expect(shortcut?.textContent).toBe('Shift+F3');
+  it('keeps Shift+F3 on Find Previous in the Edit menu, as its tooltip since #390', () => {
+    expect(titleOf('menu-find-prev')).toBe('Shift+F3');
   });
 });
 
 /**
- * The regression half: every other tooltip and every other menu shortcut in
- * the shipped page, byte for byte. A text this issue did not decide that
- * changes, appears or goes turns this red.
+ * The regression half: every other tooltip in the shipped page, byte for byte.
+ * A text this issue did not decide that changes, appears or goes turns this
+ * red. The menu shortcuts it also read left the entries with #390 and are the
+ * tooltips of their entries now, listed below and pinned entry by entry in
+ * `menu-shortcut-tooltips.test.ts`.
  */
-describe('every other tooltip and menu shortcut is unchanged (#352)', () => {
+describe('every other tooltip is unchanged (#352)', () => {
   it('reads every other title in the page as it was', () => {
     const decided = new Set(DECIDED.map(([id]) => id));
     const others = [...shipped.querySelectorAll('[title]')]
@@ -74,26 +76,17 @@ describe('every other tooltip and menu shortcut is unchanged (#352)', () => {
       ['overflow-toggle', 'Hover any indicator for details'],
       ['appearance-menu-trigger', 'Appearance'],
       ['sidebar-toggle', 'Files panel (Ctrl+Shift+E)'],
-      ['search-close', 'Close (Esc)'],
-    ]);
-  });
-
-  it('reads every other menu shortcut as it was', () => {
-    const others = [...shipped.querySelectorAll('.menu-shortcut')]
-      .filter((shortcut) => shortcut.parentElement?.id !== 'menu-find-prev')
-      .map((shortcut) => [shortcut.parentElement?.id, shortcut.textContent]);
-
-    expect(others).toEqual([
+      ['menu-open', 'Ctrl+O'],
+      ['menu-save', 'Ctrl+S'],
       ['menu-find', 'Ctrl+F'],
       ['menu-replace', 'Ctrl+H'],
       ['menu-find-next', 'F3'],
+      ['menu-find-prev', 'Shift+F3'],
       ['menu-undo', 'Ctrl+Z'],
       ['menu-redo', 'Ctrl+Y'],
       ['menu-select-all', 'Ctrl+A'],
-      // Not a key: the state word of the spell-check entry (#360), which sits
-      // in the shortcut column by owner decision and wears its class.
-      ['menu-spellcheck', 'Off'],
       ['menu-insert-code-block', 'Ctrl+Shift+K'],
+      ['search-close', 'Close (Esc)'],
     ]);
   });
 });

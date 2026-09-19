@@ -104,7 +104,9 @@ describe('a code block can be made with nothing selected', () => {
     // Read from `index.html` rather than restated: an entry deleted from the
     // real page has to fail here rather than at the user's first click.
     expect(shippedPage).toContain('id="menu-insert-code-block"');
-    expect(shippedPage).toContain('Insert Code Block');
+    // Under the Insert header, which names the section, so the entry reads
+    // Code Block alone since #390.
+    expect(shippedPage).toMatch(/<button id="menu-insert-code-block"[^>]*>Code Block<\/button>/);
     // Beside the two inserts that were already there, which is the precedent
     // for reaching a block from a menu rather than from a selection.
     expect(shippedPage.indexOf('menu-insert-code-block')).toBeGreaterThan(
