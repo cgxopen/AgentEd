@@ -6,6 +6,7 @@ import {
   regexErrorReason,
   type SearchOptions,
   SLOW_REGEX,
+  wholeWordPattern,
 } from './search-extension';
 
 interface FakeStorage {
@@ -117,18 +118,20 @@ describe('createSearchEngine — pattern compilation', () => {
     expect(calls.calls).toContain('setSearchTerm:\\b\\w+\\b');
   });
 
+  // What the boundary finds is driven over a real editor in
+  // `whole-word.test.ts` (#393); these two hold only that it is applied.
   it('wraps the pattern in word boundaries when wholeWord is on', () => {
     const calls = { calls: [] as string[] };
     const engine = createSearchEngine(fakeEditor({ results: [], resultIndex: 0 }, calls));
     engine.search('cat', opts({ wholeWord: true }));
-    expect(calls.calls.some((c) => c.startsWith('setSearchTerm:\\b(?:cat)\\b'))).toBe(true);
+    expect(calls.calls).toContain(`setSearchTerm:${wholeWordPattern('cat')}`);
   });
 
   it('escapes then word-bounds when both regex=off and wholeWord=on', () => {
     const calls = { calls: [] as string[] };
     const engine = createSearchEngine(fakeEditor({ results: [], resultIndex: 0 }, calls));
     engine.search('a.b', opts({ wholeWord: true }));
-    expect(calls.calls).toContain('setSearchTerm:\\b(?:a\\.b)\\b');
+    expect(calls.calls).toContain(`setSearchTerm:${wholeWordPattern('a\\.b')}`);
   });
 
   it('propagates caseSensitive into the engine', () => {
