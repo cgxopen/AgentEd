@@ -109,8 +109,8 @@
   --shadow-lg: rgba(0, 0, 0, 0.55);
 }
 
-/* Claude Warm — light-only, warm-beige character inspired by Claude.ai reader. */
-:root[data-theme="claude"] {
+/* Paper Warm — light-only, a warm beige like paper. */
+:root[data-theme="paper"] {
   --bg: #f7f3ed;
   --text: #2d1e12;
   --border: #898278;
@@ -604,7 +604,7 @@ body {
  * floats over the document. The strong overlay it had measured 1.16 to 1.43
  * against the card and put the muted shortcut beside the name below 4.5 in four
  * palettes; this one measures 1.08 to 1.18 and leaves two, Light at 4.43 and
- * Claude Warm at 4.31. */
+ * Paper Warm at 4.31. */
 #menu-dropdown button {
   background: none;
   border: none;
@@ -1074,7 +1074,7 @@ button.indicator-search:hover {
  * border in the accent** (owner decision on #373, taken on the artifact). The
  * full `--accent` fill it replaces read loud beside a panel that draws no box,
  * and its label, `--bg` on the accent, measured 3.41 to 7.49: below the 4.5 a
- * label needs in claude and both Solarized palettes. Measured on the tokens:
+ * label needs in paper and both Solarized palettes. Measured on the tokens:
  * the label is 9.75 to 14.10 on the tint, and the border, which is what says
  * pressed, is 3.41 to 7.49 against the panel. The tint alone would say it at
  * 1.18 to 1.28, so the border is the state and the tint only softens it. The
@@ -2180,7 +2180,7 @@ button.indicator-search:hover {
 /*
  * Active is a shade and an accent line, not an accent fill. The fill used to
  * carry `#fff`, which is below 4.5 to 1 in five palettes, and no colour the
- * theme defines reaches 4.5 on the accent of Claude Warm, Solarized Light or
+ * theme defines reaches 4.5 on the accent of Paper Warm, Solarized Light or
  * Solarized Dark: the best of `#fff`, `--bg`, `--surface` and `--text` there is
  * 4.22, 3.68 and 4.08. The label keeps `--text`, and the line under it, an
  * inset shadow, takes no height.
@@ -2713,7 +2713,7 @@ button.document-badge {
 
 /* The label goes to `--text` under the pointer and while pressed (#368): a
  * press from the keyboard has no hover, and `--muted` on the pressed shade is
- * 4.31 in claude and 4.43 in light, below the 4.5 a 12 px label needs. The lit
+ * 4.31 in paper and 4.43 in light, below the 4.5 a 12 px label needs. The lit
  * state gives it `--text` from the family rule. */
 button.document-badge:hover,
 button.document-badge:active {

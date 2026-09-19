@@ -181,7 +181,7 @@ describe('every header control is transparent at rest (#368)', () => {
   /**
    * The labels a readout holds in `--muted`: the word and character counts and
    * the «Metadata» badge. Until #368 they sat on the readout fill, where they
-   * measured 4.31 in claude and 4.43 in light; on the bar they are text on the
+   * measured 4.31 in paper and 4.43 in light; on the bar they are text on the
    * page colour, and this row holds them there at the 4.5 they need.
    */
   it.each(paletteNames)('%s: the muted labels of the readouts are readable on the bar', (name) => {

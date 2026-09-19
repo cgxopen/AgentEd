@@ -22,14 +22,27 @@ export function saveThemePreference(pref: ThemePreference): void {
   }
 }
 
-export type PaletteName = 'default' | 'claude' | 'solarized' | 'github';
+export type PaletteName = 'default' | 'paper' | 'solarized' | 'github';
 
 const PALETTE_PREF_KEY = 'agented:palette';
-const PALETTE_VALUES: readonly PaletteName[] = ['default', 'claude', 'solarized', 'github'];
+const PALETTE_VALUES: readonly PaletteName[] = ['default', 'paper', 'solarized', 'github'];
+
+/**
+ * The name Paper Warm was stored under until #379, and the one place the old
+ * name is still spelled. Any value this module does not know reads as Default,
+ * so without this a person who had chosen the palette would open the renamed
+ * build on Default. It is read as `paper` and written back once, here, where
+ * `ThemeManager` reads the palette before it first applies a theme.
+ */
+const PALETTE_BEFORE_379 = 'claude';
 
 export function loadPalettePreference(): PaletteName {
   try {
     const stored = localStorage.getItem(PALETTE_PREF_KEY);
+    if (stored === PALETTE_BEFORE_379) {
+      savePalettePreference('paper');
+      return 'paper';
+    }
     if (stored && (PALETTE_VALUES as readonly string[]).includes(stored)) {
       return stored as PaletteName;
     }

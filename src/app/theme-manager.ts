@@ -13,11 +13,11 @@ const MEDIA_QUERY = '(prefers-color-scheme: dark)';
  * Applies the active theme to `<html>` via the `data-theme` attribute.
  * The attribute value composes two independent axes:
  *   - `mode`: Light / Dark / Auto (mirrors OS preference in Auto)
- *   - `palette`: Default / Claude Warm / Solarized / GitHub
+ *   - `palette`: Default / Paper Warm / Solarized / GitHub
  *
  * Palettes that have a light/dark pair (Default, Solarized, GitHub)
- * honor the current mode. Claude Warm is a warm-beige palette that
- * exists in light only — selecting it produces `data-theme="claude"`
+ * honor the current mode. Paper Warm is a warm-beige palette that
+ * exists in light only — selecting it produces `data-theme="paper"`
  * regardless of mode.
  *
  * Listeners (menu palette + mode radios) are notified via onChange.
@@ -83,9 +83,9 @@ export class ThemeManager {
     switch (this.palette) {
       case 'default':
         return resolvedMode === 'dark' ? 'dark' : null;
-      case 'claude':
-        // Claude Warm is light-only; mode is ignored.
-        return 'claude';
+      case 'paper':
+        // Paper Warm is light-only; mode is ignored.
+        return 'paper';
       case 'solarized':
         return resolvedMode === 'dark' ? 'solarized-dark' : 'solarized-light';
       case 'github':

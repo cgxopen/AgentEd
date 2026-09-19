@@ -3,12 +3,12 @@ import type { PaletteName, ThemePreference } from '../preferences';
 
 /**
  * Kebab (⋮) menu in the header that owns the Appearance controls —
- * Mode (Light / Dark / Auto) and Palette (Default / Claude Warm /
+ * Mode (Light / Dark / Auto) and Palette (Default / Paper Warm /
  * Solarized / GitHub). Extracted from the hamburger menu so Appearance
  * is one click away and the hamburger can stay lean for File/Edit/View.
  *
  * The two axes are independent: Mode is light/dark/auto, Palette is the
- * colour family. Solarized and GitHub follow the active mode; Claude
+ * colour family. Solarized and GitHub follow the active mode; Paper
  * Warm is light-only. This mirrors `ThemeManager` exactly — the menu is
  * a pure view, all logic stays in the manager. Persistence is unchanged
  * (localStorage via `ThemeManager`).
@@ -64,8 +64,8 @@ const PALETTE_OPTIONS: ReadonlyArray<{
     swatch: 'linear-gradient(135deg, #ffffff 50%, #1a1a1a 50%)',
   },
   {
-    value: 'claude',
-    label: 'Claude Warm',
+    value: 'paper',
+    label: 'Paper Warm',
     swatch: '#f7f3ed',
     title: 'Warm palette, light mode only',
   },

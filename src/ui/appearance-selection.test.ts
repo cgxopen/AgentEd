@@ -5,14 +5,19 @@
  * **Said at the head: colour is not observable here.** Whether the selected
  * Mode and Palette read as selected with no fill is the owner pass on the
  * artifact. What these rows hold is the rule read out of the sheet, run against
- * an option built the way `ui/appearance-menu.ts` builds one, and the colour of
- * its mark resolved per palette. The dot is drawn in `::before`, which no
+ * the popover `setupAppearanceMenu` builds, with a selected Mode and Palette,
+ * and the colour of its mark resolved per palette. Until #379 the options were
+ * written here by hand, so a change to how the menu builds them reached no row. The dot is drawn in `::before`, which no
  * element matches, so its rule is read by its selector.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
+import shippedPage from '../../index.html?raw';
+import { ThemeManager } from '../app/theme-manager';
 import stylesCss from '../styles.css?raw';
+import { shippedElement } from '../test-support/shipped-markup';
 import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { contrast, paletteTokens, resolveColour } from '../test-support/theme-colours';
+import { setupAppearanceMenu } from './appearance-menu';
 
 const rules = stylesheetRules(stylesCss);
 /** Colours never change inside a `@media` block of this sheet. */
@@ -24,18 +29,23 @@ const paletteNames = [...palettes.keys()];
 const NON_TEXT = 3;
 
 beforeEach(() => {
-  // The shape `buildPopover` gives a selected Mode and a selected Palette.
-  document.body.innerHTML = `
-    <aside id="appearance-popover" class="appearance-popover">
-      <button type="button" class="appearance-option appearance-mode active">Light</button>
-      <button type="button" class="appearance-option appearance-palette active">
-        <span class="swatch"></span>Default
-      </button>
-    </aside>`;
+  localStorage.clear();
+  localStorage.setItem('agented:theme', 'light');
+  document.body.innerHTML = [
+    shippedElement(shippedPage, '<button id="appearance-menu-trigger"'),
+    shippedElement(shippedPage, '<aside id="appearance-popover"'),
+  ].join('');
+  setupAppearanceMenu(new ThemeManager());
 });
 
-const mode = () => document.querySelector('.appearance-mode') as HTMLElement;
-const palette = () => document.querySelector('.appearance-palette') as HTMLElement;
+function selected(selector: string): HTMLElement {
+  const found = document.querySelectorAll<HTMLElement>(selector);
+  if (found.length !== 1) throw new Error(`${found.length} options match ${selector}`);
+  return found[0];
+}
+
+const mode = () => selected('.appearance-mode.active');
+const palette = () => selected('.appearance-palette.active');
 
 /** The value the last rule reaching `el` gives `property`, in sheet order. */
 function last(el: Element, property: string): string | undefined {
