@@ -128,6 +128,30 @@ describe('the mode the person chose is kept for the palette they go to next (#39
   });
 });
 
+describe('every palette circle is split, Paper Warm included (#391)', () => {
+  it('draws each circle in two halves, as a diagonal of two colours', () => {
+    start('light', 'default');
+    const circles = [...document.querySelectorAll<HTMLElement>('.appearance-palette .swatch')];
+    expect(circles).toHaveLength(4);
+    for (const circle of circles) {
+      const palette = (circle.parentElement as HTMLElement).dataset.palette;
+      expect(circle.style.background, palette).toMatch(
+        /^linear-gradient\(135deg, #[0-9a-f]{6} 50%, #[0-9a-f]{6} 50%\)$/,
+      );
+    }
+  });
+
+  it('gives Paper Warm its accent as the second half, not a night colour', () => {
+    start('light', 'default');
+    const paper = document.querySelector<HTMLElement>(
+      '.appearance-palette[data-palette="paper"] .swatch',
+    );
+    expect(paper?.style.background).toBe(
+      `linear-gradient(135deg, ${PAPER.get('--bg')} 50%, ${PAPER.get('--accent')} 50%)`,
+    );
+  });
+});
+
 describe('the line can be read and the greyed labels are exempt, in Paper Warm (#391)', () => {
   const ground = () => {
     const popover = document.getElementById('appearance-popover') as HTMLElement;

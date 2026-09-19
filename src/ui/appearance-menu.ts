@@ -70,7 +70,10 @@ const PALETTE_OPTIONS: ReadonlyArray<{
   {
     value: 'paper',
     label: 'Paper Warm',
-    swatch: '#f7f3ed',
+    // Split like the others, and its second half is the palette accent rather
+    // than a night colour, since there is no dark version for it to show
+    // (#391, owner decision of 2026-09-19 on captures of four candidates).
+    swatch: 'linear-gradient(135deg, #f7f3ed 50%, #b8653f 50%)',
     title: 'Warm palette, light mode only',
   },
   {
