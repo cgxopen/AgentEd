@@ -82,6 +82,8 @@ function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall |
     isCurrent: () => true,
     beginSwitch: () => 0,
     isLatest: () => true,
+    isClosedByHand: () => false,
+    forgetClosedByHand: () => {},
     markUnused: () => {},
     setOnOpenByHand: () => {},
   };
@@ -296,6 +298,8 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };

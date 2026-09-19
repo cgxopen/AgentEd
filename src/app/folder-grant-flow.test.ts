@@ -90,6 +90,8 @@ function harness() {
     isCurrent: () => true,
     beginSwitch: () => 0,
     isLatest: () => true,
+    isClosedByHand: () => false,
+    forgetClosedByHand: () => {},
     markUnused: () => {},
     setOnOpenByHand: () => {},
   };
@@ -170,6 +172,8 @@ describe('#184 — a folder that was asked for and holds nothing', () => {
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };
@@ -217,6 +221,8 @@ describe('#184 — a folder that was asked for and holds nothing', () => {
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };

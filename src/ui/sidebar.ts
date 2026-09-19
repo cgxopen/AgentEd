@@ -72,6 +72,15 @@ export interface Sidebar {
   beginSwitch: () => number;
   isLatest: (ticket: number) => boolean;
   /**
+   * Whether the panel was last closed by hand (#387). A save redraws the panel
+   * and never opens it again once the person closed it: closing is an answer
+   * they gave. Opening it by hand forgets it, and so does `forgetClosedByHand`,
+   * which the acts R-C6 lets open the panel call: a document arriving, and the
+   * folder offer accepted.
+   */
+  isClosedByHand: () => boolean;
+  forgetClosedByHand: () => void;
+  /**
    * Grey each file of the tree on screen that `unused` names by its absolute
    * path, and ungrey the rest (#380). It reads nothing but the tree drawn.
    */
@@ -170,6 +179,7 @@ export function setupSidebar(): Sidebar {
    * nothing has happened to the panel since.
    */
   let generation = 0;
+  let closedByHand = false;
 
   /** Empty the panel for the next thing drawn in it, and count that. */
   function clear(): void {
@@ -255,8 +265,13 @@ export function setupSidebar(): Sidebar {
   }
 
   function toggle(): void {
-    if (panel.classList.contains('hidden')) openByHand();
-    else hidePanel();
+    if (panel.classList.contains('hidden')) {
+      closedByHand = false;
+      openByHand();
+    } else {
+      closedByHand = true;
+      hidePanel();
+    }
   }
 
   function isCurrent(ticket: number): boolean {
@@ -330,6 +345,10 @@ export function setupSidebar(): Sidebar {
       return generation;
     },
     isLatest: (ticket) => ticket === generation,
+    isClosedByHand: () => closedByHand,
+    forgetClosedByHand: () => {
+      closedByHand = false;
+    },
     markUnused: (unused) => markUnused(treeEl, unused),
     setOnOpenByHand: (handler) => {
       onOpenByHand = handler;
