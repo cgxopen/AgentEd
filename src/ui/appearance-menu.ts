@@ -1,4 +1,4 @@
-import type { ThemeManager } from '../app/theme-manager';
+import { hasDarkVersion, type ThemeManager } from '../app/theme-manager';
 import type { PaletteName, ThemePreference } from '../preferences';
 
 /**
@@ -9,9 +9,10 @@ import type { PaletteName, ThemePreference } from '../preferences';
  *
  * The two axes are independent: Mode is light/dark/auto, Palette is the
  * colour family. Solarized and GitHub follow the active mode; Paper
- * Warm is light-only. This mirrors `ThemeManager` exactly — the menu is
- * a pure view, all logic stays in the manager. Persistence is unchanged
- * (localStorage via `ThemeManager`).
+ * Warm is light-only. Which palettes have a dark version is the manager's
+ * answer, not the menu's (#391): the menu is a pure view, all logic stays
+ * in the manager. Persistence is unchanged (localStorage via
+ * `ThemeManager`).
  *
  * Behaviour: click-to-apply with the popover staying open for quick
  * palette exploration; closes on click-outside, Escape, or a click on
@@ -46,6 +47,9 @@ export function popoverRight(menubarRight: number, triggerRight: number): number
   return menubarRight - triggerRight;
 }
 
+/** The line under the Mode options while the palette has no dark version (#391). */
+export const MODE_NOTE_ID = 'appearance-mode-note';
+
 const MODE_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -66,7 +70,10 @@ const PALETTE_OPTIONS: ReadonlyArray<{
   {
     value: 'paper',
     label: 'Paper Warm',
-    swatch: '#f7f3ed',
+    // Split like the others, and its second half is the palette accent rather
+    // than a night colour, since there is no dark version for it to show
+    // (#391, owner decision of 2026-09-19 on captures of four candidates).
+    swatch: 'linear-gradient(135deg, #f7f3ed 50%, #b8653f 50%)',
     title: 'Warm palette, light mode only',
   },
   {
@@ -91,7 +98,7 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
 
   const modeButtons = new Map<ThemePreference, HTMLButtonElement>();
   const paletteButtons = new Map<PaletteName, HTMLButtonElement>();
-  buildPopover(popover, modeButtons, paletteButtons, themeManager);
+  const modeNote = buildPopover(popover, modeButtons, paletteButtons, themeManager);
 
   function isOpen(): boolean {
     return !popover!.classList.contains('hidden');
@@ -130,12 +137,26 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
     button!.setAttribute('aria-expanded', 'false');
   }
 
+  /**
+   * Marks the mode the page is in rather than the one stored (#391): under a
+   * palette with no dark version that is Light, while the stored Dark or Auto
+   * waits for a palette that has one. Dark and Auto are disabled there, which
+   * takes them out of the Tab order as the greyed menu entries are, and the
+   * line saying why is shown and read out on Light, the option that is
+   * selected.
+   */
   function refresh(): void {
-    const mode = themeManager.getMode();
+    const mode = themeManager.getEffectiveMode();
     const palette = themeManager.getPalette();
+    const modeApplies = hasDarkVersion(palette);
     for (const [value, el] of modeButtons) {
       el.classList.toggle('active', value === mode);
+      el.disabled = !modeApplies && value !== 'light';
     }
+    modeNote.hidden = modeApplies;
+    const light = modeButtons.get('light');
+    if (modeApplies) light?.removeAttribute('aria-describedby');
+    else light?.setAttribute('aria-describedby', MODE_NOTE_ID);
     for (const [value, el] of paletteButtons) {
       el.classList.toggle('active', value === palette);
     }
@@ -181,7 +202,7 @@ function buildPopover(
   modeButtons: Map<ThemePreference, HTMLButtonElement>,
   paletteButtons: Map<PaletteName, HTMLButtonElement>,
   themeManager: ThemeManager,
-): void {
+): HTMLElement {
   popover.replaceChildren();
 
   popover.appendChild(sectionLabel('Mode'));
@@ -197,6 +218,15 @@ function buildPopover(
     modeButtons.set(opt.value, item);
     popover.appendChild(item);
   }
+
+  const modeNote = document.createElement('div');
+  modeNote.id = MODE_NOTE_ID;
+  modeNote.className = 'appearance-note';
+  // Short on purpose (#391, owner decision on the artifact): it stands under
+  // Dark and Auto greyed while the palette is active, so it need not name it.
+  modeNote.textContent = 'No dark version.';
+  modeNote.hidden = true;
+  popover.appendChild(modeNote);
 
   popover.appendChild(sectionLabel('Palette'));
   for (const opt of PALETTE_OPTIONS) {
@@ -218,6 +248,7 @@ function buildPopover(
     paletteButtons.set(opt.value, item);
     popover.appendChild(item);
   }
+  return modeNote;
 }
 
 function sectionLabel(text: string): HTMLElement {

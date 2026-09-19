@@ -221,7 +221,10 @@ const WHERE_THE_LINE_WAS: ReadonlyArray<readonly [string, string]> = [
   ['menu card', '.menu-section + .menu-panel + .menu-section'],
   ['heading list', '.heading-levels-option + .heading-levels-option'],
   ['emoji palette', '.emoji-palette-grid + .emoji-palette-grid'],
-  ['appearance popover', '.appearance-option + .appearance-section-label'],
+  // Between the Mode and Palette sections, where the Mode note has stood
+  // since #391: the pair on each side of it is read.
+  ['appearance popover', '.appearance-mode + .appearance-note'],
+  ['appearance popover', '.appearance-note + .appearance-section-label'],
   ['context files popover', '.cluster-popover-header'],
   ['context files popover', '.cluster-popover-footer'],
   ['images popover', '.cluster-popover-header'],
