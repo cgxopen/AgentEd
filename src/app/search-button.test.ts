@@ -361,7 +361,7 @@ describe('a regex that does not parse, through the real manager (#373)', () => {
   }
 
   it('shows the short label', () => {
-    withBrokenRegex((count) => expect(count.textContent).toBe('Invalid regex'));
+    withBrokenRegex((count) => expect(count.textContent).toBe('Pattern not valid'));
   });
 
   it('hands a reason to the tooltip, and takes it away once the pattern is plain again', () => {

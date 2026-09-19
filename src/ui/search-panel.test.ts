@@ -188,7 +188,7 @@ describe('setupSearchPanel — count + invalid', () => {
       document.getElementById('search-panel') as HTMLElement,
       noopCallbacks(),
     );
-    panel.setCount('Invalid regex: ...', 'error');
+    panel.setCount('Pattern not valid', 'error');
     const count = document.getElementById('search-count') as HTMLElement;
     expect(count.classList.contains('search-count-error')).toBe(true);
   });
@@ -199,8 +199,8 @@ describe('setupSearchPanel — count + invalid', () => {
       noopCallbacks(),
     );
     const count = document.getElementById('search-count') as HTMLElement;
-    panel.setCount('Invalid regex', 'error', 'Unterminated group');
-    expect(count.textContent).toBe('Invalid regex');
+    panel.setCount('Pattern not valid', 'error', 'Unterminated group');
+    expect(count.textContent).toBe('Pattern not valid');
     expect(count.title).toBe('Unterminated group');
     panel.setCount('3 of 12');
     expect(count.hasAttribute('title')).toBe(false);

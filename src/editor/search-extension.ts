@@ -19,9 +19,9 @@ export type SearchResult =
   | { ok: false; error: string; detail: string };
 
 /** The label for a pattern that does not parse. */
-export const INVALID_REGEX = 'Invalid regex';
+export const INVALID_REGEX = 'Pattern not valid';
 /** The label for a pattern the backtracking guard refuses. */
-export const SLOW_REGEX = 'Regex too slow';
+export const SLOW_REGEX = 'Pattern too complex';
 
 /**
  * The reason inside an engine error, without the pattern it names. Chromium

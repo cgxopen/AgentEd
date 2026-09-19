@@ -152,7 +152,11 @@ describe('createSearchEngine — regex safety', () => {
     const engine = createSearchEngine(fakeEditor({ results: [], resultIndex: 0 }, { calls: [] }));
     const r = engine.search('[a-', opts({ regex: true }));
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.toLowerCase()).toMatch(/regex|character class|bracket|unterminated/);
+    // The label is constant (#373); what the bracket was is in the reason.
+    if (!r.ok) {
+      expect(r.error).toBe(INVALID_REGEX);
+      expect(r.detail.toLowerCase()).toMatch(/character class|bracket|unterminated/);
+    }
   });
 
   it('returns ok:false on a dangling backref', () => {

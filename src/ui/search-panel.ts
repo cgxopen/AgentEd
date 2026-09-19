@@ -27,7 +27,7 @@ export interface SearchPanel {
   /** Replacement text currently in the replace input. */
   getReplacement(): string;
   /**
-   * Set the count label (`3 of 12` / `No results` / `Invalid regex`), and the
+   * Set the count label (`3 of 12` / `No results` / `Pattern not valid`), and the
    * reason behind it as the tooltip. A label with no reason clears the tooltip,
    * so the reason of an earlier error never stays on a later count.
    */
