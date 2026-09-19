@@ -1,12 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  clearRecentFiles,
   EMOJI_FREQUENT_BOUND,
+  forgetRecentFile,
   loadFrequentEmoji,
   loadLastOpenedFolder,
   loadPalettePreference,
+  loadRecentFiles,
   loadThemePreference,
   purgeLegacyPreferences,
+  RECENT_FILES_BOUND,
   recordEmojiUse,
+  recordRecentFile,
   saveLastOpenedFolder,
   savePalettePreference,
   saveThemePreference,
@@ -132,5 +137,56 @@ describe('frequently used emoji (#296)', () => {
     expect(loadFrequentEmoji()).toEqual([['d', 2]]);
     localStorage.setItem('agented:emoji-frequent', JSON.stringify(['a']));
     expect(loadFrequentEmoji()).toEqual([]);
+  });
+});
+
+describe('recent files (#381)', () => {
+  const file = (n: number) => `C:\\notes\\file-${n}.md`;
+
+  it('holds what was opened, newest first', () => {
+    recordRecentFile(file(1));
+    recordRecentFile(file(2));
+    expect(loadRecentFiles()).toEqual([file(2), file(1)]);
+  });
+
+  it('holds ten, and an eleventh open takes the oldest off', () => {
+    for (let n = 1; n <= 11; n += 1) recordRecentFile(file(n));
+    const list = loadRecentFiles();
+    expect(RECENT_FILES_BOUND).toBe(10);
+    expect(list).toHaveLength(10);
+    expect(list[0]).toBe(file(11));
+    expect(list).not.toContain(file(1));
+  });
+
+  it('moves a file opened again to the top rather than holding it twice', () => {
+    for (let n = 1; n <= 3; n += 1) recordRecentFile(file(n));
+    recordRecentFile(file(1));
+    expect(loadRecentFiles()).toEqual([file(1), file(3), file(2)]);
+  });
+
+  it('holds one Windows file once whatever the case it was spelled in, under the newest spelling', () => {
+    recordRecentFile('C:\\Notes\\a.md');
+    recordRecentFile('c:/notes/A.md');
+    expect(loadRecentFiles()).toEqual(['c:/notes/A.md']);
+  });
+
+  it('empties the store on Clear, so a restart finds nothing', () => {
+    recordRecentFile(file(1));
+    clearRecentFiles();
+    expect(localStorage.getItem('agented:recent-files')).toBeNull();
+    expect(loadRecentFiles()).toEqual([]);
+  });
+
+  it('takes one file off and leaves the rest in order', () => {
+    for (let n = 1; n <= 3; n += 1) recordRecentFile(file(n));
+    forgetRecentFile(file(2));
+    expect(loadRecentFiles()).toEqual([file(3), file(1)]);
+  });
+
+  it('reads a value that is not a list of paths as an empty list', () => {
+    localStorage.setItem('agented:recent-files', '{"not":"a list"}');
+    expect(loadRecentFiles()).toEqual([]);
+    localStorage.setItem('agented:recent-files', 'not json');
+    expect(loadRecentFiles()).toEqual([]);
   });
 });

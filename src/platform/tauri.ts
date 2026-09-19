@@ -25,6 +25,7 @@ import type {
 
 export class TauriIO implements PlatformIO {
   readonly supportsMultiFile = true;
+  readonly pathsOutliveSession = true;
 
   /**
    * Always, for any document whose path carries a directory — which on

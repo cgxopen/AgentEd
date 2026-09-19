@@ -32,6 +32,7 @@ function isNotFound(e: unknown): boolean {
 
 export class WebIO implements PlatformIO {
   readonly supportsMultiFile = true;
+  readonly pathsOutliveSession = false;
   private fileHandle: FileSystemFileHandle | null = null;
   private dirHandle: FileSystemDirectoryHandle | null = null;
 

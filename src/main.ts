@@ -29,7 +29,7 @@ import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
 import { getPlatformIO, ownWindowFrame, requestFolderAccess } from './platform/index';
-import { purgeLegacyPreferences } from './preferences';
+import { clearRecentFiles, loadRecentFiles, purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupAssetsPopover } from './ui/assets-popover';
@@ -270,6 +270,13 @@ imageDescription = imageDescriptionRoutes(editor);
 // the two routes is made in one place and the tests drive that place (#279).
 const codeBlock = codeBlockRoutes(editor);
 
+let keepsRecentFiles = false;
+void getPlatformIO()
+  .then((io) => {
+    keepsRecentFiles = io.pathsOutliveSession === true;
+  })
+  .catch(console.error);
+
 setupMenu(
   {
     onNew: () => {
@@ -285,6 +292,10 @@ setupMenu(
     onOpen: () => {
       void docActions.handleOpen().catch(console.error);
     },
+    onOpenRecentFile: (path) => {
+      void docActions.openRecentFile(path).catch(console.error);
+    },
+    onClearRecentFiles: clearRecentFiles,
     onSave: () => {
       void docActions.handleSave().catch(console.error);
     },
@@ -324,6 +335,9 @@ setupMenu(
   () => historyAvailability(editor),
   // One reading, answered by the module that owns each entry.
   () => ({ ...tableShapeAvailability(editor), ...imageDescriptionAvailability(editor) }),
+  // No list until the platform has said its paths outlive the session (#381),
+  // which it answers once it has loaded; the web build never does.
+  () => (keepsRecentFiles ? loadRecentFiles() : null),
 );
 
 // Appearance (Mode + Palette) opens from its own trigger at the right of the

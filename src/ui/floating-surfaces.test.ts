@@ -30,6 +30,8 @@ import { showConfirmDialog } from './confirm-dialog';
 import { openEmojiPalette } from './emoji-palette';
 import { openHeadingLevels } from './heading-levels';
 import { openLanguagePopover } from './language-popover';
+import { setupMenu } from './menu';
+import { RECENT_MENU_ID } from './menu-recent';
 import { setupToolbar } from './toolbar';
 
 const rules = stylesheetRules(stylesCss);
@@ -69,7 +71,9 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
 /**
  * Kept as a copy the moment it is built: opening one surface closes and empties
  * another, and a rule reaches a copy exactly as it reaches the original, since
- * none of these selectors looks above the surface itself.
+ * none of the selectors of a surface kept this way looks above the surface
+ * itself. The recent files card is the one whose rules do, and it is kept
+ * inside a copy of the menu instead.
  */
 function keep(name: string, element: HTMLElement): void {
   surfaces.set(name, element.cloneNode(true) as HTMLElement);
@@ -85,6 +89,23 @@ beforeAll(async () => {
   ].join('');
   keep('menu card', found('#menu-dropdown'));
   keep('overflow list', found('#overflow-popover'));
+  // The recent files card of #381 stands beside the menu and is one of them.
+  setupMenu(
+    new Proxy({}, { get: () => () => {} }) as never,
+    () => ({ canUndo: true, canRedo: true }),
+    () => ({}),
+    () => ['/doc/a.md'],
+  );
+  found('#menu-toggle').click();
+  found('#menu-section-file').click();
+  found('#menu-open-recent').click();
+  // Its rules are written under the menu, so it is kept inside a copy of it.
+  const menuWithCard = found('#menu-dropdown').cloneNode(true) as HTMLElement;
+  surfaces.set(
+    'recent files card',
+    menuWithCard.querySelector(`#${RECENT_MENU_ID}`) as HTMLElement,
+  );
+  found('#menu-toggle').click();
   keep('files panel card', found('#sidebar'));
 
   setupClusterPopover({
@@ -243,6 +264,7 @@ function drawnIn(name: string, state: string): { shades: string[]; lines: string
 describe('one hover shade, and no line under the pointer (#375)', () => {
   it.each([
     'menu card',
+    'recent files card',
     'floating toolbar',
     'heading list',
     'emoji palette',

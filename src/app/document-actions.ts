@@ -11,7 +11,7 @@ import { NotUtf8Error } from '../platform/decode';
 import { getPlatformIO } from '../platform/index';
 import { basename, dirname } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
-import { saveLastOpenedFolder } from '../preferences';
+import { forgetRecentFile, recordRecentFile, saveLastOpenedFolder } from '../preferences';
 import { getTemplate, type TemplateId } from '../templates/index';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
 import { showToast } from '../ui/toast';
@@ -19,7 +19,7 @@ import { applyBundle, buildBundle } from './bundle';
 import type { AppContext } from './context';
 import { createDiscardGate } from './discard-gate';
 import { askAboutExternalChange } from './external-change-prompt';
-import { OPEN_FAILED_TITLE, openFailedMessage } from './open-failure';
+import { OPEN_FAILED_TITLE, openFailedMessage, recentFileGoneMessage } from './open-failure';
 import { createRequestSaveAs } from './save-as-flow';
 import { SAVE_FAILED_TITLE, saveFailedMessage, saveFailureCause } from './save-failure';
 
@@ -42,6 +42,16 @@ export interface DocumentActions {
    * document opened from the shell was never in a panel at all.
    */
   openFilePath(path: string, sidebarRoot?: string): Promise<void>;
+  /**
+   * Open a file chosen from the recent files list (#381): `openFilePath`,
+   * after one question the other routes do not ask. A file whose folder is
+   * there and which is not leaves the list with a sentence saying so, and
+   * **before** the unsaved-changes gate, so nobody is asked about their
+   * changes for a file that is not there. Anything less certain, a folder
+   * that is gone too, a drive disconnected, keeps the entry and goes on to
+   * the ordinary open, which reports its own failure.
+   */
+  openRecentFile(path: string): Promise<void>;
   requestSaveAs(): Promise<string | null>;
   /**
    * Run the unsaved-changes gate for a window close / app quit. Resolves
@@ -140,6 +150,9 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
 
       const folder = dirname(path);
       if (folder.length > 0) saveLastOpenedFolder(folder);
+      // Every route that opens a document ends here, so this one line is the
+      // whole of which opens enter the recent list (#381).
+      if (io.pathsOutliveSession) recordRecentFile(path);
 
       ctx.state.sidebarRootFromClick = options.sidebarRoot ?? null;
       await ctx.refreshSidebar();
@@ -217,14 +230,14 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    * body, plus the frontmatter block only if the document already has
    * one. Nothing is ever injected on save.
    */
-  async function persistBundle(): Promise<void> {
+  async function persistBundle(): Promise<boolean> {
     const io = await getPlatformIO();
 
     // Before the bundle is built, not after: the answer to the question
     // may move the document to a different file, and the bundle carries
     // the path it will be written to.
     const target = ctx.state.filePath;
-    if (target !== null && (await resolveExternalChange(io, target)) === 'stop') return;
+    if (target !== null && (await resolveExternalChange(io, target)) === 'stop') return false;
 
     const bundle = buildBundle(ctx.state, ctx.getMarkdown);
 
@@ -237,7 +250,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
           'Web mode: please use Save As to grant folder access for this document type.',
           'warn',
         );
-        return;
+        return false;
       }
       // **None of the document reached the disk**, which is what
       // separates this from the assets branch below: there, part of it
@@ -269,7 +282,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
         SAVE_FAILED_TITLE,
         'omit',
       );
-      return;
+      return false;
     }
 
     ctx.state.isFirstSave = false;
@@ -300,6 +313,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       const folder = dirname(ctx.state.filePath);
       if (folder.length > 0) saveLastOpenedFolder(folder);
     }
+    return true;
   }
 
   async function handleSave(): Promise<void> {
@@ -327,7 +341,11 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     try {
       const path = await requestSaveAs();
       if (!path) return;
-      await persistBundle();
+      // A document written under a new name is one the person now has, so it
+      // enters the recent list as an open does (#381, owner decision).
+      if ((await persistBundle()) && (await getPlatformIO()).pathsOutliveSession) {
+        recordRecentFile(path);
+      }
       await ctx.refreshSidebar();
     } finally {
       ctx.state.isSaving = false;
@@ -456,6 +474,21 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     );
   }
 
+  async function openRecentFile(path: string): Promise<void> {
+    const io = await getPlatformIO();
+    const folder = dirname(path);
+    const gone =
+      folder.length > 0 &&
+      (await io.entryPresence(path)) === 'absent' &&
+      (await io.entryPresence(folder)) === 'present';
+    if (gone) {
+      forgetRecentFile(path);
+      await ctx.reporter.dialog(recentFileGoneMessage(path), null, OPEN_FAILED_TITLE, 'omit');
+      return;
+    }
+    await openFilePath(path);
+  }
+
   return {
     handleNew,
     handleNewFromTemplate,
@@ -464,6 +497,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     handleSaveAs,
     handleClose,
     openFilePath,
+    openRecentFile,
     requestSaveAs,
     confirmWindowClose,
   };

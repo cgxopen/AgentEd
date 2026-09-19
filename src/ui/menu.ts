@@ -1,9 +1,13 @@
 import { installHoverSwitch } from './menu-hover';
+import { installRecentMenu } from './menu-recent';
 
 export interface MenuCallbacks {
   onNew: () => void;
   onNewFromTemplate: () => void;
   onOpen: () => void;
+  /** A file chosen from Open Recent (#381). */
+  onOpenRecentFile: (path: string) => void;
+  onClearRecentFiles: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onClose: () => void;
@@ -113,16 +117,24 @@ function readSections(dropdown: HTMLElement): Section[] {
  * caller that forgot one does not build: without them Undo, Redo, the seven
  * Table entries and the image description would stay enabled over nothing.
  */
+/**
+ * The recent files list as the menu is opened, newest first, or `null` where
+ * this build keeps no list (#381), which hides Open Recent altogether.
+ */
+export type RecentFilesReading = () => readonly string[] | null;
+
 export function setupMenu(
   callbacks: MenuCallbacks,
   readHistory: () => HistoryAvailability,
   readAvailability: () => EntryAvailability,
+  readRecentFiles: RecentFilesReading = () => null,
 ): void {
   const toggle = required('menu-toggle');
   const dropdown = required('menu-dropdown');
   const sections = readSections(dropdown);
   const undoEntry = required('menu-undo') as HTMLButtonElement;
   const redoEntry = required('menu-redo') as HTMLButtonElement;
+  const openRecent = required('menu-open-recent') as HTMLButtonElement;
   const greyableEntries = GREYABLE_ENTRIES.map(
     ([id, key]) => [required(id) as HTMLButtonElement, key] as const,
   );
@@ -137,6 +149,7 @@ export function setupMenu(
 
   /** Opens the one panel given and folds every other, or folds them all for null. */
   function unfold(open: HTMLElement | null): void {
+    recent.hide();
     for (const section of sections) {
       section.panel.hidden = section.panel !== open;
       section.header.setAttribute('aria-expanded', String(section.panel === open));
@@ -174,12 +187,27 @@ export function setupMenu(
    * row in `menu.test.ts` opens that section and expects focus on Add Row
    * Below.
    */
+  const recent = installRecentMenu({
+    trigger: openRecent,
+    dropdown,
+    read: () => readRecentFiles() ?? [],
+    onOpen: callbacks.onOpenRecentFile,
+    onClear: callbacks.onClearRecentFiles,
+    closeMenu: () => close(),
+  });
+
   function refreshEntries(): void {
     const { canUndo, canRedo } = readHistory();
     undoEntry.disabled = !canUndo;
     redoEntry.disabled = !canRedo;
     const available = readAvailability();
     for (const [entry, key] of greyableEntries) entry.disabled = available[key] !== true;
+    // Absent where the build keeps no list, greyed where the list is empty,
+    // since an entry with nothing to do is greyed rather than silent.
+    const list = readRecentFiles();
+    openRecent.hidden = list === null;
+    openRecent.disabled = list !== null && list.length === 0;
+    openRecent.title = openRecent.disabled ? 'No recent files' : '';
   }
 
   function open(): void {
@@ -200,6 +228,7 @@ export function setupMenu(
   function close(): void {
     const focusWasInside = dropdown.contains(document.activeElement);
     hover.cancel();
+    recent.hide();
     dropdown.classList.add('hidden');
     unfold(null);
     syncExpanded();
