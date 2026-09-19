@@ -197,9 +197,9 @@ ctx.searchManager = createSearchManager({
 ctx.searchManager.installKeyboardListeners();
 
 // Phase 6 — helpers that themselves need ctx.
-ctx.refreshSidebar = async () => {
+ctx.refreshSidebar = async (redraw) => {
   const io = await getPlatformIO();
-  await refreshSidebarModule(ctx.state, ctx.sidebar, io);
+  await refreshSidebarModule(ctx.state, ctx.sidebar, io, redraw);
   markUnusedAssets();
 };
 

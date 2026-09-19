@@ -22,6 +22,7 @@ import { askAboutExternalChange } from './external-change-prompt';
 import { OPEN_FAILED_TITLE, openFailedMessage, recentFileGoneMessage } from './open-failure';
 import { createRequestSaveAs } from './save-as-flow';
 import { SAVE_FAILED_TITLE, saveFailedMessage, saveFailureCause } from './save-failure';
+import type { SidebarRedraw } from './sidebar-sync';
 
 export interface DocumentActions {
   handleNew(): Promise<void>;
@@ -88,6 +89,11 @@ interface LoadOptions {
   readonly preloaded?: LoadResult;
   /** The sidebar listing root this open came from (#178). */
   readonly sidebarRoot?: string;
+  /**
+   * `same-document` for a reload of the document already on screen, which
+   * does not ask for the panel (#387); every open is a document arriving.
+   */
+  readonly redraw?: SidebarRedraw;
 }
 
 export function createDocumentActions(ctx: AppContext): DocumentActions {
@@ -155,7 +161,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       if (io.pathsOutliveSession) recordRecentFile(path);
 
       ctx.state.sidebarRootFromClick = options.sidebarRoot ?? null;
-      await ctx.refreshSidebar();
+      await ctx.refreshSidebar(options.redraw ?? 'document-arrived');
       ctx.updateCloseEnabled();
     } catch (e) {
       // **Where the read happens here**, nothing above this line has
@@ -218,7 +224,11 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
         // baseline with it, so the write below lands there instead.
         return (await requestSaveAs()) ? 'write' : 'stop';
       case 'reload':
-        await loadBundleFromPath(path, { label: `Failed to reload document: ${path}` });
+        await loadBundleFromPath(
+          path,
+          { label: `Failed to reload document: ${path}` },
+          { redraw: 'same-document' },
+        );
         return 'stop';
       case 'cancel':
         return 'stop';
@@ -329,7 +339,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.state.isSaving = true;
     try {
       await persistBundle();
-      await ctx.refreshSidebar();
+      // A save is not an act that asks for the panel (#387, owner decision).
+      await ctx.refreshSidebar('same-document');
     } finally {
       ctx.state.isSaving = false;
     }
@@ -346,7 +357,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       if ((await persistBundle()) && (await getPlatformIO()).pathsOutliveSession) {
         recordRecentFile(path);
       }
-      await ctx.refreshSidebar();
+      // A save is not an act that asks for the panel (#387, owner decision).
+      await ctx.refreshSidebar('same-document');
     } finally {
       ctx.state.isSaving = false;
     }

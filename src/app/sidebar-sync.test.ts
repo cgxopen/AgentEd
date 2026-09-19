@@ -116,6 +116,8 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     isCurrent: () => true,
     beginSwitch: () => 0,
     isLatest: () => true,
+    isClosedByHand: () => false,
+    forgetClosedByHand: () => {},
     markUnused: () => {},
     setOnOpenByHand: () => {},
   });
@@ -210,6 +212,8 @@ describe('the root a sidebar click asked to keep (#178)', () => {
         isCurrent: () => true,
         beginSwitch: () => 0,
         isLatest: () => true,
+        isClosedByHand: () => false,
+        forgetClosedByHand: () => {},
         markUnused: () => {},
         setOnOpenByHand: () => {},
       },
@@ -303,6 +307,8 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };
@@ -352,6 +358,8 @@ describe('#184 — which kind of nothing the panel is showing', () => {
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };

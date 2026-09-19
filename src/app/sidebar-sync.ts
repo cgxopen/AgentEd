@@ -281,6 +281,12 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
   };
 }
 
+/**
+ * Why the panel is drawn again (#387): a document arrived on screen, or the
+ * document already there was written or read again.
+ */
+export type SidebarRedraw = 'document-arrived' | 'same-document';
+
 /** Draw a tree answer; the one draw both routes share. */
 function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>): void {
   sidebar.showTree(view.nodes, view.rootName, view.rootPath, view.opensNonMarkdown);
@@ -300,12 +306,22 @@ function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>
  * nothing** (#380). Until then a switch took no ticket, so closing the panel
  * by hand while a switch read the folder opened it again when the read
  * landed, measured on the #380 step zero.
+ *
+ * **A redraw of the same document never opens a panel closed by hand**
+ * (#387): a save, a Save As and a reload after an external change are not
+ * acts that ask for the panel under R-C6, so they redraw it while it is open
+ * and leave it closed once the person closed it. A document arriving is one,
+ * so it forgets the close, and the panel appears for a document with
+ * structure as it always did.
  */
 export async function refreshSidebar(
   state: AppState,
   sidebar: Sidebar,
   io: PlatformIO,
+  redraw: SidebarRedraw = 'document-arrived',
 ): Promise<void> {
+  if (redraw === 'document-arrived') sidebar.forgetClosedByHand();
+  else if (sidebar.isClosedByHand()) return;
   const ticket = sidebar.beginSwitch();
   const view = await resolveSidebarView(state, io);
   if (!sidebar.isLatest(ticket)) return;

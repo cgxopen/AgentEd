@@ -60,6 +60,8 @@ describe('on a desktop build (#146)', () => {
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };
@@ -110,6 +112,8 @@ describe('an unreadable path on the desktop (#184)', () => {
       isCurrent: () => true,
       beginSwitch: () => 0,
       isLatest: () => true,
+      isClosedByHand: () => false,
+      forgetClosedByHand: () => {},
       markUnused: () => {},
       setOnOpenByHand: () => {},
     };

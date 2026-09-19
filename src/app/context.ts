@@ -8,6 +8,7 @@ import type { Sidebar } from '../ui/sidebar';
 import type { Statusbar } from '../ui/statusbar';
 import type { ErrorReporter } from './error-reporter';
 import type { SearchManager } from './search-manager';
+import type { SidebarRedraw } from './sidebar-sync';
 import type { AppState } from './state';
 
 /**
@@ -49,7 +50,7 @@ export interface AppContext {
   searchManager: SearchManager;
 
   // Phase 6: helpers produced from ctx
-  refreshSidebar: () => Promise<void>;
+  refreshSidebar: (redraw?: SidebarRedraw) => Promise<void>;
   setFilename: (name: string | null, fullPath?: string | null) => void;
   updateCloseEnabled: () => void;
 }
