@@ -26,8 +26,12 @@ export interface SearchPanel {
   getQuery(): string;
   /** Replacement text currently in the replace input. */
   getReplacement(): string;
-  /** Set the count label (`3 of 12` / `No results` / `Invalid regex`). */
-  setCount(text: string, variant?: 'normal' | 'error'): void;
+  /**
+   * Set the count label (`3 of 12` / `No results` / `Invalid regex`), and the
+   * reason behind it as the tooltip. A label with no reason clears the tooltip,
+   * so the reason of an earlier error never stays on a later count.
+   */
+  setCount(text: string, variant?: 'normal' | 'error', reason?: string): void;
   /** Toggle red border + disable nav buttons when regex is invalid. */
   setInvalid(invalid: boolean): void;
   /** Read the three toggle button states. */
@@ -159,9 +163,11 @@ export function setupSearchPanel(root: HTMLElement, callbacks: SearchPanelCallba
     getReplacement() {
       return replaceInput.value;
     },
-    setCount(text, variant = 'normal') {
+    setCount(text, variant = 'normal', reason) {
       count.textContent = text;
       count.classList.toggle('search-count-error', variant === 'error');
+      if (reason) count.title = reason;
+      else count.removeAttribute('title');
     },
     setInvalid(invalid) {
       input.classList.toggle('search-input-invalid', invalid);

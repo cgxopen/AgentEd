@@ -1068,10 +1068,18 @@ button.indicator-search:hover {
   border-color: var(--accent);
 }
 
+/* **Capped, and cut with an ellipsis** (#373): the error text of a refused
+ * regex once ran to the width of the panel and squeezed the find field to a
+ * sliver. The labels are short and constant since then, and the reason is in
+ * the tooltip; the cap keeps any later label from doing it again. */
 .search-count {
   font-size: 12px;
   color: var(--muted);
   min-width: 6em;
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

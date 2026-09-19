@@ -1,6 +1,12 @@
 import type { Editor } from '@tiptap/core';
 import { describe, expect, it } from 'vitest';
-import { createSearchEngine, type SearchOptions } from './search-extension';
+import {
+  createSearchEngine,
+  INVALID_REGEX,
+  regexErrorReason,
+  type SearchOptions,
+  SLOW_REGEX,
+} from './search-extension';
 
 interface FakeStorage {
   results: Array<{ from: number; to: number }>;
@@ -172,7 +178,11 @@ describe('createSearchEngine — regex safety', () => {
     const r = engine.search('(a+)+b', opts({ regex: true }));
     const elapsed = performance.now() - t0;
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.toLowerCase()).toMatch(/performance|simpler/);
+    // The label is short and constant (#373); the sentence is the reason.
+    if (!r.ok) {
+      expect(r.error).toBe(SLOW_REGEX);
+      expect(r.detail.toLowerCase()).toMatch(/performance|simpler/);
+    }
     // The probe-based guard must itself terminate well below the multi-second
     // freeze that would otherwise occur against real document text.
     expect(elapsed).toBeLessThan(2000);
@@ -265,5 +275,46 @@ describe('createSearchEngine — navigation + commands', () => {
     engine.search('cat', opts({ caseSensitive: true }));
     expect(engine.lastQuery()).toBe('cat');
     expect(engine.lastOptions().caseSensitive).toBe(true);
+  });
+});
+
+describe('a refused pattern says a short label and its reason (#373)', () => {
+  const engine = () =>
+    createSearchEngine(fakeEditor({ results: [], resultIndex: 0 }, { calls: [] }));
+
+  it('labels a pattern that does not parse with one constant word pair', () => {
+    for (const query of ['(', '[a-', '(?<', 'a{2,1}']) {
+      const r = engine().search(query, opts({ regex: true }));
+      expect(r.ok, query).toBe(false);
+      if (!r.ok) expect(r.error, query).toBe(INVALID_REGEX);
+    }
+  });
+
+  it('gives the reason without the pattern AgentEd built, whole word or not', () => {
+    // The owner capture: an open parenthesis with whole word and regex on
+    // showed the wrapper `\\b(?:()\\b` and the flags to the user.
+    for (const wholeWord of [false, true]) {
+      const r = engine().search('(', opts({ regex: true, wholeWord }));
+      expect(r.ok).toBe(false);
+      if (!r.ok) {
+        expect(r.detail, `whole word ${wholeWord}`).toBe('Unterminated group');
+        expect(r.detail).not.toMatch(/\/|\(\?:/);
+      }
+    }
+  });
+});
+
+describe('regexErrorReason (#373)', () => {
+  it('takes the Chromium prefix and the pattern off, even a pattern holding slashes', () => {
+    expect(regexErrorReason('Invalid regular expression: /a\\/b(/gu: Unterminated group')).toBe(
+      'Unterminated group',
+    );
+  });
+
+  it('returns any other shape whole, since it only reaches a tooltip', () => {
+    expect(regexErrorReason('missing )')).toBe('missing )');
+    expect(regexErrorReason('Invalid regular expression: missing )')).toBe(
+      'Invalid regular expression: missing )',
+    );
   });
 });

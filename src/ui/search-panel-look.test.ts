@@ -301,3 +301,13 @@ describe('a pressed toggle: a pale tint, a readable label, an accent border (#37
     }
   });
 });
+
+describe('the count cannot squeeze the find field (#373)', () => {
+  it('caps the count and cuts it with an ellipsis', () => {
+    const count = element('search-count');
+    expect(last(count, 'max-width')).toBe('12em');
+    expect(last(count, 'overflow')).toBe('hidden');
+    expect(last(count, 'text-overflow')).toBe('ellipsis');
+    expect(last(count, 'white-space')).toBe('nowrap');
+  });
+});

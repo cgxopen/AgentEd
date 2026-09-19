@@ -193,6 +193,19 @@ describe('setupSearchPanel — count + invalid', () => {
     expect(count.classList.contains('search-count-error')).toBe(true);
   });
 
+  it('setCount puts the reason in the tooltip, and a count with none clears it (#373)', () => {
+    const panel = setupSearchPanel(
+      document.getElementById('search-panel') as HTMLElement,
+      noopCallbacks(),
+    );
+    const count = document.getElementById('search-count') as HTMLElement;
+    panel.setCount('Invalid regex', 'error', 'Unterminated group');
+    expect(count.textContent).toBe('Invalid regex');
+    expect(count.title).toBe('Unterminated group');
+    panel.setCount('3 of 12');
+    expect(count.hasAttribute('title')).toBe(false);
+  });
+
   it('setInvalid(true) red-borders the input and disables nav buttons', () => {
     const panel = setupSearchPanel(
       document.getElementById('search-panel') as HTMLElement,
