@@ -100,10 +100,10 @@ describe('under Paper Warm Dark and Auto cannot be chosen (#391)', () => {
 });
 
 describe('the line says why, and only while it is true (#391)', () => {
-  it('reads Paper Warm has no dark version, and is read out on Light', () => {
+  it('reads No dark version, and is read out on Light', () => {
     start('dark', 'paper');
     expect(note().hidden).toBe(false);
-    expect(note().textContent).toBe('Paper Warm has no dark version.');
+    expect(note().textContent).toBe('No dark version.');
     expect(modeOption('light').getAttribute('aria-describedby')).toBe(MODE_NOTE_ID);
   });
 

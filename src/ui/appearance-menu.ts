@@ -151,7 +151,6 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
       el.disabled = !modeApplies && value !== 'light';
     }
     modeNote.hidden = modeApplies;
-    modeNote.textContent = modeApplies ? '' : `${paletteLabel(palette)} has no dark version.`;
     const light = modeButtons.get('light');
     if (modeApplies) light?.removeAttribute('aria-describedby');
     else light?.setAttribute('aria-describedby', MODE_NOTE_ID);
@@ -220,6 +219,9 @@ function buildPopover(
   const modeNote = document.createElement('div');
   modeNote.id = MODE_NOTE_ID;
   modeNote.className = 'appearance-note';
+  // Short on purpose (#391, owner decision on the artifact): it stands under
+  // Dark and Auto greyed while the palette is active, so it need not name it.
+  modeNote.textContent = 'No dark version.';
   modeNote.hidden = true;
   popover.appendChild(modeNote);
 
@@ -244,11 +246,6 @@ function buildPopover(
     popover.appendChild(item);
   }
   return modeNote;
-}
-
-/** The name a palette is shown under in the popover. */
-function paletteLabel(palette: PaletteName): string {
-  return PALETTE_OPTIONS.find((opt) => opt.value === palette)?.label ?? palette;
 }
 
 function sectionLabel(text: string): HTMLElement {

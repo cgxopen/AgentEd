@@ -2669,7 +2669,12 @@ button.indicator-search:hover {
   top: calc(100% + 4px);
   right: 16px;
   z-index: 60;
-  width: min(240px, calc(100vw - 24px));
+  /* The widest row plus about a fifth, the rule the menu follows since #390
+   * (owner decision of 2026-09-19 on #391): Auto (system) set in bold, as it
+   * is when selected, measures 165.36 px in Chromium, and 240 px until then
+   * left a quarter of the card empty. A width rather than the content, so the
+   * card does not move as the bold selection moves between rows. */
+  width: min(200px, calc(100vw - 24px));
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
