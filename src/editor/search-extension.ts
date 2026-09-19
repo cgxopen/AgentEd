@@ -34,6 +34,26 @@ export function regexErrorReason(message: string): string {
   return match ? match[1] : message;
 }
 
+/**
+ * What Whole word counts as part of a word (#393): a letter or a mark of any
+ * script, a digit, and the underscore `\b` also counts. A match is whole when
+ * neither of its sides touches one. `\b` was used until #393, and in
+ * JavaScript it knows only A to Z, digits and underscore, with or without the
+ * `u` flag: școală, мир and über were never found whole, and cas was found
+ * inside casă. The mark is what keeps a decomposed letter whole, where the
+ * letter and its accent are two code points. It needs the `u` flag, which
+ * both this file and the vendored `getRegex` always set.
+ *
+ * A `\b` the person types with the regex toggle on is theirs and is left as
+ * JavaScript reads it (owner decision of 2026-09-19 on #393).
+ */
+const WORD_CHAR = '[\\p{L}\\p{M}\\p{N}_]';
+
+/** The pattern of a Whole word search: `pattern` with no word character on either side. */
+export function wholeWordPattern(pattern: string): string {
+  return `(?<!${WORD_CHAR})(?:${pattern})(?!${WORD_CHAR})`;
+}
+
 const ESCAPE_RE = /[.*+?^${}()|[\]\\]/g;
 const escapeRegex = (s: string) => s.replace(ESCAPE_RE, '\\$&');
 
@@ -109,7 +129,7 @@ function compilePattern(
   if (!query) return { ok: true, pattern: '' };
 
   let pattern = opts.regex ? query : escapeRegex(query);
-  if (opts.wholeWord) pattern = `\\b(?:${pattern})\\b`;
+  if (opts.wholeWord) pattern = wholeWordPattern(pattern);
 
   if (opts.regex || opts.wholeWord) {
     let compiled: RegExp;
@@ -123,7 +143,8 @@ function compilePattern(
       return {
         ok: false,
         error: SLOW_REGEX,
-        detail: 'Pattern may cause performance issues. Try a simpler regex.',
+        // The word regex left the interface with #373; the reason follows it.
+        detail: 'Pattern may cause performance issues. Try a simpler pattern.',
       };
     }
   }
