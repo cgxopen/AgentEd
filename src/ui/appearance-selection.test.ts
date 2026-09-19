@@ -58,11 +58,10 @@ function ruleValue(selector: string, property: string): string | undefined {
 }
 
 describe('the selected Appearance option draws no fill (#374)', () => {
-  it('gives a selected option no fill, only the bold', () => {
+  it('gives a selected option no fill', () => {
     for (const option of [mode(), palette()]) {
       expect(last(option, 'background'), option.className).toBe('none');
       expect(last(option, 'background-color'), option.className).toBeUndefined();
-      expect(last(option, 'font-weight'), option.className).toBe('600');
     }
   });
 
@@ -73,7 +72,7 @@ describe('the selected Appearance option draws no fill (#374)', () => {
     );
   });
 
-  it.each(paletteNames)('%s: the mark stands off the popover at 3', (name) => {
+  it.each(paletteNames)('%s: the Mode dot stands off the popover at 3', (name) => {
     const tokens = palettes.get(name)!;
     const popover = document.getElementById('appearance-popover') as HTMLElement;
     const ground = resolveColour(last(popover, 'background') as string, tokens);
@@ -82,5 +81,50 @@ describe('the selected Appearance option draws no fill (#374)', () => {
       tokens,
     );
     expect(contrast(mark, ground), name).toBeGreaterThanOrEqual(NON_TEXT);
+  });
+});
+
+/**
+ * #395 - the selected option is not bold, and the Palette circles are 14 px.
+ *
+ * The weight and the size are rules, read out of the sheet and run against the
+ * popover the menu builds. **The height of a row and where its label starts are
+ * layout, which this harness does not do**: measured in Chromium for the pull
+ * request, every row 28 px and every label at 38 px inside the border, and
+ * verified in the owner pass.
+ */
+describe('no option is bold, and the circles are 14 px (#395)', () => {
+  it('sets no weight on any option, selected or not', () => {
+    const options = [...document.querySelectorAll<HTMLElement>('.appearance-option')];
+    expect(options).toHaveLength(7);
+    for (const option of options) {
+      expect(last(option, 'font-weight'), option.textContent ?? '').toBeUndefined();
+    }
+  });
+
+  it('draws every Palette circle at 14 by 14', () => {
+    const circles = [...document.querySelectorAll<HTMLElement>('.appearance-palette .swatch')];
+    expect(circles).toHaveLength(4);
+    for (const circle of circles) {
+      expect([last(circle, 'width'), last(circle, 'height')]).toEqual(['14px', '14px']);
+    }
+  });
+
+  // With the bold gone the ring is the only mark of the selected palette, so
+  // it is read from the rule that draws it on the selected circle, not from
+  // the Mode dot, which happens to share its colour.
+  it.each(
+    paletteNames,
+  )('%s: the ring of the selected palette stands off the popover at 3', (name) => {
+    const tokens = palettes.get(name)!;
+    const popover = document.getElementById('appearance-popover') as HTMLElement;
+    const ground = resolveColour(last(popover, 'background') as string, tokens);
+    const circle = palette().querySelector('.swatch') as HTMLElement;
+    const shadow = last(circle, 'box-shadow');
+    const colour = /^0 0 0 2px (.+)$/.exec(shadow ?? '')?.[1];
+    expect(colour, `the ring rule reads ${shadow}`).toBeDefined();
+    expect(contrast(resolveColour(colour as string, tokens), ground), name).toBeGreaterThanOrEqual(
+      NON_TEXT,
+    );
   });
 });
