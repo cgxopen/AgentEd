@@ -66,7 +66,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     }
     const result = engine.search(query, currentOptions());
     if (!result.ok) {
-      panel.setCount(`Invalid regex: ${result.error}`, 'error');
+      panel.setCount(result.error, 'error', result.detail);
       panel.setInvalid(true);
       return;
     }

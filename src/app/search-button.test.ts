@@ -341,3 +341,34 @@ describe('the hover shade of the menu rows (#312)', () => {
     undo.disabled = false;
   });
 });
+
+describe('a regex that does not parse, through the real manager (#373)', () => {
+  // The route the owner took on the artifact: an open parenthesis, then the
+  // regex toggle, whose press runs the search at once. The count used to read
+  // the engine text in full, with the pattern AgentEd built. One property per
+  // row: the label, then the tooltip.
+  function withBrokenRegex(check: (count: HTMLElement) => void): void {
+    manager.openFind();
+    findInput().value = '(';
+    const regex = element('search-toggle-regex');
+    regex.click();
+    try {
+      check(element('search-count'));
+    } finally {
+      regex.click();
+      findInput().value = '';
+    }
+  }
+
+  it('shows the short label', () => {
+    withBrokenRegex((count) => expect(count.textContent).toBe('Pattern not valid'));
+  });
+
+  it('hands a reason to the tooltip, and takes it away once the pattern is plain again', () => {
+    withBrokenRegex((count) => {
+      expect(count.title).not.toBe('');
+      expect(count.title).not.toBe(count.textContent);
+    });
+    expect(element('search-count').hasAttribute('title')).toBe(false);
+  });
+});

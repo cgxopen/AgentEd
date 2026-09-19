@@ -970,12 +970,11 @@ button.indicator-search:hover {
   background: var(--surface);
 }
 
-/* On the document colour with the header above it (#351). Its own bottom line
- * is kept: the owner decision names the header line only, and this one is left
- * for the owner to judge on the artifact, where the header and the open panel
- * now read as one strip. */
+/* On the document colour with the header above it (#351), and **with no line
+ * under it** since #373 (owner decision of 2026-09-19): #351 left the line for
+ * the owner to judge on the artifact, and the header and the open panel now
+ * read as one strip down to the document. */
 .search-panel {
-  border-bottom: 1px solid var(--border);
   background: var(--bg);
   padding: 6px 40px;
   display: flex;
@@ -1038,24 +1037,49 @@ button.indicator-search:hover {
   user-select: none;
 }
 
-/* `--surface` since the panel moved to `--bg` (#351). The hover filled the
- * toggle with the colour of the page, which on a panel of that same colour
- * would fill it with nothing; the other token keeps the same step, reversed. */
+/* The hover of the bar since #368, on the toggles as on the buttons beside
+ * them (#373). It filled with `--surface` from #351, when the panel moved to
+ * `--bg` and a hover in the colour of the page would have filled nothing; the
+ * overlay is a step off whatever it is drawn on, so that cannot recur. */
 .search-toggle:hover {
   color: var(--text);
-  background: var(--surface);
+  background: var(--hover-overlay);
 }
 
+/* **Pressed: a pale tint of the accent, the label in the text colour and a
+ * border in the accent** (owner decision on #373, taken on the artifact). The
+ * full `--accent` fill it replaces read loud beside a panel that draws no box,
+ * and its label, `--bg` on the accent, measured 3.41 to 7.49: below the 4.5 a
+ * label needs in claude and both Solarized palettes. Measured on the tokens:
+ * the label is 9.75 to 14.10 on the tint, and the border, which is what says
+ * pressed, is 3.41 to 7.49 against the panel. The tint alone would say it at
+ * 1.18 to 1.28, so the border is the state and the tint only softens it. The
+ * border is drawn only while pressed: a state, not the box at rest #373 took
+ * away.
+ *
+ * **The first `color-mix()` in this sheet.** WebView2 on Windows draws it; the
+ * WebKit of the Linux lane was not measured. An engine that cannot parse it
+ * drops the declaration and keeps the `transparent` of `.search-toggle` above,
+ * the panel colour, so the toggle is then drawn by its border and its label
+ * alone, both of which clear their floor. */
 .search-toggle[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--bg);
+  background: color-mix(in srgb, var(--accent) 15%, var(--bg));
+  color: var(--text);
   border-color: var(--accent);
 }
 
+/* **Capped, and cut with an ellipsis** (#373): the error text of a refused
+ * regex once ran to the width of the panel and squeezed the find field to a
+ * sliver. The labels are short and constant since then, and the reason is in
+ * the tooltip; the cap keeps any later label from doing it again. */
 .search-count {
   font-size: 12px;
   color: var(--muted);
   min-width: 6em;
+  max-width: 12em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -1064,11 +1088,17 @@ button.indicator-search:hover {
   color: var(--danger);
 }
 
+/* **No box at rest** (#373, owner decision of 2026-09-19), the rule #368 set
+ * for the header: previous, next, the cross, Replace and Replace All draw no
+ * outline and no fill until they are hovered or pressed, so the panel has one
+ * button form. **The border stays, transparent**, as it did on the header:
+ * Replace and Replace All are as wide as their label plus this border, so they
+ * keep their width. The fields keep a drawn border; they are fields. */
 .search-nav,
 .search-close,
 .search-action {
-  border: 1px solid var(--border);
-  background: var(--bg);
+  border: 1px solid transparent;
+  background: none;
   color: var(--text);
   font-size: 12px;
   padding: 3px 8px;
@@ -1083,19 +1113,50 @@ button.indicator-search:hover {
   padding: 0 6px;
 }
 
+/* Hover and pressed are one shade, the header one (#368), and pressed takes it
+ * too (owner decision on #373). The hover of #351 was a `--surface` fill plus an
+ * `--accent` border; with no border at rest the second half had nothing to
+ * colour. */
 .search-nav:hover,
 .search-close:hover,
-.search-action:hover {
-  background: var(--surface);
-  border-color: var(--accent);
+.search-action:hover,
+.search-nav:active,
+.search-close:active,
+.search-action:active {
+  background: var(--hover-overlay);
 }
 
+/* The arrows and the cross are drawn, as the header symbols are since #330: a
+ * typed glyph takes whatever size the platform font gives it, and the cross
+ * was 8 px of ink in Arial on Linux, with the Windows font not measured. The
+ * arrows are drawn at 12 px, in the same 26 by 24 button (owner decision on
+ * #373). */
+.search-icon {
+  display: block;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+/* **The cross at 10 px** (owner decision on #373, taken on the artifact): at 12
+ * it read larger than the chevrons beside it. Its drawing is the 12 px one
+ * scaled down, so the markup gives it a stroke of 1.8 in the viewBox, which
+ * lands at the 1.5 px the chevrons are drawn with: one weight for the three. */
+.search-close .search-icon {
+  width: 10px;
+  height: 10px;
+}
+
+/* Disabled only on a regex that does not parse (`app/search-manager.ts`), never
+ * on no results. With no border left, opacity is the whole of the difference:
+ * the disabled label stands 3.42 to 6.03 off the enabled one across the seven
+ * palettes. Later than the hover and pressed rule at the same specificity, so
+ * a disabled button takes no shade. */
 .search-nav:disabled,
 .search-action:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  border-color: var(--border);
-  background: var(--bg);
+  background: none;
 }
 
 /* Highlight injected by the vendor extension. The -current modifier

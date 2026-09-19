@@ -112,7 +112,7 @@ describe('the files panel card is the document colour, and its border draws it (
  * rather than a side effect.
  */
 describe('everything else stays on --surface (#351, #358)', () => {
-  it('names --surface where it did, less the header, the search panel and the files card, plus the toggle hover', () => {
+  it('names --surface where it did, less the header, the search panel and the files card', () => {
     const onSurface = rules.flatMap((rule) =>
       [...rule.declarations]
         .filter(([, value]) => value.includes('var(--surface)'))
@@ -126,8 +126,7 @@ describe('everything else stays on --surface (#351, #358)', () => {
       '.menu-panel { background }',
       '.frontmatter-panel { background }',
       '.frontmatter-panel textarea:focus { background }',
-      '.search-toggle:hover { background }',
-      '.search-nav:hover,\n.search-close:hover,\n.search-action:hover { background }',
+      // The search toggles and buttons left with #373, for the hover overlay.
       '.tiptap code { background }',
       '.tiptap table th { background }',
       '.dialog-actions button:hover { background }',

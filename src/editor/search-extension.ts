@@ -7,9 +7,32 @@ export interface SearchOptions {
   regex: boolean;
 }
 
+/**
+ * A refused pattern says two things (#373): `error`, a short label constant
+ * across engines for the panel to show, and `detail`, the reason, for a
+ * tooltip. The label used to be the engine text itself, which differs between
+ * Chromium and WebKit, carried the pattern AgentEd builds for whole word, and
+ * was long enough to squeeze the find field to nothing.
+ */
 export type SearchResult =
   | { ok: true; matches: number; current: number }
-  | { ok: false; error: string };
+  | { ok: false; error: string; detail: string };
+
+/** The label for a pattern that does not parse. */
+export const INVALID_REGEX = 'Pattern not valid';
+/** The label for a pattern the backtracking guard refuses. */
+export const SLOW_REGEX = 'Pattern too complex';
+
+/**
+ * The reason inside an engine error, without the pattern it names. Chromium
+ * writes `Invalid regular expression: /<pattern>/<flags>: <reason>`, and the
+ * pattern is the one built here, not the one typed. Any other shape, such as
+ * the WebKit wording, is returned whole: it only ever reaches a tooltip.
+ */
+export function regexErrorReason(message: string): string {
+  const match = /^Invalid regular expression: \/.*\/[a-z]*: (.+)$/s.exec(message);
+  return match ? match[1] : message;
+}
 
 const ESCAPE_RE = /[.*+?^${}()|[\]\\]/g;
 const escapeRegex = (s: string) => s.replace(ESCAPE_RE, '\\$&');
@@ -82,7 +105,7 @@ function isPatternEvaluationSafe(re: RegExp): boolean {
 function compilePattern(
   query: string,
   opts: SearchOptions,
-): { ok: true; pattern: string } | { ok: false; error: string } {
+): { ok: true; pattern: string } | { ok: false; error: string; detail: string } {
   if (!query) return { ok: true, pattern: '' };
 
   let pattern = opts.regex ? query : escapeRegex(query);
@@ -94,12 +117,13 @@ function compilePattern(
       compiled = new RegExp(pattern, opts.caseSensitive ? 'gu' : 'gui');
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      return { ok: false, error: msg };
+      return { ok: false, error: INVALID_REGEX, detail: regexErrorReason(msg) };
     }
     if (looksLikeCatastrophicBacktracking(pattern) || !isPatternEvaluationSafe(compiled)) {
       return {
         ok: false,
-        error: 'Pattern may cause performance issues. Try a simpler regex.',
+        error: SLOW_REGEX,
+        detail: 'Pattern may cause performance issues. Try a simpler regex.',
       };
     }
   }
@@ -171,7 +195,7 @@ export function createSearchEngine(editor: Editor): SearchEngine {
       const compiled = compilePattern(query, opts);
       if (!compiled.ok) {
         editor.commands.setSearchTerm('');
-        return { ok: false, error: compiled.error };
+        return { ok: false, error: compiled.error, detail: compiled.detail };
       }
 
       lastQuery = query;
