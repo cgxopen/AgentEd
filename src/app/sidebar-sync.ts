@@ -295,13 +295,20 @@ function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>
  * document that arrives with no adjacent structure and no kept root
  * hides the panel, which is the trigger R-C6 always had. **Nobody asked**,
  * so `nothing` and `unreadable` both hide, silently (#354).
+ *
+ * **A read that lands after anything else was asked of the panel draws
+ * nothing** (#380). Until then a switch took no ticket, so closing the panel
+ * by hand while a switch read the folder opened it again when the read
+ * landed, measured on the #380 step zero.
  */
 export async function refreshSidebar(
   state: AppState,
   sidebar: Sidebar,
   io: PlatformIO,
 ): Promise<void> {
+  const ticket = sidebar.beginSwitch();
   const view = await resolveSidebarView(state, io);
+  if (!sidebar.isLatest(ticket)) return;
   if (view.kind === 'tree') drawTree(sidebar, view);
   else if (view.kind === 'offer') sidebar.showAccessOffer();
   else sidebar.hide();

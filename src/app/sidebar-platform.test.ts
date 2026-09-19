@@ -58,6 +58,9 @@ describe('on a desktop build (#146)', () => {
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
 
@@ -105,6 +108,9 @@ describe('an unreadable path on the desktop (#184)', () => {
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
 

@@ -133,10 +133,15 @@ export function isPathInsideRoot(target: string, root: string): boolean {
  * Windows folder switched to case sensitivity, which is rare enough to leave.
  */
 export function samePath(a: string, b: string): boolean {
-  return comparable(a) === comparable(b);
+  return pathKey(a) === pathKey(b);
 }
 
-function comparable(path: string): string {
+/**
+ * The form `samePath` compares, for a caller that holds many paths: two paths
+ * are the same file exactly when their keys are equal, so a set of keys
+ * answers for a whole list in one lookup.
+ */
+export function pathKey(path: string): string {
   const slashed = normalize(path);
   return /^[A-Za-z]:\//.test(slashed) || slashed.startsWith('//') ? slashed.toLowerCase() : slashed;
 }
