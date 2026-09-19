@@ -181,18 +181,13 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-edit', 'Select All', 'menu-select-all', 'onSelectAll'],
   ['menu-panel-edit', 'Image description', 'menu-image-description', 'onImageDescription'],
   ['menu-panel-edit', 'Spell check', 'menu-spellcheck', 'onToggleSpellcheck'],
-  ['menu-panel-insert', 'Insert Table', 'menu-insert-table', 'onInsertTable'],
-  ['menu-panel-insert', 'Insert Media', 'menu-insert-media', 'onInsertMedia'],
-  ['menu-panel-insert', 'Insert Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
-  ['menu-panel-insert', 'Insert Checklist', 'menu-insert-checklist', 'onInsertChecklist'],
-  [
-    'menu-panel-insert',
-    'Insert Horizontal Rule',
-    'menu-insert-horizontal-rule',
-    'onInsertHorizontalRule',
-  ],
-  ['menu-panel-insert', 'Insert Metadata', 'menu-insert-metadata', 'onInsertMetadata'],
-  ['menu-panel-insert', 'Insert Emoji', 'menu-insert-emoji', 'onInsertEmoji'],
+  ['menu-panel-insert', 'Table', 'menu-insert-table', 'onInsertTable'],
+  ['menu-panel-insert', 'Media', 'menu-insert-media', 'onInsertMedia'],
+  ['menu-panel-insert', 'Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
+  ['menu-panel-insert', 'Checklist', 'menu-insert-checklist', 'onInsertChecklist'],
+  ['menu-panel-insert', 'Horizontal Rule', 'menu-insert-horizontal-rule', 'onInsertHorizontalRule'],
+  ['menu-panel-insert', 'Metadata', 'menu-insert-metadata', 'onInsertMetadata'],
+  ['menu-panel-insert', 'Emoji', 'menu-insert-emoji', 'onInsertEmoji'],
   ['menu-panel-table', 'Add Row Above', 'menu-table-add-row-above', 'onAddRowAbove'],
   ['menu-panel-table', 'Add Row Below', 'menu-table-add-row-below', 'onAddRowBelow'],
   ['menu-panel-table', 'Delete Row', 'menu-table-delete-row', 'onDeleteRow'],
@@ -203,7 +198,10 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-help', 'About AgentEd', 'menu-about', 'onAbout'],
 ];
 
-/** The words on an entry, without the keyboard shortcut printed beside them. */
+/**
+ * The words on an entry, without the muted word beside them: the On or Off of
+ * Spell check (#360), in the class the shortcuts wore until #390 took them out.
+ */
 function labelOf(entry: Element): string {
   const copy = entry.cloneNode(true) as Element;
   for (const shortcut of copy.querySelectorAll('.menu-shortcut')) shortcut.remove();

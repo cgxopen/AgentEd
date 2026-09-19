@@ -212,7 +212,7 @@ const MEMBERS: ReadonlyArray<readonly [string, Route, string, string]> = [
     'taskList',
   ],
   [
-    'a task list, from Insert Checklist',
+    'a task list, from Checklist under Insert',
     (e) => {
       chooseInsert('menu-insert-checklist');
       type(e, 'task');
@@ -245,7 +245,7 @@ const MEMBERS: ReadonlyArray<readonly [string, Route, string, string]> = [
     'codeBlock',
   ],
   [
-    'a fenced block, from Insert Code Block',
+    'a fenced block, from Code Block under Insert',
     (e) => {
       chooseInsert('menu-insert-code-block');
       type(e, 'let x = 1;');
