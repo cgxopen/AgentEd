@@ -48,6 +48,21 @@
   --code-bg: #1e1e2e;
   --code-text: #cdd6f4;
   --code-inline-bg: var(--surface);
+  /*
+   * **The band**: the fill behind an open menu section, the metadata strip, and
+   * the metadata field while it has focus (#374, owner decision of 2026-09-19).
+   * One address, so the three cannot drift apart. It is `--surface` 40 per cent
+   * of the way from the page: 1.018 to 1.058 against `--bg` across the seven
+   * palettes, where `--surface` was 1.045 to 1.155, and the *Metadata (YAML)*
+   * label clears 4.5 on it in all seven, claude by 0.002; at 50 it did not.
+   *
+   * Written once here, from the two tokens every palette defines, so no palette
+   * gains a value. An engine that cannot parse `color-mix()` leaves the property
+   * invalid where it is used, and each fill then takes its initial value,
+   * `transparent`: no band, the page colour beneath, and the hover overlay still
+   * drawn on top. WebView2 draws it; the Linux lane was not measured.
+   */
+  --band: color-mix(in srgb, var(--surface) 40%, var(--bg));
 
   /* Interactive */
   --placeholder: #adb5bd;
@@ -666,7 +681,7 @@ body {
   overflow: clip;
   min-height: 0;
   flex-shrink: 0;
-  background: var(--surface);
+  background: var(--band);
   transition:
     height 400ms ease,
     visibility 0s;
@@ -928,9 +943,12 @@ button.indicator-search:hover {
   justify-content: center;
 }
 
+/* On the band (#374). **The line under it stays** (owner decision on #374):
+ * with the band 1.018 to 1.058 off the page, the line, at 3.19 to 3.54, is what
+ * separates the metadata from the document text below. */
 .frontmatter-panel {
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--band);
   flex-shrink: 0;
 }
 
@@ -966,8 +984,14 @@ button.indicator-search:hover {
   outline: none;
 }
 
+/* While it has focus the field takes the band, and **a 3 px accent line on its
+ * left edge** (#374, owner decision of 2026-09-19): the field has `outline:
+ * none`, and a paler band alone would say focus too faintly. The line measures
+ * 3.25 to 7.25 against the band across the seven palettes. Inset, so it takes
+ * no room and moves nothing. */
 .frontmatter-panel textarea:focus {
-  background: var(--surface);
+  background: var(--band);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* On the document colour with the header above it (#351), and **with no line
