@@ -2690,8 +2690,11 @@ button.indicator-search:hover {
   color: var(--muted);
 }
 /* The Mode and Palette sections are told apart by their labels and by this
- * space, which is the 9 px the 1 px line and its margins took until #375. */
-.appearance-option + .appearance-section-label {
+ * space, which is the 9 px the 1 px line and its margins took until #375.
+ * Since #391 the Mode note sits between them, hidden in every palette with a
+ * dark version, so the label follows the note as often as an option. */
+.appearance-option + .appearance-section-label,
+.appearance-note + .appearance-section-label {
   margin-top: 9px;
 }
 .appearance-option {
@@ -2709,8 +2712,25 @@ button.indicator-search:hover {
   text-align: left;
   position: relative;
 }
-.appearance-option:hover {
+.appearance-option:hover:not(:disabled) {
   background: var(--hover-overlay);
+}
+/* Dark and Auto under a palette with no dark version (#391): greyed as a
+ * greyed menu entry is, and not shaded, since they cannot be chosen. The label
+ * measures 3.12 against the popover in Paper Warm, exempt as a disabled
+ * control. */
+.appearance-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The line under the Mode options saying why Dark and Auto are greyed, set
+ * under their labels. It is text that must be read, so it is not exempt: in
+ * `--muted` it measures 4.71 against the popover in Paper Warm, the one
+ * palette it is shown in. It is not a button and takes no hover shade. */
+.appearance-note {
+  padding: 2px 16px 4px 38px;
+  font-size: 12px;
+  color: var(--muted);
 }
 /* The selected option draws no fill (#374, owner decision of 2026-09-19): its
  * own mark says it is selected, the radio dot of a Mode or the ring round the
