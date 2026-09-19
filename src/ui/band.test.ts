@@ -145,3 +145,28 @@ describe('the field says it has focus (#374)', () => {
     expect(contrast(resolveColour(colour, tokens), band), name).toBeGreaterThanOrEqual(NON_TEXT);
   });
 });
+
+describe('the line under the metadata panel, only while it is open (#374)', () => {
+  it('draws no line while the panel is folded, and keeps its pixel', () => {
+    const panel = strip();
+    panel.removeAttribute('open');
+    expect(last(panel, 'border-bottom')).toBe('1px solid transparent');
+    expect(last(panel, 'border-bottom-color')).toBeUndefined();
+  });
+
+  it('draws the line in --border while the panel is open', () => {
+    const panel = strip();
+    panel.setAttribute('open', '');
+    expect(last(panel, 'border-bottom-color')).toBe('var(--border)');
+  });
+
+  it.each(paletteNames)('%s: the open line stands off the page at 3', (name) => {
+    const tokens = palettes.get(name)!;
+    const panel = strip();
+    panel.setAttribute('open', '');
+    const line = resolveColour(last(panel, 'border-bottom-color') as string, tokens);
+    expect(contrast(line, resolveColour('var(--bg)', tokens)), name).toBeGreaterThanOrEqual(
+      NON_TEXT,
+    );
+  });
+});

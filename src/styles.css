@@ -943,13 +943,19 @@ button.indicator-search:hover {
   justify-content: center;
 }
 
-/* On the band (#374). **The line under it stays** (owner decision on #374):
- * with the band 1.018 to 1.058 off the page, the line, at 3.19 to 3.54, is what
- * separates the metadata from the document text below. */
+/* On the band (#374). **The line under it is drawn only while it is open**
+ * (owner decisions on #374): open, the line, at 3.19 to 3.54, separates the
+ * metadata from the document text below; folded to its title, the band alone
+ * does, at 1.018 to 1.058. The border keeps its pixel while folded, so the
+ * document does not move by 1 px when the panel opens or folds. */
 .frontmatter-panel {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
   background: var(--band);
   flex-shrink: 0;
+}
+
+.frontmatter-panel[open] {
+  border-bottom-color: var(--border);
 }
 
 .frontmatter-panel.hidden {
