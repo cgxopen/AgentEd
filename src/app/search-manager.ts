@@ -110,6 +110,13 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
 
   const openListeners: Array<(open: boolean) => void> = [];
 
+  /**
+   * The match the search was on when the panel closed, 1-based, or 0 when
+   * there was none (#384). Closing clears the highlights, so this is what
+   * lets F3 go on from where the person was rather than from the first match.
+   */
+  let closedAt = 0;
+
   function announceIfChanged(wasOpen: boolean): void {
     const open = panel.isOpen();
     if (open === wasOpen) return;
@@ -124,6 +131,34 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     const q = panel.getQuery();
     if (q) runSearch(q);
     announceIfChanged(wasOpen);
+  }
+
+  /**
+   * F3, Shift+F3 and Find Next and Find Previous in the Edit menu (#384).
+   * With the panel open, one match along. With it closed, the search is over
+   * and its highlights gone, so the panel opens again with the text still in
+   * its field, the match it was on is made current again, and the step is
+   * taken from there. With nothing in the field there is nothing to find,
+   * and nothing happens, which is what F3 did before a first search.
+   */
+  function step(direction: 'next' | 'previous'): void {
+    if (!panel.isOpen()) {
+      if (!panel.getQuery()) return;
+      openFromShortcut('find');
+      if (engine.matchCount() === 0) return;
+      if (closedAt === 0) {
+        // No match was current when it closed: the first match is the next one.
+        if (direction === 'next') {
+          refreshCount();
+          return;
+        }
+      } else {
+        engine.goTo(closedAt);
+      }
+    }
+    if (direction === 'next') engine.findNext();
+    else engine.findPrevious();
+    refreshCount();
   }
 
   async function performReplaceAll(): Promise<void> {
@@ -165,22 +200,22 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     },
     close() {
       const wasOpen = panel.isOpen();
+      if (wasOpen) closedAt = engine.currentIndex();
       panel.close();
+      // **A closed panel means the search is over** (#384, owner decision of
+      // 2026-09-19): every route here clears the highlights, the cross,
+      // Escape in either field and the header button alike. The text of both
+      // fields stays, so a panel opened again searches with it, and F3 opens
+      // it again from where it was, below.
+      engine.clear();
       announceIfChanged(wasOpen);
-      // Intentionally do NOT clear the engine here. Closing the panel
-      // hides the UI but keeps the last query + highlights live so
-      // F3 / Shift+F3 can keep walking matches without re-opening
-      // the panel. The user wipes state by opening the panel and
-      // emptying the input (runSearch('') calls engine.clear).
       editor.commands.focus();
     },
     findNext() {
-      engine.findNext();
-      refreshCount();
+      step('next');
     },
     findPrevious() {
-      engine.findPrevious();
-      refreshCount();
+      step('previous');
     },
     replace() {
       const total = engine.matchCount();
@@ -200,11 +235,12 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
     },
     installKeyboardListeners() {
       document.addEventListener('keydown', (e) => {
-        // F3 / Shift+F3 — no modifier required. Active whenever the
-        // engine has a remembered query, so the user can repeat-find
-        // after closing the panel.
+        // F3 / Shift+F3 — no modifier required. Active while the panel is
+        // open, and with it closed whenever its find field holds text, which
+        // opens it again (#384). Closing clears the engine, so the field is
+        // what is read, not the engine's last query.
         if (e.key === 'F3') {
-          if (!engine.lastQuery() && !panel.isOpen()) return;
+          if (!panel.isOpen() && !panel.getQuery()) return;
           e.preventDefault();
           if (e.shiftKey) manager.findPrevious();
           else manager.findNext();
