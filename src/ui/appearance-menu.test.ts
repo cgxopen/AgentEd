@@ -35,6 +35,20 @@ describe('setupAppearanceMenu — structure', () => {
     expect(popover.querySelectorAll('.appearance-palette')).toHaveLength(4);
   });
 
+  it('names the palettes as a person reads them, the warm one Paper Warm (#379)', () => {
+    const { popover } = mount();
+    setupAppearanceMenu(new ThemeManager());
+    const options = [...popover.querySelectorAll<HTMLElement>('.appearance-palette')];
+
+    expect(options.map((option) => option.textContent)).toEqual([
+      'Default',
+      'Paper Warm',
+      'Solarized',
+      'GitHub',
+    ]);
+    expect(options[1].title).toBe('Warm palette, light mode only');
+  });
+
   it('marks the ThemeManager current mode + palette as active', () => {
     localStorage.setItem('agented:theme', 'dark');
     localStorage.setItem('agented:palette', 'solarized');
@@ -138,7 +152,7 @@ describe('setupAppearanceMenu — selection apply + persistence', () => {
     setupAppearanceMenu(tm);
     button.click();
 
-    for (const palette of ['default', 'claude', 'solarized', 'github'] as const) {
+    for (const palette of ['default', 'paper', 'solarized', 'github'] as const) {
       popover
         .querySelector<HTMLButtonElement>(`.appearance-palette[data-palette="${palette}"]`)!
         .click();

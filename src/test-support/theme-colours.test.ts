@@ -53,11 +53,11 @@ describe('the colour reader these tests stand on', () => {
     const palettes = paletteTokens(stylesheetRules(stylesCss));
     expect([...palettes.keys()].sort()).toEqual(
       [
-        'claude',
         'dark',
         'github-dark',
         'github-light',
         'light',
+        'paper',
         'solarized-dark',
         'solarized-light',
       ].sort(),

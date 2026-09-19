@@ -31,8 +31,8 @@ describe('theme + palette persistence', () => {
   });
 
   it('round-trips palette', () => {
-    savePalettePreference('claude');
-    expect(loadPalettePreference()).toBe('claude');
+    savePalettePreference('paper');
+    expect(loadPalettePreference()).toBe('paper');
   });
 
   it('returns "default" when no palette is stored', () => {
@@ -78,14 +78,14 @@ describe('purgeLegacyPreferences', () => {
 
   it('leaves theme + palette + last-opened-folder intact', () => {
     saveThemePreference('dark');
-    savePalettePreference('claude');
+    savePalettePreference('paper');
     saveLastOpenedFolder('/home/user/projects');
     localStorage.setItem('agented:default-mode', 'skill');
 
     purgeLegacyPreferences();
 
     expect(loadThemePreference()).toBe('dark');
-    expect(loadPalettePreference()).toBe('claude');
+    expect(loadPalettePreference()).toBe('paper');
     expect(loadLastOpenedFolder()).toBe('/home/user/projects');
     expect(localStorage.getItem('agented:default-mode')).toBeNull();
   });
