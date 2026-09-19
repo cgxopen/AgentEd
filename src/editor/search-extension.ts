@@ -156,6 +156,11 @@ export interface SearchEngine {
   /** Cached results from the most recent search, used for confirmation gates. */
   matchCount(): number;
   currentIndex(): number;
+  /**
+   * Make match `index` (1-based) the current one, clamped to the matches
+   * there are, in one transaction rather than one per step (#384).
+   */
+  goTo(index: number): void;
   lastQuery(): string;
   lastOptions(): SearchOptions;
 }
@@ -237,6 +242,15 @@ export function createSearchEngine(editor: Editor): SearchEngine {
       const s = storage();
       if (!s || s.results.length === 0) return 0;
       return s.resultIndex + 1;
+    },
+    goTo(index) {
+      const s = storage();
+      if (!s || s.results.length === 0) return;
+      s.resultIndex = Math.min(Math.max(index, 1), s.results.length) - 1;
+      // The plugin redraws the current match on the next transaction, and
+      // an empty one carries no step, so it reaches no undo history.
+      editor.view.dispatch(editor.state.tr);
+      scrollCurrentIntoView();
     },
     lastQuery() {
       return lastQuery;
