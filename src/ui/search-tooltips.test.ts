@@ -38,7 +38,8 @@ function titleOf(id: string): string | null {
 const DECIDED: ReadonlyArray<readonly [string, string]> = [
   ['search-toggle-case', 'Match case'],
   ['search-toggle-word', 'Whole word'],
-  ['search-toggle-regex', 'Use regex'],
+  // Use regex until #373, when the owner took the word regex out of the interface.
+  ['search-toggle-regex', 'Search with patterns'],
   ['search-find-prev', 'Previous (Shift+Enter, Shift+F3)'],
   ['search-find-next', 'Next (Enter, F3)'],
 ];
