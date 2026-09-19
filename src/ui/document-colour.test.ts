@@ -123,9 +123,8 @@ describe('everything else stays on --surface (#351, #358)', () => {
       // Inline code, in the default palette only: the six others give
       // `--code-inline-bg` a colour of their own, and none of them moves here.
       ':root { --code-inline-bg }',
-      '.menu-panel { background }',
-      '.frontmatter-panel { background }',
-      '.frontmatter-panel textarea:focus { background }',
+      // The menu panel, the metadata panel and the focused metadata field left
+      // with #374, for no band at all.
       // The search toggles and buttons left with #373, for the hover overlay.
       '.tiptap code { background }',
       '.tiptap table th { background }',
