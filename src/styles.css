@@ -2484,13 +2484,14 @@ button.indicator-search:hover {
 
 /* The answer to a question that found nothing, or a folder that could not
    be read (#184, #354). Quiet, and not an action: no pointer and no hover,
-   because nothing here takes a click. */
+   because nothing here takes a click. `--muted`, 4.71 to 6.86 against the
+   card: until #380 it named `--text-muted`, which no palette defines, and so
+   drew the text colour at three quarters. */
 .sidebar-note {
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--text-muted, inherit);
-  opacity: 0.75;
+  color: var(--muted);
 }
 
 /* The mark an open by hand holds while the folder is read (#354). It is
@@ -2567,6 +2568,20 @@ button.indicator-search:hover {
 .sidebar-file-entry.active {
   background: var(--hover-overlay-strong);
   font-weight: 600;
+}
+
+/* A file in `assets/` the open document does not use (#380, owner decision of
+   2026-09-19): its name in `--muted`, with a tooltip line saying so. Grey and
+   not red, because a shared folder is the normal convention (R-C12), so it
+   describes this document and accuses nothing. 4.71 to 6.86 against the card;
+   under the pointer the name goes back to `--text`, since `--muted` on the
+   hover shade is 4.31 in Paper Warm and 4.43 in Light. An inert entry keeps
+   no hover at all (R-C6). */
+.sidebar-file-entry.sidebar-file-unused {
+  color: var(--muted);
+}
+.sidebar-file-entry.sidebar-file-unused:not(.sidebar-file-inert):hover {
+  color: var(--text);
 }
 
 /* ── Toasts ── */

@@ -80,6 +80,9 @@ function captureSidebar(): { sidebar: Sidebar; lastShow: () => SidebarShowCall |
     setOnRequestAccess: () => {},
     showUnreadable: () => {},
     isCurrent: () => true,
+    beginSwitch: () => 0,
+    isLatest: () => true,
+    markUnused: () => {},
     setOnOpenByHand: () => {},
   };
   return { sidebar, lastShow: () => lastShow };
@@ -291,6 +294,9 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
     const reporter: ErrorReporter = { silent: () => {}, toast: () => {}, dialog: async () => {} };

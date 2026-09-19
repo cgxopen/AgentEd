@@ -88,6 +88,9 @@ function harness() {
     setOnRequestAccess: () => {},
     showUnreadable: () => {},
     isCurrent: () => true,
+    beginSwitch: () => 0,
+    isLatest: () => true,
+    markUnused: () => {},
     setOnOpenByHand: () => {},
   };
   return {
@@ -165,6 +168,9 @@ describe('#184 — a folder that was asked for and holds nothing', () => {
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
     const refresh = () => refreshSidebar(state, sidebar, io);
@@ -209,6 +215,9 @@ describe('#184 — a folder that was asked for and holds nothing', () => {
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
 

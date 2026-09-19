@@ -1,6 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import { getRelativePath } from '../editor/image-registry';
-import { basename, dirname, joinPath } from '../platform/paths';
+import { collapseDotSegments, dirname, joinPath, normalize, pathKey } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 
 /**
@@ -74,28 +74,76 @@ function imagesUsed(editor: Editor): Set<string> {
   return used;
 }
 
+/** A URL of any scheme. A drive letter is a path, and is not one. */
+const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
+const DRIVE = /^[a-z]:\//i;
+
 /**
- * Count the files in `dir` that this document does not already use.
+ * Where an image reference points, as a path the platform would give the
+ * file, or `null` for a URL, which is no file beside the document.
  *
- * **Matched by name.** An entry's path is the platform's — absolute on
- * the desktop, relative to the grant on the web — while the document
- * references its images by a path relative to itself. The last segment
- * is the one thing both spellings agree on, and inside a single folder a
- * name identifies a file. Directories are not files and are not counted;
- * R-C12 says *how many other files the folder holds*.
+ * Read against the folder of the document, with its percent-encoding taken
+ * off, since a reference spells a space `%20` where the disk has a space,
+ * and with `./` and `..` collapsed.
+ */
+function fileOfReference(reference: string, documentFolder: string): string | null {
+  const slashed = normalize(reference);
+  if (SCHEME.test(slashed) && !DRIVE.test(slashed)) return null;
+  let decoded = slashed;
+  try {
+    decoded = decodeURI(slashed);
+  } catch {
+    // A stray `%` is the name's own character, so the reference is read as written.
+  }
+  const absolute =
+    decoded.startsWith('/') || DRIVE.test(decoded) ? decoded : joinPath(documentFolder, decoded);
+  return collapseDotSegments(absolute);
+}
+
+/**
+ * **The one answer to which files in `assets/` this document leaves unused**
+ * (#380), read by the popover count of R-C12 and by the grey mark of R-C6,
+ * so the two cannot disagree.
+ *
+ * A file is unused when it sits directly in the `assets/` folder beside the
+ * document and no image of the document names it. Until #380 the popover
+ * compared names alone, which read `other/e.png` and a web address ending
+ * in `f.png` as using `assets/e.png` and `assets/f.png`, and read a used
+ * `my pic.png`, referenced as `my%20pic.png`, and a used `g.png`, referenced
+ * as `Assets/G.PNG` on Windows, as unused. Paths are now compared whole, by
+ * the rule `samePath` states.
+ *
+ * **A document never saved leaves nothing unused**: it has no folder, so
+ * whether a file beside it is used cannot be established, and that is never
+ * reported as unused.
+ */
+export function unusedAssetFiles(
+  editor: Editor,
+  filePath: string | null,
+): (path: string) => boolean {
+  if (filePath === null) return () => false;
+  const folder = dirname(filePath);
+  const assetsDir = pathKey(joinPath(folder, 'assets'));
+  // Keys rather than paths, so a folder of many files costs one lookup each.
+  const referenced = new Set<string>();
+  for (const reference of imagesUsed(editor)) {
+    const file = fileOfReference(reference, folder);
+    if (file !== null) referenced.add(pathKey(file));
+  }
+  return (path) => pathKey(dirname(path)) === assetsDir && !referenced.has(pathKey(path));
+}
+
+/**
+ * Count the files in `dir` that this document does not use, by the answer
+ * above. Directories are not files and are not counted; R-C12 says *how
+ * many other files the folder holds*.
  */
 function countOtherFiles(
+  dir: string,
   entries: ReadonlyArray<{ name: string; isDirectory: boolean }>,
-  used: Set<string>,
+  unused: (path: string) => boolean,
 ): number {
-  const usedNames = new Set(Array.from(used, (path) => basename(path)));
-  let others = 0;
-  for (const entry of entries) {
-    if (entry.isDirectory) continue;
-    if (usedNames.has(entry.name)) continue;
-    others += 1;
-  }
-  return others;
+  return entries.filter((entry) => !entry.isDirectory && unused(joinPath(dir, entry.name))).length;
 }
 
 /**
@@ -117,8 +165,7 @@ export async function summariseAssets(
   filePath: string | null,
   io: PlatformIO,
 ): Promise<AssetsSummary> {
-  const used = imagesUsed(editor);
-  const imagesInDocument = used.size;
+  const imagesInDocument = imagesUsed(editor).size;
 
   if (filePath === null) return { imagesInDocument, folder: { kind: 'unsaved' } };
 
@@ -132,7 +179,10 @@ export async function summariseAssets(
     const entries = await io.listDir(dir);
     return {
       imagesInDocument,
-      folder: { kind: 'counted', otherFiles: countOtherFiles(entries, used) },
+      folder: {
+        kind: 'counted',
+        otherFiles: countOtherFiles(dir, entries, unusedAssetFiles(editor, filePath)),
+      },
     };
   } catch (e) {
     // A folder that is there and cannot be read is not an empty folder

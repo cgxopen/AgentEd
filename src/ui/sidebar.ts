@@ -1,4 +1,13 @@
-import { isMarkdownPath, joinPath } from '../platform/paths';
+import {
+  buildTree,
+  markUnused,
+  NON_MARKDOWN_REASON,
+  type OnFileClick,
+  renderTreeRecursive,
+  type TreeNode,
+} from './sidebar-tree';
+
+export { buildTree, NON_MARKDOWN_REASON, type TreeNode };
 
 export interface Sidebar {
   /**
@@ -51,6 +60,23 @@ export interface Sidebar {
    */
   isCurrent: (ticket: number) => boolean;
   /**
+   * A ticket for a read a document switch starts (#380), asked with
+   * `isLatest` before it draws. Until #380 a switch took none, so a read that
+   * landed after the panel was closed by hand opened it again. Unlike an open
+   * by hand, a switch may draw into a closed panel, which is how the panel
+   * appears for a document with structure, so what it asks is only whether
+   * anything was asked of the panel since it began: closed or opened by hand,
+   * or another switch. Taking one moves the count, so of two switches the
+   * later wins whichever read lands first.
+   */
+  beginSwitch: () => number;
+  isLatest: (ticket: number) => boolean;
+  /**
+   * Grey each file of the tree on screen that `unused` names by its absolute
+   * path, and ungrey the rest (#380). It reads nothing but the tree drawn.
+   */
+  markUnused: (unused: (path: string) => boolean) => void;
+  /**
    * Replace the handler run when the panel is opened by hand. It receives the
    * ticket for that open, to ask `isCurrent` before it draws.
    */
@@ -80,26 +106,6 @@ export interface Sidebar {
    */
   setOnRequestAccess: (handler: () => void) => void;
 }
-
-export interface TreeNode {
-  name: string;
-  path: string;
-  kind: 'file' | 'directory';
-  children: TreeNode[];
-}
-
-type OnFileClick = (absPath: string, rootPath: string) => void;
-
-/**
- * The second line of an inert entry's tooltip (#146).
- *
- * **It states the limit and names no step**, which is the #173 rule: a
- * message names a step only where the step was measured to work, and on
- * the web there is none — nothing in the browser can hand a file to the
- * host system. Exported so a test reads what the user reads rather than
- * a copy of it (#50).
- */
-export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
 
 /**
  * The answer when the user asked and nothing is beside the document (#184,
@@ -147,160 +153,6 @@ export const FOLDER_UNREADABLE = 'This folder could not be read';
 export const NO_FOLDER_ACCESS_OFFER =
   'AgentEd has not been given access to a folder, so it cannot see what is beside this ' +
   'document. Choose one.';
-
-function fileIcon(name: string, isDir: boolean): string {
-  if (isDir) return '\u{1F4C1}';
-  if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(name)) return '\u{1F5BC}';
-  if (name.endsWith('.json')) return '\u{1F4CB}';
-  return '\u{1F4C4}';
-}
-
-/** Build TreeNode[] from flat paths */
-export function buildTree(
-  flatEntries: Array<{ path: string; kind: 'file' | 'directory' }>,
-): TreeNode[] {
-  const root: TreeNode = { name: '', path: '', kind: 'directory', children: [] };
-
-  // Every node built so far, by its full path (#174). It used to be
-  // `current.children.find(...)`, which rescans the siblings already built
-  // for every segment of every entry: a level holding N entries cost
-  // **N(N-1)/2** comparisons — 49,995,000 for a folder of 10,000, measured.
-  // The full path names one node in the whole tree, since it carries its
-  // own parent chain, so one map answers what a scan of one sibling list
-  // answered and nothing about the tree changes.
-  const byPath = new Map<string, TreeNode>();
-
-  for (const entry of flatEntries) {
-    const parts = entry.path.split('/').filter(Boolean);
-    let current = root;
-
-    for (let i = 0; i < parts.length; i++) {
-      const isLast = i === parts.length - 1;
-      const partPath = parts.slice(0, i + 1).join('/');
-      let child = byPath.get(partPath);
-
-      if (!child) {
-        child = {
-          name: parts[i],
-          path: partPath,
-          kind: isLast ? entry.kind : 'directory',
-          children: [],
-        };
-        current.children.push(child);
-        byPath.set(partPath, child);
-      }
-      current = child;
-    }
-  }
-
-  sortTree(root.children);
-  return root.children;
-}
-
-function sortTree(nodes: TreeNode[]): void {
-  nodes.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
-  for (const node of nodes) {
-    if (node.children.length > 0) sortTree(node.children);
-  }
-}
-
-function renderTreeRecursive(
-  nodes: TreeNode[],
-  container: HTMLElement,
-  onClick: OnFileClick,
-  rootPath: string,
-  depth: number,
-  opensNonMarkdown: boolean,
-): void {
-  const ul = document.createElement('ul');
-  ul.className = depth > 0 ? 'sidebar-tree-children collapsed' : 'sidebar-tree-children';
-
-  for (const node of nodes) {
-    const li = document.createElement('li');
-
-    if (node.kind === 'directory') {
-      renderFolderNode(li, node, onClick, rootPath, depth, opensNonMarkdown);
-    } else {
-      renderFileNode(li, node, onClick, rootPath, opensNonMarkdown);
-    }
-
-    ul.appendChild(li);
-  }
-  container.appendChild(ul);
-}
-
-function renderFolderNode(
-  li: HTMLElement,
-  node: TreeNode,
-  onClick: OnFileClick,
-  rootPath: string,
-  depth: number,
-  opensNonMarkdown: boolean,
-): void {
-  const toggle = document.createElement('div');
-  toggle.className = 'sidebar-folder-toggle';
-  toggle.textContent = `${fileIcon(node.name, true)} ${node.name}`;
-  toggle.title = node.path;
-
-  toggle.addEventListener('click', () => {
-    toggle.classList.toggle('expanded');
-    const childUl = li.querySelector(':scope > .sidebar-tree-children');
-    if (childUl) childUl.classList.toggle('collapsed');
-  });
-
-  li.appendChild(toggle);
-
-  if (node.children.length > 0) {
-    renderTreeRecursive(node.children, li, onClick, rootPath, depth + 1, opensNonMarkdown);
-  }
-}
-
-/**
- * One file entry. Actionable, or present and inert (#146).
- *
- * **Inert means no listener, not a listener that declines.** On the web
- * there is no way to hand a file to the host system — the File System
- * Access API has no equivalent of a shell open — so the click had
- * nothing to do and did it silently, with an error only in a console
- * the shipped build has no way to show. A click is a question, and
- * silence belongs to what the user already knows (#58, #61, #130). So
- * the question is answered before it is asked: the entry stays in the
- * tree, carries no pointer and no hover, and takes no click.
- *
- * **The reason is on demand and nowhere else.** It is the second line of
- * the title the entry already had, so the path is still there for every
- * entry — on the web the tree is the only view of the folder, and
- * answering an unasked question by removing something the user did ask
- * for would be a poor trade. That two lines render as two lines was
- * measured in both targets before this was written: a Chromium browser,
- * which is the web build's own renderer, and the Tauri webview from the
- * artifact of the probe build on this branch.
- */
-function renderFileNode(
-  li: HTMLElement,
-  node: TreeNode,
-  onClick: OnFileClick,
-  rootPath: string,
-  opensNonMarkdown: boolean,
-): void {
-  const entry = document.createElement('div');
-  entry.textContent = `${fileIcon(node.name, false)} ${node.name}`;
-
-  const actionable = isMarkdownPath(node.name) || opensNonMarkdown;
-  entry.className = actionable ? 'sidebar-file-entry' : 'sidebar-file-entry sidebar-file-inert';
-  entry.title = actionable ? node.path : `${node.path}\n${NON_MARKDOWN_REASON}`;
-
-  if (actionable) {
-    entry.addEventListener('click', () => {
-      onClick(joinPath(rootPath, node.path), rootPath);
-    });
-  }
-
-  li.appendChild(entry);
-}
 
 export function setupSidebar(): Sidebar {
   const panel = document.getElementById('sidebar')!;
@@ -473,6 +325,12 @@ export function setupSidebar(): Sidebar {
     isVisible: () => !panel.classList.contains('hidden'),
     toggle,
     isCurrent,
+    beginSwitch: () => {
+      generation += 1;
+      return generation;
+    },
+    isLatest: (ticket) => ticket === generation,
+    markUnused: (unused) => markUnused(treeEl, unused),
     setOnOpenByHand: (handler) => {
       onOpenByHand = handler;
     },

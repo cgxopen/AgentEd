@@ -114,6 +114,9 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     setOnRequestAccess: () => {},
     showUnreadable: () => {},
     isCurrent: () => true,
+    beginSwitch: () => 0,
+    isLatest: () => true,
+    markUnused: () => {},
     setOnOpenByHand: () => {},
   });
 
@@ -205,6 +208,9 @@ describe('the root a sidebar click asked to keep (#178)', () => {
         setOnRequestAccess: () => {},
         showUnreadable: () => {},
         isCurrent: () => true,
+        beginSwitch: () => 0,
+        isLatest: () => true,
+        markUnused: () => {},
         setOnOpenByHand: () => {},
       },
       shown: () => root,
@@ -295,6 +301,9 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
 
@@ -341,6 +350,9 @@ describe('#184 — which kind of nothing the panel is showing', () => {
       setOnRequestAccess: () => {},
       showUnreadable: () => {},
       isCurrent: () => true,
+      beginSwitch: () => 0,
+      isLatest: () => true,
+      markUnused: () => {},
       setOnOpenByHand: () => {},
     };
     return { state, sidebar, seen };

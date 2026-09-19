@@ -1,5 +1,5 @@
 import { confirmAssetsDir } from './app/assets-dir';
-import { summariseAssets } from './app/assets-summary';
+import { summariseAssets, unusedAssetFiles } from './app/assets-summary';
 import { installCloseGuard } from './app/close-guard';
 import { refreshClusterDetection, reportNothingRelated } from './app/cluster-scan';
 import { createContext } from './app/context';
@@ -164,9 +164,17 @@ const documentBadges = setupDocumentBadges(editor, {
 // `setContent` sets exactly that — so a badge wired to `update` would have
 // been right for every keystroke and wrong for every document ever opened.
 // `docChanged` is then the filter that keeps a selection move free.
+// The grey of R-C6 (#380): a file in `assets/` the document does not use,
+// from the answer the popover counts with. It reads only the document and the
+// tree already drawn, so it follows every change as well as every draw.
+function markUnusedAssets(): void {
+  ctx.sidebar.markUnused(unusedAssetFiles(editor, ctx.state.filePath));
+}
+
 editor.on('transaction', ({ transaction }) => {
   if (!transaction.docChanged) return;
   documentBadges.refreshImages();
+  markUnusedAssets();
 });
 state.onFrontmatterChange((frontmatter) => documentBadges.refreshMetadata(frontmatter));
 documentBadges.refreshMetadata(state.frontmatter);
@@ -192,6 +200,7 @@ ctx.searchManager.installKeyboardListeners();
 ctx.refreshSidebar = async () => {
   const io = await getPlatformIO();
   await refreshSidebarModule(ctx.state, ctx.sidebar, io);
+  markUnusedAssets();
 };
 
 // Phase 6.5 — cluster indicator + popover. The indicator only needs
@@ -259,6 +268,7 @@ ctx.sidebar.setOnOpenByHand((ticket) => {
   void (async () => {
     const io = await getPlatformIO();
     await openSidebarByHand(ctx.state, ctx.sidebar, io, ticket);
+    markUnusedAssets();
   })().catch(console.error);
 });
 
