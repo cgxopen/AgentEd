@@ -2638,8 +2638,12 @@ button.indicator-search:hover {
 .appearance-option:hover {
   background: var(--hover-overlay);
 }
+/* The selected option draws no fill (#374, owner decision of 2026-09-19): its
+ * own mark says it is selected, the radio dot of a Mode or the ring round the
+ * swatch of a Palette, both in `--accent` at 3.41 to 7.49 against the popover,
+ * and the label is set in bold. The fill repeated them, and it was the last
+ * selection band left once the menu and the metadata panel lost theirs. */
 .appearance-option.active {
-  background: var(--hover-overlay-strong);
   font-weight: 600;
 }
 /* Radio dot for Mode options — left-padded room, dot drawn in ::before. */
