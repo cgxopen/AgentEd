@@ -133,9 +133,21 @@
                 <button id="search-toggle-regex" type="button" class="search-toggle" title="Use regex" aria-pressed="false">.*</button>
               </div>
               <span id="search-count" class="search-count">No results</span>
-              <button id="search-find-prev" type="button" class="search-nav" title="Previous (Shift+Enter, Shift+F3)">&#9650;</button>
-              <button id="search-find-next" type="button" class="search-nav" title="Next (Enter, F3)">&#9660;</button>
-              <button id="search-close" type="button" class="search-close" title="Close (Esc)" aria-label="Close search">&times;</button>
+              <button id="search-find-prev" type="button" class="search-nav" title="Previous (Shift+Enter, Shift+F3)" aria-label="Previous">
+                <svg class="search-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 8 6 4 10 8" />
+                </svg>
+              </button>
+              <button id="search-find-next" type="button" class="search-nav" title="Next (Enter, F3)" aria-label="Next">
+                <svg class="search-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2 4 6 8 10 4" />
+                </svg>
+              </button>
+              <button id="search-close" type="button" class="search-close" title="Close (Esc)" aria-label="Close search">
+                <svg class="search-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1.5 1.5 10.5 10.5 M10.5 1.5 1.5 10.5" />
+                </svg>
+              </button>
             </div>
             <div class="search-row search-row-replace" hidden>
               <input
