@@ -1104,14 +1104,23 @@ button.indicator-search:hover {
 
 /* The arrows and the cross are drawn, as the header symbols are since #330: a
  * typed glyph takes whatever size the platform font gives it, and the cross
- * was 8 px of ink in Arial on Linux, with the Windows font not measured. Drawn
- * at 12 px (owner decision on #373) it is about 10.5 px, in the same 26 by 24
- * button. */
+ * was 8 px of ink in Arial on Linux, with the Windows font not measured. The
+ * arrows are drawn at 12 px, in the same 26 by 24 button (owner decision on
+ * #373). */
 .search-icon {
   display: block;
   width: 12px;
   height: 12px;
   pointer-events: none;
+}
+
+/* **The cross at 10 px** (owner decision on #373, taken on the artifact): at 12
+ * it read larger than the chevrons beside it. Its drawing is the 12 px one
+ * scaled down, so the markup gives it a stroke of 1.8 in the viewBox, which
+ * lands at the 1.5 px the chevrons are drawn with: one weight for the three. */
+.search-close .search-icon {
+  width: 10px;
+  height: 10px;
 }
 
 /* Disabled only on a regex that does not parse (`app/search-manager.ts`), never

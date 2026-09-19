@@ -157,12 +157,28 @@ describe('the arrows and the cross are drawn (#373)', () => {
     }
   });
 
-  it('draws them at 12 px, the size the owner chose', () => {
-    for (const id of DRAWN) {
+  it('draws the arrows at 12 px and the cross at 10 px, the sizes the owner chose', () => {
+    // The cascade, not sheet order alone: `.search-close .search-icon` outranks
+    // `.search-icon`, (0,2,0) against (0,1,0), and comes after it.
+    const size = { 'search-find-prev': '12px', 'search-find-next': '12px', 'search-close': '10px' };
+    for (const [id, px] of Object.entries(size)) {
       const svg = element(id).querySelector('svg') as SVGElement;
-      expect(last(svg, 'width'), id).toBe('12px');
-      expect(last(svg, 'height'), id).toBe('12px');
+      expect(last(svg, 'width'), id).toBe(px);
+      expect(last(svg, 'height'), id).toBe(px);
     }
+  });
+
+  it('draws the three with one stroke weight on screen', () => {
+    // A drawing scaled into a smaller box draws a thinner line, so the cross
+    // carries a heavier stroke in its viewBox: 1.8 of 12 at 10 px is the 1.5 px
+    // of the arrows at 12. One weight is the #330 rule for drawn symbols.
+    const onScreen = DRAWN.map((id) => {
+      const svg = element(id).querySelector('svg') as SVGElement;
+      const box = Number(svg.getAttribute('viewBox')?.split(' ')[2]);
+      const width = Number.parseFloat(last(svg, 'width') ?? '');
+      return Number(svg.getAttribute('stroke-width')) * (width / box);
+    });
+    for (const weight of onScreen) expect(weight).toBeCloseTo(1.5, 5);
   });
 
   it('points Previous up and Next down', () => {
