@@ -47,6 +47,8 @@ function spies(): MenuCallbacks {
     onNew: vi.fn(),
     onNewFromTemplate: vi.fn(),
     onOpen: vi.fn(),
+    onOpenRecentFile: vi.fn(),
+    onClearRecentFiles: vi.fn(),
     onSave: vi.fn(),
     onSaveAs: vi.fn(),
     onClose: vi.fn(),

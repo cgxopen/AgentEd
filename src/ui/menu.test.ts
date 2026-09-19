@@ -45,6 +45,8 @@ function callbacks(): MenuCallbacks {
     onNew: vi.fn(),
     onNewFromTemplate: vi.fn(),
     onOpen: vi.fn(),
+    onOpenRecentFile: vi.fn(),
+    onClearRecentFiles: vi.fn(),
     onSave: vi.fn(),
     onSaveAs: vi.fn(),
     onClose: vi.fn(),
@@ -159,11 +161,14 @@ describe('setupMenu', () => {
  * rest are one line each in `main.ts`.
  */
 const ENTRIES: ReadonlyArray<
-  readonly [panel: string, label: string, id: string, handler: keyof MenuCallbacks]
+  readonly [panel: string, label: string, id: string, handler: keyof MenuCallbacks | null]
 > = [
   ['menu-panel-file', 'New', 'menu-new', 'onNew'],
   ['menu-panel-file', 'New from Template…', 'menu-new-from-template', 'onNewFromTemplate'],
   ['menu-panel-file', 'Open', 'menu-open', 'onOpen'],
+  // Opens the recent files card and runs nothing; its entries are in
+  // `menu-recent.test.ts` (#381).
+  ['menu-panel-file', 'Open Recent', 'menu-open-recent', null],
   ['menu-panel-file', 'Save', 'menu-save', 'onSave'],
   ['menu-panel-file', 'Save As', 'menu-save-as', 'onSaveAs'],
   ['menu-panel-file', 'Close file', 'menu-close', 'onClose'],
@@ -230,16 +235,17 @@ function renderedEntries(): HTMLElement[] {
 describe('every entry runs its own command, reached the way a person reaches it (#294)', () => {
   it('has a row for every entry the page renders, and a row for every handler', () => {
     expect(renderedEntries().map((entry) => entry.id)).toEqual(ENTRIES.map(([, , id]) => id));
-    expect(ENTRIES.map(([, , , handler]) => handler).sort()).toEqual(
-      Object.keys(callbacks()).sort(),
-    );
+    const fromEntries = ENTRIES.flatMap(([, , , handler]) => (handler === null ? [] : [handler]));
+    // The two the recent files card calls, pinned in `menu-recent.test.ts`.
+    const fromRecentCard = ['onOpenRecentFile', 'onClearRecentFiles'];
+    expect([...fromEntries, ...fromRecentCard].sort()).toEqual(Object.keys(callbacks()).sort());
   });
 
   it.each(
     ENTRIES,
   )('%s holds %s, and choosing it runs its handler and no other', (panel, label, id, handler) => {
     const handlers = callbacks();
-    setupMenu(handlers, bothAvailable, everyEntryOffered);
+    setupMenu(handlers, bothAvailable, everyEntryOffered, () => ['/doc/a.md']);
 
     openSection(panel);
     const entry = element(id);
@@ -253,8 +259,11 @@ describe('every entry runs its own command, reached the way a person reaches it 
       expect(spy, name).toHaveBeenCalledTimes(name === handler ? 1 : 0);
     }
     // Every entry closes the menu before its command, except spell check, which
-    // leaves it open so its new state is seen (#360, owner decision).
-    expect(isShown(element('menu-dropdown'))).toBe(id === 'menu-spellcheck');
+    // leaves it open so its new state is seen (#360, owner decision), and Open
+    // Recent, which opens its card beside it (#381).
+    expect(isShown(element('menu-dropdown'))).toBe(
+      id === 'menu-spellcheck' || id === 'menu-open-recent',
+    );
   });
 });
 

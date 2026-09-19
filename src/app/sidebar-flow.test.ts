@@ -100,6 +100,7 @@ function makeDocActions(): DocumentActions {
     handleSaveAs: vi.fn(async () => {}),
     handleClose: vi.fn(async () => {}),
     openFilePath: vi.fn(async () => {}),
+    openRecentFile: vi.fn(async () => {}),
     requestSaveAs: vi.fn(async () => null),
     confirmWindowClose: vi.fn(async () => true),
   };

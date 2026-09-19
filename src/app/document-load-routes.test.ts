@@ -35,6 +35,8 @@ let disk: Map<string, string>;
 /** Every `saveFile` call, as `path :: content`. */
 let writes: string[];
 let openFileAnswer: { path: string; content: string } | null;
+/** How many dialogs `answerDialogsInTurn` answered, so a route can show the gate asked. */
+let dialogsAnswered: number;
 
 const io: PlatformIO = {
   supportsMultiFile: true,
@@ -85,6 +87,7 @@ beforeEach(() => {
   ]);
   writes = [];
   openFileAnswer = null;
+  dialogsAnswered = 0;
   clearImages();
   state = new AppState();
 
@@ -144,6 +147,7 @@ function answerDialogsInTurn(...answers: string[]): () => void {
     const overlay = document.querySelector('.dialog-overlay');
     if (!overlay || seen.has(overlay)) return;
     seen.add(overlay);
+    dialogsAnswered += 1;
     const answer = answers[Math.min(next, answers.length - 1)];
     next += 1;
     const button = Array.from(overlay.querySelectorAll('button')).find(
@@ -226,6 +230,23 @@ describe('every route that replaces the document (R-C16)', () => {
     const asLoaded = instance.getMarkdown();
     expect(undoDepth(instance.editor.state)).toBe(0);
     expect(documentAfterPressingUndo()).toBe(asLoaded);
+  });
+
+  it('a recent file (#381)', async () => {
+    await openAndEditA();
+    const stop = answerDialogsInTurn('Discard');
+    // What choosing an entry of Open Recent calls, through the menu wiring in
+    // `main.ts` and the card in `ui/menu-recent.ts`.
+    await actions.openRecentFile(B);
+    stop();
+
+    // The gate asked before the document was replaced (R-C3).
+    expect(dialogsAnswered).toBe(1);
+    expect(state.filePath).toBe(B);
+    const asLoaded = instance.getMarkdown();
+    expect(undoDepth(instance.editor.state)).toBe(0);
+    expect(documentAfterPressingUndo()).toBe(asLoaded);
+    expect(instance.getMarkdown()).not.toContain('EDIT');
   });
 
   it('a reload after an external change', async () => {

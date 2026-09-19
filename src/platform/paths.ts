@@ -115,3 +115,28 @@ export function isPathInsideRoot(target: string, root: string): boolean {
   if (normTarget === normRoot) return true;
   return normTarget.startsWith(`${normRoot}/`);
 }
+
+/**
+ * Whether two paths name the same file, for a list that must hold each file
+ * once (#381).
+ *
+ * **A path that starts with a drive letter or a network share is compared
+ * without case**, because it is a Windows path and Windows does not tell
+ * `C:\Notes\a.md` from `c:\notes\A.md`. The picker and the files panel
+ * hand a path as the disk spells it, but a command line typed by hand can
+ * spell the same file otherwise, and nothing in this layer canonicalises a
+ * path. Any other path is compared exactly, as a case-sensitive filesystem
+ * reads it.
+ *
+ * Decided by the shape of the path rather than by the platform, since the
+ * shape is what says which rule the file follows. What it does not know: a
+ * Windows folder switched to case sensitivity, which is rare enough to leave.
+ */
+export function samePath(a: string, b: string): boolean {
+  return comparable(a) === comparable(b);
+}
+
+function comparable(path: string): string {
+  const slashed = normalize(path);
+  return /^[A-Za-z]:\//.test(slashed) || slashed.startsWith('//') ? slashed.toLowerCase() : slashed;
+}

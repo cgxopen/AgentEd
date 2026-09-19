@@ -740,6 +740,41 @@ body {
   transform: rotate(90deg);
 }
 
+/* Open Recent opens the recent files list as a card beside the menu (#381,
+ * owner decision of 2026-09-19): the card of the menu itself, 8 px like every
+ * floating surface, placed by `ui/menu-recent.ts`. Fixed rather than absolute,
+ * because the menu scrolls inside itself and would clip anything absolute; no
+ * rule on `#menu-dropdown` sets a transform, which would catch it again. Its
+ * rows are menu rows, so they take the menu row rules, hover included. */
+#menu-dropdown .menu-recent {
+  position: fixed;
+  z-index: 101;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px var(--shadow-sm);
+}
+
+/* A long name gives way before the folder beside it does, and both end in an
+ * ellipsis rather than widening the card; the full path is the tooltip. */
+.menu-recent-name,
+.menu-recent-folder {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-recent-folder {
+  flex-shrink: 0;
+  max-width: 45%;
+}
+
 /* No slide and no turn for someone who has asked the system for less motion.
  * Each selector is the one that gives the transition above, so this block wins
  * by coming later at the same specificity. */

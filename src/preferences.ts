@@ -1,3 +1,5 @@
+import { samePath } from './platform/paths';
+
 // ── Theme preference ──
 
 export type ThemePreference = 'light' | 'dark' | 'auto';
@@ -64,8 +66,8 @@ export function savePalettePreference(p: PaletteName): void {
 //
 // Persisted across sessions — used as the initial directory for the
 // next File → Open dialog. Stores the parent of the most recently
-// opened file, never the file path itself: AgentEd does not remember
-// which document you had open.
+// opened file. The files themselves are remembered by the recent files
+// list below, since #381, and nowhere else.
 
 const LAST_FOLDER_KEY = 'agented:last-opened-folder';
 
@@ -85,6 +87,69 @@ export function saveLastOpenedFolder(folder: string): void {
     localStorage.setItem(LAST_FOLDER_KEY, folder);
   } catch (e) {
     console.warn('[preferences] save last-opened-folder failed:', e);
+  }
+}
+
+// ── Recent files (#381) ──
+//
+// The ten documents most recently opened or saved with Save As, newest
+// first, each held once. **This is the first thing AgentEd stores about
+// which documents a person works on**, reversing what this file said until
+// #381 (owner decision of 2026-09-19, REQUIREMENTS R-C3): it stays on this
+// machine, is sent nowhere, and Clear recent files removes it.
+//
+// Read from the store every time it is asked for, never held: every window
+// is a process of its own writing the same key, so a list read once at
+// launch would miss what another window opened since.
+
+const RECENT_FILES_KEY = 'agented:recent-files';
+
+/** How many the list holds. The oldest leaves when an eleventh arrives. */
+export const RECENT_FILES_BOUND = 10;
+
+/** The list, newest first. A value that is not a list of paths reads as empty. */
+export function loadRecentFiles(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(RECENT_FILES_KEY) ?? '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+      .slice(0, RECENT_FILES_BOUND);
+  } catch (e) {
+    console.warn('[preferences] read recent files failed:', e);
+    return [];
+  }
+}
+
+function saveRecentFiles(paths: readonly string[]): void {
+  try {
+    localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(paths));
+  } catch (e) {
+    console.warn('[preferences] save recent files failed:', e);
+  }
+}
+
+/**
+ * Put `path` at the top. A file already on the list moves there rather than
+ * appearing twice, under the spelling it arrived with now; which spellings
+ * are one file is `samePath`.
+ */
+export function recordRecentFile(path: string): void {
+  const others = loadRecentFiles().filter((entry) => !samePath(entry, path));
+  saveRecentFiles([path, ...others].slice(0, RECENT_FILES_BOUND));
+}
+
+/** Take `path` off the list, for a file that is no longer there. */
+export function forgetRecentFile(path: string): void {
+  saveRecentFiles(loadRecentFiles().filter((entry) => !samePath(entry, path)));
+}
+
+/** Empty the list, in the store and not only on screen. */
+export function clearRecentFiles(): void {
+  try {
+    localStorage.removeItem(RECENT_FILES_KEY);
+  } catch (e) {
+    console.warn('[preferences] clear recent files failed:', e);
   }
 }
 
@@ -154,7 +219,8 @@ export function recordEmojiUse(char: string): void {
 // keys are swept from localStorage rather than left behind on machines
 // that ran an older build. This runs once per launch; after the first
 // one the keys are gone and it stays silent. Surviving preferences:
-// theme + palette + last opened folder + frequently used emoji.
+// theme + palette + last opened folder + frequently used emoji + recent
+// files.
 
 const LEGACY_KEYS = [
   'agented:default-mode',

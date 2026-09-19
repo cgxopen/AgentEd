@@ -6,6 +6,7 @@ import {
   isPathInsideRoot,
   joinPath,
   normalize,
+  samePath,
   stripExtension,
 } from './paths';
 
@@ -147,5 +148,22 @@ describe('isPathInsideRoot', () => {
   });
   it('normalizes backslashes before comparing', () => {
     expect(isPathInsideRoot('C:\\proj\\notes\\file.md', 'C:/proj/notes')).toBe(true);
+  });
+});
+
+describe('samePath (#381)', () => {
+  it('reads a Windows path without case, whatever its separators', () => {
+    expect(samePath('C:\\Notes\\a.md', 'c:/notes/A.md')).toBe(true);
+    expect(samePath('\\\\server\\Share\\a.md', '//SERVER/share/A.md')).toBe(true);
+  });
+
+  it('reads any other path exactly, as a case-sensitive filesystem does', () => {
+    expect(samePath('/home/a/Notes.md', '/home/a/notes.md')).toBe(false);
+    expect(samePath('/home/a/notes.md', '/home/a/notes.md')).toBe(true);
+  });
+
+  it('tells two different Windows files apart', () => {
+    expect(samePath('C:\\notes\\a.md', 'C:\\notes\\b.md')).toBe(false);
+    expect(samePath('C:\\notes\\a.md', 'D:\\notes\\a.md')).toBe(false);
   });
 });

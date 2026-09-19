@@ -132,6 +132,18 @@ export interface PlatformIO {
   /** Whether this platform can write to multiple file paths (directories, attachments) */
   readonly supportsMultiFile: boolean;
   /**
+   * Whether a path this platform answered in one session still reaches the
+   * same file in a later one (#381). A declaration about the build, like
+   * the flag above. It is what decides whether the recent files list exists:
+   * on the desktop a path is the file, while on the web it is the name of a
+   * handle whose grant ends with the session, so a stored one would reach
+   * nothing, or a same-named neighbour, the #141 class.
+   *
+   * **Absent reads as no.** A platform that does not say it keeps paths gets
+   * no list, which is the answer that cannot open the wrong file.
+   */
+  readonly pathsOutliveSession?: boolean;
+  /**
    * Whether a companion file — `assets/` next to `documentPath` — can be
    * written **right now** (#46).
    *

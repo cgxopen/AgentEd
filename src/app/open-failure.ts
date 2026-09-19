@@ -108,10 +108,7 @@ export function openFailedMessage(path: string, cause?: unknown): string {
     );
   }
   if (marked(cause, FILE_ABSENT)) {
-    return (
-      `AgentEd could not find ${path}. It may have been moved, renamed or removed. ` +
-      'The document you had open is unchanged.'
-    );
+    return `${notFound(path)} The document you had open is unchanged.`;
   }
   return (
     `AgentEd could not open ${path}. It may have been moved, renamed or removed, ` +
@@ -130,6 +127,23 @@ export function openFailedMessage(path: string, cause?: unknown): string {
  * `DOMException.name` — the `isNotFound` helper in `web.ts`, which is
  * the only place that question is asked.
  */
+/** What a missing file is told, from any route. */
+function notFound(path: string): string {
+  return `AgentEd could not find ${path}. It may have been moved, renamed or removed.`;
+}
+
+/**
+ * A recent file whose folder is there and which is not (#381). It leaves the
+ * list, and the sentence says so; it opens with the words a missing file gets
+ * from any other route, read from the same function.
+ */
+export function recentFileGoneMessage(path: string): string {
+  return (
+    `${notFound(path)} It has been taken off the recent files list. ` +
+    'The document you had open is unchanged.'
+  );
+}
+
 function marked(cause: unknown, marker: string): boolean {
   return cause instanceof Error && cause.message.startsWith(`${marker}:`);
 }
