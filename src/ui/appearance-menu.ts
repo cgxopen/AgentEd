@@ -198,7 +198,6 @@ function buildPopover(
     popover.appendChild(item);
   }
 
-  popover.appendChild(divider());
   popover.appendChild(sectionLabel('Palette'));
   for (const opt of PALETTE_OPTIONS) {
     const item = document.createElement('button');
@@ -226,10 +225,4 @@ function sectionLabel(text: string): HTMLElement {
   label.className = 'appearance-section-label';
   label.textContent = text;
   return label;
-}
-
-function divider(): HTMLElement {
-  const hr = document.createElement('div');
-  hr.className = 'appearance-divider';
-  return hr;
 }

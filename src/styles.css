@@ -552,7 +552,7 @@ body {
   left: 16px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 4px 12px var(--shadow-sm);
   z-index: 100;
   display: flex;
@@ -598,7 +598,13 @@ body {
  * under the pointer did not change at all while a header, on `var(--bg)`, did.
  * A translucent overlay composes over whichever ground the row stands on, and
  * every palette defines it. A disabled entry is not shaded: it cannot be
- * chosen, and a shade would say it can. */
+ * chosen, and a shade would say it can.
+ *
+ * Since #375 it is `--hover-overlay`, the shade of every other surface that
+ * floats over the document. The strong overlay it had measured 1.16 to 1.43
+ * against the card and put the muted shortcut beside the name below 4.5 in four
+ * palettes; this one measures 1.08 to 1.18 and leaves two, Light at 4.43 and
+ * Claude Warm at 4.31. */
 #menu-dropdown button {
   background: none;
   border: none;
@@ -612,7 +618,7 @@ body {
 }
 
 #menu-dropdown button:hover:not(:disabled) {
-  background-color: var(--hover-overlay-strong);
+  background-color: var(--hover-overlay);
 }
 
 #menu-dropdown button {
@@ -868,7 +874,7 @@ button.indicator-search:hover {
   right: 8px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow: 0 4px 12px var(--shadow-sm);
   padding: 8px 12px;
   z-index: 110;
@@ -2074,7 +2080,7 @@ button.indicator-search:hover {
 }
 
 .dialog-actions button:hover {
-  background: var(--surface);
+  background: var(--hover-overlay);
 }
 
 .dialog-actions button.primary {
@@ -2130,7 +2136,7 @@ button.indicator-search:hover {
   display: flex;
   gap: 2px;
   background: var(--surface);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 4px;
   box-shadow: 0 4px 16px var(--shadow-lg);
 }
@@ -2243,7 +2249,12 @@ button.indicator-search:hover {
   white-space: nowrap;
 }
 
-.heading-levels-option:hover,
+/* One hover shade over every floating surface (#375). The row the arrow keys
+ * are on is a state rather than a hover, and keeps the strong overlay. */
+.heading-levels-option:hover {
+  background: var(--hover-overlay);
+}
+
 .heading-levels-option.active {
   background: var(--hover-overlay-strong);
 }
@@ -2285,7 +2296,6 @@ button.indicator-search:hover {
 .emoji-palette-grid + .emoji-palette-grid {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid var(--border);
 }
 
 .emoji-palette-option {
@@ -2300,16 +2310,18 @@ button.indicator-search:hover {
   cursor: pointer;
 }
 
-.emoji-palette-option:hover,
-.emoji-palette-option:focus-visible {
-  background: var(--surface);
+.emoji-palette-option:hover {
+  background: var(--hover-overlay);
 }
 
-/* ── Menu separator ── */
-#menu-dropdown hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 4px 0;
+/* The keyboard focus cue (#375). Until then it shared the hover fill, --surface,
+ * at 1.05 to 1.15 against the palette, and Chromium drew its own ring on top
+ * because nothing here removed it. The accent ring inside the cell is 3.16 or
+ * better on every ground it lands on, the hover overlay included, in all seven
+ * palettes; `src/ui/floating-surfaces.test.ts` holds it there. */
+.emoji-palette-option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 /* ── The files panel, on the right and drawn as a card (#347) ──
@@ -2615,10 +2627,10 @@ button.indicator-search:hover {
   letter-spacing: 0.5px;
   color: var(--muted);
 }
-.appearance-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 4px 0;
+/* The Mode and Palette sections are told apart by their labels and by this
+ * space, which is the 9 px the 1 px line and its margins took until #375. */
+.appearance-option + .appearance-section-label {
+  margin-top: 9px;
 }
 .appearance-option {
   display: flex;
@@ -2744,7 +2756,6 @@ button.cluster-indicator {
   font-weight: 600;
   font-size: 13px;
   color: var(--text);
-  border-bottom: 1px solid var(--border);
   padding-bottom: 8px;
 }
 .cluster-popover-list {
@@ -2771,7 +2782,6 @@ button.cluster-indicator {
 }
 .cluster-entry-button:hover {
   background: var(--hover-overlay);
-  border-color: var(--border);
 }
 .cluster-entry-title {
   display: flex;
@@ -2811,12 +2821,13 @@ button.cluster-indicator {
   align-items: center;
   font-size: 12px;
   color: var(--muted);
-  border-top: 1px solid var(--border);
   padding-top: 8px;
 }
+/* No outline at rest since #375, the #368 shape: hover and pressed carry the
+ * state. The border stays, transparent, so the button keeps its size. */
 .cluster-popover-refresh {
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
   font: inherit;
@@ -2824,7 +2835,8 @@ button.cluster-indicator {
   color: var(--text);
   padding: 2px 8px;
 }
-.cluster-popover-refresh:hover {
+.cluster-popover-refresh:hover,
+.cluster-popover-refresh:active {
   background: var(--hover-overlay);
 }
 @media (max-width: 600px) {

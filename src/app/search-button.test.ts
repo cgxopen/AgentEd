@@ -309,14 +309,15 @@ describe('the lit shade, as the stylesheet gives it (#312, #324)', () => {
   });
 });
 
-describe('the hover shade of the menu rows (#312)', () => {
+describe('the hover shade of the menu rows (#312, #375)', () => {
+  // The strong overlay until #375, the hover overlay of every floating surface since.
   const panelOf = (entry: HTMLElement) => entry.closest<HTMLElement>('.menu-panel')!;
 
   it('changes an entry under the pointer, whose panel is the colour the old shade was', () => {
     const entry = element('menu-find');
     const shades = hoverRulesReaching(entry, 'background-color');
 
-    expect(shades).toEqual(['var(--hover-overlay-strong)']);
+    expect(shades).toEqual(['var(--hover-overlay)']);
     expect(hoverRulesReaching(entry, 'background')).toEqual([]);
     expect(valuesReaching(shippedRules, panelOf(entry), 'background')).not.toContain(shades[0]);
   });
@@ -324,7 +325,7 @@ describe('the hover shade of the menu rows (#312)', () => {
   it('changes a section header under the pointer, which carries no line since #362', () => {
     const header = element('menu-section-edit');
 
-    expect(hoverRulesReaching(header, 'background-color')).toEqual(['var(--hover-overlay-strong)']);
+    expect(hoverRulesReaching(header, 'background-color')).toEqual(['var(--hover-overlay)']);
     expect(hoverRulesReaching(header, 'background')).toEqual([]);
     expect(hoverRulesReaching(header, 'background-image')).toEqual([]);
     // The hairline #294 drew between headers, which this row kept drawn under

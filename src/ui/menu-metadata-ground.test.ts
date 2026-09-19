@@ -92,14 +92,15 @@ describe('what stands on the page colour, per palette (#374)', () => {
   });
 
   it.each(paletteNames)('%s: a hovered entry stands off the menu card', (name) => {
-    // 1.165 to 1.429 across the seven, held at 1.16.
+    // 1.078 to 1.176 across the seven since #375, held at 1.07. It was 1.165 to
+    // 1.429 on the strong overlay, which #375 gave up for one hover shade.
     const tokens = palettes.get(name)!;
     const entry = one('#menu-find');
     const shade = inState(entry, ':hover:not(:disabled)', 'background-color')[0];
     const card = resolveColour(last(one('#menu-dropdown'), 'background') as string, tokens);
     const ground = over(resolveColour(last(menuPanels()[0], 'background') as string, tokens), card);
     const hovered = over(resolveColour(shade, tokens), ground);
-    expect(contrast(hovered, ground), name).toBeGreaterThanOrEqual(1.16);
+    expect(contrast(hovered, ground), name).toBeGreaterThanOrEqual(1.07);
   });
 });
 

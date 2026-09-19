@@ -128,9 +128,9 @@ describe('everything else stays on --surface (#351, #358)', () => {
       // The search toggles and buttons left with #373, for the hover overlay.
       '.tiptap code { background }',
       '.tiptap table th { background }',
-      '.dialog-actions button:hover { background }',
+      // The dialog buttons and the emoji cells left with #375, for one hover
+      // shade over every floating surface.
       '.floating-toolbar { background }',
-      '.emoji-palette-option:hover,\n.emoji-palette-option:focus-visible { background }',
     ]);
   });
 });
