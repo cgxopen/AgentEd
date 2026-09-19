@@ -244,3 +244,60 @@ describe('what the state rests on stays readable, per palette (#373)', () => {
     expect(contrast(over(ink, ground), faded)).toBeGreaterThanOrEqual(3.4);
   });
 });
+
+describe('a pressed toggle: a pale tint, a readable label, an accent border (#373)', () => {
+  /** The three toggles, each pressed. */
+  function pressedToggles(): HTMLElement[] {
+    return TOGGLES.map((id) => {
+      const el = element(id);
+      el.setAttribute('aria-pressed', 'true');
+      return el;
+    });
+  }
+
+  // One property per row, so that a reversal of one declaration reddens the
+  // rows about it and not the rows about its neighbours.
+  it('fills a pressed toggle with the pale tint', () => {
+    for (const el of pressedToggles()) {
+      expect(last(el, 'background'), el.id).toBe(
+        'color-mix(in srgb, var(--accent) 15%, var(--bg))',
+      );
+    }
+  });
+
+  it('writes a pressed label in the text colour', () => {
+    for (const el of pressedToggles()) expect(last(el, 'color'), el.id).toBe('var(--text)');
+  });
+
+  it('borders a pressed toggle in the accent', () => {
+    for (const el of pressedToggles()) {
+      expect(last(el, 'border-color'), el.id).toBe('var(--accent)');
+    }
+  });
+
+  it('falls back to the panel colour where the tint is dropped', () => {
+    // An engine that cannot parse `color-mix()` drops the declaration, and the
+    // background is then the one the resting rule gives every toggle.
+    const resting = atEveryWidth.find((rule) => rule.selector === '.search-toggle');
+    expect(resting?.declarations.get('background')).toBe('transparent');
+  });
+
+  it.each(paletteNames)('%s: the pressed label reads at 4.5 on its fill', (name) => {
+    const tokens = palettes.get(name)!;
+    const ground = last(element('search-panel'), 'background') as string;
+    for (const el of pressedToggles()) {
+      const fill = paint(tokens, [ground, last(el, 'background') as string]);
+      const label = contrast(resolveColour(last(el, 'color') as string, tokens), fill);
+      expect(label, `#${el.id} in ${name}`).toBeGreaterThanOrEqual(TEXT);
+    }
+  });
+
+  it.each(paletteNames)('%s: the border says pressed at 3 against the panel', (name) => {
+    const tokens = palettes.get(name)!;
+    const ground = paint(tokens, [last(element('search-panel'), 'background') as string]);
+    for (const el of pressedToggles()) {
+      const edge = contrast(resolveColour(last(el, 'border-color') as string, tokens), ground);
+      expect(edge, `#${el.id} in ${name}`).toBeGreaterThanOrEqual(NON_TEXT);
+    }
+  });
+});

@@ -1046,9 +1046,25 @@ button.indicator-search:hover {
   background: var(--hover-overlay);
 }
 
+/* **Pressed: a pale tint of the accent, the label in the text colour and a
+ * border in the accent** (owner decision on #373, taken on the artifact). The
+ * full `--accent` fill it replaces read loud beside a panel that draws no box,
+ * and its label, `--bg` on the accent, measured 3.41 to 7.49: below the 4.5 a
+ * label needs in claude and both Solarized palettes. Measured on the tokens:
+ * the label is 9.75 to 14.10 on the tint, and the border, which is what says
+ * pressed, is 3.41 to 7.49 against the panel. The tint alone would say it at
+ * 1.18 to 1.28, so the border is the state and the tint only softens it. The
+ * border is drawn only while pressed: a state, not the box at rest #373 took
+ * away.
+ *
+ * **The first `color-mix()` in this sheet.** WebView2 on Windows draws it; the
+ * WebKit of the Linux lane was not measured. An engine that cannot parse it
+ * drops the declaration and keeps the `transparent` of `.search-toggle` above,
+ * the panel colour, so the toggle is then drawn by its border and its label
+ * alone, both of which clear their floor. */
 .search-toggle[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--bg);
+  background: color-mix(in srgb, var(--accent) 15%, var(--bg));
+  color: var(--text);
   border-color: var(--accent);
 }
 
