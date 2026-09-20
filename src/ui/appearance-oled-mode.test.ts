@@ -143,7 +143,11 @@ describe('the palette named github is nowhere (#398)', () => {
     const entry = document.querySelector<HTMLElement>('.appearance-palette[data-palette="oled"]');
     const circle = entry?.querySelector<HTMLElement>('.swatch');
     expect(entry?.textContent).toContain('OLED Black');
-    expect(entry?.title).toBe('Pure black. Saves battery on OLED screens.');
+    // The comparison is named rather than left open (owner decision of
+    // 2026-09-20): the measurement is against a light palette, and against an
+    // already dark one the difference is about 8 mW, below what the run could
+    // resolve.
+    expect(entry?.title).toBe('Pure black. On OLED, less power than a light palette.');
     expect(circle?.style.background).toBe(
       `linear-gradient(135deg, ${OLED.get('--bg')} 50%, ${OLED.get('--accent')} 50%)`,
     );

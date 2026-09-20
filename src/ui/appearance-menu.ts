@@ -95,9 +95,14 @@ const PALETTE_OPTIONS: ReadonlyArray<{
     // of the drift between them. The estimate from the remaining capacity is
     // larger, 1513 mW, and noisier; the figures and the protocol are on the
     // issue. **Against an already dark palette it is not measured**, and the
-    // sentence does not claim it. A five-minute run taken first could resolve
+    // sentence names the comparison rather than leaving it open (owner
+    // decision of 2026-09-20): `#1a1a1a` emits 1.03 per cent of what a white
+    // page emits, so the page part of Default Dark is about 8 mW and the
+    // difference from pure black is below the 27 mW the best run could
+    // resolve. A sentence that said battery without saying against what
+    // would have been read as a claim about that 8 mW. A five-minute run taken first could resolve
     // nothing: the battery driver holds one figure for tens of seconds.
-    title: 'Pure black. Saves battery on OLED screens.',
+    title: 'Pure black. On OLED, less power than a light palette.',
   },
 ];
 
