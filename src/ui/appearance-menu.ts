@@ -87,6 +87,15 @@ const PALETTE_OPTIONS: ReadonlyArray<{
     // Its page and its accent, the rule Paper Warm follows: a palette with one
     // version shows that version rather than a day and a night half (#391).
     swatch: 'linear-gradient(135deg, #000000 50%, #6cb6ff 50%)',
+    // The claim is measured rather than asserted (#398), on the owner's OLED
+    // laptop at his everyday brightness, against Default Dark rather than a
+    // light palette: four phases of five minutes, alternated, the battery
+    // read every five seconds. **About 750 mW less, 13 per cent of a 4950 mW
+    // draw**, and the two Default phases landed 27 mW apart, so the figure
+    // stands well clear of the drift between them. The estimate from the
+    // remaining capacity is larger, 1513 mW, and noisier; the figures and the
+    // protocol are on the issue. A five-minute run taken first could resolve
+    // nothing: the battery driver holds one figure for tens of seconds.
     title: 'Pure black. Saves battery on OLED screens.',
   },
 ];
