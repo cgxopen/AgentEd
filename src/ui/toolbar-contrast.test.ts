@@ -1,6 +1,6 @@
 /**
  * Issue #319 — the floating toolbar was unreadable in Dark, Solarized Dark and
- * GitHub Dark, and no test could have said so.
+ * the GitHub Dark that left at #398, and no test could have said so.
  *
  * **The rule that broke was syntactically fine.** `background: var(--text)`
  * reads a theme variable and matches the toolbar; a row asserting that the rule
@@ -140,8 +140,9 @@ function paint(
 const paletteNames = [...palettes.keys()];
 
 describe('every label on the floating toolbar is readable in every palette (#319)', () => {
-  it('reads the seven palettes and a toolbar rule for each thing it paints', () => {
-    expect(paletteNames).toHaveLength(7);
+  it('reads the six palettes and a toolbar rule for each thing it paints', () => {
+    // Seven until #398 took the GitHub pair out and put OLED Black in.
+    expect(paletteNames).toHaveLength(6);
     const { bar, plain } = renderedToolbar();
     expect(declared(bar, 'background-color', false)).not.toBeNull();
     expect(declared(plain, 'color', false)).not.toBeNull();

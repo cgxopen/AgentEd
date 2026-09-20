@@ -7,7 +7,7 @@
  * nothing. What these rows establish is the value a rule computes to in each
  * palette and the element that rule reaches — never how a 1 px line looks, how
  * an outline reads at a glance, or what WebView2 makes of either. That is the
- * owner pass on the artifact, in all seven palettes.
+ * owner pass on the artifact, in all six palettes.
  *
  * **Why the two halves are always joined.** A row asserting that
  * `.header-edge-button` declares `border: 1px solid var(--border)` passed on
@@ -23,8 +23,8 @@
  * #321 inventoried every rule that names `--accent` and every rule that names
  * `--border`, and found 24 of one and 31 of the other. A control whose colour
  * is simply *absent* is in neither set, which is how `.dialog-actions button`
- * shipped a label at 1.11 to 1 in GitHub Dark while 24 accent rows were being
- * counted. The last describe is written for the gap rather than for that one
+ * shipped a label at 1.11 to 1 in the GitHub Dark that left at #398, while 24
+ * accent rows were being counted. The last describe is written for the gap rather than for that one
  * rule: it asks of every control the page renders that **some** rule in the
  * sheet gives it a colour, so the browser default can never be what a label
  * falls through to again.
@@ -110,8 +110,9 @@ function element(id: string): HTMLElement {
 }
 
 describe('the border token can draw a control in every palette (#321)', () => {
-  it('reads seven palettes and a border value for each', () => {
-    expect(paletteNames).toHaveLength(7);
+  it('reads six palettes and a border value for each', () => {
+    // Seven until #398 took the GitHub pair out and put OLED Black in.
+    expect(paletteNames).toHaveLength(6);
     for (const tokens of palettes.values()) {
       expect(tokens.get('--border')).toMatch(/^#[0-9a-f]{6}$/i);
     }

@@ -15,7 +15,7 @@
  * overwritten when Paper Warm is chosen.
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { hasDarkVersion, ThemeManager } from '../app/theme-manager';
+import { paletteHasMode, ThemeManager } from '../app/theme-manager';
 import type { PaletteName, ThemePreference } from '../preferences';
 import stylesCss from '../styles.css?raw';
 import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
@@ -56,22 +56,24 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-theme');
 });
 
-describe('the theme manager answers which palettes have a dark version (#391)', () => {
+describe('the theme manager answers which modes a palette has (#391, #398)', () => {
   it.each([
     'default',
     'paper',
     'solarized',
-    'github',
-  ] as const)('%s: has one exactly when Dark draws it differently from Light', (palette) => {
+    'oled',
+  ] as const)('%s: has both modes exactly when Dark draws it differently from Light', (palette) => {
     const drawn = (['light', 'dark'] as const).map((mode) => {
       start(mode, palette);
       return document.documentElement.getAttribute('data-theme');
     });
-    expect(hasDarkVersion(palette)).toBe(drawn[0] !== drawn[1]);
+    const hasBoth = paletteHasMode(palette, 'light') && paletteHasMode(palette, 'dark');
+    expect(hasBoth).toBe(drawn[0] !== drawn[1]);
   });
 
-  it('says Paper Warm has none', () => {
-    expect(hasDarkVersion('paper')).toBe(false);
+  it('says Paper Warm has no dark one', () => {
+    expect(paletteHasMode('paper', 'dark')).toBe(false);
+    expect(paletteHasMode('paper', 'light')).toBe(true);
   });
 });
 
@@ -109,7 +111,7 @@ describe('the line says why, and only while it is true (#391)', () => {
 
   it('is gone under a palette with a dark version, and every mode is choosable again', () => {
     start('dark', 'paper');
-    choosePalette('github');
+    choosePalette('solarized');
     expect(note().hidden).toBe(true);
     expect(modeOption('light').hasAttribute('aria-describedby')).toBe(false);
     for (const mode of ['light', 'dark', 'auto'] as const) {

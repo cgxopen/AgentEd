@@ -9,39 +9,56 @@ import {
 
 const MEDIA_QUERY = '(prefers-color-scheme: dark)';
 
+/** The two halves of the mode axis; `auto` resolves to one of them. */
+export type ResolvedMode = 'light' | 'dark';
+
 /**
- * Each palette and the `data-theme` value it is drawn with in light and in
- * dark, `null` meaning the bare `:root` block. A palette with no dark version
- * has `null` for dark and is drawn with its light value in every mode.
+ * Each palette and the `data-theme` value it is drawn with in the modes it
+ * has, `null` meaning the bare `:root` block. **A mode a palette does not have
+ * is absent from its entry** rather than written as `null`, because `null` is
+ * already a value: it is what Default is drawn with in Light. So Paper Warm
+ * has a light entry and no dark one (#391), and OLED Black a dark entry and no
+ * light one (#398).
  *
  * One table, so the value set on the page and the answer the Appearance menu
- * is given come from the same place and cannot disagree (#391).
+ * is given come from the same place and cannot disagree.
  */
 const PALETTE_THEMES: Readonly<
-  Record<PaletteName, { readonly light: string | null; readonly dark: string | null }>
+  Record<PaletteName, Readonly<Partial<Record<ResolvedMode, string | null>>>>
 > = {
   default: { light: null, dark: 'dark' },
-  paper: { light: 'paper', dark: null },
+  paper: { light: 'paper' },
   solarized: { light: 'solarized-light', dark: 'solarized-dark' },
-  github: { light: 'github-light', dark: 'github-dark' },
+  oled: { dark: 'oled' },
 };
 
-/** Whether a palette has a dark version, so the mode reaches it (#391). */
-export function hasDarkVersion(palette: PaletteName): boolean {
-  return PALETTE_THEMES[palette].dark !== null;
+/** Whether the palette is drawn in that mode at all. */
+export function paletteHasMode(palette: PaletteName, mode: ResolvedMode): boolean {
+  return Object.hasOwn(PALETTE_THEMES[palette], mode);
+}
+
+/**
+ * The mode this palette does not have, or `null` where it has both. It is what
+ * the Appearance menu greys and what its line says, so the menu names no
+ * palette of its own (#391, #398).
+ */
+export function missingMode(palette: PaletteName): ResolvedMode | null {
+  if (!paletteHasMode(palette, 'dark')) return 'dark';
+  if (!paletteHasMode(palette, 'light')) return 'light';
+  return null;
 }
 
 /**
  * Applies the active theme to `<html>` via the `data-theme` attribute.
  * The attribute value composes two independent axes:
  *   - `mode`: Light / Dark / Auto (mirrors OS preference in Auto)
- *   - `palette`: Default / Paper Warm / Solarized / GitHub
+ *   - `palette`: Default / Paper Warm / Solarized / OLED Black
  *
- * Which palettes have a dark version is answered here, from `PALETTE_THEMES`,
- * and nowhere else (#391): Default, Solarized and GitHub honor the mode, and
- * Paper Warm exists in light only, so it produces `data-theme="paper"`
- * whatever the mode. The stored mode is never changed by a palette: under
- * Paper Warm it waits, and the palette left for one with a dark version finds
+ * Which modes a palette has is answered here, from `PALETTE_THEMES`, and
+ * nowhere else (#391, #398): Default and Solarized honor the mode, Paper Warm
+ * exists in light only and OLED Black in dark only, so each produces its one
+ * value whatever the mode. The stored mode is never changed by a palette: it
+ * waits under a one-mode palette, and the palette left for one with both finds
  * it again.
  *
  * Listeners (menu palette + mode radios) are notified via onChange.
@@ -70,11 +87,14 @@ export class ThemeManager {
 
   /**
    * The mode the page is actually in, as the Appearance menu marks it: the
-   * stored mode, except under a palette with no dark version, where the page
-   * is light whatever was chosen (#391). The stored mode is left as it is.
+   * stored mode, except under a palette that has only one, where the page is
+   * in that one whatever was chosen (#391, #398). The stored mode is left as
+   * it is.
    */
   getEffectiveMode(): ThemePreference {
-    return hasDarkVersion(this.palette) ? this.mode : 'light';
+    const missing = missingMode(this.palette);
+    if (missing === null) return this.mode;
+    return missing === 'dark' ? 'light' : 'dark';
   }
 
   setMode(pref: ThemePreference): void {
@@ -113,11 +133,17 @@ export class ThemeManager {
   /** Build the `data-theme` attribute value from current mode + palette. */
   private computeDataTheme(): string | null {
     const themes = PALETTE_THEMES[this.palette];
-    if (themes.dark === null) return themes.light;
-    return this.resolveMode() === 'dark' ? themes.dark : themes.light;
+    const wanted = this.resolveMode();
+    const drawn = paletteHasMode(this.palette, wanted) ? wanted : this.otherMode(wanted);
+    return themes[drawn] ?? null;
   }
 
-  private resolveMode(): 'light' | 'dark' {
+  /** The mode a palette is drawn in when it does not have the one asked for. */
+  private otherMode(mode: ResolvedMode): ResolvedMode {
+    return mode === 'dark' ? 'light' : 'dark';
+  }
+
+  private resolveMode(): ResolvedMode {
     if (this.mode === 'auto') {
       return window.matchMedia(MEDIA_QUERY).matches ? 'dark' : 'light';
     }
