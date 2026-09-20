@@ -44,7 +44,7 @@ describe('setupAppearanceMenu — structure', () => {
       'Default',
       'Paper Warm',
       'Solarized',
-      'GitHub',
+      'OLED Black',
     ]);
     expect(options[1].title).toBe('Warm palette, light mode only');
   });
@@ -136,12 +136,12 @@ describe('setupAppearanceMenu — selection apply + persistence', () => {
     button.click();
 
     const ghBtn = popover.querySelector<HTMLButtonElement>(
-      '.appearance-palette[data-palette="github"]',
+      '.appearance-palette[data-palette="oled"]',
     )!;
     ghBtn.click();
 
-    expect(tm.getPalette()).toBe('github');
-    expect(localStorage.getItem('agented:palette')).toBe('github');
+    expect(tm.getPalette()).toBe('oled');
+    expect(localStorage.getItem('agented:palette')).toBe('oled');
     expect(isHidden(popover)).toBe(false);
     expect(ghBtn.classList.contains('active')).toBe(true);
   });
@@ -152,7 +152,7 @@ describe('setupAppearanceMenu — selection apply + persistence', () => {
     setupAppearanceMenu(tm);
     button.click();
 
-    for (const palette of ['default', 'paper', 'solarized', 'github'] as const) {
+    for (const palette of ['default', 'paper', 'solarized', 'oled'] as const) {
       popover
         .querySelector<HTMLButtonElement>(`.appearance-palette[data-palette="${palette}"]`)!
         .click();

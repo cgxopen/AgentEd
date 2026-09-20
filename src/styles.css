@@ -191,55 +191,51 @@
   --shadow-lg: rgba(0, 0, 0, 0.55);
 }
 
-/* GitHub Light — primer.style/foundations/color */
-:root[data-theme="github-light"] {
-  --bg: #ffffff;
-  --text: #1f2328;
-  --border: #8a8f94;
-  --accent: #0969da;
-  --muted: #636c76;
-  --surface: #f6f8fa;
+/* OLED Black — pure black, dark only (#398, owner decision of 2026-09-20).
+ * It replaces the GitHub pair, whose label carried a product name and a
+ * trademark, the reason Claude Warm became Paper Warm at #379.
+ *
+ * The page is #000000, where an OLED pixel emits nothing at all. That is the
+ * whole point of the palette and it is what every other token is decided
+ * against: nothing can be drawn darker than the page, so a code block and a
+ * card are drawn lighter than it, and that light is what the screen then
+ * emits. `--surface` and `--code-bg` are 1.11 above the page and the inline
+ * code fill 1.23, the smallest steps measured to still read as a block.
+ *
+ * The text is not white. Three tokens were built in several variants and
+ * chosen by the owner on his own OLED screen: the text at 14.17 against the
+ * page rather than white at 21, the muted text at 6.49, the surfaces above.
+ * Every floor is cleared with room: text 12.74 on a surface, muted 5.84 on
+ * one and 5.27 on the inline code fill, the border 3.94 on the page and 3.54
+ * on a surface, the accent 9.77.
+ *
+ * The shadows are the ones the other dark palettes use and they are black on
+ * black here, 1.000 of contrast: **every card in this palette is drawn by its
+ * border alone**, which is why the border is the highest of the six palettes
+ * rather than the lowest. R-C6 records it. */
+:root[data-theme="oled"] {
+  --bg: #000000;
+  --text: #d4d4d4;
+  --border: #6b6b6b;
+  --accent: #6cb6ff;
+  --muted: #8f8f8f;
+  --surface: #111111;
 
-  --success: #1a7f37;
-  --warning: #9a6700;
-  --danger: #cf222e;
+  --success: #4ac26b;
+  --warning: #e3b341;
+  --danger: #ff7b72;
 
-  --code-bg: #f6f8fa;
-  --code-text: #1f2328;
-  --code-inline-bg: #eff1f3;
+  --code-bg: #111111;
+  --code-text: #d4d4d4;
+  --code-inline-bg: #1c1c1c;
 
-  --placeholder: #8c959f;
-  --hover-overlay: rgba(31, 35, 40, 0.04);
-  --hover-overlay-strong: rgba(31, 35, 40, 0.08);
-  --selection-accent: rgba(9, 105, 218, 0.32);
-  --dialog-overlay: rgba(31, 35, 40, 0.3);
-
-  --shadow-sm: rgba(31, 35, 40, 0.1);
-  --shadow-md: rgba(31, 35, 40, 0.18);
-  --shadow-lg: rgba(31, 35, 40, 0.25);
-}
-
-:root[data-theme="github-dark"] {
-  --bg: #0d1117;
-  --text: #c9d1d9;
-  --border: #63686d;
-  --accent: #58a6ff;
-  --muted: #8b949e;
-  --surface: #161b22;
-
-  --success: #3fb950;
-  --warning: #d29922;
-  --danger: #f85149;
-
-  --code-bg: #010409;
-  --code-text: #c9d1d9;
-  --code-inline-bg: #161b22;
-
-  --placeholder: #484f58;
-  --hover-overlay: rgba(201, 209, 217, 0.06);
-  --hover-overlay-strong: rgba(201, 209, 217, 0.12);
-  --selection-accent: rgba(88, 166, 255, 0.27);
-  --dialog-overlay: rgba(1, 4, 9, 0.7);
+  --placeholder: #767676;
+  --hover-overlay: rgba(255, 255, 255, 0.06);
+  --hover-overlay-strong: rgba(255, 255, 255, 0.12);
+  /* 1.62 for a filled cell against the page, the 1.60 the other six were
+   * solved to in #16. */
+  --selection-accent: rgba(108, 182, 255, 0.28);
+  --dialog-overlay: rgba(0, 0, 0, 0.7);
 
   --shadow-sm: rgba(0, 0, 0, 0.3);
   --shadow-md: rgba(0, 0, 0, 0.45);
@@ -2096,16 +2092,17 @@ button.indicator-search:hover {
  * so the label fell through to the browser's `ButtonText`. Nothing in this
  * repository declares `color-scheme`, so that keyword resolves to **black in
  * every palette** — read out of a running Chromium rather than out of this
- * sheet, `rgb(0, 0, 0)` in all seven. On the four light palettes it passed for
- * `--text` and nobody looked; on the three dark ones the label measured **1.21
- * in Dark, 1.40 in Solarized Dark and 1.11 in GitHub Dark**, which is a button
+ * sheet, `rgb(0, 0, 0)` in every palette. On the light ones it passed for
+ * `--text` and nobody looked; on the dark ones the label measured **1.21
+ * in Dark, 1.40 in Solarized Dark and 1.11 in the GitHub Dark that left at
+ * #398**, which is a button
  * with no readable word in it.
  *
  * **`--text` rather than `--muted`**, which was the first shape asked for. The
  * grey clears 4.5 everywhere too, at 4.71 to 6.86, but it quietens the label in
- * the four light palettes where nothing was wrong. `--text` changes nothing
+ * the light palettes where nothing was wrong. `--text` changes nothing
  * perceptible there — the label was already effectively black — and repairs the
- * three dark ones outright, at 12.05 or better in all seven.
+ * dark ones outright, at 12.05 or better in all six, re-measured at #398.
  *
  * **Why it shipped beside the border change** (owner decision, 2026-09-17):
  * with `--border` at 3 to 1 this button is now crisply drawn, so an invisible
@@ -2164,9 +2161,10 @@ button.indicator-search:hover {
  * Every colour here comes from the theme (#319). The bar used to take
  * `var(--text)` and its labels a written-down `#e0e0e0`, which is a near-black
  * bar with pale labels in a light palette and a near-white bar with the same
- * pale labels in a dark one: 1.05 to 1.17 to 1 in Dark, Solarized Dark and
- * GitHub Dark. The bar now stands on `--surface`, a shade off the page, and the
- * labels are `--text`, which is at least 10.61 to 1 in every palette.
+ * pale labels in a dark one: 1.05 to 1.17 to 1 in Dark, Solarized Dark and the
+ * GitHub Dark that left at #398. The bar now stands on `--surface`, a shade off the page, and the
+ * labels are `--text`, which is at least 10.61 to 1 in every palette, re-measured
+ * over the six of #398.
  *
  * **Nothing here may change the toolbar's height.** It measures 31.59 px at
  * every label the heading control shows, and `toolbar-placement.ts` flips the
@@ -2388,13 +2386,13 @@ button.indicator-search:hover {
  * owner decision of 2026-09-18, the move #351 made for the header). It stood
  * on `--surface` until then, 1.05 to 1.16 off the page across the seven
  * palettes, which was no edge on its own either. `--border` is at 3 to 1 since
- * #340 and measures 3.19 to 3.54 against the card and the page alike, where it
+ * #340 and measures 3.19 to 3.94 against the card and the page alike, where it
  * was 3.05 to 3.09 against the old fill. Nothing inside the panel fills with
  * `--bg`, so nothing in it loses a fill: the hover and the active entry are
- * the overlay tokens, 1.08 to 1.18 and 1.17 to 1.43 on this ground. The shadow, read pixel by pixel out of
- * the captures, reaches 1.20 of contrast in `light` and **1.03 in
- * `github-dark`**, where it is effectively absent: it is black over near-black
- * and has nowhere to go. So nothing rests on it, and the two palettes that
+ * the overlay tokens, 1.08 to 1.18 and 1.16 to 1.43 on this ground. The shadow, read pixel by pixel out of
+ * the captures, reaches 1.20 of contrast in `light`, and in
+ * `oled` it is **1.000**: black over pure black, absent by arithmetic rather
+ * than nearly so (#398). So nothing rests on it, and the two palettes that
  * carry it least are the dark ones rather than the Solarized pair the issue
  * expected.
  *

@@ -24,10 +24,10 @@ export function saveThemePreference(pref: ThemePreference): void {
   }
 }
 
-export type PaletteName = 'default' | 'paper' | 'solarized' | 'github';
+export type PaletteName = 'default' | 'paper' | 'solarized' | 'oled';
 
 const PALETTE_PREF_KEY = 'agented:palette';
-const PALETTE_VALUES: readonly PaletteName[] = ['default', 'paper', 'solarized', 'github'];
+const PALETTE_VALUES: readonly PaletteName[] = ['default', 'paper', 'solarized', 'oled'];
 
 /**
  * The name Paper Warm was stored under until #379, and the one place the old

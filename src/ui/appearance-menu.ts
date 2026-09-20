@@ -1,18 +1,18 @@
-import { hasDarkVersion, type ThemeManager } from '../app/theme-manager';
+import { missingMode, type ThemeManager } from '../app/theme-manager';
 import type { PaletteName, ThemePreference } from '../preferences';
 
 /**
  * Kebab (⋮) menu in the header that owns the Appearance controls —
  * Mode (Light / Dark / Auto) and Palette (Default / Paper Warm /
- * Solarized / GitHub). Extracted from the hamburger menu so Appearance
+ * Solarized / OLED Black). Extracted from the hamburger menu so Appearance
  * is one click away and the hamburger can stay lean for File/Edit/View.
  *
  * The two axes are independent: Mode is light/dark/auto, Palette is the
- * colour family. Solarized and GitHub follow the active mode; Paper
- * Warm is light-only. Which palettes have a dark version is the manager's
- * answer, not the menu's (#391): the menu is a pure view, all logic stays
- * in the manager. Persistence is unchanged (localStorage via
- * `ThemeManager`).
+ * colour family. Default and Solarized follow the active mode; Paper Warm
+ * is light only and OLED Black dark only. Which modes a palette has is the
+ * manager's answer, not the menu's (#391, #398): the menu is a pure view,
+ * all logic stays in the manager, and it names no palette of its own.
+ * Persistence is unchanged (localStorage via `ThemeManager`).
  *
  * Behaviour: click-to-apply with the popover staying open for quick
  * palette exploration; closes on click-outside, Escape, or a click on
@@ -82,9 +82,12 @@ const PALETTE_OPTIONS: ReadonlyArray<{
     swatch: 'linear-gradient(135deg, #fdf6e3 50%, #002b36 50%)',
   },
   {
-    value: 'github',
-    label: 'GitHub',
-    swatch: 'linear-gradient(135deg, #ffffff 50%, #0d1117 50%)',
+    value: 'oled',
+    label: 'OLED Black',
+    // Its page and its accent, the rule Paper Warm follows: a palette with one
+    // version shows that version rather than a day and a night half (#391).
+    swatch: 'linear-gradient(135deg, #000000 50%, #6cb6ff 50%)',
+    title: 'Pure black. Saves battery on OLED screens.',
   },
 ];
 
@@ -138,25 +141,27 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
   }
 
   /**
-   * Marks the mode the page is in rather than the one stored (#391): under a
-   * palette with no dark version that is Light, while the stored Dark or Auto
-   * waits for a palette that has one. Dark and Auto are disabled there, which
-   * takes them out of the Tab order as the greyed menu entries are, and the
-   * line saying why is shown and read out on Light, the option that is
-   * selected.
+   * Marks the mode the page is in rather than the one stored (#391, #398):
+   * under a palette that has one mode only that is the mode it has, while the
+   * stored one waits for a palette that has both. The other two options are
+   * disabled there, which takes them out of the Tab order as the greyed menu
+   * entries are, and the line saying why is shown and read out on the option
+   * that is selected.
    */
   function refresh(): void {
     const mode = themeManager.getEffectiveMode();
     const palette = themeManager.getPalette();
-    const modeApplies = hasDarkVersion(palette);
+    const missing = missingMode(palette);
     for (const [value, el] of modeButtons) {
       el.classList.toggle('active', value === mode);
-      el.disabled = !modeApplies && value !== 'light';
+      el.disabled = missing !== null && value !== mode;
     }
-    modeNote.hidden = modeApplies;
-    const light = modeButtons.get('light');
-    if (modeApplies) light?.removeAttribute('aria-describedby');
-    else light?.setAttribute('aria-describedby', MODE_NOTE_ID);
+    modeNote.hidden = missing === null;
+    modeNote.textContent = missing === null ? '' : `No ${missing} version.`;
+    for (const [value, el] of modeButtons) {
+      if (missing !== null && value === mode) el.setAttribute('aria-describedby', MODE_NOTE_ID);
+      else el.removeAttribute('aria-describedby');
+    }
     for (const [value, el] of paletteButtons) {
       el.classList.toggle('active', value === palette);
     }
@@ -223,8 +228,8 @@ function buildPopover(
   modeNote.id = MODE_NOTE_ID;
   modeNote.className = 'appearance-note';
   // Short on purpose (#391, owner decision on the artifact): it stands under
-  // Dark and Auto greyed while the palette is active, so it need not name it.
-  modeNote.textContent = 'No dark version.';
+  // the greyed options while the palette is active, so it need not name it.
+  // Its words are written by `refresh`, from the mode the palette lacks.
   modeNote.hidden = true;
   popover.appendChild(modeNote);
 

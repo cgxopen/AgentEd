@@ -273,10 +273,11 @@ describe('the fill carries the message on its own', () => {
       stylesCss.matchAll(/--selection-accent:\s*rgba\([^)]*,\s*([\d.]+)\)/g),
       (match) => Number(match[1]),
     );
-    // Seven palettes ship: light, dark, paper, solarized in both modes and
-    // github in both. A palette added without a value of its own would fall
-    // back to the light one and read wrong, so the count is pinned too.
-    expect(alphas).toHaveLength(7);
+    // Six palettes ship since #398: light, dark, paper, solarized in both
+    // modes and OLED Black, which is dark only. A palette added without a
+    // value of its own would fall back to the light one and read wrong, so the
+    // count is pinned too.
+    expect(alphas).toHaveLength(6);
     for (const alpha of alphas) {
       expect(alpha).toBeGreaterThanOrEqual(0.26);
     }

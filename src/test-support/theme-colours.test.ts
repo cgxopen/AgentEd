@@ -49,18 +49,10 @@ describe('the colour reader these tests stand on', () => {
     expect(over(resolveColour('var(--veil)', tokens), black).r).toBeCloseTo(127.5);
   });
 
-  it('finds the seven palettes the shipped stylesheet defines, each with the base tokens under it', () => {
+  it('finds the six palettes the shipped stylesheet defines, each with the base tokens under it', () => {
     const palettes = paletteTokens(stylesheetRules(stylesCss));
     expect([...palettes.keys()].sort()).toEqual(
-      [
-        'dark',
-        'github-dark',
-        'github-light',
-        'light',
-        'paper',
-        'solarized-dark',
-        'solarized-light',
-      ].sort(),
+      ['dark', 'light', 'oled', 'paper', 'solarized-dark', 'solarized-light'].sort(),
     );
     for (const palette of palettes.values()) {
       expect(palette.get('--text')).toMatch(/^#/);
