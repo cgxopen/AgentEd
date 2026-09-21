@@ -44,7 +44,7 @@
  * mean.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildBundle } from '../app/bundle';
+import { buildDocument } from '../app/editor-document';
 import { AppState } from '../app/state';
 import { clearImages, getAllImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
@@ -124,7 +124,7 @@ function diskWith(text: string): { io: PlatformIO; disk: Map<string, string> } {
 async function openAndSaveThroughDisplay(text: string): Promise<string> {
   const { io } = diskWith(text);
   const loaded = await loadMarkdown(DOCUMENT_PATH, io);
-  const displayBody = await prepareMarkdownForDisplay(loaded.bundle, io);
+  const displayBody = await prepareMarkdownForDisplay(loaded.document, io);
 
   const host = document.createElement('div');
   document.body.appendChild(host);
@@ -133,10 +133,10 @@ async function openAndSaveThroughDisplay(text: string): Promise<string> {
 
   const state = new AppState();
   state.filePath = DOCUMENT_PATH;
-  state.frontmatter = loaded.bundle.frontmatterRaw;
-  state.lineConventions = loaded.bundle.lineConventions;
+  state.frontmatter = loaded.document.frontmatterRaw;
+  state.lineConventions = loaded.document.lineConventions;
 
-  const written = await saveMarkdown(buildBundle(state, instance.getMarkdown), io);
+  const written = await saveMarkdown(buildDocument(state, instance.getMarkdown), io);
   return written.writtenText;
 }
 
@@ -149,7 +149,7 @@ describe('the display pass rewrites the address, and the save puts it back', () 
       ...io,
       readText: async () => '<img src="assets/b.png" alt="chart" width="400">\n',
     });
-    const displayBody = await prepareMarkdownForDisplay(loaded.bundle, io);
+    const displayBody = await prepareMarkdownForDisplay(loaded.document, io);
     expect(displayBody).toContain('blob:');
     expect(displayBody).not.toContain('assets/b.png');
   });
@@ -201,7 +201,7 @@ describe('the display pass rewrites the address, and the save puts it back', () 
     // permanent — so it is repaired in the change that would have caused it.
     const { io } = diskWith(text);
     const loaded = await loadMarkdown(DOCUMENT_PATH, io);
-    const displayBody = await prepareMarkdownForDisplay(loaded.bundle, io);
+    const displayBody = await prepareMarkdownForDisplay(loaded.document, io);
     expect(displayBody).toContain('blob:');
     expect(displayBody).not.toContain('assets/a.png');
   });
@@ -212,7 +212,7 @@ describe('the display pass rewrites the address, and the save puts it back', () 
     // hide a respelling here by writing its own spelling over it.
     const { io } = diskWith("![d](assets/a.png 'kept as it was')\n");
     const loaded = await loadMarkdown(DOCUMENT_PATH, io);
-    const displayBody = await prepareMarkdownForDisplay(loaded.bundle, io);
+    const displayBody = await prepareMarkdownForDisplay(loaded.document, io);
     // Both halves, because either alone is vacuous: a reference that never
     // resolved also still carries its title, so the rewrite has to be shown to
     // have happened before its faithfulness means anything.
@@ -238,7 +238,7 @@ describe('the display pass rewrites the address, and the save puts it back', () 
       '![plain label](assets/c.png)\n';
     const { io } = diskWith(text);
     const loaded = await loadMarkdown(DOCUMENT_PATH, io);
-    const displayBody = await prepareMarkdownForDisplay(loaded.bundle, io);
+    const displayBody = await prepareMarkdownForDisplay(loaded.document, io);
 
     expect(getAllImages()).toHaveLength(3);
     expect(displayBody).not.toContain('assets/');

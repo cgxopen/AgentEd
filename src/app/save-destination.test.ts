@@ -28,7 +28,7 @@
  *
  * These drive the **real** `WebIO` with handles constructed, through the
  * **real** Save As route — `handleSaveAs` → `requestSaveAs` →
- * `pickSavePath` → `persistBundle` → `saveFile`. A fake IO passes with the
+ * `pickSavePath` → `persistDocument` → `saveFile`. A fake IO passes with the
  * whole change reverted, because the defect is the platform's name
  * resolution.
  */

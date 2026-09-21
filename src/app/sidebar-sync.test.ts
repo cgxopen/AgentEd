@@ -197,7 +197,7 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
 /**
  * The kept root (#178), at the layer that decides what the panel shows.
  *
- * `state.sidebarRootFromClick` is set by `loadBundleFromPath` and is
+ * `state.sidebarRootFromClick` is set by `openDocumentAtPath` and is
  * `null` for every route into a document except a sidebar click. These
  * assert what `refreshSidebar` does with each value; the route that
  * produces it is asserted in `sidebar-flow.test.ts`, and the handler

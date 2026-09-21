@@ -161,7 +161,7 @@ export class WebIO implements PlatformIO {
    * `resolveFileHandle` answered `null`, which it does on **every**
    * failure and not only on not-found. So a read of a path that could
    * not be resolved returned a different file's contents, successfully,
-   * and `applyBundle` then set `filePath` and the R-C14 baseline from
+   * and `applyLoadedDocument` then set `filePath` and the R-C14 baseline from
    * it: the user was looking at their own document under a name the
    * application had invented (R-C6, which says the sidebar switches
    * focus to *that* file).

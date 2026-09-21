@@ -1,5 +1,5 @@
 import { displayMimeFromName, registerImage } from '../editor/image-registry';
-import type { DocumentBundle } from '../formats/types';
+import type { MarkdownDocument } from '../formats/types';
 import { dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 
@@ -53,7 +53,7 @@ const HTML_IMG_RE = /<img\s+[^>]*src\s*=\s*["']([^"']+)["'][^>]*>/gi;
 const HTML_IMG_REPLACE_RE = /(<img\s+[^>]*src\s*=\s*["'])([^"']+)(["'][^>]*>)/gi;
 
 /**
- * Resolve image references in a bundle's markdown body to displayable URLs:
+ * Resolve image references in a document's markdown body to displayable URLs:
  * read the referenced images from disk relative to the document path,
  * create blob URLs, and register them. Handles `![]()` and `<img>` syntax.
  *
@@ -67,10 +67,10 @@ const HTML_IMG_REPLACE_RE = /(<img\s+[^>]*src\s*=\s*["'])([^"']+)(["'][^>]*>)/gi
  * cap are left exactly as they were written.
  */
 export async function prepareMarkdownForDisplay(
-  bundle: DocumentBundle,
+  document: MarkdownDocument,
   io: PlatformIO,
 ): Promise<string> {
-  return resolveFilesystemImages(bundle.markdownBody, bundle.rootPath, io);
+  return resolveFilesystemImages(document.markdownBody, document.rootPath, io);
 }
 
 async function resolveFilesystemImages(

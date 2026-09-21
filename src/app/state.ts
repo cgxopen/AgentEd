@@ -63,7 +63,7 @@ export class AppState {
    * the `.md` did reach the disk — otherwise the retry that failure
    * invites would accuse AgentEd of its own write). Cleared on New /
    * Close by `resetDocument` and by `requestSaveAs`; on **Open** it is
-   * *replaced* by `applyBundle`, which records the text it just read.
+   * *replaced* by `applyLoadedDocument`, which records the text it just read.
    * The distinction matters because the open path does not go through
    * `resetDocument` at all — the fact #51 turned on.
    */
@@ -124,7 +124,7 @@ export class AppState {
    * every other route — File then Open, the command line, the file
    * association, a reload after an external change — and each of them
    * re-derives the root exactly as before. Set and
-   * cleared in one place, `loadBundleFromPath`, because that is the set
+   * cleared in one place, `openDocumentAtPath`, because that is the set
    * of *a document arrived at a path* events; a save is not one of them,
    * so Ctrl+S on a document opened from the tree does not dissolve it.
    *
@@ -152,7 +152,7 @@ export class AppState {
    * above uses. `main.ts` sets it from `documentReferencesImage` on every
    * transaction that changes the document, which is the same place and the
    * same predicate the badge is drawn from — so the two cannot drift. It
-   * is read in `resolveSidebarView`, which runs after `applyBundle` has
+   * is read in `resolveSidebarView`, which runs after `applyLoadedDocument` has
    * put the document in the editor.
    *
    * `false` is the right default: a state with no document references no
@@ -176,7 +176,7 @@ export class AppState {
    * The document's raw metadata block, or `null` when it has none.
    *
    * **An accessor rather than the plain field it used to be** (#196).
-   * Four places write it — `applyBundle` on every open, the template
+   * Four places write it — `applyLoadedDocument` on every open, the template
    * seed, `resetDocument`, and the panel's own textarea — and the
    * «Metadata» badge has to be right after every one of them. A plain
    * field left that to each writer remembering to refresh something,

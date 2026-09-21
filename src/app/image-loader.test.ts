@@ -22,7 +22,7 @@
 import { readFile } from '@tauri-apps/plugin-fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearImages, displayMimeFromName, getAllImages } from '../editor/image-registry';
-import type { DocumentBundle } from '../formats/types';
+import type { MarkdownDocument } from '../formats/types';
 import { WebIO } from '../platform/web';
 import { prepareMarkdownForDisplay } from './image-loader';
 
@@ -55,8 +55,8 @@ const ON_DISK = new Set(['/proj/assets/img.png', '/proj/assets/logo.svg']);
 
 const MD = '# Doc\n\n![alt](assets/img.png)\n';
 
-function bundle(rootPath: string): DocumentBundle {
-  return { markdownBody: MD, rootPath } as DocumentBundle;
+function makeDocument(rootPath: string): MarkdownDocument {
+  return { markdownBody: MD, rootPath } as MarkdownDocument;
 }
 
 function dom(name: string): DOMException {
@@ -135,7 +135,7 @@ describe('#187 — the web build resolves a document images', () => {
     // The ordinary case, and the one the second lock hit: `dirname` is
     // empty here, and `joinPath` drops the empty segment, so
     // `assets/img.png` resolves against the grant.
-    const out = await prepareMarkdownForDisplay(bundle('notes.md'), grantedWeb());
+    const out = await prepareMarkdownForDisplay(makeDocument('notes.md'), grantedWeb());
 
     expect(resolved(out)).toBe(true);
     expect(getAllImages()).toHaveLength(1);
@@ -143,7 +143,7 @@ describe('#187 — the web build resolves a document images', () => {
   });
 
   it('and one in a subfolder of it, resolved beside itself', async () => {
-    const out = await prepareMarkdownForDisplay(bundle('sub/notes.md'), grantedWeb());
+    const out = await prepareMarkdownForDisplay(makeDocument('sub/notes.md'), grantedWeb());
 
     expect(resolved(out)).toBe(true);
   });
@@ -152,7 +152,7 @@ describe('#187 — the web build resolves a document images', () => {
     // Owner decision of 2026-08-30: the panel already carries the offer
     // in this state (#184), so the answer is one panel away and a second
     // notice per document is what R-C5 refuses.
-    const out = await prepareMarkdownForDisplay(bundle('notes.md'), ungrantedWeb());
+    const out = await prepareMarkdownForDisplay(makeDocument('notes.md'), ungrantedWeb());
 
     expect(out).toBe(MD);
     expect(getAllImages()).toHaveLength(0);
@@ -161,7 +161,7 @@ describe('#187 — the web build resolves a document images', () => {
 
 describe('#187 — the desktop floor, unchanged', () => {
   it('every image in a document still resolves', async () => {
-    const out = await prepareMarkdownForDisplay(bundle('/proj/doc.md'), await desktopIO());
+    const out = await prepareMarkdownForDisplay(makeDocument('/proj/doc.md'), await desktopIO());
 
     expect(resolved(out)).toBe(true);
     expect(getAllImages()).toHaveLength(1);
@@ -185,7 +185,10 @@ describe('#187 — the desktop floor, unchanged', () => {
     // an unresolved reference and a resolved one differ in the document, but
     // what separates a repaired split from a lucky one is which string reached
     // the filesystem.
-    const doc = { markdownBody: `# Doc\n\n${line}\n`, rootPath: '/proj/doc.md' } as DocumentBundle;
+    const doc = {
+      markdownBody: `# Doc\n\n${line}\n`,
+      rootPath: '/proj/doc.md',
+    } as MarkdownDocument;
     const out = await prepareMarkdownForDisplay(doc, await desktopIO());
 
     expect(readFile).toHaveBeenCalledWith('/proj/assets/img.png');
@@ -209,7 +212,10 @@ describe('#187 — the desktop floor, unchanged', () => {
     // reason: the serializer destroyed that alt on the first save, so the
     // reference the loader could not read stopped existing. #232 makes it
     // survive, so the breakage would have become permanent.
-    const doc = { markdownBody: `# Doc\n\n${line}\n`, rootPath: '/proj/doc.md' } as DocumentBundle;
+    const doc = {
+      markdownBody: `# Doc\n\n${line}\n`,
+      rootPath: '/proj/doc.md',
+    } as MarkdownDocument;
     const out = await prepareMarkdownForDisplay(doc, await desktopIO());
 
     expect(readFile).toHaveBeenCalledWith('/proj/assets/img.png');
@@ -221,7 +227,7 @@ describe('#187 — the desktop floor, unchanged', () => {
     const doc = {
       markdownBody: '# Doc\n\n![step \\] two](assets/img.png)\n',
       rootPath: '/proj/doc.md',
-    } as DocumentBundle;
+    } as MarkdownDocument;
     const out = await prepareMarkdownForDisplay(doc, await desktopIO());
 
     expect(out).toContain('blob:');
@@ -232,7 +238,7 @@ describe('#187 — the desktop floor, unchanged', () => {
     const doc = {
       markdownBody: "# Doc\n\n![alt](assets/img.png   'kept as it was'  )\n",
       rootPath: '/proj/doc.md',
-    } as DocumentBundle;
+    } as MarkdownDocument;
     const out = await prepareMarkdownForDisplay(doc, await desktopIO());
 
     expect(out).toContain("   'kept as it was'  )");
@@ -249,7 +255,7 @@ describe('#187 — the desktop floor, unchanged', () => {
     // trying and failing — so the first draft of this passed with the
     // capability check deleted, and the reversal is what found it. What
     // separates them is whether the filesystem was asked at all.
-    const out = await prepareMarkdownForDisplay(bundle('doc.md'), await desktopIO());
+    const out = await prepareMarkdownForDisplay(makeDocument('doc.md'), await desktopIO());
 
     expect(readFile).not.toHaveBeenCalled();
     expect(out).toBe(MD);
@@ -262,7 +268,7 @@ describe('#187 — the desktop floor, unchanged', () => {
     // a different reason.
     const missing = '# Doc\n\n![alt](assets/gone.png)\n';
     const out = await prepareMarkdownForDisplay(
-      { markdownBody: missing, rootPath: '/proj/doc.md' } as DocumentBundle,
+      { markdownBody: missing, rootPath: '/proj/doc.md' } as MarkdownDocument,
       await desktopIO(),
     );
 
@@ -295,7 +301,7 @@ describe('#248 — the media type an svg needs to be drawn at all', () => {
     const doc = {
       markdownBody: '# Doc\n\n![a diagram](assets/logo.svg)\n',
       rootPath: '/proj/doc.md',
-    } as DocumentBundle;
+    } as MarkdownDocument;
     const out = await prepareMarkdownForDisplay(doc, await desktopIO());
 
     expect(readFile).toHaveBeenCalledWith('/proj/assets/logo.svg');
@@ -312,7 +318,7 @@ describe('#248 — the media type an svg needs to be drawn at all', () => {
     const doc = {
       markdownBody: '# Doc\n\n![a shot](assets/img.png)\n',
       rootPath: '/proj/doc.md',
-    } as DocumentBundle;
+    } as MarkdownDocument;
     const out = await prepareMarkdownForDisplay(doc, await desktopIO());
 
     expect(getAllImages()).toHaveLength(1);

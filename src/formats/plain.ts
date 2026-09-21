@@ -3,10 +3,10 @@ import type { PlatformIO } from '../platform/types';
 import { applyByteOrderMark, hasByteOrderMark, stripByteOrderMark } from './byte-order-mark';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
 import { applyLineConventions, detectLineConventions } from './line-conventions';
-import type { DocumentBundle } from './types';
+import type { MarkdownDocument } from './types';
 
 export interface LoadResult {
-  readonly bundle: DocumentBundle;
+  readonly document: MarkdownDocument;
   /**
    * Exactly the text that was on disk, before any splitting — the
    * baseline the save flow compares against (R-C14). It is reported
@@ -31,7 +31,7 @@ export async function loadMarkdown(path: string, io: PlatformIO): Promise<LoadRe
  * `loadMarkdown` is one read followed by this split, and the split is
  * pure. It is separate so a caller that was *handed* the file's text —
  * `openFile` reads it from the picked handle before it answers — can
- * build the bundle from that text instead of asking the platform to
+ * build the document from that text instead of asking the platform to
  * find the file a second time by name. On the web that second lookup is
  * what went wrong; on the desktop it is one read of a file already in
  * memory.
@@ -47,7 +47,7 @@ export function parseMarkdown(text: string, path: string): LoadResult {
   const withoutMark = stripByteOrderMark(text);
   const { raw, body } = splitFrontmatter(withoutMark);
   return {
-    bundle: {
+    document: {
       byteOrderMark: mark,
       frontmatterRaw: raw,
       markdownBody: body,
@@ -94,7 +94,10 @@ export interface SaveResult {
  * The document's text is the part that cannot be reconstructed, so it is
  * written first and never rolled back for the sake of its images.
  */
-export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Promise<SaveResult> {
+export async function saveMarkdown(
+  document: MarkdownDocument,
+  io: PlatformIO,
+): Promise<SaveResult> {
   // The document's own line conventions are re-applied here, to the
   // whole assembled text and nowhere else (#79): the serializer emits
   // `\n` and no final newline, and this is the point where the text
@@ -102,12 +105,12 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
   // The mark goes back on last, outside the line conventions: it stands
   // in front of the first line rather than being part of one (#259).
   const writtenText = applyByteOrderMark(
-    applyLineConventions(assembleMarkdown(bundle), bundle.lineConventions),
-    bundle.byteOrderMark,
+    applyLineConventions(assembleMarkdown(document), document.lineConventions),
+    document.byteOrderMark,
   );
-  await io.saveFile(bundle.rootPath, writtenText);
+  await io.saveFile(document.rootPath, writtenText);
 
-  const assetImages = bundle.images.filter((img) => img.relativePath.startsWith('assets/'));
+  const assetImages = document.images.filter((img) => img.relativePath.startsWith('assets/'));
   if (assetImages.length === 0) return { assetsError: null, writtenText };
 
   // **No silent drop** (#46). This used to return `assetsError: null`
@@ -125,7 +128,7 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
   // The platform answers, for the same reason it answers in
   // `resolveAssetsDir`: a bare name is malformed on desktop and ordinary
   // on web, and only the platform knows which it is holding.
-  if (!(await io.canWriteCompanions(bundle.rootPath))) {
+  if (!(await io.canWriteCompanions(document.rootPath))) {
     return {
       assetsError: new Error('This document has nowhere to put its images.'),
       writtenText,
@@ -134,7 +137,7 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
 
   // Empty for a web document, whose `assets/` is resolved against the
   // granted directory handle; `joinPath` drops the empty segment.
-  const parent = dirname(bundle.rootPath);
+  const parent = dirname(document.rootPath);
 
   try {
     await io.mkdir(joinPath(parent, 'assets'));

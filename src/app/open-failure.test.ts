@@ -437,7 +437,7 @@ describe('the encoding refusal reaches the route the owner run used (#259)', () 
 
   it('says nothing on disk moved, which is what the read path guarantees', () => {
     // The user has just clicked expecting a document to appear. On a
-    // rejection `loadDocument` throws before `applyBundle` runs, so the
+    // rejection `loadDocument` throws before `applyLoadedDocument` runs, so the
     // editor, the path and the R-C14 baseline are all untouched - and
     // the refused file was never written to either. One clause covers
     // both, which is why it is not two.

@@ -103,7 +103,7 @@ describe('setupStatusbar — R-C12 counts', () => {
     const statusbar = setupStatusbar(fake.editor);
 
     fake.setText('one two');
-    // Simulates document-actions/bundle, which refresh outside editor updates.
+    // Simulates document-actions/editor-document, which refresh outside editor updates.
     statusbar.refresh();
 
     expect(el('word-count').textContent).toBe('2 words');

@@ -174,7 +174,7 @@ editor.on('transaction', ({ transaction }) => {
   markUnusedAssets();
   // The panel trigger of #402, from the same predicate and at the same
   // moment as the badge above, so the two cannot answer this document
-  // differently. `applyBundle` puts the document in the editor before
+  // differently. `applyLoadedDocument` puts the document in the editor before
   // `refreshSidebar` asks, so the value is current by the time it is read.
   state.referencesImage = documentReferencesImage(editor);
 });

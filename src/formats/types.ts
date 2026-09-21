@@ -15,7 +15,7 @@ export interface DocumentImage {
  * document layouts (companion folder + `.agented-meta.json` sidecar)
  * left with the profile machinery in the August 2026 reset.
  */
-export interface DocumentBundle {
+export interface MarkdownDocument {
   /** Raw frontmatter YAML (null if no frontmatter) */
   frontmatterRaw: string | null;
   /** Markdown body without frontmatter */
@@ -33,7 +33,7 @@ export interface DocumentBundle {
   byteOrderMark: boolean;
   /**
    * How the text is written back: line terminator and final newline
-   * (#79). Required rather than optional, because a bundle built
+   * (#79). Required rather than optional, because a document built
    * without them is the half-wired caller this repository refuses to
    * allow (#61) — the omission would not fail, it would silently
    * rewrite a Windows user's file.

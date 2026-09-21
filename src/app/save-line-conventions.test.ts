@@ -4,7 +4,7 @@
  *
  * The run goes through the **real save assembly**, which is the level
  * the defect was measured at: `loadMarkdown` against a recording
- * `PlatformIO` → `createEditor` + `setMarkdown` → `buildBundle` →
+ * `PlatformIO` → `createEditor` + `setMarkdown` → `buildDocument` →
  * `saveMarkdown`, with the text handed to `io.saveFile` compared
  * against the text `io.readText` returned. The pair-level
  * `markdown/roundtrip.test.ts` cannot see any of this: the convention
@@ -26,7 +26,7 @@ import claudeMd from '../../CLAUDE.md?raw';
 import { createEditor } from '../editor/setup';
 import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
-import { buildBundle } from './bundle';
+import { buildDocument } from './editor-document';
 import { AppState } from './state';
 
 const PATH = '/doc/notes.md';
@@ -70,14 +70,14 @@ async function openAndSaveUnedited(text: string): Promise<string> {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const editor = createEditor(host);
-  editor.setMarkdown(loaded.bundle.markdownBody);
+  editor.setMarkdown(loaded.document.markdownBody);
 
   const state = new AppState();
   state.filePath = PATH;
-  state.frontmatter = loaded.bundle.frontmatterRaw;
-  state.lineConventions = loaded.bundle.lineConventions;
+  state.frontmatter = loaded.document.frontmatterRaw;
+  state.lineConventions = loaded.document.lineConventions;
 
-  const result = await saveMarkdown(buildBundle(state, editor.getMarkdown), io);
+  const result = await saveMarkdown(buildDocument(state, editor.getMarkdown), io);
 
   editor.destroy();
   host.remove();

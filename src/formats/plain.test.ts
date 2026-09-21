@@ -66,24 +66,24 @@ describe('open → save with no edits', () => {
   for (const doc of DOCUMENTS) {
     it(`is byte-identical for a ${doc.label}`, async () => {
       const io = stubIO({ '/docs/notes.md': doc.text });
-      const { bundle } = await loadMarkdown('/docs/notes.md', io);
-      await saveMarkdown(bundle, io);
+      const { document } = await loadMarkdown('/docs/notes.md', io);
+      await saveMarkdown(document, io);
       expect(io.written.get('/docs/notes.md')).toBe(doc.text);
     });
   }
 
   it('never adds a metadata block to a document that had none', async () => {
     const io = stubIO({ '/docs/notes.md': '# Just a heading\n' });
-    const { bundle } = await loadMarkdown('/docs/notes.md', io);
-    expect(bundle.frontmatterRaw).toBeNull();
-    await saveMarkdown(bundle, io);
+    const { document } = await loadMarkdown('/docs/notes.md', io);
+    expect(document.frontmatterRaw).toBeNull();
+    await saveMarkdown(document, io);
     expect(io.written.get('/docs/notes.md')).not.toContain('---');
   });
 
   it('writes only the .md file when the document has no images', async () => {
     const io = stubIO({ '/docs/notes.md': '# Heading\n' });
-    const { bundle } = await loadMarkdown('/docs/notes.md', io);
-    await saveMarkdown(bundle, io);
+    const { document } = await loadMarkdown('/docs/notes.md', io);
+    await saveMarkdown(document, io);
     expect([...io.written.keys()]).toEqual(['/docs/notes.md']);
     expect(io.binaries.size).toBe(0);
     expect(io.dirs).toEqual([]);

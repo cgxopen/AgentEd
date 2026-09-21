@@ -9,7 +9,7 @@
  * hand, which is what the issue asks for and what nothing in the suite
  * did before it: the agreement is won through `handleImageFile`, the
  * second document arrives through `openFilePath` — and therefore
- * through `loadDocument` and `applyBundle` — and the second insert goes
+ * through `loadDocument` and `applyLoadedDocument` — and the second insert goes
  * through `handleImageFile` again. A test that set
  * `assetsDirConfirmedFor` directly would pass with the open path
  * deleted.
@@ -161,7 +161,7 @@ describe('#51 — an assets/ agreement belongs to the folder (R-C5)', () => {
     expect(showConfirmDialog).toHaveBeenCalledTimes(1);
     expect(state.assetsDirConfirmedFor).toBe('/X/assets');
 
-    // The real open path: loadDocument + applyBundle, not a hand-built
+    // The real open path: loadDocument + applyLoadedDocument, not a hand-built
     // state. This is the step the issue is about.
     await actions.openFilePath('/X/b.md');
     expect(state.filePath).toBe('/X/b.md');
@@ -284,10 +284,10 @@ describe('#48 — the destination cue stays per document', () => {
 
   /**
    * The reading #51 offers about the cue, held by a test instead of by
-   * two lines of source: `applyBundle` does not clear
+   * two lines of source: `applyLoadedDocument` does not clear
    * `destinationCueShown` either, and that is harmless for a stronger
    * reason than routing — `showDestinationCue` returns early on
-   * `!isFirstSave`, and `applyBundle` sets `isFirstSave` to false, so
+   * `!isFirstSave`, and `applyLoadedDocument` sets `isFirstSave` to false, so
    * the cue cannot fire on an opened document at all.
    *
    * The flag is forced to `false` before the insert on purpose: with it

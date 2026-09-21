@@ -6,7 +6,7 @@ import {
   type SaveResult,
   saveMarkdown,
 } from './plain';
-import type { DocumentBundle } from './types';
+import type { MarkdownDocument } from './types';
 
 export {
   applyByteOrderMark,
@@ -22,12 +22,12 @@ export {
   type LineConventions,
 } from './line-conventions';
 export type { LoadResult, SaveResult } from './plain';
-export type { DocumentBundle, DocumentImage } from './types';
+export type { DocumentImage, MarkdownDocument } from './types';
 
 /**
  * Load a markdown document from disk. Every document is a plain `.md`
  * file — the single format the editor reads and writes. The text that
- * was on disk comes back alongside the parsed bundle: it is the
+ * was on disk comes back alongside the parsed document: it is the
  * baseline for the external-change check (R-C14).
  */
 export async function loadDocument(path: string, io: PlatformIO): Promise<LoadResult> {
@@ -43,6 +43,9 @@ export function parseDocument(text: string, path: string): LoadResult {
   return parseMarkdown(text, path);
 }
 
-export async function saveDocument(bundle: DocumentBundle, io: PlatformIO): Promise<SaveResult> {
-  return saveMarkdown(bundle, io);
+export async function saveDocument(
+  document: MarkdownDocument,
+  io: PlatformIO,
+): Promise<SaveResult> {
+  return saveMarkdown(document, io);
 }

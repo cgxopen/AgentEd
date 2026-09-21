@@ -2,7 +2,7 @@
  * #304 at the level the user meets it: the metadata split, on the whole path.
  *
  * Bytes on disk → `decodeFileText` → `loadMarkdown` → the editor →
- * `buildBundle` → `saveMarkdown`, then opened again. **Every row asserts what
+ * `buildDocument` → `saveMarkdown`, then opened again. **Every row asserts what
  * the reopened document holds beside the bytes**, because R-C2 is the document
  * and not only the file (#300): one shape here, the rule document, used to
  * come back as metadata while its file held still.
@@ -29,7 +29,7 @@ import meetingNoteMd from '../templates/meeting-note.md?raw';
 import projectDocumentMd from '../templates/project-document.md?raw';
 import templateReadmeMd from '../templates/readme.md?raw';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
-import { buildBundle } from './bundle';
+import { buildDocument } from './editor-document';
 import { AppState } from './state';
 
 const PATH = '/doc/notes.md';
@@ -80,9 +80,12 @@ interface Opened {
   readonly written: string;
 }
 
-/** Hand the state a saved document, the way `applyBundle` does, and save it. */
+/** Hand the state a saved document, the way `applyLoadedDocument` does, and save it. */
 async function saveFromEditor(editor: EditorInstance, state: AppState): Promise<string> {
-  const result = await saveMarkdown(buildBundle(state, editor.getMarkdown), recordingIO(new Map()));
+  const result = await saveMarkdown(
+    buildDocument(state, editor.getMarkdown),
+    recordingIO(new Map()),
+  );
   return result.writtenText;
 }
 
@@ -93,15 +96,15 @@ async function openAndSave(text: string): Promise<Opened> {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const editor = createEditor(host);
-  editor.setMarkdown(loaded.bundle.markdownBody);
+  editor.setMarkdown(loaded.document.markdownBody);
   const state = new AppState();
   state.filePath = PATH;
-  state.frontmatter = loaded.bundle.frontmatterRaw;
-  state.lineConventions = loaded.bundle.lineConventions;
-  state.byteOrderMark = loaded.bundle.byteOrderMark;
+  state.frontmatter = loaded.document.frontmatterRaw;
+  state.lineConventions = loaded.document.lineConventions;
+  state.byteOrderMark = loaded.document.byteOrderMark;
   try {
     return {
-      metadata: loaded.bundle.frontmatterRaw,
+      metadata: loaded.document.frontmatterRaw,
       panel: shouldShowFrontmatterPanel(state),
       nodes: nodesOf(editor),
       written: await saveFromEditor(editor, state),

@@ -273,7 +273,7 @@ describe('#141 — the picked file outside the granted folder', () => {
 
     await io.openFile();
 
-    // The baseline `applyBundle` records is the picked file's text. The
+    // The baseline `applyLoadedDocument` records is the picked file's text. The
     // snapshot must be about the same file, or the user is asked about a
     // document they never opened.
     const snapshot = await io.readSnapshot('notes.md');
