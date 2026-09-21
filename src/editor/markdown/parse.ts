@@ -2,6 +2,13 @@ import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { commentCarrier } from './comment-spelling';
+import {
+  encodeIndents,
+  FOOTNOTE_DEFINITION,
+  FOOTNOTE_DEFINITION_ATTRIBUTE,
+  FOOTNOTE_INDENTS_ATTRIBUTE,
+  splitDefinition,
+} from './footnote';
 import { stampImageSources } from './image-spelling';
 import { listSpacingAttribute } from './list-spacing';
 import { stampTableSource } from './table-html-source';
@@ -247,6 +254,52 @@ export interface ParseOptions {
    * reflowing them into one line would lose it.
    */
   readonly breaks?: boolean;
+}
+
+// ── Footnote definitions, taken before `marked` can read them as links (#408) ──
+//
+// **A block extension is tried before `marked` tries its own block
+// tokenizers**, which is the whole of the ordering and why nothing is
+// reordered here. Measured at the lexer: `[^a]: https://example.com/schema`
+// puts `^a` in the links map today and the line is gone from the token
+// stream; with this registered the links map is empty and the definition is a
+// token. `[docs]: https://example.com/d` is unaffected on both sides - the
+// pattern matches only `[^`, so a reference-style link definition is consumed
+// exactly as it always was, which #408 pins as a regression row.
+//
+// **The continuation is consumed here rather than left behind.** Measured: a
+// tokenizer that takes only the first line leaves `    second line` for
+// `marked`, which reads an indented line as a **code block** - so the repair
+// would have invented a fenced block where the file had a sentence.
+marked.use({
+  extensions: [
+    {
+      name: 'footnoteDefinition',
+      level: 'block',
+      start(src: string) {
+        return src.match(/^\[\^/m)?.index;
+      },
+      tokenizer(src: string) {
+        const match = FOOTNOTE_DEFINITION.exec(src);
+        if (!match) return undefined;
+        return { type: 'footnoteDefinition', raw: match[0], tokens: [] } as never;
+      },
+      renderer(token: unknown) {
+        const { lines, indents } = splitDefinition((token as { raw: string }).raw);
+        // A hard break per continuation, because the content is editable and a
+        // newline inside inline content is a soft break the serializer
+        // collapses to a space. The indentation cannot live in the text for
+        // the same reason, so it travels on the element.
+        const body = lines.map(escapeHtmlText).join('<br>');
+        return `<div ${FOOTNOTE_DEFINITION_ATTRIBUTE} ${FOOTNOTE_INDENTS_ATTRIBUTE}="${encodeIndents(indents)}">${body}</div>`;
+      },
+    },
+  ],
+});
+
+/** The three characters that could end the element this text is written into. */
+function escapeHtmlText(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export function markdownToHtml(markdown: string, options: ParseOptions = {}): string {

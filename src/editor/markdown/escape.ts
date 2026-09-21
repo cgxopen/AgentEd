@@ -1,3 +1,5 @@
+import { FOOTNOTE_REFERENCE } from './footnote';
+
 /**
  * Narrowing turndown's text escaping to what CommonMark actually needs (#90).
  *
@@ -49,6 +51,10 @@
  */
 const KEPT_UNDERSCORE = '\uE000';
 
+/** The two halves of a footnote reference, held out of turndown's escape (#408). */
+const KEPT_BRACKET_OPEN = '\uE010';
+const KEPT_BRACKET_CLOSE = '\uE011';
+
 /**
  * A character CommonMark's flanking rules count as neither whitespace nor
  * punctuation. Letters and numbers are a deliberate under-approximation of
@@ -94,6 +100,23 @@ export function createNarrowedEscape(
       return escapeAll(text);
     }
 
-    return escapeAll(keepIntrawordUnderscores(text)).replaceAll(KEPT_UNDERSCORE, '_');
+    // A footnote reference passes through unescaped (#408). Turndown escapes
+    // `[` and `]` in every text node, so `[^a]` came back as `\[^a\]` - and
+    // once the definition beside it is understood, the two spell different
+    // documents rather than the same one. The same sentinel shape as the
+    // underscore above, and the same step aside if a document already holds a
+    // sentinel: the whole narrowing is given up rather than risk rewriting a
+    // character the user typed.
+    if (text.includes(KEPT_BRACKET_OPEN) || text.includes(KEPT_BRACKET_CLOSE)) {
+      return escapeAll(text);
+    }
+    const held = text.replace(
+      FOOTNOTE_REFERENCE,
+      (_whole, label: string) => `${KEPT_BRACKET_OPEN}${label}${KEPT_BRACKET_CLOSE}`,
+    );
+    return escapeAll(keepIntrawordUnderscores(held))
+      .replaceAll(KEPT_UNDERSCORE, '_')
+      .replaceAll(KEPT_BRACKET_OPEN, '[^')
+      .replaceAll(KEPT_BRACKET_CLOSE, ']');
   };
 }

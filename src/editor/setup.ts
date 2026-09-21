@@ -43,6 +43,7 @@ import {
   encodeComment,
   MARKDOWN_COMMENT_ATTRIBUTE,
 } from './markdown/comment-spelling';
+import { FOOTNOTE_DEFINITION_ATTRIBUTE, FOOTNOTE_INDENTS_ATTRIBUTE } from './markdown/footnote';
 import {
   decodeHtmlSource,
   encodeHtmlSource,
@@ -91,6 +92,48 @@ import { createSearchExtension } from './search-extension';
 // second is what made removing something the reader could not see deliberate;
 // a mark on screen already does that, and one keystroke to remove a character
 // you can see is what every other character gets.
+
+/**
+ * A footnote definition, as the lines the file wrote (#408).
+ *
+ * **Editable content rather than an atom, and that was measured.** An inert
+ * carrier holding the bytes preserves every row too, but it takes no caret:
+ * measured, a character typed at the definition lands beside it and reaches
+ * the file as a stray paragraph. With inline content the same keystroke edits
+ * the definition, which is where it was aimed. `#409` puts a surface on this;
+ * until then the person sees, and can edit, the markdown the file holds.
+ *
+ * `defining` so that replacing the content does not dissolve the node into
+ * the paragraph around it.
+ *
+ * The indentation of each continuation line travels as an attribute rather
+ * than in the text, because the text is inline content and leading whitespace
+ * there does not survive to the serializer.
+ */
+const FootnoteDefinition = TipTapNode.create({
+  name: 'footnoteDefinition',
+  group: 'block',
+  content: 'inline*',
+  defining: true,
+
+  addAttributes: () => ({
+    indents: {
+      default: '',
+      parseHTML: (element: HTMLElement) => element.getAttribute(FOOTNOTE_INDENTS_ATTRIBUTE) ?? '',
+      renderHTML: (attributes: Record<string, unknown>) =>
+        typeof attributes.indents === 'string' && attributes.indents !== ''
+          ? { [FOOTNOTE_INDENTS_ATTRIBUTE]: attributes.indents }
+          : {},
+    },
+  }),
+
+  parseHTML: () => [{ tag: `div[${FOOTNOTE_DEFINITION_ATTRIBUTE}]` }],
+  renderHTML: ({ HTMLAttributes }) => [
+    'div',
+    { ...HTMLAttributes, [FOOTNOTE_DEFINITION_ATTRIBUTE]: '' },
+    0,
+  ],
+});
 
 const MarkdownComment = TipTapNode.create({
   name: 'markdownComment',
@@ -639,6 +682,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     // place in this list does not matter: it listens on the document.
     HistoryStaysWithFocus,
     MarkdownComment,
+    FootnoteDefinition,
     Underline,
     Link.configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link
