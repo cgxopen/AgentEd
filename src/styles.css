@@ -939,9 +939,26 @@ button.indicator-search:hover {
   cursor: pointer;
 }
 
+/* **The word and character counts give way to the document name** (#413), and
+ * nothing else does. They carry no breakpoint: `ui/header-room.ts` measures the
+ * bar and sets the class below when the name as it is shown, plus three
+ * characters, would no longer sit clear of them.
+ *
+ * `display: none` and **never `aria-hidden`**: `app/header-wiring.ts` reads the
+ * first as taken out of the bar and offers it in the kebab list, and the second
+ * as withdrawn and offers nothing. A count that no longer fits is still a live
+ * count with a current number, so it belongs in the list. */
+.indicator-no-room {
+  display: none;
+}
+
 /* Responsive breakpoints — drop non-essential indicators at narrow widths.
  * The "tokens" unit collapses first (number alone stays readable); at <600px
- * the left-side padding is tightened to keep the right side readable. */
+ * the left-side padding is tightened to keep the right side readable.
+ *
+ * `.indicator-collapse-1000` has no user left since #413 took the character
+ * count off it, and is kept as the one width rule nothing claims rather than
+ * removed, so that a later indicator wanting that width finds it. */
 @media (max-width: 1000px) {
   .indicator-collapse-1000 {
     display: none;
