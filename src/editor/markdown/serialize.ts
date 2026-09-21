@@ -6,6 +6,12 @@ import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './commen
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import { createNarrowedEscape } from './escape';
 import {
+  decodeIndents,
+  FOOTNOTE_DEFINITION_ATTRIBUTE,
+  FOOTNOTE_INDENTS_ATTRIBUTE,
+  joinDefinition,
+} from './footnote';
+import {
   decodeHtmlSource,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   imageMarkup,
@@ -685,6 +691,59 @@ turndown.addRule('markdownComment', {
     (node as HTMLElement).hasAttribute(MARKDOWN_COMMENT_ATTRIBUTE),
   replacement: (_content, node) =>
     decodeComment((node as HTMLElement).getAttribute(MARKDOWN_COMMENT_ATTRIBUTE)) ?? '',
+});
+
+/**
+ * A footnote definition, written back as the lines the file wrote (#408).
+ *
+ * **The rule reads its neighbours, and that is where the single newline comes
+ * from.** Two consecutive definitions are two blocks, and turndown puts a
+ * blank line between two blocks — measured, and it is what took the two
+ * candidates that carry the construct rather than its lines down to 10 of 14
+ * acceptance rows. So a definition standing next to another leads with one
+ * newline and ends with none, and one standing next to anything else keeps
+ * the blank lines a block is owed.
+ *
+ * Deciding from a sibling is an established shape in this file rather than a
+ * new one: the list-item rule reads `nextSibling` for loose and tight spacing
+ * (#28, #199), and the list rule reads both siblings to keep two adjacent
+ * lists of different kinds apart.
+ *
+ * A `<br>` inside the element is a continuation line, and the indentation the
+ * file used for it comes off the element — it cannot be read from the text,
+ * because leading whitespace in inline content does not reach here.
+ */
+function isFootnoteDefinition(node: Node | null): boolean {
+  return (
+    node !== null &&
+    node.nodeName === 'DIV' &&
+    (node as HTMLElement).hasAttribute(FOOTNOTE_DEFINITION_ATTRIBUTE)
+  );
+}
+
+turndown.addRule('footnoteDefinition', {
+  filter: (node) => isFootnoteDefinition(node),
+  replacement: (_content, node) => {
+    const element = node as HTMLElement;
+    const indents = decodeIndents(element.getAttribute(FOOTNOTE_INDENTS_ATTRIBUTE));
+    // The element's own lines, split at the hard breaks it carries. Bounded by
+    // the child list, which a parse of one definition builds.
+    const lines: string[] = [];
+    let current = '';
+    for (const child of Array.from(element.childNodes)) {
+      if (child.nodeName === 'BR') {
+        lines.push(current);
+        current = '';
+        continue;
+      }
+      current += child.textContent ?? '';
+    }
+    lines.push(current);
+    const text = joinDefinition({ lines, indents });
+    const lead = isFootnoteDefinition(element.previousElementSibling) ? '\n' : '\n\n';
+    const tail = isFootnoteDefinition(element.nextElementSibling) ? '' : '\n\n';
+    return `${lead}${text}${tail}`;
+  },
 });
 
 turndown.addRule('agentedImage', {
