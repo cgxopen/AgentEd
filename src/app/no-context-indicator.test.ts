@@ -56,7 +56,6 @@ const DISK: ReadonlyArray<readonly [string, string]> = [
 let disk: Map<string, string>;
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,

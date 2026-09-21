@@ -51,7 +51,6 @@ let disk: Map<string, string>;
 let writes: string[];
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,

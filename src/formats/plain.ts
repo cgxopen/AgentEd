@@ -107,8 +107,6 @@ export async function saveMarkdown(bundle: DocumentBundle, io: PlatformIO): Prom
   );
   await io.saveFile(bundle.rootPath, writtenText);
 
-  if (!io.supportsMultiFile) return { assetsError: null, writtenText };
-
   const assetImages = bundle.images.filter((img) => img.relativePath.startsWith('assets/'));
   if (assetImages.length === 0) return { assetsError: null, writtenText };
 

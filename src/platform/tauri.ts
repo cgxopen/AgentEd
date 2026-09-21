@@ -24,7 +24,6 @@ import type {
 } from './types';
 
 export class TauriIO implements PlatformIO {
-  readonly supportsMultiFile = true;
   readonly pathsOutliveSession = true;
 
   /**

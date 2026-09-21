@@ -48,7 +48,6 @@ let pickedPath: string | null = null;
 let written: Array<{ path: string; text: string }> = [];
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,

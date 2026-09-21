@@ -43,7 +43,6 @@ function buildIO(): PlatformIO {
   };
   const existing = new Set(['/proj/assets']);
   return {
-    supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
     canWriteCompanions: async () => true,
     openFile: async () => null,
@@ -243,7 +242,6 @@ const flowListing: Record<string, FileEntry[]> = {
 };
 
 const flowIO: PlatformIO = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,

@@ -34,7 +34,6 @@ let folders: Map<string, string[]>;
 let saveAsAnswer: string | null;
 
 const io = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   readText: async (path: string) => disk.get(path) ?? '',
   saveFile: async (path: string, content: string) => {

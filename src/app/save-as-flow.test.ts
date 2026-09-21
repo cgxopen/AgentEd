@@ -11,7 +11,6 @@ import { createRequestSaveAs } from './save-as-flow';
 import { AppState } from './state';
 
 const io = vi.hoisted(() => ({
-  supportsMultiFile: true,
   // Desktop-shaped: every path carries a directory (#46).
   canWriteCompanions: async () => true,
   openFile: vi.fn(async (): Promise<FileResult | null> => null),

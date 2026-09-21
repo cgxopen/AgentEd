@@ -12,7 +12,6 @@ let mkdirCalls: string[] = [];
 
 function mockIO(existsPredicate: (path: string) => boolean): PlatformIO {
   return {
-    supportsMultiFile: true,
     // Desktop-shaped, and it has to be: the two rejections these tests
     // pin — a bare name and the filesystem root — moved out of
     // `resolveAssetsDir` and into `TauriIO.canWriteCompanions` on #46,

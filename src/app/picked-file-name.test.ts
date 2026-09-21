@@ -215,7 +215,6 @@ function webPlatform(sourceName = SOURCE_NAME, failing = false): StubDir {
 function desktopPlatform(absolutePath: string, name?: string): string[] {
   const written: string[] = [];
   io = {
-    supportsMultiFile: true,
     canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => ({ ref: absolutePath, name: name ?? basename(absolutePath) }),

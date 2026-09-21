@@ -79,7 +79,6 @@ function diskWith(text: string): { io: PlatformIO; disk: Map<string, string> } {
   return {
     disk,
     io: {
-      supportsMultiFile: true,
       canWriteCompanions: async () => true,
       openFile: async () => null,
       pickFile: async () => null,

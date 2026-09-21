@@ -18,7 +18,6 @@ vi.mock('../platform/detect', () => ({ isTauri: true }));
 /** A folder the file system refuses to answer about. */
 function unreadable(): PlatformIO {
   return {
-    supportsMultiFile: true,
     canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => null,

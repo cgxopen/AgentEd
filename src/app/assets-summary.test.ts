@@ -33,7 +33,6 @@ interface Folder {
 
 function io(folder: Folder): PlatformIO {
   return {
-    supportsMultiFile: true,
     // Answering `false` here would make every state below `null`, which
     // is the whole reason this path does not ask (#201). Set to `false`
     // deliberately: if `summariseAssets` ever starts consulting it, every
