@@ -2,12 +2,12 @@
  * End-to-end integration scenario for the sidebar flow (R-C6).
  * Composes shouldShowSidebar + walkRecursive (via refreshSidebar) + the
  * click handler against a stubbed PlatformIO that simulates a document
- * with an adjacent folder three levels deep:
+ * with an adjacent `assets/` folder three levels deep:
  *
  *   /proj/
  *   ├── doc.md          ← currently open
- *   └── doc/            ← sidebar root
- *       ├── assets/
+ *   └── assets/         ← sidebar root, the only trigger since #402
+ *       ├── images/
  *       │   └── image.png
  *       ├── references/
  *       │   └── notes.md
@@ -26,22 +26,22 @@ import { AppState } from './state';
 
 function buildIO(): PlatformIO {
   const tree: Record<string, FileEntry[]> = {
-    '/proj/doc': [
-      { name: 'assets', path: '/proj/doc/assets', isDirectory: true },
-      { name: 'references', path: '/proj/doc/references', isDirectory: true },
-      { name: 'scripts', path: '/proj/doc/scripts', isDirectory: true },
+    '/proj/assets': [
+      { name: 'images', path: '/proj/assets/images', isDirectory: true },
+      { name: 'references', path: '/proj/assets/references', isDirectory: true },
+      { name: 'scripts', path: '/proj/assets/scripts', isDirectory: true },
     ],
-    '/proj/doc/assets': [
-      { name: 'image.png', path: '/proj/doc/assets/image.png', isDirectory: false },
+    '/proj/assets/images': [
+      { name: 'image.png', path: '/proj/assets/images/image.png', isDirectory: false },
     ],
-    '/proj/doc/references': [
-      { name: 'notes.md', path: '/proj/doc/references/notes.md', isDirectory: false },
+    '/proj/assets/references': [
+      { name: 'notes.md', path: '/proj/assets/references/notes.md', isDirectory: false },
     ],
-    '/proj/doc/scripts': [
-      { name: 'helper.py', path: '/proj/doc/scripts/helper.py', isDirectory: false },
+    '/proj/assets/scripts': [
+      { name: 'helper.py', path: '/proj/assets/scripts/helper.py', isDirectory: false },
     ],
   };
-  const existing = new Set(['/proj/doc']);
+  const existing = new Set(['/proj/assets']);
   return {
     supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
@@ -116,9 +116,11 @@ function flush(): Promise<void> {
 }
 
 describe('Sidebar integration — adjacent folder, 3 levels', () => {
-  it('lists assets/, references/, scripts/ under the sibling root', async () => {
+  it('lists images/, references/, scripts/ under the assets root', async () => {
     const state = new AppState();
     state.filePath = '/proj/doc.md';
+    // The #402 precondition: this document uses its `assets/` folder.
+    state.referencesImage = true;
     const io = buildIO();
     const { sidebar, lastShow } = captureSidebar();
 
@@ -126,13 +128,13 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
 
     const call = lastShow();
     expect(call).not.toBeNull();
-    expect(call!.rootPath).toBe('/proj/doc');
+    expect(call!.rootPath).toBe('/proj/assets');
 
     const topLevel = call!.nodes.map((n) => n.name).sort();
-    expect(topLevel).toEqual(['assets', 'references', 'scripts']);
+    expect(topLevel).toEqual(['images', 'references', 'scripts']);
 
-    const assetsNode = call!.nodes.find((n) => n.name === 'assets');
-    expect(assetsNode?.children.map((c) => c.name)).toEqual(['image.png']);
+    const imagesNode = call!.nodes.find((n) => n.name === 'images');
+    expect(imagesNode?.children.map((c) => c.name)).toEqual(['image.png']);
 
     const referencesNode = call!.nodes.find((n) => n.name === 'references');
     expect(referencesNode?.children.map((c) => c.name)).toEqual(['notes.md']);
@@ -189,13 +191,18 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
  * and the real `refreshSidebar` over one in-memory disk, shaped like the
  * folder the owner tests by hand.
  *
- *   /proiect.md          ← opened first; roots the panel at /proiect
- *   /proiect/
- *     cap1.md            ← no adjacent structure of its own
- *     cap2.md            ← has cap2/ beside it
+ *   /book/proiect.md         ← opened first; roots the panel at /book/assets
+ *   /book/assets/
+ *     cap1.md                ← no assets/ of its own
  *     cap3.md
- *     cap2/note.md
- *     sub/chapter.md     ← the subfolder case
+ *     deep/cap2.md           ← has deep/assets/ beside it
+ *     deep/assets/note.md
+ *     sub/chapter.md         ← the subfolder case, no assets/ of its own
+ *
+ * Reshaped on #402, where the folder named after the document stopped
+ * being a trigger. The two halves are the same two halves; the structure
+ * a clicked document can carry is now an `assets/` folder, so the
+ * descending half needs one a level down.
  *
  * Both halves of the decision are here, and they fail for opposite
  * reasons: the keeping half fails if the root is dropped, the descending
@@ -203,24 +210,36 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
  * and a fix that satisfies only the first passes half a decision.
  */
 const flowDisk = new Map<string, string>([
-  ['/proiect.md', '# Proiect\n'],
-  ['/proiect/cap1.md', '# Cap 1\n'],
-  ['/proiect/cap2.md', '# Cap 2\n'],
-  ['/proiect/cap3.md', '# Cap 3\n'],
-  ['/proiect/cap2/note.md', '# Note\n'],
-  ['/proiect/sub/chapter.md', '# Chapter\n'],
+  ['/book/proiect.md', '# Proiect\n'],
+  ['/book/assets/cap1.md', '# Cap 1\n'],
+  ['/book/assets/cap3.md', '# Cap 3\n'],
+  ['/book/assets/deep/cap2.md', '# Cap 2\n'],
+  ['/book/assets/deep/assets/note.md', '# Note\n'],
+  ['/book/assets/sub/chapter.md', '# Chapter\n'],
 ]);
-const flowDirs = new Set(['/proiect', '/proiect/cap2', '/proiect/sub']);
+const flowDirs = new Set([
+  '/book/assets',
+  '/book/assets/deep',
+  '/book/assets/deep/assets',
+  '/book/assets/sub',
+]);
 const flowListing: Record<string, FileEntry[]> = {
-  '/proiect': [
-    { name: 'cap1.md', path: '/proiect/cap1.md', isDirectory: false },
-    { name: 'cap2.md', path: '/proiect/cap2.md', isDirectory: false },
-    { name: 'cap3.md', path: '/proiect/cap3.md', isDirectory: false },
-    { name: 'cap2', path: '/proiect/cap2', isDirectory: true },
-    { name: 'sub', path: '/proiect/sub', isDirectory: true },
+  '/book/assets': [
+    { name: 'cap1.md', path: '/book/assets/cap1.md', isDirectory: false },
+    { name: 'cap3.md', path: '/book/assets/cap3.md', isDirectory: false },
+    { name: 'deep', path: '/book/assets/deep', isDirectory: true },
+    { name: 'sub', path: '/book/assets/sub', isDirectory: true },
   ],
-  '/proiect/cap2': [{ name: 'note.md', path: '/proiect/cap2/note.md', isDirectory: false }],
-  '/proiect/sub': [{ name: 'chapter.md', path: '/proiect/sub/chapter.md', isDirectory: false }],
+  '/book/assets/deep': [
+    { name: 'cap2.md', path: '/book/assets/deep/cap2.md', isDirectory: false },
+    { name: 'assets', path: '/book/assets/deep/assets', isDirectory: true },
+  ],
+  '/book/assets/deep/assets': [
+    { name: 'note.md', path: '/book/assets/deep/assets/note.md', isDirectory: false },
+  ],
+  '/book/assets/sub': [
+    { name: 'chapter.md', path: '/book/assets/sub/chapter.md', isDirectory: false },
+  ],
 };
 
 const flowIO: PlatformIO = {
@@ -312,6 +331,14 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
         markdown = md;
       },
       refreshSidebar: async () => {
+        // **The #402 precondition, stated rather than computed.** `main.ts`
+        // writes this from `documentReferencesImage(editor)` on every
+        // transaction; this rig has no editor — `setMarkdown` records a
+        // string — so it cannot run that predicate, and inventing a second
+        // one over the markdown is how the two would come to disagree.
+        // These rows are about the root a click keeps, so the trigger is
+        // satisfied here and exercised in `assets-only-panel.test.ts`.
+        state.referencesImage = true;
         await refreshSidebar(state, sidebar, flowIO);
       },
       setFilename: () => {},
@@ -329,50 +356,50 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
   });
 
   it('half (a) — a clicked file with no structure of its own leaves the tree standing', async () => {
-    await actions.openFilePath('/proiect.md');
-    expect(panelRoot()).toBe('/proiect');
+    await actions.openFilePath('/book/proiect.md');
+    expect(panelRoot()).toBe('/book/assets');
 
-    click('/proiect/cap1.md');
+    click('/book/assets/cap1.md');
     await settle();
 
-    expect(state.filePath).toBe('/proiect/cap1.md');
-    expect(panelRoot()).toBe('/proiect');
+    expect(state.filePath).toBe('/book/assets/cap1.md');
+    expect(panelRoot()).toBe('/book/assets');
     expect(panelNames()).toContain('cap3.md');
   });
 
   it('the two clicks the issue is about — cap1.md and then cap3.md', async () => {
-    await actions.openFilePath('/proiect.md');
+    await actions.openFilePath('/book/proiect.md');
 
-    click('/proiect/cap1.md');
+    click('/book/assets/cap1.md');
     await settle();
-    click('/proiect/cap3.md');
+    click('/book/assets/cap3.md');
     await settle();
 
-    expect(state.filePath).toBe('/proiect/cap3.md');
-    expect(panelRoot()).toBe('/proiect');
+    expect(state.filePath).toBe('/book/assets/cap3.md');
+    expect(panelRoot()).toBe('/book/assets');
   });
 
   it('half (b) — a clicked file WITH structure of its own still moves the panel into it', async () => {
-    await actions.openFilePath('/proiect.md');
+    await actions.openFilePath('/book/proiect.md');
 
-    click('/proiect/cap2.md');
+    click('/book/assets/deep/cap2.md');
     await settle();
 
-    expect(state.filePath).toBe('/proiect/cap2.md');
-    expect(panelRoot()).toBe('/proiect/cap2');
+    expect(state.filePath).toBe('/book/assets/deep/cap2.md');
+    expect(panelRoot()).toBe('/book/assets/deep/assets');
     expect(panelNames()).toEqual(['note.md']);
   });
 
   it('a file clicked in a subfolder keeps the folder being browsed, not its own', async () => {
     // The click never left `/proiect` — `isPathInsideRoot` in the handler
     // is what makes that true of every click that gets this far.
-    await actions.openFilePath('/proiect.md');
+    await actions.openFilePath('/book/proiect.md');
 
-    click('/proiect/sub/chapter.md');
+    click('/book/assets/sub/chapter.md');
     await settle();
 
-    expect(state.filePath).toBe('/proiect/sub/chapter.md');
-    expect(panelRoot()).toBe('/proiect');
+    expect(state.filePath).toBe('/book/assets/sub/chapter.md');
+    expect(panelRoot()).toBe('/book/assets');
   });
 
   it('the floor — the same file opened any other way still hides the panel', async () => {
@@ -380,29 +407,29 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
     // `openFilePath` with a path and nothing else. Asserted from the
     // panel that a click had made sticky, so this is the value being
     // cleared rather than one that was never set.
-    await actions.openFilePath('/proiect.md');
-    click('/proiect/cap1.md');
+    await actions.openFilePath('/book/proiect.md');
+    click('/book/assets/cap1.md');
     await settle();
-    expect(panelRoot()).toBe('/proiect');
+    expect(panelRoot()).toBe('/book/assets');
 
-    await actions.openFilePath('/proiect/cap1.md');
+    await actions.openFilePath('/book/assets/cap1.md');
 
     expect(panelRoot()).toBeNull();
   });
 
   it('the floor — a save does not dissolve a tree that a click kept', async () => {
-    await actions.openFilePath('/proiect.md');
-    click('/proiect/cap1.md');
+    await actions.openFilePath('/book/proiect.md');
+    click('/book/assets/cap1.md');
     await settle();
 
     await actions.handleSave();
 
-    expect(panelRoot()).toBe('/proiect');
+    expect(panelRoot()).toBe('/book/assets');
   });
 
   it('the floor — Close clears the kept root as well as the panel', async () => {
-    await actions.openFilePath('/proiect.md');
-    click('/proiect/cap1.md');
+    await actions.openFilePath('/book/proiect.md');
+    click('/book/assets/cap1.md');
     await settle();
 
     await actions.handleClose();

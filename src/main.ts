@@ -32,7 +32,7 @@ import { clearRecentFiles, loadRecentFiles, purgeLegacyPreferences } from './pre
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupAssetsPopover } from './ui/assets-popover';
-import { setupDocumentBadges } from './ui/document-badges';
+import { documentReferencesImage, setupDocumentBadges } from './ui/document-badges';
 import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { setupMenu } from './ui/menu';
@@ -172,6 +172,11 @@ editor.on('transaction', ({ transaction }) => {
   if (!transaction.docChanged) return;
   documentBadges.refreshImages();
   markUnusedAssets();
+  // The panel trigger of #402, from the same predicate and at the same
+  // moment as the badge above, so the two cannot answer this document
+  // differently. `applyBundle` puts the document in the editor before
+  // `refreshSidebar` asks, so the value is current by the time it is read.
+  state.referencesImage = documentReferencesImage(editor);
 });
 state.onFrontmatterChange((frontmatter) => documentBadges.refreshMetadata(frontmatter));
 documentBadges.refreshMetadata(state.frontmatter);

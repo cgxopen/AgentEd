@@ -47,7 +47,7 @@ function ioWith(granted: { current: boolean }): PlatformIO {
     writeBinary: async () => {},
     // Before a grant nothing was looked at; after one the folder answers.
     entryPresence: async (p: string) =>
-      granted.current ? (p === '/proj/notes' ? 'present' : 'absent') : 'unknown',
+      granted.current ? (p === '/proj/assets' ? 'present' : 'absent') : 'unknown',
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
     openWithSystem: async () => {},
@@ -59,6 +59,8 @@ function harness() {
   const io = ioWith(granted);
   const state = new AppState();
   state.filePath = '/proj/notes.md';
+  // The #402 precondition: these rows are about the offer, not the trigger.
+  state.referencesImage = true;
   const seen: string[] = [];
   // Visibility is tracked rather than stubbed: the rule under test is
   // "if the refresh left the panel hidden, say so", so a sidebar that
@@ -115,7 +117,7 @@ describe('#184 — accepting the offer', () => {
     });
     await acceptOffer(request, refresh, sidebar)();
 
-    expect(seen).toEqual(['offer', 'tree:/proj/notes']);
+    expect(seen).toEqual(['offer', 'tree:/proj/assets']);
   });
 
   it('a cancelled picker changes nothing and says nothing', async () => {

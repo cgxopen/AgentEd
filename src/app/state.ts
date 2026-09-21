@@ -116,7 +116,9 @@ export class AppState {
    * the tree went with the first click. Owner decision of 2026-08-29:
    * the document's own adjacent structure still wins and the panel
    * descends into it; where there is none, the root the click came from
-   * stands in.
+   * stands in. **Since #402 that structure is an `assets/` folder and
+   * nothing else, so this field carries the common case rather than the
+   * exception** — almost every click now falls through to it.
    *
    * `null` means *this document did not arrive from the panel*, which is
    * every other route — File then Open, the command line, the file
@@ -134,6 +136,29 @@ export class AppState {
    * exactly that kind of state.
    */
   sidebarRootFromClick: string | null = null;
+
+  /**
+   * Whether the document on screen references an image (#402).
+   *
+   * **The panel is derived from content, not from the folder.** An
+   * `assets/` folder beside a document the document does not use is
+   * somebody else's folder — the reasoning `ui/document-badges.ts` already
+   * gives for the «Images» badge, which withdraws in exactly that state.
+   * Before #402 the two disagreed: measured on a document referencing no
+   * image with three files in `assets/`, the badge was withdrawn while the
+   * panel listed all three and greyed all three.
+   *
+   * **A plain field with one writer**, the shape `sidebarRootFromClick`
+   * above uses. `main.ts` sets it from `documentReferencesImage` on every
+   * transaction that changes the document, which is the same place and the
+   * same predicate the badge is drawn from — so the two cannot drift. It
+   * is read in `resolveSidebarView`, which runs after `applyBundle` has
+   * put the document in the editor.
+   *
+   * `false` is the right default: a state with no document references no
+   * image, and the panel is hidden for a null path anyway.
+   */
+  referencesImage = false;
 
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
@@ -233,5 +258,6 @@ export class AppState {
     // later — clearing here is what stops the next document opened from
     // File then Open inheriting a folder from the one before it.
     this.sidebarRootFromClick = null;
+    this.referencesImage = false;
   }
 }

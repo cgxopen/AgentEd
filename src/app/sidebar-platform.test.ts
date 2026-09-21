@@ -66,7 +66,8 @@ describe('on a desktop build (#146)', () => {
       setOnOpenByHand: () => {},
     };
 
-    await refreshSidebar(state, sidebar, mockIO(['/proj/notes']));
+    state.referencesImage = true;
+    await refreshSidebar(state, sidebar, mockIO(['/proj/assets']));
 
     expect(passed).toBe(true);
   });

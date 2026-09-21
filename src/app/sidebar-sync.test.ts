@@ -40,12 +40,15 @@ describe('shouldShowSidebar', () => {
     expect(decision.kind).toBe('nothing-adjacent');
   });
 
-  it('adjacent folder named after the file → root = that folder', async () => {
+  it('a folder named after the file is NOT a trigger any more (#402)', async () => {
+    // The rule that left with #402. Kept as a row rather than deleted,
+    // because an absence is what this issue bought and a silent return of
+    // the trigger would otherwise pass.
     const decision = await shouldShowSidebar(
       '/proj/notes.md',
       mockIO({ existing: ['/proj/notes'] }),
     );
-    expect(decision).toEqual({ kind: 'tree', root: '/proj/notes' });
+    expect(decision.kind).toBe('nothing-adjacent');
   });
 
   it('adjacent assets/ → root = <dirname>/assets/', async () => {
@@ -56,12 +59,28 @@ describe('shouldShowSidebar', () => {
     expect(decision).toEqual({ kind: 'tree', root: '/proj/assets' });
   });
 
-  it('the named folder wins over assets/ when both exist', async () => {
+  it('assets/ roots the panel even when a folder named after the file is there too', async () => {
+    // Before #402 the named folder won. Now there is nothing to win
+    // against, and the row is here so the reversal is visible.
     const decision = await shouldShowSidebar(
       '/proj/notes.md',
       mockIO({ existing: ['/proj/notes', '/proj/assets'] }),
     );
-    expect(decision).toEqual({ kind: 'tree', root: '/proj/notes' });
+    expect(decision).toEqual({ kind: 'tree', root: '/proj/assets' });
+  });
+
+  it('a document at the root of a granted folder has its assets/ looked for (#402)', async () => {
+    // `dirname` of a bare name is empty, and the guard used to skip the
+    // probe on it, so the web build never looked. The desktop never
+    // reaches this shape: `canWriteCompanions` refuses a bare name one
+    // step earlier, which `platform/tauri.test.ts` holds.
+    const decision = await shouldShowSidebar('report.md', mockIO({ existing: ['assets'] }));
+    expect(decision).toEqual({ kind: 'tree', root: 'assets' });
+  });
+
+  it('and answers nothing-adjacent there when the assets/ folder is absent', async () => {
+    const decision = await shouldShowSidebar('report.md', mockIO());
+    expect(decision.kind).toBe('nothing-adjacent');
   });
 
   it('no adjacent structure → hidden', async () => {
@@ -92,6 +111,7 @@ describe('shouldShowSidebar', () => {
 describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
   /** A tree with no bottom: every directory holds one directory. */
   function endlessIO(root: string, asked: string[]): PlatformIO {
+    // The root is `/assets` since #402, which is the only trigger left.
     const io = mockIO({ existing: [root] });
     return {
       ...io,
@@ -125,22 +145,23 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
   it('lists seven levels and no eighth, however deep the tree goes', async () => {
     const asked: string[] = [];
     const state = new AppState();
-    state.filePath = '/doc.md';
+    state.filePath = '/proj/doc.md';
+    state.referencesImage = true;
 
-    await refreshSidebar(state, noopSidebar(), endlessIO('/doc', asked));
+    await refreshSidebar(state, noopSidebar(), endlessIO('/proj/assets', asked));
 
     // `walk` starts at depth 0 and returns at `depth > MAX_LIST_DEPTH`, so
     // the root and six levels below it are listed and the seventh is not.
     // Written as the paths rather than as a count, so a change to the bound
     // says which level it moved.
     expect(asked).toEqual([
-      '/doc',
-      '/doc/down',
-      '/doc/down/down',
-      '/doc/down/down/down',
-      '/doc/down/down/down/down',
-      '/doc/down/down/down/down/down',
-      '/doc/down/down/down/down/down/down',
+      '/proj/assets',
+      '/proj/assets/down',
+      '/proj/assets/down/down',
+      '/proj/assets/down/down/down',
+      '/proj/assets/down/down/down/down',
+      '/proj/assets/down/down/down/down/down',
+      '/proj/assets/down/down/down/down/down/down',
     ]);
   });
 
@@ -149,7 +170,8 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     // deepest directory is still an entry, it simply has no children.
     const asked: string[] = [];
     const state = new AppState();
-    state.filePath = '/doc.md';
+    state.filePath = '/proj/doc.md';
+    state.referencesImage = true;
     let built: TreeNode[] = [];
 
     await refreshSidebar(
@@ -160,7 +182,7 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
           built = nodes;
         },
       },
-      endlessIO('/doc', asked),
+      endlessIO('/proj/assets', asked),
     );
 
     let depth = 0;
@@ -186,9 +208,10 @@ describe('the root a sidebar click asked to keep (#178)', () => {
   const tree: Record<string, FileEntry[]> = {
     '/proj': [
       { name: 'one.md', path: '/proj/one.md', isDirectory: false },
-      { name: 'two.md', path: '/proj/two.md', isDirectory: false },
+      { name: 'sub', path: '/proj/sub', isDirectory: true },
     ],
-    '/proj/two': [{ name: 'note.md', path: '/proj/two/note.md', isDirectory: false }],
+    '/proj/sub': [{ name: 'two.md', path: '/proj/sub/two.md', isDirectory: false }],
+    '/proj/sub/assets': [{ name: 'note.md', path: '/proj/sub/assets/note.md', isDirectory: false }],
   };
 
   function capture(): { sidebar: Sidebar; shown: () => string | null } {
@@ -224,6 +247,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
   it('with no adjacent structure of its own, the panel keeps the root', async () => {
     const state = new AppState();
     state.filePath = '/proj/one.md';
+    state.referencesImage = true;
     state.sidebarRootFromClick = '/proj';
     const { sidebar, shown } = capture();
 
@@ -232,22 +256,24 @@ describe('the root a sidebar click asked to keep (#178)', () => {
     expect(shown()).toBe('/proj');
   });
 
-  it('with adjacent structure of its own, the panel still descends into it', async () => {
-    // The half a fix that made everything sticky would break. `two.md`
-    // carries `two/`, so the document's own structure wins over the kept
-    // root exactly as it did before this change.
+  it('with an assets/ folder of its own, the panel still descends into it', async () => {
+    // The half a repair that made everything sticky would break. Since
+    // #402 the document's own structure is an `assets/` folder, so the
+    // shape is a clicked document one level down that has one: the
+    // descent wins over the kept root exactly as it did before.
     const state = new AppState();
-    state.filePath = '/proj/two.md';
+    state.filePath = '/proj/sub/two.md';
+    state.referencesImage = true;
     state.sidebarRootFromClick = '/proj';
     const { sidebar, shown } = capture();
 
     await refreshSidebar(
       state,
       sidebar,
-      mockIO({ existing: ['/proj', '/proj/two'], entries: tree }),
+      mockIO({ existing: ['/proj', '/proj/sub/assets'], entries: tree }),
     );
 
-    expect(shown()).toBe('/proj/two');
+    expect(shown()).toBe('/proj/sub/assets');
   });
 
   it('with nothing kept, a document with no structure still hides the panel', async () => {
@@ -290,6 +316,7 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
   it('passes it as the fourth argument, from the one place that knows', async () => {
     const state = new AppState();
     state.filePath = '/proj/notes.md';
+    state.referencesImage = true;
     let passed: unknown = 'nothing was passed';
     const sidebar: Sidebar = {
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
@@ -313,7 +340,7 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
       setOnOpenByHand: () => {},
     };
 
-    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/notes'] }));
+    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/assets'] }));
 
     expect(passed).toBe(isTauri);
     // And under this harness that value is the web answer, which is the
@@ -337,6 +364,9 @@ describe('#184 — which kind of nothing the panel is showing', () => {
   function panelFor(filePath = '/proj/notes.md') {
     const state = new AppState();
     state.filePath = filePath;
+    // The #402 precondition: these rows are about which kind of nothing
+    // the panel shows, not about what raises it.
+    state.referencesImage = true;
     const seen: string[] = [];
     const sidebar: Sidebar = {
       showTree: (_n: TreeNode[], _r: string, rootPath: string) => {
@@ -389,8 +419,8 @@ describe('#184 — which kind of nothing the panel is showing', () => {
 
   it('a folder that is there → the tree, and no offer', async () => {
     const { state, sidebar, seen } = panelFor();
-    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/notes'] }));
-    expect(seen).toEqual(['tree:/proj/notes']);
+    await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj/assets'] }));
+    expect(seen).toEqual(['tree:/proj/assets']);
   });
 
   it('a root a click asked to keep outranks the offer', async () => {

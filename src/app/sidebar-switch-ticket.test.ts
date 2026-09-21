@@ -45,6 +45,10 @@ afterEach(() => {
 function stateAt(path: string): AppState {
   const state = new AppState();
   state.filePath = path;
+  // These rows are about the ticket rather than the trigger, so every
+  // document here uses its `assets/` folder — the #402 precondition for a
+  // tree, which `main.ts` writes from the editor.
+  state.referencesImage = true;
   return state;
 }
 

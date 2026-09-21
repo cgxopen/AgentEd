@@ -17,6 +17,7 @@ import stylesCss from '../styles.css?raw';
 import { shippedElement } from '../test-support/shipped-markup';
 import { reaches, stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { contrast, paletteTokens, resolveColour } from '../test-support/theme-colours';
+import { documentReferencesImage } from '../ui/document-badges';
 import { type Sidebar, setupSidebar } from '../ui/sidebar';
 import { NOT_USED_HERE, UNUSED_CLASS } from '../ui/sidebar-tree';
 import { summariseAssets, unusedAssetFiles } from './assets-summary';
@@ -72,6 +73,11 @@ function mark(): void {
 }
 
 async function drawAndMark(): Promise<void> {
+  // The #402 half of the same wiring: the panel is derived from content,
+  // so `main.ts` writes this from the same predicate the badge is drawn
+  // from, on every transaction. Restated here rather than imported, the
+  // way `document-badges-flow.test.ts` restates the badge wiring.
+  state.referencesImage = documentReferencesImage(instance.editor);
   await refreshSidebar(state, sidebar, io);
   mark();
 }

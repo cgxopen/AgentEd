@@ -16,6 +16,7 @@ import shippedPage from '../../index.html?raw';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import type { EntryPresence, PlatformIO } from '../platform/types';
 import { shippedElement } from '../test-support/shipped-markup';
+import { documentReferencesImage } from '../ui/document-badges';
 import { type Sidebar, setupSidebar } from '../ui/sidebar';
 import type { AppContext } from './context';
 import { createDocumentActions, type DocumentActions } from './document-actions';
@@ -60,9 +61,12 @@ let sidebar: Sidebar;
 let actions: DocumentActions;
 
 beforeEach(async () => {
+  // Both documents use their `assets/` folder, which is the #402
+  // precondition for the panel to be there at all — these rows are about
+  // whether it survives a save, not about what raises it.
   disk = new Map([
-    [DOC, '# Note\n'],
-    [OTHER, '# Other\n'],
+    [DOC, '# Note\n\n![a](assets/a.png)\n'],
+    [OTHER, '# Other\n\n![z](assets/z.png)\n'],
   ]);
   folders = new Map([
     ['/doc/assets', ['a.png']],
@@ -81,7 +85,12 @@ beforeEach(async () => {
     editor: instance.editor,
     getMarkdown: instance.getMarkdown,
     setMarkdown: instance.setMarkdown,
-    refreshSidebar: (redraw?: SidebarRedraw) => refreshSidebar(state, sidebar, io, redraw),
+    refreshSidebar: (redraw?: SidebarRedraw) => {
+      // What `main.ts` writes on every transaction (#402): the panel is
+      // derived from content, from the predicate the badge uses.
+      state.referencesImage = documentReferencesImage(instance.editor);
+      return refreshSidebar(state, sidebar, io, redraw);
+    },
     setFilename: () => {},
     updateCloseEnabled: () => {},
     sidebar,

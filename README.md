@@ -36,7 +36,7 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **Metadata without the jargon** — a document's title, date and other front-matter fields live in a small panel, not in raw YAML in your face. Insert → Metadata adds the block to any document; deleting every field removes it completely.
 - **New from Template** — four plain seeds: README, project document, meeting note, blank + metadata.
 - **Find & Replace** — an inline panel, match case / whole word / regex (safe-parse), `F3` navigation.
-- **Files panel** — a file tree when your document has related structure around it. It opens and closes from the panel button at the right end of the header, or with `Ctrl+Shift+E`, and the button shows which of the two the next press will do. It sits on the right, drawn as a card, and takes its own room rather than covering what you were writing.
+- **Files panel** — a file tree when your document has an `assets/` folder beside it and uses it. It opens and closes from the panel button at the right end of the header, or with `Ctrl+Shift+E`, and the button shows which of the two the next press will do. It sits on the right, drawn as a card, and takes its own room rather than covering what you were writing.
 - **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle near the right end of the header, one place in from the panel button). On Windows the whole bar, title bar included, is in the colour of your palette.
 - **Multiple windows** — isolated instances, one file each.
 - **Offline by design** — AgentEd makes no network calls of its own. No telemetry, no account, no cloud.

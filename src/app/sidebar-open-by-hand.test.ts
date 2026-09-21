@@ -34,7 +34,7 @@ function io(folder: Folder): PlatformIO {
     if (folder.gate) await folder.gate;
   };
   const entries: Record<string, FileEntry[]> = {
-    '/proj/notes': [{ name: 'cap1.md', path: '/proj/notes/cap1.md', isDirectory: false }],
+    '/proj/assets': [{ name: 'cap1.md', path: '/proj/assets/cap1.md', isDirectory: false }],
   };
   return {
     supportsMultiFile: true,
@@ -59,7 +59,7 @@ function io(folder: Folder): PlatformIO {
 }
 
 const TREE_BESIDE = (path: string): EntryPresence =>
-  path === '/proj/notes' ? 'present' : 'absent';
+  path === '/proj/assets' ? 'present' : 'absent';
 
 /** The panel, wired the way `main.ts` wires it. */
 function mount(filePath: string | null, folder: Folder) {
@@ -70,6 +70,9 @@ function mount(filePath: string | null, folder: Folder) {
   const sidebar = setupSidebar();
   const state = new AppState();
   state.filePath = filePath;
+  // The #402 precondition, stated because these rows are about what an
+  // open by hand answers rather than about what raises the panel.
+  state.referencesImage = true;
   const platform = { io: io(folder) };
   const reads: Array<Promise<void>> = [];
   sidebar.setOnOpenByHand((ticket) => {
