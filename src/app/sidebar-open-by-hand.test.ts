@@ -70,6 +70,9 @@ function mount(filePath: string | null, folder: Folder) {
   const sidebar = setupSidebar();
   const state = new AppState();
   state.filePath = filePath;
+  // The #402 precondition, stated because these rows are about what an
+  // open by hand answers rather than about what raises the panel.
+  state.referencesImage = true;
   const platform = { io: io(folder) };
   const reads: Array<Promise<void>> = [];
   sidebar.setOnOpenByHand((ticket) => {

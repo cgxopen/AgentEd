@@ -146,6 +146,7 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     const asked: string[] = [];
     const state = new AppState();
     state.filePath = '/proj/doc.md';
+    state.referencesImage = true;
 
     await refreshSidebar(state, noopSidebar(), endlessIO('/proj/assets', asked));
 
@@ -170,6 +171,7 @@ describe('the walk stops at MAX_LIST_DEPTH (#174)', () => {
     const asked: string[] = [];
     const state = new AppState();
     state.filePath = '/proj/doc.md';
+    state.referencesImage = true;
     let built: TreeNode[] = [];
 
     await refreshSidebar(
@@ -245,6 +247,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
   it('with no adjacent structure of its own, the panel keeps the root', async () => {
     const state = new AppState();
     state.filePath = '/proj/one.md';
+    state.referencesImage = true;
     state.sidebarRootFromClick = '/proj';
     const { sidebar, shown } = capture();
 
@@ -260,6 +263,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
     // descent wins over the kept root exactly as it did before.
     const state = new AppState();
     state.filePath = '/proj/sub/two.md';
+    state.referencesImage = true;
     state.sidebarRootFromClick = '/proj';
     const { sidebar, shown } = capture();
 
@@ -312,6 +316,7 @@ describe('the sidebar is told whether this build can open a non-markdown file (#
   it('passes it as the fourth argument, from the one place that knows', async () => {
     const state = new AppState();
     state.filePath = '/proj/notes.md';
+    state.referencesImage = true;
     let passed: unknown = 'nothing was passed';
     const sidebar: Sidebar = {
       showTree: (_n: TreeNode[], _r: string, _p: string, opensNonMarkdown: boolean) => {
@@ -359,6 +364,9 @@ describe('#184 — which kind of nothing the panel is showing', () => {
   function panelFor(filePath = '/proj/notes.md') {
     const state = new AppState();
     state.filePath = filePath;
+    // The #402 precondition: these rows are about which kind of nothing
+    // the panel shows, not about what raises it.
+    state.referencesImage = true;
     const seen: string[] = [];
     const sidebar: Sidebar = {
       showTree: (_n: TreeNode[], _r: string, rootPath: string) => {

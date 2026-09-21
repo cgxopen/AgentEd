@@ -137,6 +137,29 @@ export class AppState {
    */
   sidebarRootFromClick: string | null = null;
 
+  /**
+   * Whether the document on screen references an image (#402).
+   *
+   * **The panel is derived from content, not from the folder.** An
+   * `assets/` folder beside a document the document does not use is
+   * somebody else's folder — the reasoning `ui/document-badges.ts` already
+   * gives for the «Images» badge, which withdraws in exactly that state.
+   * Before #402 the two disagreed: measured on a document referencing no
+   * image with three files in `assets/`, the badge was withdrawn while the
+   * panel listed all three and greyed all three.
+   *
+   * **A plain field with one writer**, the shape `sidebarRootFromClick`
+   * above uses. `main.ts` sets it from `documentReferencesImage` on every
+   * transaction that changes the document, which is the same place and the
+   * same predicate the badge is drawn from — so the two cannot drift. It
+   * is read in `resolveSidebarView`, which runs after `applyBundle` has
+   * put the document in the editor.
+   *
+   * `false` is the right default: a state with no document references no
+   * image, and the panel is hidden for a null path anyway.
+   */
+  referencesImage = false;
+
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
   /**
@@ -235,5 +258,6 @@ export class AppState {
     // later — clearing here is what stops the next document opened from
     // File then Open inheriting a folder from the one before it.
     this.sidebarRootFromClick = null;
+    this.referencesImage = false;
   }
 }

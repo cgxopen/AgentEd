@@ -59,6 +59,8 @@ function harness() {
   const io = ioWith(granted);
   const state = new AppState();
   state.filePath = '/proj/notes.md';
+  // The #402 precondition: these rows are about the offer, not the trigger.
+  state.referencesImage = true;
   const seen: string[] = [];
   // Visibility is tracked rather than stubbed: the rule under test is
   // "if the refresh left the panel hidden, say so", so a sidebar that

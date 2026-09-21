@@ -1,10 +1,15 @@
 /**
- * #402 — the panel appears for an `assets/` folder and for nothing else.
+ * #402 — the panel appears for an `assets/` folder the document uses, and
+ * for nothing else.
  *
- * Two halves that must fall for opposite reasons. **A** is the rule that
+ * Three halves, each falling for its own reason. **A** is the rule that
  * left: a folder named after the document no longer opens the panel, on a
- * switch or by hand. **B** is the rule that stayed: an `assets/` folder
- * still does, by both routes, and the #380 grey still reaches the panel.
+ * switch or by hand. **B** is the rule that stayed: an `assets/` folder the
+ * document uses still does, by both routes. **D** is the rule that arrived
+ * with the owner decision of 2026-09-21: an `assets/` folder the document
+ * does **not** use raises nothing, because the panel is derived from
+ * content rather than from the directory the document sits in — which is
+ * what `ui/document-badges.ts` already says about the «Images» badge.
  *
  * Driven through `refreshSidebar` and `openSidebarByHand`, the two routes
  * R-C6 names, against a recording `Sidebar` — so what is asserted is what
@@ -12,7 +17,9 @@
  * returned. `sidebar-sync.test.ts` holds the decision itself.
  */
 import { describe, expect, it } from 'vitest';
+import { createEditor } from '../editor/setup';
 import type { FileEntry, PlatformIO } from '../platform/types';
+import { documentReferencesImage } from '../ui/document-badges';
 import type { Sidebar, TreeNode } from '../ui/sidebar';
 import { openSidebarByHand, refreshSidebar } from './sidebar-sync';
 import { AppState } from './state';
@@ -85,22 +92,29 @@ function recorder(): Seen {
   return { sidebar, showing: () => last, names: () => nodes.map((n) => n.name) };
 }
 
-function stateAt(path: string): AppState {
+/**
+ * `usesTheFolder` is what `main.ts` writes on every transaction, from
+ * `documentReferencesImage(editor)` — the same predicate the «Images»
+ * badge is drawn from. Stated here rather than computed, so each row says
+ * which of the two preconditions it is about.
+ */
+function stateAt(path: string, usesTheFolder: boolean): AppState {
   const state = new AppState();
   state.filePath = path;
+  state.referencesImage = usesTheFolder;
   return state;
 }
 
 describe('A — a folder named after the document is not a trigger (#402)', () => {
   it('stays hidden on a document switch', async () => {
     const seen = recorder();
-    await refreshSidebar(stateAt(DOC), seen.sidebar, io(['/proj/chapter']));
+    await refreshSidebar(stateAt(DOC, true), seen.sidebar, io(['/proj/chapter']));
     expect(seen.showing()).toBe('hidden');
   });
 
   it('says No related files or folders when the panel is opened by hand', async () => {
     const seen = recorder();
-    await openSidebarByHand(stateAt(DOC), seen.sidebar, io(['/proj/chapter']), 0);
+    await openSidebarByHand(stateAt(DOC, true), seen.sidebar, io(['/proj/chapter']), 0);
     expect(seen.showing()).toBe('No related files or folders');
   });
 
@@ -111,9 +125,9 @@ describe('A — a folder named after the document is not a trigger (#402)', () =
       '/proj/chapter': [{ name: 'one.md', path: '/proj/chapter/one.md', isDirectory: false }],
     };
     const onSwitch = recorder();
-    await refreshSidebar(stateAt(DOC), onSwitch.sidebar, io(['/proj/chapter'], listing));
+    await refreshSidebar(stateAt(DOC, true), onSwitch.sidebar, io(['/proj/chapter'], listing));
     const byHand = recorder();
-    await openSidebarByHand(stateAt(DOC), byHand.sidebar, io(['/proj/chapter'], listing), 0);
+    await openSidebarByHand(stateAt(DOC, true), byHand.sidebar, io(['/proj/chapter'], listing), 0);
     expect([onSwitch.showing(), byHand.showing()]).toEqual([
       'hidden',
       'No related files or folders',
@@ -128,13 +142,13 @@ describe('B — an assets/ folder still is one (#402)', () => {
 
   it('shows the tree on a document switch', async () => {
     const seen = recorder();
-    await refreshSidebar(stateAt(DOC), seen.sidebar, io(['/proj/assets'], listing));
+    await refreshSidebar(stateAt(DOC, true), seen.sidebar, io(['/proj/assets'], listing));
     expect(seen.showing()).toBe('tree:/proj/assets');
   });
 
   it('shows the same tree when the panel is opened by hand', async () => {
     const seen = recorder();
-    await openSidebarByHand(stateAt(DOC), seen.sidebar, io(['/proj/assets'], listing), 0);
+    await openSidebarByHand(stateAt(DOC, true), seen.sidebar, io(['/proj/assets'], listing), 0);
     expect(seen.showing()).toBe('tree:/proj/assets');
   });
 
@@ -142,9 +156,9 @@ describe('B — an assets/ folder still is one (#402)', () => {
     // The half a row asserting only the root would miss: the tree is read
     // and drawn, not merely rooted.
     const onSwitch = recorder();
-    await refreshSidebar(stateAt(DOC), onSwitch.sidebar, io(['/proj/assets'], listing));
+    await refreshSidebar(stateAt(DOC, true), onSwitch.sidebar, io(['/proj/assets'], listing));
     const byHand = recorder();
-    await openSidebarByHand(stateAt(DOC), byHand.sidebar, io(['/proj/assets'], listing), 0);
+    await openSidebarByHand(stateAt(DOC, true), byHand.sidebar, io(['/proj/assets'], listing), 0);
     expect([onSwitch.names(), byHand.names()]).toEqual([['diagram.png'], ['diagram.png']]);
   });
 
@@ -158,18 +172,60 @@ describe('B — an assets/ folder still is one (#402)', () => {
   // repeating it here would be a second copy of the same guard.
 });
 
+describe('D — an assets/ folder the document does not use (#402)', () => {
+  const listing = {
+    '/proj/assets': [{ name: 'diagram.png', path: '/proj/assets/diagram.png', isDirectory: false }],
+  };
+
+  it('raises nothing on a document switch', async () => {
+    const seen = recorder();
+    await refreshSidebar(stateAt(DOC, false), seen.sidebar, io(['/proj/assets'], listing));
+    expect(seen.showing()).toBe('hidden');
+  });
+
+  it('says No related files or folders when the panel is opened by hand', async () => {
+    const seen = recorder();
+    await openSidebarByHand(stateAt(DOC, false), seen.sidebar, io(['/proj/assets'], listing), 0);
+    expect(seen.showing()).toBe('No related files or folders');
+  });
+
+  it('answers the same as the «Images» badge on that document, which is the point', () => {
+    // The state measured before this rule: the badge withdrawn while the
+    // panel listed three files and greyed all three. The badge predicate
+    // is the one `main.ts` writes into the field the panel now reads, so
+    // the two cannot disagree — asserted here as the empty document they
+    // both answer about.
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host);
+    editor.setMarkdown('# Report\n\nJust prose, no pictures.\n');
+    expect(documentReferencesImage(editor.editor)).toBe(false);
+    editor.destroy();
+    host.remove();
+  });
+
+  it('but a kept root is not demoted, because the user asked to be there', async () => {
+    // A folder a click entered is a place rather than a claim about this
+    // document, so #178 is untouched by the content rule.
+    const state = stateAt(DOC, false);
+    state.sidebarRootFromClick = '/proj/assets';
+    const seen = recorder();
+    await refreshSidebar(state, seen.sidebar, io(['/proj/assets'], listing));
+    expect(seen.showing()).toBe('tree:/proj/assets');
+  });
+});
+
 /**
- * Not a third witness, and measured rather than assumed: the row below
- * turns red under **both** reversals — the sibling probe put back, and the
- * `assets/` probe broken. It is contained in each of them, so it proves
- * nothing they do not, and it is kept because it records the before and
- * after of the one arrangement where the two rules used to disagree.
+ * Not a witness of its own, and measured rather than assumed: the row
+ * below turns red under more than one reversal. It is kept because it
+ * records the before and after of the one arrangement where the two folder
+ * rules used to disagree.
  */
 describe('both folders beside the document (#402)', () => {
   it('roots at assets/, where before this change it rooted at the named folder', async () => {
     const seen = recorder();
     await refreshSidebar(
-      stateAt(DOC),
+      stateAt(DOC, true),
       seen.sidebar,
       io(['/proj/chapter', '/proj/assets'], {
         '/proj/assets': [{ name: 'a.png', path: '/proj/assets/a.png', isDirectory: false }],

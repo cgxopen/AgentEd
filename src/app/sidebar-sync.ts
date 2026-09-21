@@ -221,6 +221,32 @@ export type SidebarView =
 export async function resolveSidebarView(state: AppState, io: PlatformIO): Promise<SidebarView> {
   const decision = await shouldShowSidebar(state.filePath, io);
 
+  // **An `assets/` folder the document does not use is somebody else's
+  // folder** (#402, owner decision). The trigger is the folder *and* a
+  // document that references an image, so the panel describes this
+  // document rather than the directory it happens to sit in — which is
+  // the reasoning `ui/document-badges.ts` gives for the «Images» badge
+  // withdrawing in exactly this state, inherited here so the two controls
+  // cannot answer the same document differently. Measured before this
+  // change, on a document referencing no image with three files beside
+  // it: the badge was withdrawn while the panel listed all three and
+  // greyed all three, which is the panel saying three times that none of
+  // this belongs to what you are reading.
+  //
+  // **Written as a demotion of the tree rather than an early return**, so
+  // everything below is reached exactly as before: `no-folder-access`
+  // still earns the offer, and `nothing-adjacent` still reaches
+  // `showNothingRelated` on the by-hand route (#354), which is the
+  // sentence this decision asks for and which costs no line of its own.
+  //
+  // **A kept root is not demoted.** It is a folder the user clicked into,
+  // so it is a place they asked to be rather than a claim about this
+  // document, and the #178 route is untouched by this.
+  const used =
+    decision.kind === 'tree' && !state.referencesImage
+      ? ({ kind: 'nothing-adjacent' } as const)
+      : decision;
+
   // **The offer, and the two things that earn it** (#184). Nothing was
   // looked at, so the panel's absence would say something false about
   // this document's neighbourhood — and there has to be a grant to
@@ -266,9 +292,9 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
   //
   // Below a kept root, because a root a click asked to hold is a folder
   // that was granted: there is nothing to offer.
-  const root = decision.kind === 'tree' ? decision.root : state.sidebarRootFromClick;
+  const root = used.kind === 'tree' ? used.root : state.sidebarRootFromClick;
   if (!root) {
-    if (decision.kind === 'no-folder-access') return { kind: isTauri ? 'unreadable' : 'offer' };
+    if (used.kind === 'no-folder-access') return { kind: isTauri ? 'unreadable' : 'offer' };
     return { kind: 'nothing' };
   }
 

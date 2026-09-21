@@ -119,6 +119,8 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
   it('lists images/, references/, scripts/ under the assets root', async () => {
     const state = new AppState();
     state.filePath = '/proj/doc.md';
+    // The #402 precondition: this document uses its `assets/` folder.
+    state.referencesImage = true;
     const io = buildIO();
     const { sidebar, lastShow } = captureSidebar();
 
@@ -329,6 +331,14 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
         markdown = md;
       },
       refreshSidebar: async () => {
+        // **The #402 precondition, stated rather than computed.** `main.ts`
+        // writes this from `documentReferencesImage(editor)` on every
+        // transaction; this rig has no editor — `setMarkdown` records a
+        // string — so it cannot run that predicate, and inventing a second
+        // one over the markdown is how the two would come to disagree.
+        // These rows are about the root a click keeps, so the trigger is
+        // satisfied here and exercised in `assets-only-panel.test.ts`.
+        state.referencesImage = true;
         await refreshSidebar(state, sidebar, flowIO);
       },
       setFilename: () => {},
