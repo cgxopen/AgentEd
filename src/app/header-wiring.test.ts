@@ -12,7 +12,7 @@
  *    report — text frozen at whatever it last said, click going nowhere.
  *
  * The menu treated both as the first. Below 600px the clone in that menu
- * is the only route to the popover, so the cluster indicator was reached
+ * is the only route to the popover, so a withdrawn indicator was reached
  * exclusively through a stale copy of itself, and after a scan returned
  * nothing that copy was a dead control reading `📎 1 related`. Measured
  * in the browser at 308f214.

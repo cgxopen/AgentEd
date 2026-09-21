@@ -219,8 +219,9 @@ export interface PlatformIO {
    * toward *there might be something there* so that an unreadable
    * `assets/` folder could not be mistaken for an empty one. It was the
    * right answer for one caller out of five, and it made the context
-   * indicator report six files nobody could open (#126). The direction
-   * was never the defect; having a direction at all was.
+   * indicator — removed on #401 — report six files nobody could open
+   * (#126). The direction was never the defect; having a direction at
+   * all was.
    *
    * So the primitive states what it observed and every caller says what
    * it wants done about `unknown`, in its own code:
@@ -228,8 +229,6 @@ export interface PlatformIO {
    * - `readAssetsFolder` (`src/editor/image-handler.ts`) refuses the
    *   insert on anything but `absent` — nothing may be overwritten, so
    *   an unanswered lookup is not permission to claim a name (R-C5).
-   * - `probeOne` (`src/cluster/detector.ts`) counts only `present` — the
-   *   indicator names files that were found to be there (R-A2).
    * - `shouldShowSidebar` (`src/app/sidebar-sync.ts`), twice, likewise:
    *   a root is shown only when it was found.
    * - `resolveAssetsDir` (`src/app/assets-dir.ts`) treats anything but

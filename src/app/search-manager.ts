@@ -45,7 +45,7 @@ export interface SearchManagerDeps {
   editor: Editor;
   panelRoot: HTMLElement;
   /** Called whenever the panel transitions from closed → open. Used to
-   * dismiss other floating UI (cluster popover). */
+   * dismiss other floating UI (the «Images» popover). */
   onOpen?: () => void;
 }
 

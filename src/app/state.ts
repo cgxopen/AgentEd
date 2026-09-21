@@ -1,4 +1,3 @@
-import type { ContextCluster } from '../cluster/types';
 import { DEFAULT_LINE_CONVENTIONS, type LineConventions } from '../formats/line-conventions';
 
 /**
@@ -121,8 +120,8 @@ export class AppState {
    *
    * `null` means *this document did not arrive from the panel*, which is
    * every other route — File then Open, the command line, the file
-   * association, the context popover, a reload after an external change
-   * — and each of them re-derives the root exactly as before. Set and
+   * association, a reload after an external change — and each of them
+   * re-derives the root exactly as before. Set and
    * cleared in one place, `loadBundleFromPath`, because that is the set
    * of *a document arrived at a path* events; a save is not one of them,
    * so Ctrl+S on a document opened from the tree does not dissolve it.
@@ -149,15 +148,6 @@ export class AppState {
   private spellcheckListeners: Array<(enabled: boolean) => void> = [];
 
   /**
-   * Result of the most recent context-cluster scan, or `null` if no
-   * scan has produced a value for the current document yet (fresh
-   * document or detection still in flight). The popover and statusbar
-   * indicator both subscribe via `onClusterChange`.
-   */
-  private _cluster: ContextCluster | null = null;
-  private clusterListeners: Array<(cluster: ContextCluster | null) => void> = [];
-
-  /**
    * The document's raw metadata block, or `null` when it has none.
    *
    * **An accessor rather than the plain field it used to be** (#196).
@@ -169,21 +159,12 @@ export class AppState {
    * user emptied the textarea, the block was gone, and anything drawn
    * from it stayed on screen. That is the shape #130 was filed against.
    *
-   * Declared exactly like `modified`, `spellcheckEnabled` and `cluster`
-   * above, so there is one way to learn that a piece of document state
-   * changed rather than four.
+   * Declared exactly like `modified` and `spellcheckEnabled` above, so
+   * there is one way to learn that a piece of document state changed
+   * rather than three.
    */
   private _frontmatter: string | null = null;
   private frontmatterListeners: Array<(frontmatter: string | null) => void> = [];
-
-  /**
-   * Monotonic counter used to discard stale scan results when the user
-   * opens documents in rapid succession. Each `applyBundle` increments
-   * the counter and only commits the result if its own value still
-   * matches by the time `detectContextCluster` resolves. The detector
-   * itself is a pure function — coordination lives in state.
-   */
-  private _clusterScanGeneration = 0;
 
   get modified(): boolean {
     return this._modified;
@@ -212,19 +193,6 @@ export class AppState {
     this.spellcheckListeners.push(cb);
   }
 
-  get cluster(): ContextCluster | null {
-    return this._cluster;
-  }
-
-  setCluster(value: ContextCluster | null): void {
-    this._cluster = value;
-    for (const cb of this.clusterListeners) cb(value);
-  }
-
-  onClusterChange(cb: (cluster: ContextCluster | null) => void): void {
-    this.clusterListeners.push(cb);
-  }
-
   get frontmatter(): string | null {
     return this._frontmatter;
   }
@@ -241,21 +209,6 @@ export class AppState {
 
   onFrontmatterChange(cb: (frontmatter: string | null) => void): void {
     this.frontmatterListeners.push(cb);
-  }
-
-  /**
-   * Reserve the next scan generation. Callers stash the returned value
-   * and check it against `clusterScanGeneration` after their async
-   * detector resolves; if it no longer matches, a newer scan has
-   * superseded this one and the stale result must be dropped.
-   */
-  beginClusterScan(): number {
-    this._clusterScanGeneration += 1;
-    return this._clusterScanGeneration;
-  }
-
-  get clusterScanGeneration(): number {
-    return this._clusterScanGeneration;
   }
 
   /**
@@ -280,9 +233,5 @@ export class AppState {
     // later — clearing here is what stops the next document opened from
     // File then Open inheriting a folder from the one before it.
     this.sidebarRootFromClick = null;
-    // Bumping the generation invalidates any in-flight detector so the
-    // next document doesn't briefly inherit the previous cluster.
-    this._clusterScanGeneration += 1;
-    this.setCluster(null);
   }
 }

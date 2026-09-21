@@ -2,7 +2,7 @@
 
 **A WYSIWYG markdown editor for the generative-AI era. Easy to use first — renders as you write, plain portable markdown underneath.**
 
-> READ and WRITE markdown the way you'd expect in 2026: visual editing with no syntax in your face, on top of plain, portable `.md` files. A live token count and your project's context files one click away — quietly, when they matter. No vault. No account. No cloud.
+> READ and WRITE markdown the way you'd expect in 2026: visual editing with no syntax in your face, on top of plain, portable `.md` files. A live token count — quietly, when it matters. No vault. No account. No cloud.
 
 [![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -18,7 +18,7 @@ AgentEd is, first, a normal, comfortable markdown editor — and, quietly, one t
 
 - **Against a plain text editor** — WYSIWYG. Inline formatting, no syntax in your face. The document looks like a document.
 - **Against Obsidian** — *file-first, not vault-first*. No vault to set up, no wiki-links, no graph view, no plugin ecosystem. Open any `.md` from anywhere; AgentEd never claims ownership of your folders. A native binary in the ~3 MB class, not Electron.
-- **Against Typora** — free, open source, and the AI-era instrumentation (live token count, context-file awareness) is native, not bolted on.
+- **Against Typora** — free, open source, and the AI-era instrumentation (a live token count) is native, not bolted on.
 
 What it is **not**: a note-taking or knowledge-management app, a wiki, a word processor, a code editor, or a prompt playground.
 
@@ -30,7 +30,6 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **Clean round-trip** — the file you save is plain, portable markdown; opening and saving without edits never alters it. The handful of deliberate exceptions are documented, one by one, in [REQUIREMENTS.md](REQUIREMENTS.md).
 - **No silent writes, no silent overwrites** — nothing reaches disk without your say-so. If the file changed on disk while you were editing, AgentEd tells you and you choose: reload, overwrite, or save elsewhere. No lock files next to your documents, ever.
 - **A quiet header, not a status bar** — the live token count (`gpt-tokenizer`, cl100k_base, fully offline) with word and character counts, and search — all in one row that stays out of the way. On Windows that row is also the title bar: the AgentEd name at the left, the window buttons at the right, one bar instead of two.
-- **Context awareness** — open a `CLAUDE.md`, `AGENTS.md` or `.cursorrules` and the 📎 *N related* indicator shows the other context files in your project, one click away.
 - **A real menu** — File, Edit (Find and Replace, Undo, Redo, Select All, Image description, and Spell check — off by default, so technical documents stay free of noisy underlines), Insert (Table, Media, Code Block, Checklist, Horizontal Rule, Metadata, Emoji), Table (Add Row Above, Add Row Below, Delete Row, Add Column Before, Add Column After, Delete Column, Delete Table), Help. Everything the editor can do has a visible door — that is a design rule here, not an accident.
 - **Code blocks** — click the language label to set the language; a hover **Copy** button on every block; a fence with no language is a plain-text box that soft-wraps — the "prompt box" familiar from AI chat tools, in plain standard markdown.
 - **Images** — paste, drop, or Insert → Media; saved to an `assets/` folder next to your file (created on first use, with confirmation), referenced with standard `![alt](path)` syntax, human-readable names. **Image description** — from the toolbar button on a selected image or from the Edit menu — writes what a screen reader reads out and what a renderer shows when the picture cannot be loaded.

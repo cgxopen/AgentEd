@@ -12,7 +12,7 @@ Then **verify the live state against the repository before planning or reporting
 
 ## What this project is
 
-AgentEd is an **easy-to-use WYSIWYG markdown editor** (Tauri 2 + TypeScript + TipTap), with light AI-era instrumentation (token count, context-file awareness) as a secondary layer. Priority order on any trade-off: **(1) ease of use → (2) speed & lightness → (3) AI instrumentation.**
+AgentEd is an **easy-to-use WYSIWYG markdown editor** (Tauri 2 + TypeScript + TipTap), with light AI-era instrumentation (a token count) as a secondary layer. Priority order on any trade-off: **(1) ease of use → (2) speed & lightness → (3) AI instrumentation.**
 
 Read REQUIREMENTS.md before changing anything — it is the single source of product truth. The repository was reset in August 2026 ([ADR-001](docs/ADR/ADR-001-reset-and-simplification.md)); pre-reset history and ADR-001..034 live in the private `agented-archive` repo. Do not reintroduce removed machinery (profiles, validation panel, frontmatter injection) — that is a deliberate post-public phase, not a refactor opportunity.
 
@@ -33,7 +33,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 
 ## Module map (post-conversion)
 
-`src/app` (bootstrap/state) · `src/editor` (TipTap setup, input rules) · `src/formats` (markdown serialization — round-trip critical, test any change) · `src/cluster` (context-file awareness, scan bounded at 5 levels) · `src/platform` (all Tauri/file access) · `src/templates` (4 plain seeds) · `src/ui` (header, statusbar, sidebar, dialogs) · `src/types` · `src-tauri` (Rust shell — keep minimal; `panic = "abort"`, full LTO on release).
+`src/app` (bootstrap/state) · `src/editor` (TipTap setup, input rules) · `src/formats` (markdown serialization — round-trip critical, test any change) · `src/platform` (all Tauri/file access) · `src/templates` (4 plain seeds) · `src/ui` (header, statusbar, sidebar, dialogs) · `src/types` · `src-tauri` (Rust shell — keep minimal; `panic = "abort"`, full LTO on release).
 
 ## Coding standards (NASA-derived, compact)
 

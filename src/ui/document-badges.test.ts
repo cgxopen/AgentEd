@@ -110,21 +110,23 @@ describe('what the shipped page declares', () => {
     }
   });
 
-  it('puts «Metadata» before «Images», and both before the context indicator', () => {
+  it('puts «Metadata» before «Images», and both after the counts', () => {
     mountShippedRow();
     const order = Array.from(
       document.querySelectorAll<HTMLElement>('#header-indicators .indicator'),
     ).map((node) => node.id);
     expect(order.indexOf('badge-metadata')).toBeLessThan(order.indexOf('badge-images'));
-    expect(order.indexOf('badge-images')).toBeLessThan(order.indexOf('cluster-indicator'));
+    // They were the last two before the context indicator until #401 and are
+    // the last two now, so the row still runs from the counts to the document.
+    expect(order.indexOf('token-number')).toBeLessThan(order.indexOf('badge-metadata'));
+    expect(order.at(-1)).toBe('badge-images');
   });
 
-  it('gives both badges the context indicator’s breakpoint', () => {
+  it('gives both badges the same breakpoint', () => {
     mountShippedRow();
     for (const id of ['badge-metadata', 'badge-images']) {
       expect(el(id).classList.contains('indicator-collapse-600')).toBe(true);
     }
-    expect(el('cluster-indicator').classList.contains('indicator-collapse-600')).toBe(true);
   });
 
   it('makes «Metadata» hover-only and «Images» clickable', () => {

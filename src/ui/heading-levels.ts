@@ -1,12 +1,12 @@
 /**
  * The list of heading levels behind the toolbar heading control (#267).
  *
- * ── Which of the four popovers this follows, and why ──
+ * ── Which of the three popovers this follows, and why ──
  *
- * `src/ui` carries four, and reading them puts them in two families.
- * `appearance-menu.ts`, `cluster-popover.ts` and `assets-popover.ts` are static
- * elements in `index.html` placed by a CSS rule against a header that never
- * moves. `language-popover.ts` is built on demand, appended to the body, and
+ * `src/ui` carries three, and reading them puts them in two families.
+ * `appearance-menu.ts` and `assets-popover.ts` are static elements in
+ * `index.html` placed by a CSS rule against a header that never moves.
+ * `language-popover.ts` is built on demand, appended to the body, and
  * **positioned in JavaScript against an anchor rect** — the only one whose
  * anchor moves. The floating toolbar moves with every selection, so this
  * follows `language-popover.ts`: same one-open-at-a-time module state, same

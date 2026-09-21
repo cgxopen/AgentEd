@@ -193,8 +193,8 @@ export type SidebarView =
  * from the tree that carries a folder of its own still moves the panel
  * into it. Only when `shouldShowSidebar` finds none does the root the
  * click came from stand in — `state.sidebarRootFromClick`, which is set
- * on that route and `null` on every other one, so File then Open, the
- * file association and the context popover all hide exactly as they did.
+ * on that route and `null` on every other one, so File then Open and the
+ * file association both hide exactly as they did.
  */
 export async function resolveSidebarView(state: AppState, io: PlatformIO): Promise<SidebarView> {
   const decision = await shouldShowSidebar(state.filePath, io);

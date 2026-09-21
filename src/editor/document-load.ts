@@ -11,8 +11,8 @@ import { markdownToHtml } from './markdown/parse';
  * The one place a whole document is put into the editor (#206).
  *
  * Every route that replaces the document reaches this function — File →
- * Open, the sidebar, the context popover, the file association, a reload
- * after an external change, New, New from Template and Close. Before
+ * Open, the sidebar, the file association, a reload after an external
+ * change, New, New from Template and Close. Before
  * this existed there were two primitives across three call sites, and
  * the repair below had to be applied to each of them separately; a route
  * added later would have reached for `setContent` and quietly missed it.

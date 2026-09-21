@@ -17,17 +17,16 @@ import type { Editor } from '@tiptap/core';
  *
  * «Metadata» then «Images», reading the document top to bottom: the
  * metadata block is the first thing in the file and the images are in
- * its body. Both sit immediately before the context indicator, so the
- * row runs from what this document *is* to what is *around* it.
+ * its body. They are the last two indicators in the bar, and the row
+ * runs from the counts to what this document *is*.
  *
  * ── The breakpoint ──
  *
- * Both take `indicator-collapse-600`, the same class as the context
- * indicator. They are the same kind of control — derived from the
- * document, silent when it does not warrant them, and reachable from the
- * overflow menu once the bar drops them — so a user who has learnt one
- * has learnt the others. They cost a plain document nothing at any
- * width, because a plain document never shows them.
+ * Both take `indicator-collapse-600`. They are the same kind of control
+ * — derived from the document, silent when it does not warrant them, and
+ * reachable from the overflow menu once the bar drops them — so a user
+ * who has learnt one has learnt the other. They cost a plain document
+ * nothing at any width, because a plain document never shows them.
  */
 
 /** Tooltips, pinned here so the tests can read the bytes rather than rebuild them. */
@@ -158,14 +157,16 @@ export function anyImageIn(root: WalkableNode): boolean {
 /**
  * Withdraw a badge — all four things at once (#130).
  *
- * `display` alone is what the context indicator used to do, and it is
- * the defect: the overflow menu copies the text of anything the layout
- * has taken out of the bar, so a badge hidden with its label still on it
- * was cloned into that menu with a stale word and, for «Images», a click
- * that reached a popover with nothing to show. Below 600px that clone is
- * the only route there is. `aria-hidden="true"` is the word the menu
- * reads to tell *this module has withdrawn it* from *the breakpoint took
- * it out of the bar* — see `isOfferedInOverflow`.
+ * `display` alone is what #130 was filed against, and it is the defect:
+ * the overflow menu copies the text of anything the layout has taken out
+ * of the bar, so a badge hidden with its label still on it was cloned
+ * into that menu with a stale word and, for «Images», a click that
+ * reached a popover with nothing to show. Below 600px that clone is the
+ * only route there is. `aria-hidden="true"` is the word the menu reads to
+ * tell *this module has withdrawn it* from *the breakpoint took it out of
+ * the bar* — see `isOfferedInOverflow`. These two badges are the only
+ * indicators that use the convention, the context indicator it was first
+ * written for having left on #401.
  */
 function withdraw(el: HTMLElement): void {
   el.style.display = 'none';
@@ -188,8 +189,8 @@ export function setupDocumentBadges(
   const metadataEl = document.getElementById('badge-metadata');
   const imagesEl = document.getElementById('badge-images');
   if (!metadataEl || !imagesEl) {
-    // Defensive, the shape `setupClusterIndicator` uses: tests and
-    // partial mounts get a handle that does nothing rather than a throw.
+    // Defensive: tests and partial mounts get a handle that does nothing
+    // rather than a throw.
     return { refreshMetadata: () => {}, refreshImages: () => {} };
   }
   const metadata = metadataEl;
@@ -197,7 +198,7 @@ export function setupDocumentBadges(
 
   // **No `stopPropagation`, deliberately**, the same choice the appearance
   // trigger makes and for the same reason: letting the click reach the
-  // document is what closes the context popover, so opening this one is
+  // document is what closes the appearance menu, so opening this one is
   // mutually exclusive with it. Stopping it here left both open at once,
   // overlapping, since the two use the same positioning rule.
   images.addEventListener('click', () => {

@@ -1,8 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import type { AppearanceMenu } from '../ui/appearance-menu';
 import type { AssetsPopover } from '../ui/assets-popover';
-import type { ClusterIndicator } from '../ui/cluster-indicator';
-import type { ClusterPopover } from '../ui/cluster-popover';
 import type { FrontmatterPanel } from '../ui/frontmatter-panel';
 import type { Sidebar } from '../ui/sidebar';
 import type { Statusbar } from '../ui/statusbar';
@@ -40,8 +38,6 @@ export interface AppContext {
   statusbar: Statusbar;
   sidebar: Sidebar;
   frontmatterPanel: FrontmatterPanel;
-  clusterIndicator: ClusterIndicator;
-  clusterPopover: ClusterPopover;
   /** The R-C12 «Images» popover, opened from the badge of the same name. */
   assetsPopover: AssetsPopover;
   appearanceMenu: AppearanceMenu;

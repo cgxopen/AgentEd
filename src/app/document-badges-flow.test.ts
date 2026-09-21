@@ -4,7 +4,7 @@
  *
  * **Driven from markdown in, through the ordinary open path.** The
  * editor is real, the state is real, and `openFilePath` is the same
- * function the sidebar, the context popover and File → Open all call —
+ * function the sidebar, the file association and File → Open all call —
  * so what is asserted is that opening a document with a metadata block
  * lights the badge, not that a function called with `'title: x'` lights
  * it. A test that set `state.frontmatter` directly and called a refresh

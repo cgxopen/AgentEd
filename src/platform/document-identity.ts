@@ -4,7 +4,8 @@
  * **On the web a path is not an identity.** Both pickers answer a value
  * derived from a handle name, and every place that turns such a value
  * back into a lookup is where this project spent four issues: #126
- * invented context files from a lookup that could not be performed,
+ * invented context files from a lookup that could not be performed, in
+ * the scan removed on #401,
  * #127 answered a failed lookup with the document already open, #141
  * answered it with a same-named neighbour inside the granted folder, and
  * #144 wrote a document into one. The search in #143 found them as one

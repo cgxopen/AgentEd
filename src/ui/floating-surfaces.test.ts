@@ -16,16 +16,13 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { ThemeManager } from '../app/theme-manager';
-import type { ContextCluster } from '../cluster/types';
 import { createEditor } from '../editor/setup';
-import type { PlatformIO } from '../platform/types';
 import stylesCss from '../styles.css?raw';
 import { shippedElement } from '../test-support/shipped-markup';
 import { reaches, stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { contrast, over, paletteTokens, resolveColour } from '../test-support/theme-colours';
 import { setupAppearanceMenu } from './appearance-menu';
 import { setupAssetsPopover } from './assets-popover';
-import { setupClusterPopover } from './cluster-popover';
 import { showConfirmDialog } from './confirm-dialog';
 import { openEmojiPalette } from './emoji-palette';
 import { openHeadingLevels } from './heading-levels';
@@ -42,20 +39,6 @@ const paletteNames = [...palettes.keys()];
 
 /** WCAG 1.4.11, for the mark that says which cell has focus. */
 const NON_TEXT = 3;
-
-const CLUSTER = {
-  relatedCount: 1,
-  entries: [
-    {
-      path: '/p/AGENTS.md',
-      filename: 'AGENTS.md',
-      kind: 'agents-md',
-      direction: 'self',
-      distance: 0,
-      relativePath: 'AGENTS.md',
-    },
-  ],
-} as unknown as ContextCluster;
 
 /** Every surface of this issue, each as its own module built it, by name. */
 const surfaces = new Map<string, HTMLElement>();
@@ -83,7 +66,6 @@ beforeAll(async () => {
   document.body.innerHTML = [
     shippedElement(shippedPage, '<header id="menubar"'),
     shippedElement(shippedPage, '<aside id="assets-popover"'),
-    shippedElement(shippedPage, '<aside id="cluster-popover"'),
     shippedElement(shippedPage, '<aside id="appearance-popover"'),
     shippedElement(shippedPage, '<aside id="sidebar"'),
   ].join('');
@@ -107,15 +89,6 @@ beforeAll(async () => {
   );
   found('#menu-toggle').click();
   keep('files panel card', found('#sidebar'));
-
-  setupClusterPopover({
-    getIO: async () => ({}) as unknown as PlatformIO,
-    onOpenEntry: async () => {},
-    onRefresh: async () => {},
-    onNothingToShow: () => {},
-  }).toggle(CLUSTER);
-  await settle();
-  keep('context files popover', found('#cluster-popover'));
 
   setupAssetsPopover({
     loadSummary: async () => ({ imagesInDocument: 1, folder: { kind: 'counted', otherFiles: 0 } }),
@@ -225,8 +198,6 @@ const WHERE_THE_LINE_WAS: ReadonlyArray<readonly [string, string]> = [
   // since #391: the pair on each side of it is read.
   ['appearance popover', '.appearance-mode + .appearance-note'],
   ['appearance popover', '.appearance-note + .appearance-section-label'],
-  ['context files popover', '.cluster-popover-header'],
-  ['context files popover', '.cluster-popover-footer'],
   ['images popover', '.cluster-popover-header'],
 ];
 
@@ -272,26 +243,11 @@ describe('one hover shade, and no line under the pointer (#375)', () => {
     'heading list',
     'emoji palette',
     'appearance popover',
-    'context files popover',
     'dialog',
   ])('%s shades what is under the pointer with the hover overlay alone', (name) => {
     const drawn = drawnIn(name, ':hover');
     expect(drawn.shades).toEqual(['var(--hover-overlay)']);
     expect(drawn.lines).toEqual([]);
-  });
-});
-
-describe('Refresh draws no outline, and hover and pressed carry the state (#375)', () => {
-  const refresh = () => within('context files popover', '.cluster-popover-refresh');
-
-  it('keeps a border pixel, drawn transparent, so the button keeps its size', () => {
-    expect(last(refresh(), 'border')).toBe('1px solid transparent');
-    expect(last(refresh(), 'border-color')).toBeUndefined();
-  });
-
-  it('shades it with the hover overlay under the pointer and while pressed', () => {
-    expect(inState(refresh(), ':hover', 'background')).toEqual(['var(--hover-overlay)']);
-    expect(inState(refresh(), ':active', 'background')).toEqual(['var(--hover-overlay)']);
   });
 });
 

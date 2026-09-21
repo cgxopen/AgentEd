@@ -33,7 +33,6 @@
  * resolution.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { detectContextCluster } from '../cluster/detector';
 import { WebIO } from '../platform/web';
 import { resolveAssetsDir } from './assets-dir';
 import type { AppContext } from './context';
@@ -348,15 +347,6 @@ describe('#144 — what is computed from the path afterwards', () => {
       kind: 'tree',
       root: 'doc/assets',
     });
-  });
-
-  it('the context scan reads the document folder, not the grant root', async () => {
-    const { state, actions } = scenario(5);
-
-    await actions.handleSaveAs();
-    const cluster = await detectContextCluster(state.filePath ?? '', io, { timeoutMs: 200 });
-
-    expect(cluster.entries.map((e) => e.path)).toEqual(['doc/AGENTS.md']);
   });
 });
 

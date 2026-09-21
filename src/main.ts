@@ -1,7 +1,6 @@
 import { confirmAssetsDir } from './app/assets-dir';
 import { summariseAssets, unusedAssetFiles } from './app/assets-summary';
 import { installCloseGuard } from './app/close-guard';
-import { refreshClusterDetection, reportNothingRelated } from './app/cluster-scan';
 import { createContext } from './app/context';
 import { createDocumentActions, type DocumentActions } from './app/document-actions';
 import { installDropGuard } from './app/drop-guard';
@@ -33,8 +32,6 @@ import { clearRecentFiles, loadRecentFiles, purgeLegacyPreferences } from './pre
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupAssetsPopover } from './ui/assets-popover';
-import { setupClusterIndicator } from './ui/cluster-indicator';
-import { setupClusterPopover } from './ui/cluster-popover';
 import { setupDocumentBadges } from './ui/document-badges';
 import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
@@ -184,13 +181,12 @@ documentBadges.refreshImages();
 // SearchManager owns the inline search panel + the vendor extension
 // wrapper. We construct it here (before docActions) so its keyboard
 // listeners install during Phase 8 and the panel root in index.html is
-// already in the DOM. The `onOpen` hook closes the cluster popover so
+// already in the DOM. The `onOpen` hook closes the «Images» popover so
 // only one floating surface is visible at a time.
 ctx.searchManager = createSearchManager({
   editor,
   panelRoot: document.getElementById('search-panel')!,
   onOpen: () => {
-    if (ctx.clusterPopover?.isOpen()) ctx.clusterPopover.close();
     if (ctx.assetsPopover?.isOpen()) ctx.assetsPopover.close();
   },
 });
@@ -203,36 +199,8 @@ ctx.refreshSidebar = async (redraw) => {
   markUnusedAssets();
 };
 
-// Phase 6.5 — cluster indicator + popover. The indicator only needs
-// the popover toggle callback (built right after); the popover needs
-// docActions for the safety-gated open and a way to re-run detection.
-ctx.clusterIndicator = setupClusterIndicator({
-  onToggle: () => ctx.clusterPopover.toggle(ctx.state.cluster),
-});
-state.onClusterChange((cluster) => {
-  ctx.clusterIndicator.refresh(cluster);
-  // If the popover is open while a fresh scan lands, drop it — the
-  // user is now looking at a different document and the entries list
-  // would otherwise be stale.
-  if (ctx.clusterPopover.isOpen()) ctx.clusterPopover.close();
-});
-
 // Phase 7 — document actions (depend on the full context).
 docActions = createDocumentActions(ctx);
-
-ctx.clusterPopover = setupClusterPopover({
-  getIO: getPlatformIO,
-  onOpenEntry: (path) => docActions.openFilePath(path),
-  // Refresh is a question the user asked, so its scan answers even when
-  // the answer is nothing (#130). The automatic scans behind `applyBundle`
-  // use `scheduleClusterDetection` instead and stay silent.
-  onRefresh: async () => {
-    if (!ctx.state.filePath) return;
-    const io = await getPlatformIO();
-    await refreshClusterDetection(ctx.state.filePath, ctx, io);
-  },
-  onNothingToShow: reportNothingRelated,
-});
 
 // Phase 8 — wiring that needs docActions.
 wireHeaderIndicators(ctx, docActions);
