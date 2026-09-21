@@ -15,7 +15,6 @@ interface MockIOOptions {
 function mockIO(options: MockIOOptions = {}): PlatformIO {
   const existing = new Set(options.existing ?? []);
   return {
-    supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
     canWriteCompanions: async () => true,
     openFile: async () => null,

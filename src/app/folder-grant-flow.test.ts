@@ -34,7 +34,6 @@ function acceptOffer(
 
 function ioWith(granted: { current: boolean }): PlatformIO {
   return {
-    supportsMultiFile: true,
     canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => null,

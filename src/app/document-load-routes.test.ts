@@ -39,7 +39,6 @@ let openFileAnswer: { path: string; content: string } | null;
 let dialogsAnswered: number;
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   openFile: async () => openFileAnswer,
   pickFile: async () => null,

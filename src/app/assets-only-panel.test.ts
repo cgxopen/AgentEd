@@ -30,7 +30,6 @@ const DOC = '/proj/chapter.md';
 function io(present: string[], listing: Record<string, FileEntry[]> = {}): PlatformIO {
   const there = new Set(present);
   return {
-    supportsMultiFile: true,
     canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => null,

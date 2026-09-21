@@ -27,7 +27,6 @@ let keepsPaths: boolean;
 let saveAsAnswer: string | null;
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   get pathsOutliveSession() {
     return keepsPaths;
   },

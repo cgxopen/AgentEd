@@ -46,7 +46,6 @@ function platform(options: {
   desktopShaped?: boolean;
 }): PlatformIO {
   return {
-    supportsMultiFile: true,
     canWriteCompanions: async (documentPath: string) => {
       if (options.desktopShaped) {
         const parent = dirname(documentPath);

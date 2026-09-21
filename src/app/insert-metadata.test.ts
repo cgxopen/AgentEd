@@ -37,7 +37,6 @@ let disk: Map<string, string>;
 let savePathAnswer: string | null;
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   canWriteCompanions: async () => true,
   openFile: async () => null,
   pickFile: async () => null,

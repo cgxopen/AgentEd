@@ -1524,7 +1524,6 @@ const DOCUMENT_PATH = '/doc/notes.md';
 /** A disk that records exactly what was written to it (the shape #79 uses). */
 function recordingIO(disk: Map<string, string>): PlatformIO {
   return {
-    supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
     canWriteCompanions: async () => true,
     openFile: async () => null,

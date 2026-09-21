@@ -37,7 +37,6 @@ function io(folder: Folder): PlatformIO {
     '/proj/assets': [{ name: 'cap1.md', path: '/proj/assets/cap1.md', isDirectory: false }],
   };
   return {
-    supportsMultiFile: true,
     canWriteCompanions: async () => {
       await held();
       return folder.granted ?? true;

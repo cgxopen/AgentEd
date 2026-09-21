@@ -158,7 +158,6 @@ describe('the same image inserted twice (#52)', () => {
 
     const written: string[] = [];
     const io = {
-      supportsMultiFile: true,
       // Desktop-shaped: every path carries a directory (#46).
       canWriteCompanions: async () => true,
       saveFile: vi.fn(async () => {}),

@@ -129,15 +129,13 @@ export const FILE_ABSENT = 'FILE_ABSENT';
 export const NOT_UTF8 = 'NOT_UTF8';
 
 export interface PlatformIO {
-  /** Whether this platform can write to multiple file paths (directories, attachments) */
-  readonly supportsMultiFile: boolean;
   /**
    * Whether a path this platform answered in one session still reaches the
-   * same file in a later one (#381). A declaration about the build, like
-   * the flag above. It is what decides whether the recent files list exists:
-   * on the desktop a path is the file, while on the web it is the name of a
-   * handle whose grant ends with the session, so a stored one would reach
-   * nothing, or a same-named neighbour, the #141 class.
+   * same file in a later one (#381). A declaration about the build rather
+   * than about its state. It is what decides whether the recent files list
+   * exists: on the desktop a path is the file, while on the web it is the
+   * name of a handle whose grant ends with the session, so a stored one
+   * would reach nothing, or a same-named neighbour, the #141 class.
    *
    * **Absent reads as no.** A platform that does not say it keeps paths gets
    * no list, which is the answer that cannot open the wrong file.
@@ -147,11 +145,11 @@ export interface PlatformIO {
    * Whether a companion file — `assets/` next to `documentPath` — can be
    * written **right now** (#46).
    *
-   * This is a question about *state*, which is what separates it from
-   * `supportsMultiFile` above: that one is a declaration about the build,
-   * a constant, and it cannot answer this. On the web build the answer
-   * turns on whether a directory handle has been granted in this session,
-   * which changes the moment the user completes a Save As.
+   * This is a question about *state*, which is what separates it from a
+   * declaration about the build like `pathsOutliveSession` above: that one
+   * is a constant, and a constant cannot answer this. On the web build the
+   * answer turns on whether a directory handle has been granted in this
+   * session, which changes the moment the user completes a Save As.
    *
    * **It takes the document's path because only the platform knows what
    * its own paths look like.** A desktop path always carries a directory,

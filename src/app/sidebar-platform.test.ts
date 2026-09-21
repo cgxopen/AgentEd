@@ -21,7 +21,6 @@ vi.mock('../platform/detect', () => ({ isTauri: true }));
 function mockIO(present: ReadonlyArray<string>): PlatformIO {
   const existing = new Set(present);
   return {
-    supportsMultiFile: true,
     canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => null,

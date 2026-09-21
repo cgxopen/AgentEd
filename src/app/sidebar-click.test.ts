@@ -20,7 +20,6 @@ function makeDocActions(): DocumentActions {
 
 function makeIO(): PlatformIO {
   return {
-    supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
     canWriteCompanions: async () => true,
     openFile: async () => null,

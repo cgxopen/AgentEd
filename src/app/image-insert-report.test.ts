@@ -37,7 +37,6 @@ let calls: string[] = [];
 let pickedFile: PickedFile | null = null;
 
 const io: PlatformIO = {
-  supportsMultiFile: true,
   // Desktop-shaped: every path carries a directory (#46).
   canWriteCompanions: async () => true,
   openFile: async () => null,

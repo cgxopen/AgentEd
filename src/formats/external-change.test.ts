@@ -14,7 +14,6 @@ function ioReturning(snapshot: FileSnapshot): PlatformIO & { reads: string[] } {
   const reads: string[] = [];
   return {
     reads,
-    supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
     canWriteCompanions: async () => true,
     openFile: async () => null,

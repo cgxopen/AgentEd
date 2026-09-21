@@ -19,7 +19,6 @@ const P = '/doc/notes.md';
 
 function recordingIO(disk: Map<string, string>): PlatformIO {
   return {
-    supportsMultiFile: false,
     canWriteCompanions: async () => true,
     openFile: async () => null,
     pickFile: async () => null,

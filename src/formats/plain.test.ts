@@ -18,7 +18,6 @@ function stubIO(files: Record<string, string>): PlatformIO & {
   const binaries = new Map<string, Uint8Array>();
   const dirs: string[] = [];
   return {
-    supportsMultiFile: true,
     // Desktop-shaped: every path carries a directory (#46).
     canWriteCompanions: async () => true,
     written,
