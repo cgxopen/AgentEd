@@ -183,7 +183,7 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
   }
 
   // No stopPropagation here: letting the click bubble closes the
-  // cluster popover, so opening this menu makes the header popovers
+  // «Images» popover, so opening this menu makes the header popovers
   // mutually exclusive in this direction too.
   button.addEventListener('click', () => {
     if (isOpen()) closePopover();
@@ -191,8 +191,8 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
   });
 
   // Capture phase so this fires *before* other header controls call
-  // `stopPropagation` in their bubble handlers — clicking the cluster
-  // indicator still closes this popover.
+  // `stopPropagation` in their bubble handlers — clicking the «Images»
+  // badge still closes this popover.
   document.addEventListener(
     'click',
     (e) => {

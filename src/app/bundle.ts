@@ -4,7 +4,6 @@ import type { DocumentBundle } from '../formats/types';
 import { basename } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
-import { scheduleClusterDetection } from './cluster-scan';
 import type { AppContext } from './context';
 import { prepareMarkdownForDisplay } from './image-loader';
 import type { AppState } from './state';
@@ -60,8 +59,4 @@ export async function applyBundle(
   ctx.frontmatterPanel.refresh();
   ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
   ctx.state.setModified(false);
-
-  // Cluster detection runs after the document is rendered so the user
-  // sees content immediately; the popover appears once results land.
-  scheduleClusterDetection(path, ctx, io);
 }

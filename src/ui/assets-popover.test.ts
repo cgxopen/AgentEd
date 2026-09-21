@@ -8,12 +8,11 @@
 
 import type { Editor } from '@tiptap/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import shippedPage from '../../index.html?raw';
 import type { AssetsSummary } from '../app/assets-summary';
-import type { ContextCluster } from '../cluster/types';
-import type { PlatformIO } from '../platform/types';
+import { ThemeManager } from '../app/theme-manager';
+import { setupAppearanceMenu } from './appearance-menu';
 import { ASSETS_POPOVER_LOADING, setupAssetsPopover } from './assets-popover';
-import { setupClusterIndicator } from './cluster-indicator';
-import { setupClusterPopover } from './cluster-popover';
 import { setupDocumentBadges } from './document-badges';
 
 function mount(): void {
@@ -157,66 +156,47 @@ describe('an answer that arrives late', () => {
 /**
  * The header popovers stay mutually exclusive (#209 review).
  *
- * Both this popover and the context one are positioned by the same
- * `cluster-popover` rule, so two open at once overlap. `appearance-menu.ts`
- * carries the mechanism that prevents it and explains both halves: an
- * outside-click listener on the capture phase, so it runs before other
- * header controls call `stopPropagation`, and a trigger that does not call
- * `stopPropagation` itself, so opening it closes the others.
+ * **The partner changed on #401 and the property did not.** This was written
+ * against the context popover, which was positioned by the same
+ * `cluster-popover` rule and therefore overlapped this one; that popover has
+ * gone, and the appearance popover is the surface still in the bar that this
+ * one must not sit under. `appearance-menu.ts` carries the mechanism and
+ * explains both halves: an outside-click listener on the capture phase, so it
+ * runs before other header controls call `stopPropagation`, and a trigger that
+ * does not call `stopPropagation` itself, so opening it closes the others.
  *
- * Measured on `763e611`, before the repair, with both mounted and driven by
- * real clicks: clicking the badge with the context popover open closed
- * nothing, and clicking the context indicator with this popover open closed
- * nothing either. Both directions were broken, for the two different
- * reasons above.
+ * Measured on `763e611`, before the repair, with the original pair mounted and
+ * driven by real clicks: clicking the badge with the other popover open closed
+ * nothing, and clicking the other trigger with this popover open closed nothing
+ * either. Both directions were broken, for the two different reasons above.
  *
  * Each direction below opens the first popover through its own control and
- * asserts that it is open before touching the second. Asserting only that
- * the other one ended closed would pass against a popover that was never
- * opened, and so against the build this repair fixes.
+ * asserts that it is open before touching the second. Asserting only that the
+ * other one ended closed would pass against a popover that was never opened,
+ * and so against the build this repair fixes.
+ *
+ * The markup is sliced out of the shipped page rather than retyped, so a
+ * control that leaves `index.html` fails this file instead of being quietly
+ * mounted by it.
  */
-describe('mutual exclusion with the context popover', () => {
+describe('mutual exclusion with the appearance popover', () => {
   function mountPair(): void {
-    document.body.innerHTML = `
-      <div id="header-indicators">
-        <span id="badge-metadata" class="indicator" style="display:none" aria-hidden="true"></span>
-        <button id="badge-images" type="button" class="indicator" aria-expanded="false"
-                aria-controls="assets-popover">Images</button>
-        <button id="cluster-indicator" type="button" class="indicator" aria-expanded="false"
-                aria-controls="cluster-popover"></button>
-      </div>
+    const open = shippedPage.indexOf('<header id="menubar">');
+    const close = shippedPage.indexOf('</header>');
+    if (open < 0 || close < 0) throw new Error('index.html no longer has a #menubar header');
+    document.body.innerHTML = `${shippedPage.slice(open, close + '</header>'.length)}
       <aside id="assets-popover" class="cluster-popover hidden"></aside>
-      <aside id="cluster-popover" class="cluster-popover hidden"></aside>`;
+      <aside id="appearance-popover" class="appearance-popover hidden"></aside>`;
   }
 
-  const CLUSTER = {
-    relatedCount: 1,
-    entries: [
-      {
-        path: '/project/AGENTS.md',
-        filename: 'AGENTS.md',
-        kind: 'agents',
-        direction: 'self',
-        distance: 0,
-      },
-    ],
-  } as unknown as ContextCluster;
-
   function pair(): void {
+    localStorage.clear();
     mountPair();
 
     const assets = setupAssetsPopover({ loadSummary: async () => COUNTED });
     // The wiring `main.ts` installs: the badge toggles the popover.
     setupDocumentBadges(fakeEditorWithImage(), { onImagesToggle: () => assets.toggle() });
-
-    const contextPopover = setupClusterPopover({
-      getIO: async () => ({}) as unknown as PlatformIO,
-      onOpenEntry: async () => {},
-      onRefresh: async () => {},
-      onNothingToShow: () => {},
-    });
-    const indicator = setupClusterIndicator({ onToggle: () => contextPopover.toggle(CLUSTER) });
-    indicator.refresh(CLUSTER);
+    setupAppearanceMenu(new ThemeManager());
   }
 
   /** An editor whose document holds an image, which is all the badge asks. */
@@ -236,29 +216,29 @@ describe('mutual exclusion with the context popover', () => {
     );
   };
 
-  it('closes the context popover when the badge is clicked', () => {
+  it('closes the appearance popover when the badge is clicked', () => {
     pair();
 
-    clickOn('cluster-indicator');
+    clickOn('appearance-menu-trigger');
     // The half a lazy assertion would skip: the other popover really is
     // open before the badge is touched.
-    expect(isOpenById('cluster-popover')).toBe(true);
+    expect(isOpenById('appearance-popover')).toBe(true);
     expect(isOpenById('assets-popover')).toBe(false);
 
     clickOn('badge-images');
     expect(isOpenById('assets-popover')).toBe(true);
-    expect(isOpenById('cluster-popover')).toBe(false);
+    expect(isOpenById('appearance-popover')).toBe(false);
   });
 
-  it('closes when the context indicator is clicked', () => {
+  it('closes when the appearance trigger is clicked', () => {
     pair();
 
     clickOn('badge-images');
     expect(isOpenById('assets-popover')).toBe(true);
-    expect(isOpenById('cluster-popover')).toBe(false);
+    expect(isOpenById('appearance-popover')).toBe(false);
 
-    clickOn('cluster-indicator');
-    expect(isOpenById('cluster-popover')).toBe(true);
+    clickOn('appearance-menu-trigger');
+    expect(isOpenById('appearance-popover')).toBe(true);
     expect(isOpenById('assets-popover')).toBe(false);
   });
 

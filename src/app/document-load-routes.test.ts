@@ -206,24 +206,13 @@ describe('every route that replaces the document (R-C16)', () => {
     expect(instance.getMarkdown()).not.toContain('EDIT');
   });
 
-  it('the context popover', async () => {
-    await openAndEditA();
-    const stop = answerDialogsInTurn('Discard');
-    // No listing root: the popover opens a file that usually lives
-    // outside the tree on screen.
-    await actions.openFilePath(B);
-    stop();
-
-    const asLoaded = instance.getMarkdown();
-    expect(undoDepth(instance.editor.state)).toBe(0);
-    expect(documentAfterPressingUndo()).toBe(asLoaded);
-  });
-
   it('the file association', async () => {
     await openAndEditA();
     const stop = answerDialogsInTurn('Discard');
     // `setupFileAssociation` is handed `openFilePath` and calls it with
-    // the path the shell delivered; this is that call.
+    // the path the shell delivered; this is that call. No listing root,
+    // which is what the context popover route removed on #401 also
+    // exercised — the two were the same call with different comments.
     await actions.openFilePath(B);
     stop();
 

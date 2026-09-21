@@ -142,7 +142,6 @@ const MENUBAR_FAMILY = [
   'menu-toggle',
   'indicator-search',
   'badge-images',
-  'cluster-indicator',
   'overflow-toggle',
   'appearance-menu-trigger',
   'sidebar-toggle',

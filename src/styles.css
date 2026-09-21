@@ -359,15 +359,18 @@ body {
   }
 }
 
-/* **The three badges go into the list below 901 px, where the bar is also the
- * title bar**, owner decision on #366: the caption buttons take about 130 px,
- * and with the badges in the bar the document name fell to 0 from 601 to 675
- * px, even with the brand name hidden. With them in the list it is 131.6 px at
+/* **The badges go into the list below 901 px, where the bar is also the title
+ * bar**, owner decision on #366: the caption buttons take about 130 px, and
+ * with the badges in the bar the document name fell to 0 from 601 to 675 px,
+ * even with the brand name hidden. With them in the list it is 131.6 px at
  * worst. Only on the bar that draws its own frame: the web build and the Linux
  * lane keep the collapse at 600 they had. The overflow list offers whatever the
- * bar hides, so the badges reach it with nothing else changed. */
+ * bar hides, so the badges reach it with nothing else changed. The measurement
+ * was taken with three badges in the bar, the third being the context
+ * indicator removed on #401, so the figure above is the worst case rather than
+ * the current one. */
 @media (max-width: 900px) {
-  #menubar.window-frame-own :is(#badge-metadata, #badge-images, #cluster-indicator) {
+  #menubar.window-frame-own :is(#badge-metadata, #badge-images) {
     display: none;
   }
 }
@@ -2772,7 +2775,6 @@ button.indicator-search:hover {
   box-shadow: 0 0 0 2px var(--accent);
   border-color: var(--bg);
 }
-/* ── Cluster indicator + popover ── */
 /* ── R-C12 document-kind badges ──
  *
  * Descriptive, never a warning: no accent colour, no border that reads as
@@ -2817,11 +2819,12 @@ button.document-badge:active {
   line-height: 1.5;
 }
 
-button.cluster-indicator {
-  color: var(--text);
-  font-weight: 500;
-}
-
+/* **Named after a feature that has gone, and kept because a second one uses
+ * it.** The context popover this was written for left on #401; `#assets-popover`
+ * in `index.html` carries the same class and `ui/assets-popover.ts` writes
+ * `cluster-popover-header`, so these three rules are the «Images» popover now.
+ * The entry and footer rules beside them had no second user and went with the
+ * feature. Renaming what is left is recorded as debt rather than done here. */
 .cluster-popover {
   position: absolute;
   top: calc(100% + 4px);
@@ -2847,87 +2850,6 @@ button.cluster-indicator {
   font-size: 13px;
   color: var(--text);
   padding-bottom: 8px;
-}
-.cluster-popover-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.cluster-entry-button {
-  width: 100%;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 8px;
-  cursor: pointer;
-  font: inherit;
-  color: var(--text);
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.cluster-entry-button:hover {
-  background: var(--hover-overlay);
-}
-.cluster-entry-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-}
-.cluster-entry-direction {
-  color: var(--muted);
-  font-weight: 400;
-}
-.cluster-entry-filename {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cluster-entry-path {
-  font-size: 11px;
-  color: var(--muted);
-  font-family: var(--mono, monospace);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cluster-entry-snippet {
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cluster-popover-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-  padding-top: 8px;
-}
-/* No outline at rest since #375, the #368 shape: hover and pressed carry the
- * state. The border stays, transparent, so the button keeps its size. */
-.cluster-popover-refresh {
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 12px;
-  color: var(--text);
-  padding: 2px 8px;
-}
-.cluster-popover-refresh:hover,
-.cluster-popover-refresh:active {
-  background: var(--hover-overlay);
 }
 @media (max-width: 600px) {
   .cluster-popover {

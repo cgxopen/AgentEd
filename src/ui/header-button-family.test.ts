@@ -29,6 +29,7 @@ import {
   stylesheetRules,
   valuesReaching,
 } from '../test-support/stylesheet-rules';
+import { IMAGES_BADGE_LABEL, IMAGES_BADGE_TOOLTIP } from './document-badges';
 
 const rules = stylesheetRules(stylesCss);
 /**
@@ -58,7 +59,7 @@ const FAMILY = [
   // The spell-check toggle left the bar for the Edit menu at #360.
   'indicator-search',
   'badge-images',
-  'cluster-indicator',
+  // The context indicator sat here until #401 removed it.
   'overflow-toggle',
   'appearance-menu-trigger',
   // The files panel control, which took the last seat at #347.
@@ -340,13 +341,14 @@ describe('hover, pressed and lit say what the frame used to (#368)', () => {
     expect(specificity('.document-badge')).toEqual([0, 1, 0]);
   });
 
-  it('lights every control that reveals a surface, all eight of them, the same way', () => {
-    // The seven members of the family, each of which says `aria-expanded`, and
-    // the copy the overflow list draws of one of them.
+  it('lights every control that reveals a surface, all seven of them, the same way', () => {
+    // The six members of the family, each of which says `aria-expanded`, and
+    // the copy the overflow list draws of one of them. It was seven and eight
+    // until #401 took the context indicator out of the bar.
     const copy = overflowClone(element('indicator-search'));
     element('overflow-popover').appendChild(copy);
     const lit = [...FAMILY.map(element), copy];
-    expect(lit).toHaveLength(8);
+    expect(lit).toHaveLength(7);
     for (const el of lit) {
       const label = el.id || 'the overflow copy';
       el.setAttribute('aria-expanded', 'true');
@@ -374,7 +376,7 @@ describe('nothing the issue said it would not move has moved', () => {
     // The spell-check toggle carried no state attribute and stated its state
     // in its text; it left the bar for the Edit menu at #360, where the entry
     // carries `aria-pressed` instead (`statusbar.test.ts`).
-    for (const id of ['indicator-search', 'badge-images', 'cluster-indicator', 'overflow-toggle']) {
+    for (const id of ['indicator-search', 'badge-images', 'overflow-toggle']) {
       expect(element(id).getAttribute('aria-expanded'), id).toBe('false');
     }
   });
@@ -397,7 +399,7 @@ describe('nothing the issue said it would not move has moved', () => {
     // class specificity — these rows hold both halves of that.
     expect(element('indicator-search').className).toMatch(/indicator-collapse-800/);
     expect(element('badge-images').className).toMatch(/indicator-collapse-600/);
-    expect(element('cluster-indicator').className).toMatch(/indicator-collapse-600/);
+    expect(element('badge-metadata').className).toMatch(/indicator-collapse-600/);
     const collapse = rules.filter((rule) => rule.selector.startsWith('.indicator-collapse-'));
     expect(collapse.length).toBe(3);
     for (const rule of collapse) {
@@ -414,13 +416,16 @@ describe('nothing the issue said it would not move has moved', () => {
 
 describe('the overflow copy of a framed button is still readable', () => {
   it('copies the text, the tooltip and the state of a button that has text', () => {
-    const cluster = element('cluster-indicator');
-    cluster.removeAttribute('aria-hidden');
-    cluster.textContent = '\u{1F4CE} 3 related';
-    cluster.title = '3 related context files found in this tree';
-    const clone = overflowClone(cluster);
-    expect(clone.textContent).toBe('\u{1F4CE} 3 related');
-    expect(clone.title).toBe('3 related context files found in this tree');
+    // «Images» since #401, where the context indicator this was written
+    // against left the bar. It is presented the way `document-badges.ts`
+    // presents it on a document that warrants it, rather than by hand.
+    const images = element('badge-images');
+    images.removeAttribute('aria-hidden');
+    images.textContent = IMAGES_BADGE_LABEL;
+    images.title = IMAGES_BADGE_TOOLTIP;
+    const clone = overflowClone(images);
+    expect(clone.textContent).toBe(IMAGES_BADGE_LABEL);
+    expect(clone.title).toBe(IMAGES_BADGE_TOOLTIP);
     expect(clone.getAttribute('aria-expanded')).toBe('false');
   });
 

@@ -39,8 +39,9 @@ export function setupAssetsPopover(callbacks: AssetsPopoverCallbacks): AssetsPop
   /**
    * Which open this render belongs to. The folder read is async, so a
    * popover closed and reopened while one was in flight would otherwise
-   * take the older answer — the same staleness `clusterScanGeneration`
-   * guards in `AppState`, at a smaller scale.
+   * take the older answer. `AppState` used to guard the same staleness at
+   * a larger scale, for the context scan removed on #401; this is the last
+   * place in the build that has the problem.
    */
   let generation = 0;
 
@@ -109,11 +110,12 @@ export function setupAssetsPopover(callbacks: AssetsPopoverCallbacks): AssetsPop
   // halves of the mechanism `appearance-menu.ts` documents, which is what
   // keeps the header popovers mutually exclusive.
   //
-  // Capture is the half that matters here. The context indicator calls
-  // `stopPropagation` in its own bubble handler, so a bubble listener on
-  // this popover would never hear that click and this popover would stay
-  // open underneath the one the user just opened. Both are positioned by
-  // the same `cluster-popover` rule, so they overlap.
+  // Capture is the half that matters here. A header control that calls
+  // `stopPropagation` in its own bubble handler would never let a bubble
+  // listener on this popover hear the click, and this popover would stay
+  // open underneath whatever the user just opened. The context indicator
+  // was the one that did it, until #401 removed it; the appearance trigger
+  // is the case the capture phase still answers.
   //
   // **The trigger has to be excused, and the order is why.** Capture runs
   // from the document down, so a click on the badge reaches this listener

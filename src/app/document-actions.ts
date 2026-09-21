@@ -37,10 +37,9 @@ export interface DocumentActions {
    * `sidebarRoot` is the listing root the click came from, and only the
    * sidebar passes it (#178): given, the panel keeps that root when the
    * new document has no adjacent structure of its own; omitted, the root
-   * is re-derived from the document exactly as before. The context
-   * popover and the file association both omit it deliberately — a
-   * context file usually lives outside the root on screen, and a
-   * document opened from the shell was never in a panel at all.
+   * is re-derived from the document exactly as before. The file
+   * association omits it deliberately — a document opened from the shell
+   * was never in a panel at all.
    */
   openFilePath(path: string, sidebarRoot?: string): Promise<void>;
   /**
@@ -128,9 +127,9 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    *
    * **This is the one place the kept sidebar root is written** (#178),
    * because this function is exactly the set of *a document arrived at a
-   * path* events: File → Open, the sidebar, the context popover, the
-   * file association and a reload after an external change all pass
-   * through here and nothing else does. `options.sidebarRoot` is given
+   * path* events: File → Open, the sidebar, the file association and a
+   * reload after an external change all pass through here and nothing
+   * else does. `options.sidebarRoot` is given
    * only by the sidebar, so every other route clears the value and
    * re-derives the root. A save is deliberately **not** one of these
    * events — `handleSave` refreshes the panel without coming through
@@ -459,8 +458,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
 
   async function openFilePath(path: string, sidebarRoot?: string): Promise<void> {
     if (!(await discardCurrentDocument('open'))) return;
-    // The route the sidebar, the context popover and the file
-    // association all take, and the one #127 was about: a file listed a
+    // The route the sidebar and the file association both take, and the
+    // one #127 was about: a file listed a
     // moment ago may be gone, or no longer reachable, by the time it is
     // clicked. It used to answer with the document already open; now it
     // says so.

@@ -149,7 +149,7 @@ describe('the narrow band keeps the document name (#366)', () => {
   });
 
   it('moves the three badges into the list below 901 px on the fused bar only', () => {
-    const badges = ['#badge-metadata', '#badge-images', '#cluster-indicator'];
+    const badges = ['#badge-metadata', '#badge-images'];
     for (const badge of badges) expect(hiddenBelow(element(badge), 900), badge).toBe(false);
 
     drawWindowFrame(controls());

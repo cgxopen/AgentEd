@@ -97,10 +97,10 @@ export function wireSidebarButton(sidebar: Sidebar): void {
  *
  * **It says it with `aria-expanded`, naming the panel** (#324). It shipped with
  * `aria-pressed`, taken from the option toggles a few centimetres away inside
- * the search panel; the controls that do what this one does — the Images badge,
- * the cluster indicator, the overflow menu — are in this same bar and each says
- * `aria-expanded` with `aria-controls`. This button reveals a surface rather
- * than switching an option on, so it now says the same thing they do.
+ * the search panel; the controls that do what this one does — the Images badge
+ * and the overflow menu — are in this same bar and each says `aria-expanded`
+ * with `aria-controls`. This button reveals a surface rather than switching an
+ * option on, so it now says the same thing they do.
  *
  * The state follows the panel rather than the button, so Escape, the close
  * cross, `Ctrl+F` and the Edit menu all move it too. Below the collapse
@@ -147,11 +147,13 @@ function setupOverflowPopover(): void {
  * Two different facts, and this menu used to know only the second (#130):
  *
  * **Has its own module withdrawn it?** `aria-hidden="true"` is that
- * statement — *this is not part of the interface right now*. The cluster
- * indicator says it whenever a scan finds nothing, and an indicator that
- * has taken itself out has nothing to offer: its text is whatever it
- * last said, and its click reaches a handler with nothing to show. It is
- * not offered, at any width.
+ * statement — *this is not part of the interface right now*. «Metadata»
+ * and «Images» say it on a document that warrants neither, and an
+ * indicator that has taken itself out has nothing to offer: its text is
+ * whatever it last said, and its click reaches a handler with nothing to
+ * show. It is not offered, at any width. The context indicator this was
+ * first written against left on #401; the convention outlived it because
+ * `ui/document-badges.ts` had already adopted it.
  *
  * **Did the collapse breakpoint take it out of the bar?**
  * `offsetParent === null` is that one — and it is the whole reason this
