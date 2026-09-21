@@ -35,6 +35,7 @@ import { setupAssetsPopover } from './ui/assets-popover';
 import { documentReferencesImage, setupDocumentBadges } from './ui/document-badges';
 import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
+import { watchHeaderRoom } from './ui/header-room';
 import { setupMenu } from './ui/menu';
 import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar, spellcheckMenuCallbacks } from './ui/statusbar';
@@ -329,12 +330,23 @@ setupMenu(
 // manager, which owns persistence and applies the theme to the document.
 ctx.appearanceMenu = setupAppearanceMenu(themeManager);
 
+// The word and character counts give way to the document name rather than to a
+// window width (#413). Wired here rather than with the rest of the header in
+// Phase 2 because the bar it measures is not itself until the statusbar has
+// written the counts, which happens in Phase 4.
+const measureHeaderRoom = watchHeaderRoom();
+
 // On Windows the header and the title bar are one bar, drawn here (#366):
 // the platform hands over the window controls where the build has no native
 // frame, and nothing anywhere else.
 void ownWindowFrame()
   .then((controls) => {
-    if (controls) drawWindowFrame(controls);
+    if (controls) {
+      drawWindowFrame(controls);
+      // The brand and the caption buttons are part of what never gives way, so
+      // the answer taken a moment ago was taken against a different bar.
+      measureHeaderRoom();
+    }
   })
   .catch((e: unknown) => console.error('[main] the window frame could not be drawn:', e));
 
