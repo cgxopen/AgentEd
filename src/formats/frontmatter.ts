@@ -1,4 +1,4 @@
-import type { DocumentBundle } from './types';
+import type { MarkdownDocument } from './types';
 
 /**
  * The spelling a rule is given when `---` would open a metadata block.
@@ -15,9 +15,9 @@ const RULE_THAT_OPENS_NO_BLOCK = '***';
  * to be written alike, so a file holding only an opening and a closing
  * delimiter was saved as an empty file.
  */
-export function assembleMarkdown(bundle: DocumentBundle): string {
-  if (bundle.frontmatterRaw === null) return bodyThatOpensNoBlock(bundle.markdownBody);
-  return `---\n${bundle.frontmatterRaw}\n---\n${bundle.markdownBody}`;
+export function assembleMarkdown(document: MarkdownDocument): string {
+  if (document.frontmatterRaw === null) return bodyThatOpensNoBlock(document.markdownBody);
+  return `---\n${document.frontmatterRaw}\n---\n${document.markdownBody}`;
 }
 
 /**

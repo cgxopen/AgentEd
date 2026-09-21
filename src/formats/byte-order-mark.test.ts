@@ -50,7 +50,7 @@ async function openAndSave(text: string): Promise<string> {
   const disk = new Map([[P, text]]);
   const io = recordingIO(disk);
   const loaded = await loadMarkdown(P, io);
-  const result = await saveMarkdown(loaded.bundle, io);
+  const result = await saveMarkdown(loaded.document, io);
   return result.writtenText;
 }
 
@@ -78,8 +78,8 @@ describe('a byte order mark is a property of the file (#259)', () => {
   it('a metadata block behind a mark is still recognised', async () => {
     const source = `${BYTE_ORDER_MARK}---\ntitle: Raport\n---\n\nO linie.\n`;
     const loaded = await loadMarkdown(P, recordingIO(new Map([[P, source]])));
-    expect(loaded.bundle.frontmatterRaw).toBe('title: Raport');
-    expect(loaded.bundle.byteOrderMark).toBe(true);
+    expect(loaded.document.frontmatterRaw).toBe('title: Raport');
+    expect(loaded.document.byteOrderMark).toBe(true);
     expect(await openAndSave(source)).toBe(source);
   });
 });

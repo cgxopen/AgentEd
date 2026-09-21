@@ -71,7 +71,7 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  * would replace a vague truth with a confident guess.
  *
  * **The last sentence of each is a measurement, not reassurance.** On a
- * rejection `loadDocument` throws before `applyBundle` runs, and
+ * rejection `loadDocument` throws before `applyLoadedDocument` runs, and
  * `openFilePath` never clears the editor, so the document, its
  * `filePath` and its R-C14 baseline are all untouched. The user has just
  * clicked something expecting their document to be replaced; saying

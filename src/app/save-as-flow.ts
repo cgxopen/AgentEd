@@ -9,7 +9,7 @@ import type { AppContext } from './context';
  *
  * Choosing a destination is **not** a save: nothing is written here, and
  * the document stays modified until a save actually succeeds (R-C3).
- * `persistBundle` writes the bytes and clears the modified flag; leaving
+ * `persistDocument` writes the bytes and clears the modified flag; leaving
  * it set here is what makes a cancelled or failed save still prompt at
  * close time instead of quietly dropping the work.
  *

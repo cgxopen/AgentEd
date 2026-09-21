@@ -279,7 +279,7 @@ const MarkdownComment = TipTapNode.create({
  * kit registers goes on being registered, and goes on doing so if a future
  * release changes what that is. Importing `@tiptap/extension-code` directly
  * would restate one entry of that list and add a package to `package.json`
- * for a mark the bundle already contains.
+ * for a mark the document already contains.
  *
  * **`configure` comes before `extend`, and the order is load-bearing.** The
  * other way round — `StarterKit.extend({…}).configure({…})` — the kit builds

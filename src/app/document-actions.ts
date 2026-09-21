@@ -15,9 +15,9 @@ import { forgetRecentFile, recordRecentFile, saveLastOpenedFolder } from '../pre
 import { getTemplate, type TemplateId } from '../templates/index';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
 import { showToast } from '../ui/toast';
-import { applyBundle, buildBundle } from './bundle';
 import type { AppContext } from './context';
 import { createDiscardGate } from './discard-gate';
+import { applyLoadedDocument, buildDocument } from './editor-document';
 import { askAboutExternalChange } from './external-change-prompt';
 import { OPEN_FAILED_TITLE, openFailedMessage, recentFileGoneMessage } from './open-failure';
 import { createRequestSaveAs } from './save-as-flow';
@@ -84,7 +84,7 @@ interface LoadFailureReport {
 
 /** The optional halves of a load, grouped for the reason above. */
 interface LoadOptions {
-  /** The document's text, already read. See `loadBundleFromPath`. */
+  /** The document's text, already read. See `openDocumentAtPath`. */
   readonly preloaded?: LoadResult;
   /** The sidebar listing root this open came from (#178). */
   readonly sidebarRoot?: string;
@@ -136,14 +136,14 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    * here — so Ctrl+S on a document opened from the tree does not
    * dissolve the tree.
    *
-   * Written **after** `applyBundle`, not before the read: a load that
+   * Written **after** `applyLoadedDocument`, not before the read: a load that
    * throws leaves the document, `filePath` and the R-C14 baseline
    * exactly as the user had them — the sentence the `catch` below rests
    * on — and the panel is one more thing that must still be theirs. An
    * open that failed would otherwise arm the panel to vanish on the next
    * save, having changed nothing the user can see.
    */
-  async function loadBundleFromPath(
+  async function openDocumentAtPath(
     path: string,
     failure: LoadFailureReport,
     options: LoadOptions = {},
@@ -151,7 +151,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     const io = await getPlatformIO();
     try {
       const loaded = options.preloaded ?? (await loadDocument(path, io));
-      await applyBundle(loaded, path, ctx, io);
+      await applyLoadedDocument(loaded, path, ctx, io);
 
       const folder = dirname(path);
       if (folder.length > 0) saveLastOpenedFolder(folder);
@@ -164,14 +164,14 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       ctx.updateCloseEnabled();
     } catch (e) {
       // **Where the read happens here**, nothing above this line has
-      // touched the document: `loadDocument` throws before `applyBundle`
+      // touched the document: `loadDocument` throws before `applyLoadedDocument`
       // runs, and this path never clears the editor. So the editor,
       // `filePath` and the R-C14 baseline are all still the ones the
       // user had — which is what `openFailedMessage` is allowed to say
       // in as many words (#127).
       //
       // **Where `preloaded` was given**, that read is already behind us
-      // and only `applyBundle` and the state it syncs are left, so a
+      // and only `applyLoadedDocument` and the state it syncs are left, so a
       // failure here has replaced part of the document. That is why File
       // → Open does not pass `openFailedMessage`: its last sentence
       // would be false on the only failure that route can still reach
@@ -223,7 +223,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
         // baseline with it, so the write below lands there instead.
         return (await requestSaveAs()) ? 'write' : 'stop';
       case 'reload':
-        await loadBundleFromPath(
+        await openDocumentAtPath(
           path,
           { label: `Failed to reload document: ${path}` },
           { redraw: 'same-document' },
@@ -239,20 +239,20 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    * body, plus the frontmatter block only if the document already has
    * one. Nothing is ever injected on save.
    */
-  async function persistBundle(): Promise<boolean> {
+  async function persistDocument(): Promise<boolean> {
     const io = await getPlatformIO();
 
-    // Before the bundle is built, not after: the answer to the question
-    // may move the document to a different file, and the bundle carries
+    // Before the document is built, not after: the answer to the question
+    // may move the document to a different file, and the document carries
     // the path it will be written to.
     const target = ctx.state.filePath;
     if (target !== null && (await resolveExternalChange(io, target)) === 'stop') return false;
 
-    const bundle = buildBundle(ctx.state, ctx.getMarkdown);
+    const document = buildDocument(ctx.state, ctx.getMarkdown);
 
     let result: Awaited<ReturnType<typeof saveDocument>>;
     try {
-      result = await saveDocument(bundle, io);
+      result = await saveDocument(document, io);
     } catch (e) {
       if (e instanceof Error && e.message.includes('NO_DIR_HANDLE')) {
         showToast(
@@ -286,7 +286,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       // still reaches the console unchanged, so this costs a line on
       // screen and never a line in the log.
       await ctx.reporter.dialog(
-        saveFailedMessage(bundle.rootPath, saveFailureCause(e)),
+        saveFailedMessage(document.rootPath, saveFailureCause(e)),
         e,
         SAVE_FAILED_TITLE,
         'omit',
@@ -337,7 +337,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     }
     ctx.state.isSaving = true;
     try {
-      await persistBundle();
+      await persistDocument();
       // A save is not an act that asks for the panel (#387, owner decision).
       await ctx.refreshSidebar('same-document');
     } finally {
@@ -353,7 +353,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       if (!path) return;
       // A document written under a new name is one the person now has, so it
       // enters the recent list as an open does (#381, owner decision).
-      if ((await persistBundle()) && (await getPlatformIO()).pathsOutliveSession) {
+      if ((await persistDocument()) && (await getPlatformIO()).pathsOutliveSession) {
         recordRecentFile(path);
       }
       // A save is not an act that asks for the panel (#387, owner decision).
@@ -449,7 +449,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     // The text came back with the path, read from the handle the user
     // picked — so it is used, rather than the file being looked up again
     // by a name that on the web may not identify it (#141).
-    await loadBundleFromPath(
+    await openDocumentAtPath(
       result.path,
       { label: `Failed to open document: ${result.path}` },
       { preloaded: parseDocument(result.content, result.path) },
@@ -470,7 +470,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     //
     // `sidebarRoot` travels straight through: the three callers are told
     // apart by whether they pass it, and only the sidebar does (#178).
-    await loadBundleFromPath(
+    await openDocumentAtPath(
       path,
       {
         // A function of the rejection, because which of the two

@@ -78,7 +78,7 @@ import workflowMd from '../../docs/internal/WORKFLOW.md?raw';
 import readmeMd from '../../README.md?raw';
 import requirementsMd from '../../REQUIREMENTS.md?raw';
 import securityMd from '../../SECURITY.md?raw';
-import { buildBundle } from '../app/bundle';
+import { buildDocument } from '../app/editor-document';
 import { AppState } from '../app/state';
 import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
@@ -1555,7 +1555,7 @@ function recordingIO(disk: Map<string, string>): PlatformIO {
  * Open `text` as a file, change nothing, save — and return the bytes that
  * reached the disk. This is the whole path the user is on: `loadMarkdown`
  * (which is where the frontmatter is split and the line conventions are read)
- * → the editor → `buildBundle` → `saveMarkdown` (which is where the
+ * → the editor → `buildDocument` → `saveMarkdown` (which is where the
  * conventions are re-applied). The serializer alone cannot see either end of
  * it, which is why #79 was invisible until it was measured here.
  */
@@ -1567,14 +1567,14 @@ async function openAndSaveUnedited(text: string): Promise<string> {
   const host = document.createElement('div');
   document.body.appendChild(host);
   const editor = createEditor(host);
-  editor.setMarkdown(loaded.bundle.markdownBody);
+  editor.setMarkdown(loaded.document.markdownBody);
 
   const state = new AppState();
   state.filePath = DOCUMENT_PATH;
-  state.frontmatter = loaded.bundle.frontmatterRaw;
-  state.lineConventions = loaded.bundle.lineConventions;
+  state.frontmatter = loaded.document.frontmatterRaw;
+  state.lineConventions = loaded.document.lineConventions;
 
-  const result = await saveMarkdown(buildBundle(state, editor.getMarkdown), io);
+  const result = await saveMarkdown(buildDocument(state, editor.getMarkdown), io);
   editor.destroy();
   host.remove();
   return result.writtenText;
