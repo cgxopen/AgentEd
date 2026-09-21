@@ -47,7 +47,7 @@ function ioWith(granted: { current: boolean }): PlatformIO {
     writeBinary: async () => {},
     // Before a grant nothing was looked at; after one the folder answers.
     entryPresence: async (p: string) =>
-      granted.current ? (p === '/proj/notes' ? 'present' : 'absent') : 'unknown',
+      granted.current ? (p === '/proj/assets' ? 'present' : 'absent') : 'unknown',
     listDir: async (): Promise<FileEntry[]> => [],
     mkdir: async () => {},
     openWithSystem: async () => {},
@@ -115,7 +115,7 @@ describe('#184 — accepting the offer', () => {
     });
     await acceptOffer(request, refresh, sidebar)();
 
-    expect(seen).toEqual(['offer', 'tree:/proj/notes']);
+    expect(seen).toEqual(['offer', 'tree:/proj/assets']);
   });
 
   it('a cancelled picker changes nothing and says nothing', async () => {

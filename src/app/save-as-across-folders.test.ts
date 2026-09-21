@@ -63,10 +63,17 @@ function dirHandle(name: string, files: string[], dirs: Record<string, unknown> 
   };
 }
 
-/** The folder the document starts in: `web.md` beside a `web/` folder. */
+/**
+ * The folder the document starts in: `web.md` beside an `assets/` folder.
+ *
+ * It was a `web/` folder named after the document until #402, which left
+ * `assets/` as the only trigger. The document sits at the root of the
+ * grant, which is the shape #402 also repaired — its `assets/` folder had
+ * never been probed there at all.
+ */
 function sourceFolder(): unknown {
-  const web = dirHandle('web', ['cap1.md', 'cap2.md', 'note.txt', 'date.json']);
-  return dirHandle('agented-146', ['web.md'], { web });
+  const assets = dirHandle('assets', ['cap1.md', 'cap2.md', 'note.txt', 'date.json']);
+  return dirHandle('agented-146', ['web.md'], { assets });
 }
 
 /** The folder it moves to: flat, nothing adjacent to anything. */
@@ -88,7 +95,10 @@ afterEach(() => {
 describe('#184 — Save As into a second folder, under the same name', () => {
   it("the control: before the Save As, the tree is the source folder's", async () => {
     const io = sessionIn(sourceFolder());
-    await expect(shouldShowSidebar('web.md', io)).resolves.toEqual({ kind: 'tree', root: 'web' });
+    await expect(shouldShowSidebar('web.md', io)).resolves.toEqual({
+      kind: 'tree',
+      root: 'assets',
+    });
   });
 
   it('the grant moves with the document → the panel says there is nothing beside it', async () => {

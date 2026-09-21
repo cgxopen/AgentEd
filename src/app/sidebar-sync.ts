@@ -1,5 +1,5 @@
 import { isTauri } from '../platform/detect';
-import { basename, dirname, joinPath, stripExtension } from '../platform/paths';
+import { basename, dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import type { Sidebar } from '../ui/sidebar';
 import { buildTree, type TreeNode } from '../ui/sidebar';
@@ -34,15 +34,18 @@ export type SidebarDecision =
 
 /**
  * Decide whether the sidebar should be visible for the active document
- * and, if so, which directory becomes the listing root (R-C6). The
- * trigger is adjacent structure — a folder that belongs to this
- * document — in this order:
+ * and, if so, which directory becomes the listing root (R-C6).
  *
- *   1. sibling folder named after the file (`doc.md` + `doc/`) → root =
- *      that folder
- *   2. `<dirname>/assets/` adjacent → root = that `assets/` folder,
- *      matching where image paste writes
- *   3. otherwise → hidden
+ * **The trigger is one folder and one only: `assets/` beside the
+ * document** — where image paste writes, which is the only folder rule
+ * AgentEd keeps (#402, owner decision F1). If it is there the panel
+ * roots at it; otherwise the panel is hidden.
+ *
+ * There used to be a second trigger before it, a sibling folder named
+ * after the file (`doc.md` + `doc/`). It left with #402, and the loss is
+ * stated in R-C6 rather than left to be met: a `chapter.md` with a
+ * `chapter/` folder beside it no longer shows that folder, and that was
+ * the only way the panel ever showed a folder of documents.
  */
 export async function shouldShowSidebar(
   filePath: string | null,
@@ -95,20 +98,34 @@ export async function shouldShowSidebar(
   // `entryPresence` had told them apart.
   let nothingWasLookedAt = false;
 
-  const sibling = stripExtension(filePath);
-  const siblingPresence = await io.entryPresence(sibling);
-  if (siblingPresence === 'present') return { kind: 'tree', root: sibling };
-  nothingWasLookedAt = siblingPresence === 'unknown';
-
+  // **The empty parent is the web document at the root of its grant, and
+  // it is probed rather than skipped** (#402). `dirname` of a bare name
+  // answers `''`, and the guard here used to read `parent.length > 0`, so
+  // that document never had its `assets/` looked for at all: measured on
+  // `7cd4984` through the real `WebIO` with a grant, a document at the
+  // grant root with `assets/` beside it got no panel, while the same
+  // arrangement one level down got the tree. The sibling rule was the only
+  // thing that ever opened the panel there, so removing it above would
+  // have left the arrangement this issue is about answering differently on
+  // the two platforms. `joinPath('', 'assets')` answers `assets`, which is
+  // what `WebIO` reads against the grant, so nothing new is built here.
+  //
+  // **The desktop does not reach this**, and the check that keeps it out is
+  // one step above rather than here: `TauriIO.canWriteCompanions` refuses a
+  // bare name, so such a path leaves as `no-folder-access` before any probe
+  // runs. Held in `platform/tauri.test.ts`.
+  //
+  // `parent !== '/'` stays: a document at the filesystem root has no
+  // neighbourhood worth probing, and that is a desktop shape.
   const parent = dirname(filePath);
-  if (parent.length > 0 && parent !== '/') {
+  if (parent !== '/') {
     const assetsDir = joinPath(parent, 'assets');
     const assetsPresence = await io.entryPresence(assetsDir);
     if (assetsPresence === 'present') return { kind: 'tree', root: assetsDir };
-    // Either probe answering `unknown` means the lookup did not happen.
-    // Tracked rather than defaulted: a second probe that never ran must
-    // not be recorded as having answered `absent`.
-    nothingWasLookedAt = nothingWasLookedAt || assetsPresence === 'unknown';
+    // The probe answering `unknown` means the lookup did not happen.
+    // Tracked rather than defaulted: a probe that never ran must not be
+    // recorded as having answered `absent`.
+    nothingWasLookedAt = assetsPresence === 'unknown';
   }
 
   return nothingWasLookedAt ? { kind: 'no-folder-access' } : { kind: 'nothing-adjacent' };
@@ -189,12 +206,17 @@ export type SidebarView =
  * when it holds a tree.
  *
  * Two ways to a root, in this order (R-C6, #178). The document's own
- * adjacent structure comes first and is unchanged, so a document opened
- * from the tree that carries a folder of its own still moves the panel
- * into it. Only when `shouldShowSidebar` finds none does the root the
- * click came from stand in — `state.sidebarRootFromClick`, which is set
- * on that route and `null` on every other one, so File then Open and the
- * file association both hide exactly as they did.
+ * `assets/` folder comes first, so a document opened from the tree that
+ * has one of its own still moves the panel into it. Only when
+ * `shouldShowSidebar` finds none does the root the click came from stand
+ * in — `state.sidebarRootFromClick`, which is set on that route and
+ * `null` on every other one, so File then Open and the file association
+ * both hide exactly as they did.
+ *
+ * **The kept root carries more after #402 than before it.** With the
+ * sibling rule gone, every document that used to root on a folder of its
+ * own now falls through to this line instead, so the route below is
+ * reached more often rather than less.
  */
 export async function resolveSidebarView(state: AppState, io: PlatformIO): Promise<SidebarView> {
   const decision = await shouldShowSidebar(state.filePath, io);
@@ -298,8 +320,9 @@ function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>
  * root and renders a recursive tree.
  *
  * **When the panel first appears is not changed by any of this.** A
- * document that arrives with no adjacent structure and no kept root
- * hides the panel, which is the trigger R-C6 always had. **Nobody asked**,
+ * document that arrives with no `assets/` folder and no kept root hides
+ * the panel — the trigger R-C6 has had since #402, and before it the
+ * same sentence with two folders instead of one. **Nobody asked**,
  * so `nothing` and `unreadable` both hide, silently (#354).
  *
  * **A read that lands after anything else was asked of the panel draws

@@ -36,7 +36,7 @@ export interface DocumentActions {
    *
    * `sidebarRoot` is the listing root the click came from, and only the
    * sidebar passes it (#178): given, the panel keeps that root when the
-   * new document has no adjacent structure of its own; omitted, the root
+   * new document has no `assets/` folder of its own; omitted, the root
    * is re-derived from the document exactly as before. The file
    * association omits it deliberately — a document opened from the shell
    * was never in a panel at all.
