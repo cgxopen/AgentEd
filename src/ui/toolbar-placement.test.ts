@@ -217,6 +217,44 @@ describe('toolbarTop — a selection too tall for either side (#336)', () => {
     }
   });
 
+  it('gives way to a panel between the header and the text (#416)', () => {
+    // The state the owner found on the second head of #416, with its figures.
+    // The metadata panel sits between the header and the editor, so the top of
+    // the room is the panel's bottom and not the header's: measured with the
+    // panel collapsed, its bottom at 71 and a selection in the first line at
+    // 87, the bar wanted 47 - clear of the header at 44 and **over the panel**.
+    const HEADER_BOTTOM = 44;
+    const PANEL_BOTTOM = 71;
+    const SELECTION_TOP = 87;
+    const selectionBottom = SELECTION_TOP + 43.19;
+
+    // Against the header alone it goes above, which is what covered the panel.
+    expect(toolbarTop(SELECTION_TOP, selectionBottom, TOOLBAR_H, HEADER_BOTTOM, 768)).toBeCloseTo(
+      SELECTION_TOP - TOOLBAR_H - GAP,
+      5,
+    );
+
+    // Against the top of the room it gives way and goes below, which is what
+    // every document with no panel already did.
+    expect(toolbarTop(SELECTION_TOP, selectionBottom, TOOLBAR_H, PANEL_BOTTOM, 768)).toBeCloseTo(
+      selectionBottom + GAP,
+      5,
+    );
+  });
+
+  it('with no panel the top of the room is the header, so nothing moved', () => {
+    // The half that keeps the row above honest: the caller passes the top of
+    // `#editor`, which with no panel shown *is* the header bottom - so this is
+    // the same arithmetic that shipped before #416, by construction.
+    for (const roomTop of [44, 54, 64, 87]) {
+      const selectionTop = roomTop + 300;
+      expect(toolbarTop(selectionTop, selectionTop + 27.19, TOOLBAR_H, roomTop, 768)).toBeCloseTo(
+        selectionTop - TOOLBAR_H - GAP,
+        5,
+      );
+    }
+  });
+
   it('never answers above the header, whatever the window', () => {
     // Including a window too short to hold the bar and its gaps at all, where
     // the bar overflows the foot rather than being drawn into the header — the

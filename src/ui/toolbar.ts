@@ -489,14 +489,34 @@ function bindToolbarEvents(
     // line above: 0.54 microseconds per call, over 20 000 calls, and no reflow
     // of its own, that rect having already forced one.
     //
-    // `#menubar` is written in `index.html`. If it is ever absent this falls
+    // **The floor is the top of the editor, not the bottom of the header**
+    // (#416). The header stopped being the top of the room the day anything
+    // could sit between it and the text: `#editor` is the flex sibling below
+    // `#search-panel` and `#frontmatter-panel` in `#editor-stack`, so its own
+    // top **is** the bottom of whatever is above it — one measurement, and no
+    // branch that has to be told which panel is open. With no panel shown it
+    // answers the header bottom, so the placement without one is unchanged by
+    // construction rather than by a case that tells the two apart.
+    //
+    // Measured on the second head of #416, which is what made this reachable:
+    // with the metadata panel collapsed its bottom was 71, the selection in the
+    // first line sat at 87 and the bar wanted 47 — clear of the header at 44
+    // and **over the panel**, so the row reading Metadata was covered. Before
+    // that head the selection sat at 143 and the bar at 103, clear of both.
+    //
+    // **This is `editor-room.ts` turned on its side.** #347 met the same class
+    // horizontally, four surfaces clamped to `window.innerWidth` and drawn over
+    // the files panel once it took room beside the editor; the answer there was
+    // to read the room rather than the window.
+    //
+    // `#editor` is written in `index.html`. If it is ever absent this falls
     // back to 0, which gives the window top as the floor — the behaviour before
-    // this change rather than a guard against it.
-    const header = document.getElementById('menubar');
-    const headerBottom = header === null ? 0 : header.getBoundingClientRect().bottom;
+    // #268 rather than a guard against it.
+    const room = document.getElementById('editor');
+    const roomTop = room === null ? 0 : room.getBoundingClientRect().top;
 
-    // The room is read here, on every placement, for the same reason the header
-    // bottom is read on the line above: it is not a constant this application
+    // The room is read here, on every placement, for the same reason the room
+    // top is read on the line above: it is not a constant this application
     // may write down. Until #347 it was the window, and since the files panel
     // takes its own room beside the editor it is not — measured on `3ff4d55`,
     // the bar was drawn 102.4 px over the panel card at 1024x768 and 108.5 at
@@ -505,10 +525,10 @@ function bindToolbarEvents(
     const centerX = painted ? (painted.left + painted.right) / 2 : (start.left + end.right) / 2;
     const left = withinRoom(centerX - rect.width / 2, rect.width, editorRoom(), TOOLBAR_MARGIN);
     toolbar.style.left = `${left}px`;
-    // The window height is read here for the same reason the header bottom is,
-    // on the line above: it is not a constant this application may write down.
+    // The window height is read here for the same reason the room top is, on
+    // the line above: it is not a constant this application may write down.
     // It is what bounds the band the bar is kept inside (#336).
-    toolbar.style.top = `${toolbarTop(start.top, end.bottom, rect.height, headerBottom, window.innerHeight)}px`;
+    toolbar.style.top = `${toolbarTop(start.top, end.bottom, rect.height, roomTop, window.innerHeight)}px`;
     updateActiveStates();
   }
 

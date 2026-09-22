@@ -992,10 +992,26 @@ button.indicator-search:hover {
   overflow: hidden;
 }
 
+/* **The top is half a character height and the sides keep their 40 px** (#416,
+ * owner decision of 2026-09-22, taken on the captures of the first head). 8 px
+ * is half of the 16 px the document is set in.
+ *
+ * **The padding is inside the scroll container**, so it scrolls away: the
+ * moment the page moves, text sits against the header. The first line of an
+ * unscrolled document was the only one that did not, and it was held there by
+ * 40 px nothing else needed. What is seen is this padding plus the block's own
+ * leading, so a paragraph lands 15 px under the header and the cap of a
+ * heading 22, measured on the built page.
+ *
+ * **The floating toolbar now goes below a selection in the first line**, which
+ * is a consequence rather than a second change: `toolbarTop` puts the bar
+ * below whenever `selectionTop` does not clear the header by the bar and its
+ * gap, which is what every scrolled selection already met. The owner took the
+ * space over the side the bar lands on. */
 #editor {
   flex: 1;
   overflow-y: auto;
-  padding: 40px;
+  padding: 8px 40px 40px;
   display: flex;
   justify-content: center;
 }
@@ -1266,6 +1282,37 @@ button.indicator-search:hover {
   line-height: 1.7;
   caret-color: var(--accent);
   min-height: 100%;
+}
+
+/* **The first block of a document has no text above it to be held off** (#416,
+ * owner decision of 2026-09-22). Every block below carries a top margin so it
+ * stands clear of what comes before it; the first one has nothing before it,
+ * and until this nothing took that margin away. So the room above a document
+ * depended on which block it happened to begin with - measured at `490790d`,
+ * 86 px above the capital of a `#` heading against 52 to a paragraph, and the
+ * heading is the ordinary shape of a markdown file.
+ *
+ * **The room above a document is the room above a paragraph, whatever the
+ * first block is**, and `#editor` keeps its 40 px as the one figure that sets
+ * it. Measured after this rule, from the editor content top to the first ink:
+ * 14 px for a heading where it was 46, 7 for a paragraph where it was 15.
+ *
+ * **What is left is the block's own line leading, and it is left alone**: 8 px
+ * under a heading, 6 under an `##`, 4 under a paragraph. Two shapes keep more
+ * and neither is a margin - a code block keeps the 16 px `padding` of its own
+ * panel, and a list keeps 3.19 px because `.tiptap li` has a margin of its own
+ * which collapses out through a list that no longer has one. Both are recorded
+ * on #416 rather than changed here.
+ *
+ * **The margin was not the whole of the room, and the padding went too.** The
+ * first head kept `#editor` at 40 px and left the floating toolbar above a
+ * selection in the first line, on the arithmetic `44 + 8 + 32 = 84 = 44 + 40`.
+ * The owner looked at that build and took the space instead: the padding is
+ * 8 px now and the bar goes below, which is what it does for every selection
+ * on a page that has been scrolled. The reasoning is on #416; what is left
+ * here is this rule, which is about the margin and not about the padding. */
+.tiptap > :first-child {
+  margin-top: 0;
 }
 
 /* Headings */

@@ -20,7 +20,7 @@ const GAP = 8;
  * Above the selection when it fits clear of the header, and below the
  * selection when it does not.
  *
- * ── Why the header bottom is an argument rather than a constant ──
+ * ── Why the top of the room is an argument rather than a constant ──
  *
  * It is not a constant anywhere in this application. `#menubar` declares no
  * height in `src/styles.css`; the 44 px it computes to comes from its tallest
@@ -32,11 +32,21 @@ const GAP = 8;
  *
  * The expression this replaces was `Math.max(8, top)`, which knew only the top
  * of the window — which is how a correctly measured toolbar came to be drawn
- * inside the header. The header bottom is the floor instead. At every scaling
+ * inside the header. The top of the room is the floor instead. At every scaling
  * measured it is larger than the 8 px that clamp used, so it is the binding
  * bound in this application; this function does not itself guarantee a result
- * clear of the window top for a caller that passes a header bottom of 0, and
- * such a caller gets the pre-#268 behaviour rather than a guard.
+ * clear of the window top for a caller that passes a room top of 0, and such a
+ * caller gets the pre-#268 behaviour rather than a guard.
+ *
+ * ── Why the room rather than the header (#416) ──
+ *
+ * It was the header bottom until #416, and the header stopped being the top of
+ * the room the day anything could sit between it and the text. With the
+ * metadata panel shown the bar cleared the header and was drawn **over the
+ * panel**: measured with it collapsed, its bottom at 71, the selection in the
+ * first line at 87 and the bar wanting 47. The caller passes the top of
+ * `#editor`, which is the bottom of whatever is above it; with no panel shown
+ * that is the header bottom, so nothing about the placement without one moved.
  *
  * ── The flip, and what it costs ──
  *
@@ -115,14 +125,14 @@ export function toolbarTop(
   selectionTop: number,
   selectionBottom: number,
   toolbarHeight: number,
-  headerBottom: number,
+  roomTop: number,
   viewportHeight: number,
 ): number {
   const above = selectionTop - toolbarHeight - GAP;
-  if (above >= headerBottom) return above;
+  if (above >= roomTop) return above;
 
   const below = selectionBottom + GAP;
   if (below + toolbarHeight <= viewportHeight - GAP) return below;
 
-  return headerBottom;
+  return roomTop;
 }
