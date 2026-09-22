@@ -86,13 +86,16 @@ describe('the rule exists, in the shipped stylesheet (#416)', () => {
     expect([...found[0].declarations.keys()]).toEqual(['margin-top']);
   });
 
-  it('#editor keeps its 40 px, which is the one figure that sets the room', () => {
-    // The decision leaves this alone, and the step zero found it load-bearing
-    // for the floating toolbar as well: 44 + 8 + 32 = 84 = 44 + 40, so a
-    // selection in the first line still puts the bar above itself.
+  it('#editor gives the top half a character height and keeps its sides', () => {
+    // The second owner decision of 2026-09-22, taken on the captures of the
+    // first head: 8 px is half of the 16 px the document is set in, and the
+    // sides keep the room they had. The floating toolbar going below a
+    // selection in the first line follows from this and needs no rule of its
+    // own - which is why nothing here asserts it, and why the manual pass is
+    // where it is looked at.
     const editorRules = rules.filter((rule) => rule.selector === '#editor');
     const padding = editorRules.map((rule) => rule.declarations.get('padding')).filter(Boolean);
-    expect(padding).toContain('40px');
+    expect(padding).toContain('8px 40px 40px');
   });
 });
 
