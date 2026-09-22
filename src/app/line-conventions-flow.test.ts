@@ -189,7 +189,7 @@ describe('a document that was never read is written the way markdown is written'
 
   it('writes a document seeded from a template with LF and a final newline', async () => {
     const actions = makeActions();
-    await actions.handleNewFromTemplate('readme');
+    await actions.handleNewFromTemplate('blank-frontmatter');
     savePathAnswer = '/doc/readme.md';
 
     await actions.handleSaveAs();

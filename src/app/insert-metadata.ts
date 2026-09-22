@@ -7,7 +7,7 @@ import type { AppState } from './state';
 /**
  * Insert Metadata (#297): the route that gives a document already open a
  * metadata block, which before it could only be had by starting a new document
- * from the Blank + metadata template.
+ * from the Document with Metadata template.
  *
  * **The block is the template block, read from the template rather than
  * restated**, so the two routes cannot drift apart. The one line that differs
@@ -23,17 +23,25 @@ import type { AppState } from './state';
  * decided.
  */
 
+/**
+ * The id is kept as it was through the #403 rename, deliberately: it is not
+ * user-visible, and it is the seam this route reads the block by. Renaming it
+ * would move this constant and three call sites in tests for nothing the person
+ * sees, and the one thing that must not drift is the link itself.
+ */
 const TEMPLATE_ID = 'blank-frontmatter';
 
 /** The line of the block that carries the title. */
 const TITLE_LINE = /^title:.*$/m;
 
-/** The metadata block the Blank + metadata template starts with. */
+/** The metadata block the Document with Metadata template starts with. */
 function templateBlock(): string {
   const template = getTemplate(TEMPLATE_ID);
   const block = template ? splitFrontmatter(template.body).raw : null;
   if (block === null || !TITLE_LINE.test(block)) {
-    throw new Error('the Blank + metadata template no longer starts with a block holding a title');
+    throw new Error(
+      'the Document with Metadata template no longer starts with a block holding a title',
+    );
   }
   return block;
 }

@@ -68,7 +68,7 @@ jobs:
             # Named one by one rather than as `docs/**`: five of the eight are
             # at the repository root, so no directory pattern reaches them,
             # and a wildcard would also pull in documents the guard does not
-            # read. The four under `src/templates/` need no entry — `src/**`
+            # read. The seeds under `src/templates/` need no entry — `src/**`
             # in `code:` already covers them.
             #
             # This list and the guard's own must not drift. `ci.test.ts`
