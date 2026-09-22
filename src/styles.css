@@ -1268,6 +1268,38 @@ button.indicator-search:hover {
   min-height: 100%;
 }
 
+/* **The first block of a document has no text above it to be held off** (#416,
+ * owner decision of 2026-09-22). Every block below carries a top margin so it
+ * stands clear of what comes before it; the first one has nothing before it,
+ * and until this nothing took that margin away. So the room above a document
+ * depended on which block it happened to begin with - measured at `490790d`,
+ * 86 px above the capital of a `#` heading against 52 to a paragraph, and the
+ * heading is the ordinary shape of a markdown file.
+ *
+ * **The room above a document is the room above a paragraph, whatever the
+ * first block is**, and `#editor` keeps its 40 px as the one figure that sets
+ * it. Measured after this rule, from the editor content top to the first ink:
+ * 14 px for a heading where it was 46, 7 for a paragraph where it was 15.
+ *
+ * **What is left is the block's own line leading, and it is left alone**: 8 px
+ * under a heading, 6 under an `##`, 4 under a paragraph. Two shapes keep more
+ * and neither is a margin - a code block keeps the 16 px `padding` of its own
+ * panel, and a list keeps 3.19 px because `.tiptap li` has a margin of its own
+ * which collapses out through a list that no longer has one. Both are recorded
+ * on #416 rather than changed here.
+ *
+ * **The 40 px is load-bearing for something else, and it is worth knowing.**
+ * The floating toolbar sits above a selection while `selectionTop - 32 - 8 >=
+ * 44`, the toolbar height, its gap and the header bottom, all measured; that
+ * is `selectionTop >= 84`, and the editor content top is exactly 84 - the
+ * header plus this padding. After this rule a selection in the first line sits
+ * on that threshold with nothing to spare, so the bar still goes above it.
+ * Room taken from the padding instead of from the margin would have flipped
+ * the bar below the first line of every document. */
+.tiptap > :first-child {
+  margin-top: 0;
+}
+
 /* Headings */
 .tiptap h1 {
   font-size: 2em;
