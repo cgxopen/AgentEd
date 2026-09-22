@@ -83,9 +83,11 @@ import { AppState } from '../app/state';
 import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
 import blankFrontmatterMd from '../templates/blank-frontmatter.md?raw';
-import meetingNoteMd from '../templates/meeting-note.md?raw';
-import projectDocumentMd from '../templates/project-document.md?raw';
-import templateReadmeMd from '../templates/readme.md?raw';
+import {
+  RETIRED_MEETING_NOTE_SEED,
+  RETIRED_PROJECT_DOCUMENT_SEED,
+  RETIRED_README_SEED,
+} from '../test-support/retired-seeds';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { createEditor, type EditorInstance } from './setup';
@@ -1591,9 +1593,15 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
   ['docs/internal/STATUS.md', statusMd],
   ['docs/internal/WORKFLOW.md', workflowMd],
   ['src/templates/blank-frontmatter.md', blankFrontmatterMd],
-  ['src/templates/meeting-note.md', meetingNoteMd],
-  ['src/templates/project-document.md', projectDocumentMd],
-  ['src/templates/readme.md', templateReadmeMd],
+  // The three seeds left the gallery at #403 and their shapes stayed, so this
+  // guard runs over the same number of documents it ran over before. They are
+  // named for what they are rather than for a path that no longer exists.
+  ['a meeting note (shape kept from src/templates/meeting-note.md)', RETIRED_MEETING_NOTE_SEED],
+  [
+    'a project document (shape kept from src/templates/project-document.md)',
+    RETIRED_PROJECT_DOCUMENT_SEED,
+  ],
+  ['a project README (shape kept from src/templates/readme.md)', RETIRED_README_SEED],
 ];
 
 /**

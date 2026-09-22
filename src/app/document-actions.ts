@@ -400,7 +400,14 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.frontmatterPanel.refresh();
     ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
     ctx.statusbar.refresh();
-    ctx.state.setModified(true);
+    // **The flag follows whether the seed has content** (#403, owner decision
+    // of 2026-09-22). A seeded document holds text the user has not saved, so
+    // it is modified; Blank Document holds nothing, and marking it would raise
+    // the unsaved-changes gate over an empty document nobody typed in - which
+    // File then New, reaching the same reset one line above, does not do.
+    // Measured before it held: the two routes agreed on the document, the path,
+    // the metadata and the panel, and differed on this flag alone.
+    ctx.state.setModified(template.body.trim() !== '');
   }
 
   async function handleClose(): Promise<void> {

@@ -77,11 +77,11 @@ const reporter: ErrorReporter = {
   },
 };
 
-/** The block of the Blank + metadata template, read the way the template gallery reads it. */
+/** The block of the Document with Metadata template, read the way the gallery reads it. */
 function templateBlock(): string {
   const template = getTemplate('blank-frontmatter');
   const block = template ? splitFrontmatter(template.body).raw : null;
-  if (block === null) throw new Error('the Blank + metadata template has no metadata block');
+  if (block === null) throw new Error('the Document with Metadata template has no metadata block');
   return block;
 }
 
@@ -109,7 +109,7 @@ afterEach(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('the block Insert Metadata writes', () => {
-  it('is the Blank + metadata template block for a document with no file yet', () => {
+  it('is the Document with Metadata template block for a document with no file yet', () => {
     expect(metadataBlockFor(null)).toBe(templateBlock());
     // The five fields the owner chose on #297, by name.
     expect(
@@ -132,7 +132,7 @@ describe('the block Insert Metadata writes', () => {
     // route a different template and the block follows it.
     const other: Template = {
       id: 'blank-frontmatter',
-      displayName: 'Blank + metadata',
+      displayName: 'Document with Metadata',
       icon: '',
       description: '',
       body: '---\ntitle: Untitled\nsummary:\n---\n\n# Untitled\n',

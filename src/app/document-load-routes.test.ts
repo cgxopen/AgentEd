@@ -267,7 +267,7 @@ describe('every route that replaces the document (R-C16)', () => {
   it('New from Template', async () => {
     await openAndEditA();
     const stop = answerDialogsInTurn('Discard');
-    await actions.handleNewFromTemplate('readme');
+    await actions.handleNewFromTemplate('blank-frontmatter');
     stop();
 
     const asLoaded = instance.getMarkdown();

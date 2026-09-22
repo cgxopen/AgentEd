@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import workflow from '../../docs/internal/WORKFLOW.md?raw';
 import readme from '../../README.md?raw';
 import { applyLineConventions, detectLineConventions } from '../formats/line-conventions';
-import projectDocument from '../templates/project-document.md?raw';
+import { RETIRED_PROJECT_DOCUMENT_SEED as projectDocument } from '../test-support/retired-seeds';
 import { createEditor, type EditorInstance } from './setup';
 
 /**
@@ -183,7 +183,7 @@ describe('three real documents, opened and saved unedited', () => {
   it.each([
     ['README.md', readme, 3],
     ['docs/internal/WORKFLOW.md', workflow, 0],
-    ['src/templates/project-document.md', projectDocument, 0],
+    ['a project document with a table (was src/templates/project-document.md)', projectDocument, 0],
   ])('%s: no byte of the difference is a table', (_name, source, expectedRest) => {
     const saved = savedFrom(source, editorWith(source));
     const before = tableLines(source);
@@ -198,7 +198,7 @@ describe('three real documents, opened and saved unedited', () => {
   it.each([
     ['README.md', readme],
     ['docs/internal/WORKFLOW.md', workflow],
-    ['src/templates/project-document.md', projectDocument],
+    ['a project document with a table (was src/templates/project-document.md)', projectDocument],
   ])('%s holds still on the second save', (_name, source) => {
     const first = savedFrom(source, editorWith(source));
     const second = savedFrom(first, editorWith(first));

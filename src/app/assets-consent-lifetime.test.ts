@@ -278,7 +278,7 @@ describe('#48 — the destination cue stays per document', () => {
     await insertImage(ctx, actions, 'first.png', 1);
     expect(state.destinationCueShown).toBe(true);
 
-    await actions.handleNewFromTemplate('readme');
+    await actions.handleNewFromTemplate('blank-frontmatter');
     expect(state.destinationCueShown).toBe(false);
   });
 

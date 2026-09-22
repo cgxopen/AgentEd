@@ -25,9 +25,11 @@ import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import { decodeFileText } from '../platform/decode';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
 import blankFrontmatterMd from '../templates/blank-frontmatter.md?raw';
-import meetingNoteMd from '../templates/meeting-note.md?raw';
-import projectDocumentMd from '../templates/project-document.md?raw';
-import templateReadmeMd from '../templates/readme.md?raw';
+import {
+  RETIRED_MEETING_NOTE_SEED as meetingNoteMd,
+  RETIRED_PROJECT_DOCUMENT_SEED as projectDocumentMd,
+  RETIRED_README_SEED as templateReadmeMd,
+} from '../test-support/retired-seeds';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
 import { buildDocument } from './editor-document';
 import { AppState } from './state';
@@ -517,11 +519,13 @@ describe('a real metadata block is read, shown and written back (#304, the regre
     expectSettled(cycles);
   });
 
+  // The three seeds left the gallery at #403; their shapes are kept so this
+  // guard runs over the same documents it ran over before.
   it.each([
     ['readme', templateReadmeMd],
     ['project document', projectDocumentMd],
     ['meeting note', meetingNoteMd],
-  ])('the %s template has no block, shows no panel, and settles', async (_name, source) => {
+  ])('a %s document has no block, shows no panel, and settles', async (_name, source) => {
     const cycles = await threeCycles(source);
     expect(cycles[0].metadata).toBeNull();
     expect(cycles[0].panel).toBe(false);
