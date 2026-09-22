@@ -20,6 +20,7 @@ import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
+import { isReplacingDocument } from './editor/document-load';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { imageDescriptionAvailability } from './editor/image-description';
 import { insertMenuCallbacks } from './editor/insert-blocks';
@@ -177,7 +178,36 @@ editor.on('transaction', ({ transaction }) => {
   // moment as the badge above, so the two cannot answer this document
   // differently. `applyLoadedDocument` puts the document in the editor before
   // `refreshSidebar` asks, so the value is current by the time it is read.
-  state.referencesImage = documentReferencesImage(editor);
+  //
+  // **The two read it at different moments, and that was the defect** (#418,
+  // point f). The badge above withdraws on this transaction; the panel reads
+  // the field only when `refreshSidebar` runs, which is an open, a reload, a
+  // save, a Save As or a folder grant - never an edit. So deleting the last
+  // image of a document left the badge gone and the panel still listing the
+  // folder, every file in it greyed, until the next save. R-C6 says the two
+  // controls cannot answer one document differently, and for that window they
+  // did.
+  //
+  // **The redraw is on the crossing, not on the edit** (owner decision of
+  // 2026-09-22). The value is a boolean and an ordinary edit does not move it,
+  // so this asks at most once per document per direction - typing a word into
+  // a document with a picture asks nothing. `refreshSidebar` reads a directory,
+  // which is why it is not put on every transaction.
+  const referencesImage = documentReferencesImage(editor);
+  const crossed = referencesImage !== state.referencesImage;
+  state.referencesImage = referencesImage;
+  if (!crossed) return;
+  // **A document arriving crosses on the way in, and its route redraws the
+  // panel itself**, so redrawing here as well would read the directory twice
+  // on every open of a document holding a picture. `isReplacingDocument` is
+  // true for exactly the transactions a whole-document replacement produces,
+  // at the one address R-C16 already guarantees every route reaches.
+  if (isReplacingDocument()) return;
+  // `same-document` rather than `document-arrived`: the person is editing the
+  // document they are in, so a panel they closed by hand stays closed (#387).
+  void ctx.refreshSidebar('same-document').catch((e: unknown) => {
+    console.error('[main] the files panel could not be redrawn after an edit:', e);
+  });
 });
 state.onFrontmatterChange((frontmatter) => documentBadges.refreshMetadata(frontmatter));
 documentBadges.refreshMetadata(state.frontmatter);

@@ -232,11 +232,50 @@ export function watchHeaderRoom(): () => void {
   }
 
   window.addEventListener('resize', () => measure());
+
+  // **A click asks again only when it changed the name's room** (#418, point
+  // b). Both handlers are here for one thing: a click on the name expands it
+  // and a click anywhere else collapses it, and `setupHeader` owns both. They
+  // asked with no margin on **every** click, which is a measure with the
+  // hysteresis switched off - and measured on `7fd1550`, at 800, 700 and 620 px
+  // there is exactly one count width at each where a click on the body brought
+  // back a count the margin was holding out. One character either side and it
+  // does not; the band is 16 px against the 8.27 a character costs.
+  //
+  // So the expanded state is remembered and compared. An act that changed it
+  // asks with no margin, as it did; a click that changed nothing asks nothing.
+  // Bound once, because the guard above proves it and a nested function does
+  // not inherit that proof.
+  const nameElement: HTMLElement = filename;
+  let wasExpanded = nameElement.classList.contains('expanded');
+  function measureIfTheNameMoved(): void {
+    const now = nameElement.classList.contains('expanded');
+    if (now === wasExpanded) return;
+    wasExpanded = now;
+    measure(0);
+  }
   // The name is read from its class, so the click is the whole of the trigger:
   // no wait for `transitionend`, which would never arrive for a person who
-  // asked the system for less motion. No margin either - see `measure`.
-  filename.addEventListener('click', () => queueMicrotask(() => measure(0)));
-  document.addEventListener('click', () => queueMicrotask(() => measure(0)));
+  // asked the system for less motion.
+  filename.addEventListener('click', () => queueMicrotask(measureIfTheNameMoved));
+  document.addEventListener('click', () => queueMicrotask(measureIfTheNameMoved));
+
+  // **A new document name asks again** (#418, point a). The comment below used
+  // to say the caller re-measures after a change it made itself and name a new
+  // document name among them; nothing wired it. `setFilename` writes the text
+  // and the title and imports nothing from here, so the bar kept the decision
+  // it made for the name before - measured on `7fd1550` in the built web app at
+  // 650, 600, 560 and 520 px: a short name kept `characters`, and a long one
+  // kept it too until a resize took it away.
+  //
+  // Watched here rather than wired at the three call sites that set a name, so
+  // a fourth cannot be added without it. No margin, for the reason `measure`
+  // gives: a document arriving is an act rather than drift.
+  new MutationObserver(() => measure(0)).observe(nameElement, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
   // **Only when a count changes its width** (amendment 3 on #413). The text
   // changes on every keystroke; its width moves only when it gains or loses a
   // character, so the length is compared first and the layout is read second.
@@ -249,15 +288,25 @@ export function watchHeaderRoom(): () => void {
   }).observe(readout, { subtree: true, childList: true, characterData: true });
   // The widths above are font metrics, so the first answer is provisional until
   // the face the header asks for has arrived.
+  // **The catch logs** (#418, point c). `FontFaceSet.ready` does not reject -
+  // measured, Chromium resolves it with a `FontFaceSet` even where a face
+  // failed to load, and happy-dom has no `document.fonts` at all so the chain
+  // never begins. So what an empty handler here swallowed was never the
+  // platform's error: it was one thrown by the two calls below, which read the
+  // DOM. That is the silent catch CLAUDE.md forbids, and the error it hid was
+  // ours. `main.ts` reports the same class the same way.
   document.fonts?.ready
     .then(() => {
       matchNameFont();
       measure(0);
     })
-    .catch(() => {});
+    .catch((e: unknown) =>
+      console.error('[header-room] the first measure after the fonts failed:', e),
+    );
 
   measure(0);
-  // The caller re-measures after a change it made itself - the window frame
-  // drawn on Windows, a new document name - and those are acts too.
+  // The caller re-measures after a change it made itself. **The window frame is
+  // the whole of that list now** (#418, point a): a new document name is
+  // watched above rather than left to a caller to remember.
   return () => measure(0);
 }

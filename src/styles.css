@@ -1293,9 +1293,10 @@ button.indicator-search:hover {
  * heading is the ordinary shape of a markdown file.
  *
  * **The room above a document is the room above a paragraph, whatever the
- * first block is**, and `#editor` keeps its 40 px as the one figure that sets
- * it. Measured after this rule, from the editor content top to the first ink:
- * 14 px for a heading where it was 46, 7 for a paragraph where it was 15.
+ * first block is.** Measured after this rule, from the editor content top to
+ * the first ink: 14 px for a heading where it was 46, 7 for a paragraph where
+ * it was 15. What `#editor` sets above that is its own padding, and the
+ * paragraph below says what became of it.
  *
  * **What is left is the block's own line leading, and it is left alone**: 8 px
  * under a heading, 6 under an `##`, 4 under a paragraph. Two shapes keep more

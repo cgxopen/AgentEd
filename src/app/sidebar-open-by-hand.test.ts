@@ -175,7 +175,7 @@ describe('the #184 loop does not come back (#354)', () => {
 
 describe('what a document switch shows is unchanged (#354)', () => {
   it('a switch into nothing beside the document stays silent', async () => {
-    // Nobody asked, so no line: the silence R-C6 and R-A2 keep.
+    // Nobody asked, so no line: the silence R-C6 keeps.
     const view = mount('/proj/notes.md', {});
     await view.switchTo();
 
