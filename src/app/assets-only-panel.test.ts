@@ -203,6 +203,46 @@ describe('D — an assets/ folder the document does not use (#402)', () => {
     host.remove();
   });
 
+  /**
+   * The row above asserted the predicate on a document that never held an
+   * image, and its comment said the two controls *cannot disagree* because
+   * they read the same value. **They read it at different moments** (#418,
+   * point f), and that window is what these two rows drive: the predicate
+   * crosses on the edit, and the panel is asked again on that crossing.
+   *
+   * Measured on `7fd1550`, before the repair: the badge withdrew on the
+   * transaction and the panel kept its tree, every file in it greyed, until
+   * the next save.
+   */
+  it('the predicate crosses when the last image is deleted, which is the moment', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const editor = createEditor(host);
+    editor.setMarkdown('# Chapter\n\n![a](assets/photo.png)\n');
+    expect(documentReferencesImage(editor.editor)).toBe(true);
+    editor.setMarkdown('# Chapter\n\nThe picture is gone.\n');
+    expect(documentReferencesImage(editor.editor)).toBe(false);
+    editor.destroy();
+    host.remove();
+  });
+
+  it('and the panel gives way on the value the crossing leaves behind', async () => {
+    // The other half, and neither is worth anything alone: the row above is
+    // the predicate moving, this one is the panel reading what it moved to.
+    // What joins them — that `main.ts` asks again on the crossing and not on
+    // an ordinary edit — is wiring, and the manual pass is where that is seen.
+    const listing = {
+      '/proj/assets': [{ name: 'photo.png', path: '/proj/assets/photo.png', isDirectory: false }],
+    };
+    const before = recorder();
+    await refreshSidebar(stateAt(DOC, true), before.sidebar, io(['/proj/assets'], listing));
+    expect(before.showing()).toBe('tree:/proj/assets');
+
+    const after = recorder();
+    await refreshSidebar(stateAt(DOC, false), after.sidebar, io(['/proj/assets'], listing));
+    expect(after.showing()).toBe('hidden');
+  });
+
   it('but a kept root is not demoted, because the user asked to be there', async () => {
     // A folder a click entered is a place rather than a claim about this
     // document, so #178 is untouched by the content rule.

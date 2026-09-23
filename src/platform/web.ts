@@ -427,13 +427,13 @@ export class WebIO implements PlatformIO {
   /**
    * Ask the user for a folder, and say whether one was given (#184).
    *
-   * **Public, and reached without a member on `PlatformIO`.** The one
-   * capability member the contract still carries is recorded as debt —
-   * `canWriteCompanions` answers from a handle rather than a permission
-   * — and a second that can never be called on the desktop is the shape
-   * such a member goes wrong in. `platform/index.ts` reaches this one
-   * instead, at the address that already owns the dynamic import and the
-   * singleton.
+   * **Public, and reached without a member on `PlatformIO`.** The contract
+   * carries two capability members - `pathsOutliveSession` and
+   * `canWriteCompanions` - and one of them is recorded as debt:
+   * `canWriteCompanions` answers from a handle rather than a permission. A
+   * third that can never be called on the desktop is the shape such a member
+   * goes wrong in. `platform/index.ts` reaches this one instead, at the
+   * address that already owns the dynamic import and the singleton.
    *
    * There is no desktop counterpart and none is wanted: the line that
    * calls this exists only where a panel is absent for want of a grant,

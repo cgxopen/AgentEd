@@ -381,7 +381,7 @@ export async function refreshSidebar(
 
 /**
  * Draw the panel the user has just opened by hand (#354). **An open by hand
- * is a question**, the line R-A2 draws for Refresh, so every state answers:
+ * is a question**, the line R-C6 draws, so every state answers:
  * the tree, the offer, or one of the two sentences — never an empty card.
  *
  * **Nothing is drawn unless `ticket` is still current.** The panel opened
