@@ -1789,6 +1789,26 @@ const REGION_RULES: readonly RegionRule[] = [
       sourceLines[0] === '---' &&
       sourceLines[region.at - 1] === '---',
   },
+  {
+    // A run of two or more blank lines between two blocks comes back as one
+    // (#424). The editor has no node for a blank line, so the run is gone
+    // before the text is assembled — the same cause as the two rules above and
+    // as the blank line under a metadata block, recorded in R-C2 beside them.
+    //
+    // **Positioned, and narrowly.** It claims only a region in which every
+    // removed line is empty and **one blank line survived immediately above
+    // it**, which is what collapsing a run looks like. A lone blank line lost
+    // where the source had exactly one does not match — `sourceLines[at - 1]`
+    // is then the last line of a block rather than the empty line the run
+    // kept — so it still fails, which is what the exception promises and what
+    // the row below pins.
+    name: 'a run of blank lines between two blocks',
+    claims: (region, sourceLines) =>
+      region.added.length === 0 &&
+      region.removed.length >= 1 &&
+      region.removed.every((line) => line === '') &&
+      sourceLines[region.at - 1] === '',
+  },
 ];
 
 /** Whether every difference in this region is one that is written down. */
@@ -1891,6 +1911,95 @@ function destinations(markdown: string): string[] {
  * shipped - it exists only for the minute it takes to run.
  */
 const DOCUMENT_CASE_TIMEOUT = { timeout: 30_000 };
+
+/**
+ * Issue #424 — a run of blank lines between two blocks comes back as one, and
+ * this is the record of it rather than a repair.
+ *
+ * ── Why recorded ──
+ *
+ * The run **is** readable at parse: `marked` puts it in a `space` token whose
+ * raw is `"\n\n\n"` for two blank lines and `"\n\n\n\n"` for three. What it
+ * cannot do is ride on a node, because a `space` token renders to nothing and
+ * the run sits *between* two blocks rather than inside one. Carrying it would
+ * mean stamping it on whichever block follows, and **ten node types can sit at
+ * the top level** here - paragraph, heading, codeBlock, table, blockquote,
+ * bulletList, orderedList, taskList, horizontalRule and footnoteDefinition -
+ * each written by its own renderer, with two more contexts nested inside a
+ * blockquote and a list item. **And after a heading there is no `space` token
+ * at all**: the run is swallowed into the heading's own raw, `"# H\n\n\n"`,
+ * so even the reading is not one shape. That is an attribute per block type
+ * rather than one at one address, which is what the owner rule refused.
+ *
+ * ── What the census says ──
+ *
+ * Measured over the markdown under `/home/cata`: in the owner's own project
+ * documents, **2 files of 365** hold the shape, 5 occurrences, both of them
+ * hand-written task briefs. In this repository, **zero**, which is why the
+ * guard has never met one.
+ *
+ * ── The rows ──
+ *
+ * One per shape, asserting the bytes of the branch taken. All of them hold
+ * still on the second save, so what is recorded is a respelling that happens
+ * once and then stops.
+ */
+describe('a run of blank lines between two blocks (#424)', () => {
+  const SHAPES: ReadonlyArray<readonly [string, string, string]> = [
+    ['two paragraphs', 'A.\n\n\nB.', 'A.\n\nB.'],
+    ['three blank lines between paragraphs', 'A.\n\n\n\nB.', 'A.\n\nB.'],
+    ['a heading and a paragraph', '# H\n\n\nB.', '# H\n\nB.'],
+    ['a paragraph and a fenced block', 'A.\n\n\n```\nc\n```', 'A.\n\n```\nc\n```'],
+    ['a fenced block and a paragraph', '```\nc\n```\n\n\nA.', '```\nc\n```\n\nA.'],
+    ['a paragraph and a table', 'A.\n\n\n| H |\n| --- |\n| c |', 'A.\n\n| H |\n| --- |\n| c |'],
+    ['a table and a paragraph', '| H |\n| --- |\n| c |\n\n\nA.', '| H |\n| --- |\n| c |\n\nA.'],
+    ['a paragraph and a blockquote', 'A.\n\n\n> q', 'A.\n\n> q'],
+    ['a blockquote and a paragraph', '> q\n\n\nA.', '> q\n\nA.'],
+    ['inside a blockquote', '> one\n>\n>\n> two', '> one\n>\n> two'],
+  ];
+
+  for (const [name, source, expected] of SHAPES) {
+    it(`${name} — the run comes back as one blank line`, async () => {
+      const saved = (await openAndSaveUnedited(source)).trim();
+      expect(saved).toBe(expected);
+      // Once, and then it holds: the second save moves nothing, which is what
+      // separates a recordable respelling from drift.
+      expect((await openAndSaveUnedited(saved)).trim()).toBe(expected);
+    });
+  }
+});
+
+/**
+ * **The guard does see this shape, which the step zero measured rather than
+ * assumed.** Feeding it a document with a run turned the positioned guard red
+ * with *unrecorded difference*, so the sentence in R-C2 - a blank line lost
+ * anywhere else still fails the suite - was true all along. What had never
+ * happened is the guard meeting one: no document it runs over holds a run.
+ *
+ * So the rule below is what the widened exception owes the guard, and these
+ * two rows are the halves that matter. Without the second, the rule would be
+ * the over-broad normaliser the comment above `RegionRule` warns against.
+ */
+describe('the rule for that run is positioned (#424)', () => {
+  it('claims a run collapsing to one blank line', () => {
+    const source = 'A.\n\n\nB.';
+    const saved = 'A.\n\nB.';
+    const regions = differenceRegions(source, saved);
+    expect(regions).toHaveLength(1);
+    expect(isClaimed(regions[0], source.split('\n'))).toBe(true);
+  });
+
+  it('does not claim a lone blank line lost where the source had one', () => {
+    // The shape the exception does not name, built rather than found: the
+    // editor produces no such loss today, and this row is what stops the rule
+    // from tolerating one if something ever does.
+    const source = 'A.\n\nB.';
+    const saved = 'A.\nB.';
+    const regions = differenceRegions(source, saved);
+    expect(regions).toHaveLength(1);
+    expect(isClaimed(regions[0], source.split('\n'))).toBe(false);
+  });
+});
 
 describe('the repository, opened and saved unedited (R-C2)', () => {
   it.each(DOCUMENTS)(
