@@ -11,6 +11,7 @@ import {
   splitDefinition,
 } from './footnote';
 import { stampImageSources } from './image-spelling';
+import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
@@ -120,13 +121,16 @@ marked.use({
   renderer: {
     list(token) {
       const spacing = listSpacingAttribute(token.items);
+      // The marker the file used, where it is not the one written unasked
+      // (#431). Two adjacent lists of the same kind are one list without it.
+      const marker = listMarkerAttribute(token.items, token.ordered);
       let body = '';
       for (const item of token.items) body += this.listitem(item);
       const tag = token.ordered ? 'ol' : 'ul';
       // `marked` writes `start` only when it is not 1, and the attribute order
       // is its own: an ordered list that names its start keeps that spelling.
       const start = token.ordered && token.start !== 1 ? ` start="${token.start}"` : '';
-      return `<${tag}${start}${spacing}>\n${body}</${tag}>\n`;
+      return `<${tag}${start}${spacing}${marker}>\n${body}</${tag}>\n`;
     },
   },
 });

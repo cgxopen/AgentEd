@@ -23,6 +23,7 @@ import {
   imageMarkup,
   pixelValue,
 } from './image-spelling';
+import { LIST_MARKER_ATTRIBUTE, markerFor } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
@@ -436,11 +437,17 @@ function isTaskListItem(node: Node): boolean {
 /** Marker for one item: "- " for bullets, "N. " for ordered items. */
 function listItemPrefix(li: HTMLElement, bulletMarker: string): string {
   const parent = li.parentElement;
-  if (parent?.nodeName !== 'OL') return `${bulletMarker} `;
+  // The marker the file used, where the list carries one (#431). The option is
+  // what a list the editor made is written with, and stays the fallback: an
+  // absent attribute means the default rather than an unknown.
+  const carried = parent?.getAttribute(LIST_MARKER_ATTRIBUTE) ?? null;
+  if (parent?.nodeName !== 'OL') {
+    return `${carried === null ? bulletMarker : markerFor(carried, false)} `;
+  }
   const declared = Number.parseInt(parent.getAttribute('start') || '1', 10);
   const start = Number.isFinite(declared) ? declared : 1;
   const index = Array.prototype.indexOf.call(parent.children, li);
-  return `${start + index}. `;
+  return `${start + index}${markerFor(carried, true)} `;
 }
 
 /** Indent every line but the first by the marker width; blank lines stay empty. */

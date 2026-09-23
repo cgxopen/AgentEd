@@ -57,6 +57,7 @@ import {
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   pixelValue,
 } from './markdown/image-spelling';
+import { LIST_MARKER_ATTRIBUTE } from './markdown/list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
@@ -381,6 +382,17 @@ function looseAttribute() {
       parseHTML: (element: HTMLElement) => element.getAttribute(LIST_SPACING_ATTRIBUTE) === 'true',
       renderHTML: (attributes: Record<string, unknown>) =>
         attributes.loose ? { [LIST_SPACING_ATTRIBUTE]: 'true' } : {},
+    },
+    // The marker the file used (#431), beside the spacing and for the same
+    // reason: by the time the document model exists, `- a` and `* a` are the
+    // same list, and two adjacent lists then merge into one.
+    marker: {
+      default: null as string | null,
+      parseHTML: (element: HTMLElement) => element.getAttribute(LIST_MARKER_ATTRIBUTE),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        typeof attributes.marker === 'string' && attributes.marker !== ''
+          ? { [LIST_MARKER_ATTRIBUTE]: attributes.marker }
+          : {},
     },
   };
 }
