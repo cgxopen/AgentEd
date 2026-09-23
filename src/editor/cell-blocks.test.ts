@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { type MenuCallbacks, setupMenu } from '../ui/menu';
 import { insertMenuCallbacks } from './insert-blocks';
-import { codeBlockRoutes } from './insert-code-block';
+import { codeBlockAvailability, codeBlockRoutes } from './insert-code-block';
 import { htmlToMarkdown } from './markdown/serialize';
 import { createEditor, type EditorInstance } from './setup';
 
@@ -46,6 +46,11 @@ function shippedHeaderMarkup(): string {
 /**
  * The Table entries are not what this file tests, so the menu greys all seven:
  * an entry whose key the reading does not carry is greyed (#292).
+ */
+/**
+ * No table entry is offered, and the fence entry is read from the shipped
+ * function rather than stubbed true (#427): these rows press that entry, so a
+ * stub would keep passing on the day the product greyed it.
  */
 const noTableShape = () => ({});
 
@@ -98,7 +103,7 @@ function open(markdown: string): EditorInstance {
   setupMenu(
     { ...spies(), ...insertMenuCallbacks(editor), ...codeBlockRoutes(editor) },
     () => ({ canUndo: false, canRedo: false }),
-    noTableShape,
+    () => ({ ...noTableShape(), ...codeBlockAvailability(editor) }),
   );
   return instance;
 }

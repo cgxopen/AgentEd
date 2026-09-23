@@ -496,7 +496,14 @@ describe('the image description control is drawn only for an image (#291)', () =
     selectTheImage(editor);
 
     expect(drawn()).toContain('Image description');
-    expect(drawn()).toHaveLength(shippedButtons.length);
+    // **Not every control, since #427**: the two that took the picture out of
+    // the document in one press are left out for a node selection, so an image
+    // draws the thirteen less those two. Named rather than counted off
+    // `shippedButtons.length`, which would have gone on passing when the rule
+    // arrived and quietly meant something else.
+    expect(drawn()).not.toContain('Inline code (Ctrl+E)');
+    expect(drawn()).not.toContain('Code block (Ctrl+Shift+K)');
+    expect(drawn()).toHaveLength(shippedButtons.length - 2);
   });
 
   /**

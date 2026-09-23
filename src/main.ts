@@ -24,7 +24,7 @@ import { isReplacingDocument } from './editor/document-load';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { imageDescriptionAvailability } from './editor/image-description';
 import { insertMenuCallbacks } from './editor/insert-blocks';
-import { codeBlockRoutes } from './editor/insert-code-block';
+import { codeBlockAvailability, codeBlockRoutes } from './editor/insert-code-block';
 import { footnoteAvailability, footnoteMenuCallbacks } from './editor/insert-footnote';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
@@ -354,6 +354,7 @@ setupMenu(
     ...tableShapeAvailability(editor),
     ...imageDescriptionAvailability(editor),
     ...footnoteAvailability(editor),
+    ...codeBlockAvailability(editor),
   }),
   // No list until the platform has said its paths outlive the session (#381),
   // which it answers once it has loaded; the web build never does.

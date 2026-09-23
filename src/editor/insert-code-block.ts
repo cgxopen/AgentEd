@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core';
 import type { ResolvedPos } from '@tiptap/pm/model';
 import { TextSelection } from '@tiptap/pm/state';
+import { hasNodeSelection, isNodeSelected } from './node-selection';
 
 /**
  * The routes to a fenced block, and since #279 there are **two commands rather
@@ -42,6 +43,12 @@ export function insertCodeBlock(editor: Editor): void {
     .chain()
     .focus()
     .command(({ tr, state, dispatch, commands }) => {
+      // A node selection is refused here rather than at any caller (#427):
+      // this is the address all three routes to a fence already run through,
+      // so the entry, the chord and the button decline together. See
+      // `node-selection.ts` for what was measured and why the refusal is by
+      // selection type.
+      if (isNodeSelected(state)) return false;
       const depth = enclosingCodeBlockDepth(tr.selection.$to);
       if (depth === null) return commands.toggleCodeBlock();
       const fence = state.schema.nodes.codeBlock.createAndFill();
@@ -68,7 +75,28 @@ export function insertCodeBlock(editor: Editor): void {
  * from the keyboard, so it is not a duplicate of the entry above.
  */
 export function toggleCodeBlock(editor: Editor): void {
+  // The same refusal as the entry above, and it has to be stated twice
+  // because #279 split the one address into two commands on purpose: the
+  // entry inserts and this one toggles. A guard in only one of them would
+  // leave the other route taking a selected image out of the document.
+  if (hasNodeSelection(editor)) return;
   editor.chain().focus().toggleCodeBlock().run();
+}
+
+/** The key the menu greys this entry from (#427). */
+export const INSERT_CODE_BLOCK_KEY = 'insertCodeBlock';
+
+/**
+ * Which entries the menu can offer, in the shape `setupMenu` reads when it
+ * opens - the same shape `image-description.ts`, `table-shape.ts` and
+ * `insert-footnote.ts` use, and for the same reason: an entry that would do
+ * nothing is greyed rather than pressed in silence (the #275 shape).
+ *
+ * The entry is greyed for exactly the state the command refuses, so the two
+ * cannot drift into a pressable entry that declines.
+ */
+export function codeBlockAvailability(editor: Editor): Record<string, boolean> {
+  return { [INSERT_CODE_BLOCK_KEY]: !hasNodeSelection(editor) };
 }
 
 /**
