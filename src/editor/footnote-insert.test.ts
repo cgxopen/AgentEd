@@ -1,3 +1,5 @@
+import { AllSelection } from '@tiptap/pm/state';
+import { CellSelection } from '@tiptap/pm/tables';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { setupMenu } from '../ui/menu';
@@ -282,6 +284,72 @@ describe('where the footnote control cannot act (#409)', () => {
 
     expect(canInsertFootnote(instance.editor)).toBe(true);
     expect(footnoteAvailability(instance.editor)[INSERT_FOOTNOTE_KEY]).toBe(true);
+  });
+});
+
+describe('the two selections a footnote cannot be made from (#425)', () => {
+  /**
+   * **Driven rather than read.** Both of these reach the command through the
+   * Insert entry and the chord — the toolbar is hidden for a whole-document
+   * selection (#336) and draws nothing over a cell selection — so refusing
+   * them is what keeps the entry from writing something nobody asked for.
+   */
+  it('a whole-document selection: before, the reference landed in a paragraph of its own', () => {
+    const instance = open('One paragraph.\n\nTwo paragraphs.\n');
+    instance.editor.view.dispatch(
+      instance.editor.state.tr.setSelection(new AllSelection(instance.editor.state.doc)),
+    );
+
+    expect(canInsertFootnote(instance.editor)).toBe(false);
+    expect(footnoteAvailability(instance.editor)[INSERT_FOOTNOTE_KEY]).toBe(false);
+
+    insertFootnote(instance.editor);
+
+    expect(instance.getMarkdown()).toBe('One paragraph.\n\nTwo paragraphs.');
+  });
+
+  it('a cell selection: before, it wrote raw HTML into the cell', () => {
+    const instance = open('| a | b |\n| --- | --- |\n| one | two |\n');
+    let anchor = -1;
+    let head = -1;
+    instance.editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'tableCell' || node.type.name === 'tableHeader') {
+        if (anchor < 0) anchor = pos;
+        head = pos;
+      }
+      return true;
+    });
+    instance.editor.view.dispatch(
+      instance.editor.state.tr.setSelection(
+        CellSelection.create(instance.editor.state.doc, anchor, head),
+      ),
+    );
+
+    expect(canInsertFootnote(instance.editor)).toBe(false);
+
+    insertFootnote(instance.editor);
+
+    // The bytes it left at `42457a3`: `| one | two<p>[^1]</p> |`.
+    expect(instance.getMarkdown()).toBe('| a | b |\n| --- | --- |\n| one | two |');
+    expect(instance.getMarkdown()).not.toContain('<p>');
+  });
+
+  it('and an ordinary selection inside the same table still makes one', () => {
+    const instance = open('| a | b |\n| --- | --- |\n| one | two |\n');
+    // Positions inside a table do not line up with the flattened text, so the
+    // cell's own text node is what the selection is built from.
+    let at = -1;
+    instance.editor.state.doc.descendants((node, pos) => {
+      if (at < 0 && node.isText && node.text === 'two') at = pos;
+      return at < 0;
+    });
+    instance.editor.commands.setTextSelection({ from: at, to: at + 3 });
+
+    expect(canInsertFootnote(instance.editor)).toBe(true);
+
+    insertFootnote(instance.editor);
+
+    expect(instance.getMarkdown()).toBe('| a | b |\n| --- | --- |\n| one | two[^1] |\n\n[^1]:');
   });
 });
 

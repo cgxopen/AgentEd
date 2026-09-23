@@ -4,7 +4,12 @@ import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquo
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
-import { createNarrowedEscape, resolveDefinitionPositions } from './escape';
+import {
+  createNarrowedEscape,
+  DEFINITION_POSITION,
+  resolveDefinitionPositions,
+  setDocumentCarriesTheMark,
+} from './escape';
 import {
   decodeIndents,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -1210,15 +1215,32 @@ export interface SerializeOptions {
 
 export function htmlToMarkdown(html: string, options: SerializeOptions = {}): string {
   writingKeptTables = options.keepHtmlTables ?? false;
+  // ── The one question that has to be asked of the whole document (#425) ──
+  //
+  // The escape marks a reference that begins its text node and is followed by
+  // a colon, because from there it cannot tell a line start from a text node
+  // that merely starts after bold (#409); this function is where the
+  // assembled line is readable, so it is where the mark is answered, and no
+  // mark survives this call.
+  //
+  // **A document that carries the mark character itself is written without
+  // any of that.** The sweep that ends `resolveDefinitionPositions` reaches
+  // the assembled markdown, which includes the places the escape never runs -
+  // a fenced block, a code span, kept HTML - so a U+E012 the person typed was
+  // deleted there. Asked here rather than in the escape because it is a
+  // property of the document and the escape is handed one text node.
+  //
+  // `html` is what the document is about to be written from, so it carries
+  // every character the model holds; a mark cannot yet exist in it, since the
+  // only thing that writes one is the escape, below this line.
+  const carriesTheMark = html.includes(DEFINITION_POSITION);
+  setDocumentCarriesTheMark(carriesTheMark);
   try {
-    // The escape marks a reference that begins its text node and is followed
-    // by a colon, because from there it cannot tell a line start from a text
-    // node that merely starts after bold (#409). This is where the assembled
-    // line is readable, so it is where the mark is answered - and no mark
-    // survives this call.
-    const markdown = resolveDefinitionPositions(turndown.turndown(html));
+    const written = turndown.turndown(html);
+    const markdown = carriesTheMark ? written : resolveDefinitionPositions(written);
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
+    setDocumentCarriesTheMark(false);
     writingKeptTables = false;
   }
 }

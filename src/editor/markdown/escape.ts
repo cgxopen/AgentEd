@@ -63,7 +63,45 @@ const KEPT_BRACKET_CLOSE = '\uE011';
  * The mark never reaches a file - every one of them is consumed or dropped
  * there, on the way out of `htmlToMarkdown`.
  */
-const DEFINITION_POSITION = '\uE012';
+export const DEFINITION_POSITION = '\uE012';
+
+/**
+ * Whether the document being written already carries a mark of its own (#425).
+ *
+ * **The sentinel idiom in this file has a document half and a node half, and
+ * only the node half existed.** For the three older sentinels a text node
+ * holding one gives up the narrowing for that node, which is enough for them:
+ * nothing downstream of the escape looks for them again. The mark is
+ * different - `resolveDefinitionPositions` sweeps the **assembled markdown**
+ * for it, so a U+E012 the file itself carries was deleted on save even where
+ * the escape never ran: measured at `42457a3`, a fenced block went from 31
+ * bytes to 28 and a code span from 16 to 13, three bytes each, which is the
+ * character in UTF-8.
+ *
+ * So the question is asked once per document, in `htmlToMarkdown`, and
+ * answered here: a document carrying the character is written with **no mark
+ * made and the reference narrowing given up entirely**, which is the node
+ * rule at document scope. The underscore narrowing is untouched - the mark
+ * has nothing to do with it.
+ *
+ * **What that costs, and it was the owner decision of 2026-09-23 taken on the
+ * figures**: in such a document every footnote reference is written escaped,
+ * so GitHub draws it as literal text rather than as a footnote. The
+ * alternative measured beside it kept the references unescaped, and on the
+ * shape that tells the two apart - the character in a fenced block and, in
+ * another block, a line the file escaped as text - it dropped the backslashes
+ * and the line reopened as a real definition: 57 bytes in, 55 out, the
+ * document changing shape. This way that row is 57 in and 57 out.
+ *
+ * A module-level flag rather than a parameter, because the escape is built
+ * once at load and turndown calls it with one string; `serialize.ts` sets it
+ * around the call it owns, the shape `writingKeptTables` already has there.
+ */
+let documentCarriesTheMark = false;
+
+export function setDocumentCarriesTheMark(value: boolean): void {
+  documentCarriesTheMark = value;
+}
 
 /**
  * A character CommonMark's flanking rules count as neither whitespace nor
@@ -151,6 +189,11 @@ export function createNarrowedEscape(
     const held = text.replace(
       FOOTNOTE_REFERENCE,
       (whole: string, label: string, offset: number) => {
+        // In a document carrying the mark, the reference is handed back
+        // untouched and turndown escapes it as it did before #408 (#425). No
+        // mark is made anywhere in such a document, so the sweep that would
+        // have deleted the person's character never runs.
+        if (documentCarriesTheMark) return whole;
         const reference = `${KEPT_BRACKET_OPEN}${label}${KEPT_BRACKET_CLOSE}`;
         // Held unescaped either way; a candidate carries the mark that asks the
         // serializer to look at the line it landed on (#409).

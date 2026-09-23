@@ -1,7 +1,8 @@
 import type { Editor } from '@tiptap/core';
 import { Extension } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
-import { TextSelection } from '@tiptap/pm/state';
+import { AllSelection, TextSelection } from '@tiptap/pm/state';
+import { CellSelection } from '@tiptap/pm/tables';
 import { FOOTNOTE_REFERENCE } from './markdown/footnote';
 
 /**
@@ -88,6 +89,9 @@ export function insertFootnote(editor: Editor): void {
     .command(({ tr, state, dispatch }) => {
       const definitionType = state.schema.nodes.footnoteDefinition;
       if (!definitionType) return false;
+      // The command declines the selections the surfaces refuse, so a caller
+      // that does not ask first cannot reach them either (#425).
+      if (!canInsertFootnote(editor)) return false;
       if (!dispatch) return true;
       const label = nextFreeLabel(tr.doc);
       tr.insert(tr.selection.to, state.schema.text(`[^${label}]`));
@@ -109,9 +113,10 @@ export function insertFootnote(editor: Editor): void {
 export const INSERT_FOOTNOTE_KEY = 'insertFootnote';
 
 /**
- * Whether the caret is somewhere a footnote can be made.
+ * Whether this selection is one a footnote can be made from.
  *
- * Two places it is not, and both were measured rather than assumed:
+ * Four states it is not, and every one of them was **driven** rather than
+ * assumed:
  *
  *  - **Inside a fenced block.** `[^1]` written there is the literal text of a
  *    code sample, and the definition at the end would answer to nothing.
@@ -120,14 +125,31 @@ export const INSERT_FOOTNOTE_KEY = 'insertFootnote';
  *    the reference landed *inside the note*, giving `[^1]: one[^2]`, and the
  *    new definition followed it on the next line. A note is where a footnote
  *    is explained, not where one is made.
+ *  - **A whole-document selection** (#425). The reference is written at
+ *    `selection.to`, and for an `AllSelection` that is the end of the
+ *    document, a block position — so it was fitted into a **paragraph of its
+ *    own**: driven at `42457a3`, `Ctrl+A` then the entry left `[^1]` standing
+ *    alone between the last paragraph and the definition, stable across
+ *    saves. Nothing was damaged and nothing was asked for either: the
+ *    reference refers to none of what was selected.
+ *  - **A cell selection** (#425), where the same position is a cell boundary.
+ *    Driven at the same head, it wrote `| one | two<p>[^1]</p> |` — **raw
+ *    HTML into the cell**, which is the spelling this repository gives a cell
+ *    holding a block, and which held still on the second save rather than
+ *    healing.
  *
  * The two surfaces answer it differently, each the way its own kind of
  * control already does: the bar **does not draw** a control it cannot act
  * with (owner decision of 2026-09-17, for the image description), and the
  * menu **greys** the entry (R-C5 for the same dialog, and the #275 shape —
  * an entry that would do nothing is greyed rather than pressed in silence).
+ * The toolbar is hidden for a whole-document selection anyway (#336) and has
+ * no bar to draw over a cell selection, so those two are the menu entry and
+ * the chord alone.
  */
 export function canInsertFootnote(editor: Editor): boolean {
+  const { selection } = editor.state;
+  if (selection instanceof AllSelection || selection instanceof CellSelection) return false;
   return !editor.isActive('codeBlock') && !editor.isActive('footnoteDefinition');
 }
 
