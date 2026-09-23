@@ -3,6 +3,11 @@
 
 use tauri::{Emitter, Manager};
 
+#[cfg(any(windows, test))]
+mod browser_args;
+#[cfg(windows)]
+mod main_window;
+
 /// Extract a file path from CLI arguments (skip the executable name)
 fn extract_file_arg(args: &[String]) -> Option<String> {
     args.iter()
@@ -36,6 +41,13 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            // Windows builds its main window itself (#434); elsewhere Tauri
+            // has already built it from the configuration.
+            #[cfg(windows)]
+            if let Err(error) = main_window::create(app) {
+                main_window::report_and_exit(error.as_ref());
+            }
+
             // Cold start: check if launched with a file argument
             let args: Vec<String> = std::env::args().collect();
             if let Some(path) = extract_file_arg(&args) {
@@ -83,14 +95,21 @@ mod tests {
     }
 
     /// Issue #366 - the Windows window is the base window with no native
-    /// title bar, and nothing else.
+    /// title bar, built by `main_window` rather than by Tauri (#434), and
+    /// nothing else.
     ///
     /// Tauri merges `tauri.windows.conf.json` over `tauri.conf.json` with JSON
     /// Merge Patch, which replaces an array whole: `app.windows` has to be
     /// restated in full on Windows just to turn `decorations` off. Restated,
     /// the two can drift - a minimum size changed in one file and not the
     /// other, or the #65 drag-and-drop line lost on the one target it is for.
-    /// So the two window objects are held equal here, apart from that key.
+    /// So the two window objects are held equal here, apart from two keys.
+    ///
+    /// `create: false` hands the window to `main_window`, which builds it
+    /// from this same description with the spell-check language added. Lost
+    /// from the Windows file, Tauri would build a window without it and the
+    /// second build would fail on the label; moved into the base file, Linux
+    /// and macOS, which build no window of their own, would open none.
     #[test]
     fn the_windows_window_is_the_base_window_without_decorations() {
         let base: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
@@ -107,13 +126,18 @@ mod tests {
 
         let mut expected = base_windows[0].clone();
         expected["decorations"] = serde_json::Value::Bool(false);
+        expected["create"] = serde_json::Value::Bool(false);
         assert_eq!(own_windows[0], expected);
         assert!(
             base_windows[0].get("decorations").is_none(),
             "the base keeps the native bar on Linux and macOS by leaving the default"
         );
+        assert!(
+            base_windows[0].get("create").is_none(),
+            "the base lets Tauri build the window on Linux and macOS by leaving the default"
+        );
 
-        // Nothing else in the Windows file: it exists for this one key.
+        // Nothing else in the Windows file: it exists for this one window.
         let keys: Vec<&String> = windows.as_object().expect("an object").keys().collect();
         assert_eq!(keys, ["app"]);
         let app: Vec<&String> = windows["app"]
