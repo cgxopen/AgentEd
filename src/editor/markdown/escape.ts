@@ -82,6 +82,22 @@ function keepIntrawordUnderscores(text: string): string {
 }
 
 /**
+ * Whether this reference, written unescaped, would be read back as a footnote
+ * definition rather than as the text it is (#418).
+ *
+ * `[^a]: the note` at the start of a line is a definition, and a definition is
+ * never a text node - it is a node of its own with its own rule. So a
+ * reference that reaches this function in that position is text the file
+ * escaped, and writing it unescaped would turn a sentence into a definition on
+ * the next open. The narrowing steps aside for it and turndown escapes it as
+ * it did before #408, which is the spelling the file used.
+ */
+function opensADefinition(text: string, offset: number, length: number): boolean {
+  const atLineStart = offset === 0 || text[offset - 1] === '\n';
+  return atLineStart && text[offset + length] === ':';
+}
+
+/**
  * Wrap turndown's own `escape` so the narrowed case passes through it
  * untouched. `escapeAll` is the original method: it stays the authority on
  * every other character, so a future turndown release that adds an escape
@@ -110,9 +126,10 @@ export function createNarrowedEscape(
     if (text.includes(KEPT_BRACKET_OPEN) || text.includes(KEPT_BRACKET_CLOSE)) {
       return escapeAll(text);
     }
-    const held = text.replace(
-      FOOTNOTE_REFERENCE,
-      (_whole, label: string) => `${KEPT_BRACKET_OPEN}${label}${KEPT_BRACKET_CLOSE}`,
+    const held = text.replace(FOOTNOTE_REFERENCE, (whole: string, label: string, offset: number) =>
+      opensADefinition(text, offset, whole.length)
+        ? whole
+        : `${KEPT_BRACKET_OPEN}${label}${KEPT_BRACKET_CLOSE}`,
     );
     return escapeAll(keepIntrawordUnderscores(held))
       .replaceAll(KEPT_UNDERSCORE, '_')

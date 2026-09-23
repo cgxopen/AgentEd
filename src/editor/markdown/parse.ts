@@ -4,6 +4,7 @@ import { blankMarkerAttribute } from './blockquote-spacing';
 import { commentCarrier } from './comment-spelling';
 import {
   encodeIndents,
+  FOOTNOTE_BLANK_LINE_ATTRIBUTE,
   FOOTNOTE_DEFINITION,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
@@ -277,7 +278,8 @@ marked.use({
       name: 'footnoteDefinition',
       level: 'block',
       start(src: string) {
-        return src.match(/^\[\^/m)?.index;
+        const at = src.match(/\n\[\^/)?.index;
+        return at === undefined ? undefined : at + 1;
       },
       tokenizer(src: string) {
         const match = FOOTNOTE_DEFINITION.exec(src);
@@ -285,13 +287,20 @@ marked.use({
         return { type: 'footnoteDefinition', raw: match[0], tokens: [] } as never;
       },
       renderer(token: unknown) {
-        const { lines, indents } = splitDefinition((token as { raw: string }).raw);
+        const raw = (token as { raw: string }).raw;
+        // `marked` hands the definition the blank line under it, so the gap the
+        // file spelled is readable here and nowhere later (#418). It is taken
+        // off the bytes before they are split, or the run would gain an empty
+        // continuation line, and travels on the element instead.
+        const followedByBlankLine = raw.endsWith('\n\n');
+        const gap = followedByBlankLine ? ` ${FOOTNOTE_BLANK_LINE_ATTRIBUTE}` : '';
+        const { lines, indents } = splitDefinition(followedByBlankLine ? raw.slice(0, -1) : raw);
         // A hard break per continuation, because the content is editable and a
         // newline inside inline content is a soft break the serializer
         // collapses to a space. The indentation cannot live in the text for
         // the same reason, so it travels on the element.
         const body = lines.map(escapeHtmlText).join('<br>');
-        return `<div ${FOOTNOTE_DEFINITION_ATTRIBUTE} ${FOOTNOTE_INDENTS_ATTRIBUTE}="${encodeIndents(indents)}">${body}</div>`;
+        return `<div ${FOOTNOTE_DEFINITION_ATTRIBUTE}${gap} ${FOOTNOTE_INDENTS_ATTRIBUTE}="${encodeIndents(indents)}">${body}</div>`;
       },
     },
   ],
