@@ -1,6 +1,7 @@
 //! Issue #434 - on Windows the main window is built here rather than by
-//! Tauri, so that it can carry a value read at startup: the first of the
-//! Windows preferred languages, for the spell checker.
+//! Tauri, so that it can carry values read at startup: the first of the
+//! Windows preferred languages and the display language, for the spell
+//! checker.
 //!
 //! The window is still described in `tauri.windows.conf.json`, which sets
 //! `create: false` so that Tauri leaves the building to this module. Every
@@ -13,6 +14,9 @@ use std::error::Error;
 use tauri::{App, WebviewWindowBuilder};
 use windows::core::{w, HSTRING};
 use windows::Win32::Foundation::ERROR_SUCCESS;
+use windows::Win32::Globalization::{
+    GetUserDefaultUILanguage, LCIDToLocaleName, LOCALE_ALLOW_NEUTRAL_NAMES, MAX_LOCALE_NAME,
+};
 use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_MULTI_SZ};
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
 
@@ -58,6 +62,25 @@ fn preferred_languages() -> Vec<String> {
     parse_multi_sz(&buffer[..units], MAX_LANGUAGES)
 }
 
+/// The display language as `wry` 0.54 computes it for the environment
+/// language, by the same two calls, so the tail of `--accept-lang` is what
+/// the checker used before #434. `None` if the name cannot be made, which
+/// `browser_args` turns into the behaviour before #434.
+fn display_language() -> Option<String> {
+    let mut name = [0u16; MAX_LOCALE_NAME as usize];
+    // SAFETY: plain calls; the name buffer is a slice the binding measures.
+    let written = unsafe {
+        LCIDToLocaleName(
+            u32::from(GetUserDefaultUILanguage()),
+            Some(&mut name),
+            LOCALE_ALLOW_NEUTRAL_NAMES,
+        )
+    };
+    // The count includes the terminating NUL; 0 is a failure.
+    let length = usize::try_from(written).ok()?.checked_sub(1)?;
+    String::from_utf16(name.get(..length)?).ok()
+}
+
 /// Builds the window labelled `main` from its configuration, with the
 /// WebView2 arguments of `browser_args`.
 pub fn create(app: &App) -> Result<(), Box<dyn Error>> {
@@ -68,7 +91,11 @@ pub fn create(app: &App) -> Result<(), Box<dyn Error>> {
         .iter()
         .find(|window| window.label == "main")
         .ok_or("the configuration has no window labelled main")?;
-    let args = browser_args(&preferred_languages());
+    let display = display_language();
+    if display.is_none() {
+        eprintln!("Display language not read, spell check follows the display language");
+    }
+    let args = browser_args(&preferred_languages(), display.as_deref());
     WebviewWindowBuilder::from_config(app.handle(), config)?
         .additional_browser_args(&args)
         .build()?;

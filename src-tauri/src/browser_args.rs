@@ -1,10 +1,11 @@
 //! Issue #434 - the WebView2 command line of the main window, as a pure
-//! function of the Windows preferred-languages list.
+//! function of the Windows preferred-languages list and the display language.
 //!
 //! The spell checker of WebView2 checks in one language at a time, and left
 //! alone it is the Windows display language, because that is what `wry` sets
 //! as the environment language. `--accept-lang` reaches the checker (measured
-//! on #411), so the first of the preferred languages is passed there.
+//! on #411), and the checker takes the first entry of it that it has a
+//! dictionary for, skipping the others (measured on #434).
 //!
 //! Compiled on Windows, where it is used, and under test everywhere, so the
 //! Linux CI job runs the tests below.
@@ -20,21 +21,41 @@ pub const DEFAULT_DISABLES: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSma
 /// `zh-Hant-TW` is far below it.
 const MAX_TAG_LEN: usize = 35;
 
-/// The arguments for the main window. The disables are always present; the
-/// first language follows only when it looks like a language tag. An empty
-/// list or a malformed first entry gives the disables alone, which is the
-/// behaviour before #434 - never a guessed language.
-pub fn browser_args(languages: &[String]) -> String {
-    match languages.first() {
-        Some(tag) if is_plausible_tag(tag) => format!("{DEFAULT_DISABLES} --accept-lang={tag}"),
-        _ => DEFAULT_DISABLES.to_string(),
+/// The arguments for the main window, owner decision of 2026-09-23 on #434
+/// (variant A). The disables are always present. `--accept-lang` carries, in
+/// this order and without duplicates:
+///
+/// 1. the first preferred language, exactly as Windows gives it - `ro-RO` on
+///    the owner machine, which alone gives the checker no Romanian;
+/// 2. its primary subtag - `ro`, the form the checker has a dictionary for;
+/// 3. the display language - what the checker used before #434, so a first
+///    language it has no dictionary for falls back to today rather than to no
+///    checker at all, which is what an existing profile got without it.
+///
+/// If the first preferred language or the display language is missing or not
+/// a plausible tag, no `--accept-lang` is passed: the behaviour before #434,
+/// never a guessed language.
+pub fn browser_args(languages: &[String], display: Option<&str>) -> String {
+    let (Some(first), Some(display)) = (languages.first(), display) else {
+        return DEFAULT_DISABLES.to_string();
+    };
+    if !is_plausible_tag(first) || !is_plausible_tag(display) {
+        return DEFAULT_DISABLES.to_string();
     }
+    let primary = first.split('-').next().unwrap_or(first);
+    let mut accepted: Vec<&str> = Vec::with_capacity(3);
+    for tag in [first.as_str(), primary, display] {
+        if !accepted.iter().any(|seen| seen.eq_ignore_ascii_case(tag)) {
+            accepted.push(tag);
+        }
+    }
+    format!("{DEFAULT_DISABLES} --accept-lang={}", accepted.join(","))
 }
 
 /// The value goes onto a command line, so it is held to the characters a
 /// language tag is made of: ASCII letters, digits and hyphens, starting with
-/// a letter and not ending with a hyphen. Passed exactly as Windows gives it -
-/// `ro-RO` is not cut to `ro`, which would be a guess (#434, trap 2).
+/// a letter and not ending with a hyphen. So the primary subtag of a
+/// plausible tag is itself one.
 fn is_plausible_tag(tag: &str) -> bool {
     !tag.is_empty()
         && tag.len() <= MAX_TAG_LEN
@@ -73,10 +94,20 @@ mod tests {
         text.encode_utf16().collect()
     }
 
+    fn accept(value: &str) -> String {
+        format!("{DEFAULT_DISABLES} --accept-lang={value}")
+    }
+
     #[test]
     fn the_disables_are_always_present() {
-        for languages in [list(&[]), list(&["ro-RO", "en-US"]), list(&["bad tag"])] {
-            let args = browser_args(&languages);
+        let cases: [(Vec<String>, Option<&str>); 4] = [
+            (list(&[]), Some("en-US")),
+            (list(&["ro-RO", "en-US"]), Some("en-US")),
+            (list(&["ro-RO"]), None),
+            (list(&["bad tag"]), Some("en-US")),
+        ];
+        for (languages, display) in cases {
+            let args = browser_args(&languages, display);
             assert!(
                 args.starts_with(DEFAULT_DISABLES),
                 "the three disables lead every value, or the mini menu, the PDF UI \
@@ -89,25 +120,62 @@ mod tests {
         );
     }
 
+    /// The rows measured on the owner machine on #434, rounds 1 and 2: each
+    /// value below is one that was passed there and read back.
     #[test]
-    fn the_first_language_is_used_as_windows_gives_it() {
+    fn the_measured_rows_are_what_is_passed() {
+        // Round 2, run 1: Romanian, dictionary [ro].
         assert_eq!(
-            browser_args(&list(&["ro-RO", "en-US"])),
-            format!("{DEFAULT_DISABLES} --accept-lang=ro-RO")
+            browser_args(&list(&["ro-RO", "en-US"]), Some("en-US")),
+            accept("ro-RO,ro,en-US")
         );
+        // Round 1: English for an en-US user, dictionary [en-US].
         assert_eq!(
-            browser_args(&list(&["en-US", "ro-RO"])),
-            format!("{DEFAULT_DISABLES} --accept-lang=en-US")
+            browser_args(&list(&["en-US", "ro-RO"]), Some("en-US")),
+            accept("en-US,en")
         );
+        // Round 2, runs 2 and 3: no dictionary for the first, today's [en-US].
         assert_eq!(
-            browser_args(&list(&["zh-Hant-TW"])),
-            format!("{DEFAULT_DISABLES} --accept-lang=zh-Hant-TW")
+            browser_args(&list(&["qaa-QM"]), Some("en-US")),
+            accept("qaa-QM,qaa,en-US")
         );
     }
 
     #[test]
-    fn an_empty_list_gives_the_behaviour_before_434() {
-        assert_eq!(browser_args(&[]), DEFAULT_DISABLES);
+    fn the_display_language_always_closes_the_list() {
+        for first in ["ro-RO", "ro", "de-DE", "zh-Hant-TW", "qaa-QM"] {
+            let args = browser_args(&list(&[first]), Some("en-GB"));
+            assert!(
+                args.ends_with(",en-GB") || args.ends_with("=en-GB"),
+                "without the display language, a first language the checker has \
+                 no dictionary for leaves an existing profile with none (#434, \
+                 round 2, run 4): {args}"
+            );
+        }
+    }
+
+    #[test]
+    fn duplicates_are_left_out_in_any_case() {
+        assert_eq!(
+            browser_args(&list(&["ro"]), Some("en-US")),
+            accept("ro,en-US")
+        );
+        assert_eq!(
+            browser_args(&list(&["en-US"]), Some("en-us")),
+            accept("en-US,en")
+        );
+        assert_eq!(browser_args(&list(&["en"]), Some("EN")), accept("en"));
+        assert_eq!(
+            browser_args(&list(&["zh-Hant-TW"]), Some("zh")),
+            accept("zh-Hant-TW,zh")
+        );
+    }
+
+    #[test]
+    fn a_missing_part_gives_the_behaviour_before_434() {
+        assert_eq!(browser_args(&[], Some("en-US")), DEFAULT_DISABLES);
+        assert_eq!(browser_args(&list(&["ro-RO"]), None), DEFAULT_DISABLES);
+        assert_eq!(browser_args(&list(&["ro-RO"]), Some("")), DEFAULT_DISABLES);
     }
 
     #[test]
@@ -117,9 +185,14 @@ mod tests {
             "", "ro RO", "ro-", "-ro", "1ro", "ro\"", "ro --x", "ră", &long,
         ] {
             assert_eq!(
-                browser_args(&list(&[bad, "en-US"])),
+                browser_args(&list(&[bad, "en-US"]), Some("en-US")),
                 DEFAULT_DISABLES,
                 "a first entry that is not a tag is never replaced by a guess: {bad:?}"
+            );
+            assert_eq!(
+                browser_args(&list(&["ro-RO"]), Some(bad)),
+                DEFAULT_DISABLES,
+                "nor is a display language that is not a tag: {bad:?}"
             );
         }
         assert!(is_plausible_tag(&"a".repeat(MAX_TAG_LEN)));
