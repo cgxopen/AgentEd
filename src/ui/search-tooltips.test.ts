@@ -86,6 +86,9 @@ describe('every other tooltip is unchanged (#352)', () => {
       ['menu-redo', 'Ctrl+Y'],
       ['menu-select-all', 'Ctrl+A'],
       ['menu-insert-code-block', 'Ctrl+Shift+K'],
+      // The Insert entry #409 added, which carries its chord the way #390
+      // gave every other entry one.
+      ['menu-insert-footnote', 'Ctrl+Alt+F'],
       ['search-close', 'Close (Esc)'],
     ]);
   });

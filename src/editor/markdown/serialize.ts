@@ -4,7 +4,7 @@ import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquo
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
-import { createNarrowedEscape } from './escape';
+import { createNarrowedEscape, resolveDefinitionPositions } from './escape';
 import {
   decodeIndents,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -1211,7 +1211,12 @@ export interface SerializeOptions {
 export function htmlToMarkdown(html: string, options: SerializeOptions = {}): string {
   writingKeptTables = options.keepHtmlTables ?? false;
   try {
-    const markdown = turndown.turndown(html);
+    // The escape marks a reference that begins its text node and is followed
+    // by a colon, because from there it cannot tell a line start from a text
+    // node that merely starts after bold (#409). This is where the assembled
+    // line is readable, so it is where the mark is answered - and no mark
+    // survives this call.
+    const markdown = resolveDefinitionPositions(turndown.turndown(html));
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
     writingKeptTables = false;

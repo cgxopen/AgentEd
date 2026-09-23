@@ -22,6 +22,7 @@ export interface MenuCallbacks {
   onInsertMedia: () => void;
   onInsertCodeBlock: () => void;
   onInsertChecklist: () => void;
+  onInsertFootnote: () => void;
   onInsertHorizontalRule: () => void;
   onInsertMetadata: () => void;
   onInsertEmoji: () => void;
@@ -51,22 +52,26 @@ export interface HistoryAvailability {
  * Which entries can be chosen where the caret is, keyed by the entry. Read
  * when the menu opens, the way the history is (#292, #291).
  *
- * Two modules answer it and neither knows about the other:
+ * Three modules answer it and none knows about the others:
  * `tableShapeAvailability` in `editor/table-shape.ts` for the seven Table
- * entries, and `imageDescriptionAvailability` in `editor/image-description.ts`
- * for the eighth entry of Edit. Each records what its rules refuse and why.
+ * entries, `imageDescriptionAvailability` in `editor/image-description.ts`
+ * for the eighth entry of Edit, and `footnoteAvailability` in
+ * `editor/insert-footnote.ts` for the Footnote entry of Insert. Each records
+ * what its rules refuse and why.
  */
 export type EntryAvailability = Readonly<Record<string, boolean>>;
 
 /**
  * Every entry that is greyed from that reading, with the key it is greyed
- * from — the seven of the Table section and the image description in Edit.
+ * from — the seven of the Table section, the image description in Edit and
+ * the footnote in Insert.
  * The ids are the markup's, and a key the reading does not carry greys its
  * entry: a reading that forgot one fails safe, rather than offering a route
  * that would do nothing.
  */
 const GREYABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
   ['menu-image-description', 'imageDescription'],
+  ['menu-insert-footnote', 'insertFootnote'],
   ['menu-table-add-row-above', 'addRowAbove'],
   ['menu-table-add-row-below', 'addRowBelow'],
   ['menu-table-delete-row', 'deleteRow'],
@@ -290,6 +295,7 @@ export function setupMenu(
   bind('menu-insert-media', callbacks.onInsertMedia);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);
   bind('menu-insert-checklist', callbacks.onInsertChecklist);
+  bind('menu-insert-footnote', callbacks.onInsertFootnote);
   bind('menu-insert-horizontal-rule', callbacks.onInsertHorizontalRule);
   bind('menu-insert-metadata', callbacks.onInsertMetadata);
   bind('menu-insert-emoji', callbacks.onInsertEmoji);

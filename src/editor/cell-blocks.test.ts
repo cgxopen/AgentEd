@@ -70,6 +70,7 @@ function spies(): MenuCallbacks {
     onInsertMedia: vi.fn(),
     onInsertCodeBlock: vi.fn(),
     onInsertChecklist: vi.fn(),
+    onInsertFootnote: vi.fn(),
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),

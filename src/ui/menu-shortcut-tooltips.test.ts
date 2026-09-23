@@ -11,6 +11,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';
+import { FOOTNOTE_SHORTCUT } from '../editor/insert-footnote';
 import stylesCss from '../styles.css?raw';
 import { shippedElement } from '../test-support/shipped-markup';
 import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
@@ -28,6 +29,24 @@ import { type MenuCallbacks, setupMenu } from './menu';
  * it gets no tooltip: nothing in the interface had shown that chord, it was
  * never driven on the shipped target, and a tooltip would be the first place to
  * announce it.
+ *
+ * ── Written by hand, except for the last row, and why that is (#409) ──
+ *
+ * STATUS carried this list as a debt: a chord added to a menu command reddens
+ * nothing until someone adds it here, and Ctrl+Alt+F was that chord. It is
+ * added — and the row **reads the chord out of the module that binds it**,
+ * `FOOTNOTE_SHORTCUT`, which the extension keymap and the toolbar tooltip are
+ * both built from. So for this entry a rename in one place moves all three
+ * and reddens nothing falsely.
+ *
+ * **The other rows cannot be read that way today, and the reason is not this
+ * file.** Their chords live in four places that share no table: `keyboard.ts`
+ * spells Open, Save and Code Block as branches on a `KeyboardEvent`, the
+ * search entries live in `search-manager.ts`, Undo, Redo and Select All come
+ * from keymaps inside extensions, and the menu markup in `index.html` is
+ * static. There is no mapping to read; there would have to be one first —
+ * one table that both the markup and the bindings are built from — and that
+ * is a change to how the menu is written rather than a change to this test.
  */
 const CHORDS: ReadonlyMap<string, string> = new Map([
   ['menu-open', 'Ctrl+O'],
@@ -40,6 +59,7 @@ const CHORDS: ReadonlyMap<string, string> = new Map([
   ['menu-redo', 'Ctrl+Y'],
   ['menu-select-all', 'Ctrl+A'],
   ['menu-insert-code-block', 'Ctrl+Shift+K'],
+  ['menu-insert-footnote', FOOTNOTE_SHORTCUT.chord],
 ]);
 
 /** The chord as `aria-keyshortcuts` spells it, which names the Control key in full. */
