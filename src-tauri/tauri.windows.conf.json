@@ -4,6 +4,7 @@
       {
         "label": "main",
         "title": "AgentEd",
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --accept-lang=ro,en-US",
         "dragDropEnabled": false,
         "width": 1024,
         "height": 768,
