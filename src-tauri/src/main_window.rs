@@ -96,9 +96,19 @@ pub fn create(app: &App) -> Result<(), Box<dyn Error>> {
         eprintln!("Display language not read, spell check follows the display language");
     }
     let args = browser_args(&preferred_languages(), display.as_deref());
-    WebviewWindowBuilder::from_config(app.handle(), config)?
+    let window = WebviewWindowBuilder::from_config(app.handle(), config)?
         .additional_browser_args(&args)
         .build()?;
+    // `build` returns Ok even when the runtime failed to create the window:
+    // `tauri-runtime-wry` 2.10 only logs that error (`Message::CreateWindow`)
+    // and never inserts the window, so the process would run on with none
+    // (measured on #434: a hidden process per attempt, no dialog). From
+    // `setup` the creation ran synchronously on this thread, so a getter now
+    // finds the window, or finds none and fails - which is the error the
+    // dialog needs.
+    window
+        .scale_factor()
+        .map_err(|error| format!("the main window was not created ({error})"))?;
     Ok(())
 }
 
