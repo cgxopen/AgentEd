@@ -1827,41 +1827,118 @@ function destinations(markdown: string): string[] {
   return Array.from(markdownToHtml(markdown).matchAll(/(?:href|src)="([^"]*)"/g)).map((m) => m[1]);
 }
 
+/**
+ * The budget for one document case, raised from the vitest default of 5000 ms
+ * (#426, owner decision of 2026-09-23).
+ *
+ * ── What failed, and what it was not ──
+ *
+ * The push run at `37d4c07` failed twice on `docs/internal/STATUS.md - census`
+ * and passed on the third attempt, on the same bytes. It was read as a tenfold
+ * jump against a 482 ms figure from 2026-09-07; the run logs say otherwise.
+ * That case ran at 4635 ms on `7fd1550`, 4180 and 3793 across #422, and 4732 on
+ * the #423 pull request - **already at 93 per cent of the limit four runs
+ * before the first failure**, and before either of those merges existed.
+ *
+ * **It is not a regression.** The same STATUS.md, five runs at each of three
+ * builds on one machine: `7fd1550` 809 ms, `297874c` 782 ms, `37d4c07` 795 ms,
+ * medians. Nothing between them doubles anything.
+ *
+ * **It is the runner.** Across the three attempts of the one commit, every case
+ * in this file moved by the same factor of about 1.7 - the second save 1792
+ * against 1060, the difference census 875 against 511, this case 6663 against
+ * 3871 - and so did `one character at a time` in `cell-blocks.test.ts`, which
+ * is in another file entirely. A factor that uniform is the machine.
+ *
+ * ── Why a number this size, and what it buys ──
+ *
+ * **The cost is linear in the document**, measured on the whole case rather
+ * than on the save alone, since the census also diffs: 229 KB at 791 ms,
+ * 459 KB at 1457 ms, 919 KB at 2797 ms - 3.52, 3.24 and 3.11 ms per KB, if
+ * anything cheaper as it grows. So headroom can be read off the slowest run
+ * seen: 6663 ms for 229860 bytes is 29.7 ms per KB, and 30 s covers about
+ * 1010 KB. STATUS.md has grown about 6100 bytes a day since it was last cut on
+ * 2026-09-06, which leaves roughly **130 days** of room - and the file leaves
+ * this repository at the gate before that (#20 section D), which is why this is
+ * a timeout rather than a smaller document. Making it smaller stays an AMP debt
+ * in STATUS section 4.
+ *
+ * ── Why all four cases rather than the one that failed ──
+ *
+ * `STATUS.md - no word and no destination moves` reached **3349 ms** on the
+ * same slow attempt. At the runner factor above it is the next one over the
+ * line, so a timeout on the case that failed would only move the failure. The
+ * four `it.each(DOCUMENTS)` cases below are every individual case in the suite
+ * that reads a repository document through the save assembly: of the cases that
+ * passed 1000 ms on CI, the rest belong to `cell-blocks.test.ts`, which carries
+ * its own 60 s budget, or are whole-file totals rather than single cases.
+ *
+ * **What the number costs when it is wrong.** 13 documents times 4 cases is 52
+ * cases holding this budget, so a case that hangs rather than merely runs slow
+ * now takes 30 s to say so instead of 5. That is the trade, and it is accepted
+ * because nothing here loops: every one of these is one document through one
+ * open and one save.
+ *
+ * ── How to check this is still doing something ──
+ *
+ * **A timeout cannot be reddened by the suite on a machine this fast**: every
+ * case above runs in under a second here, so removing this number changes no
+ * result and a row asserting it would assert nothing. It was verified by
+ * construction instead, and the same move re-verifies it: put
+ * `await new Promise((r) => setTimeout(r, 6000));` at the top of one of the
+ * four cases below. With this budget the 13 documents pass; with it taken off
+ * that one case, all 13 fail with `Test timed out in 5000ms`. The probe is not
+ * shipped - it exists only for the minute it takes to run.
+ */
+const DOCUMENT_CASE_TIMEOUT = { timeout: 30_000 };
+
 describe('the repository, opened and saved unedited (R-C2)', () => {
-  it.each(DOCUMENTS)('%s — the second save moves nothing', async (_name, source) => {
-    // The half that needs no exception list. Whatever the first save normalises,
-    // the next one must not move a byte, or the document drifts every time it is
-    // opened — which would be a defect whatever R-C2 said about the first save.
-    const first = await openAndSaveUnedited(source);
-    expect(await openAndSaveUnedited(first)).toBe(first);
-  });
+  it.each(DOCUMENTS)(
+    '%s — the second save moves nothing',
+    DOCUMENT_CASE_TIMEOUT,
+    async (_name, source) => {
+      // The half that needs no exception list. Whatever the first save normalises,
+      // the next one must not move a byte, or the document drifts every time it is
+      // opened — which would be a defect whatever R-C2 said about the first save.
+      const first = await openAndSaveUnedited(source);
+      expect(await openAndSaveUnedited(first)).toBe(first);
+    },
+  );
 
-  it.each(DOCUMENTS)('%s — every difference is one that is recorded', async (name, source) => {
-    const saved = await openAndSaveUnedited(source);
-    const sourceLines = source.split('\n');
-    const unclaimed = differenceRegions(source, saved).filter(
-      (region) => !isClaimed(region, sourceLines),
-    );
+  it.each(DOCUMENTS)(
+    '%s — every difference is one that is recorded',
+    DOCUMENT_CASE_TIMEOUT,
+    async (name, source) => {
+      const saved = await openAndSaveUnedited(source);
+      const sourceLines = source.split('\n');
+      const unclaimed = differenceRegions(source, saved).filter(
+        (region) => !isClaimed(region, sourceLines),
+      );
 
-    // A difference no normaliser can erase is a difference nobody has written
-    // down. It fails, and it prints itself — the list of recorded exceptions
-    // grows by a decision in REQUIREMENTS, never by a test quietly widening.
-    expect(
-      unclaimed.map(
-        (r) =>
-          `\n  ${name} — unrecorded difference:\n    - ${r.removed.join('\n    - ')}\n    + ${r.added.join('\n    + ')}`,
-      ),
-    ).toEqual([]);
-  });
+      // A difference no normaliser can erase is a difference nobody has written
+      // down. It fails, and it prints itself — the list of recorded exceptions
+      // grows by a decision in REQUIREMENTS, never by a test quietly widening.
+      expect(
+        unclaimed.map(
+          (r) =>
+            `\n  ${name} — unrecorded difference:\n    - ${r.removed.join('\n    - ')}\n    + ${r.added.join('\n    + ')}`,
+        ),
+      ).toEqual([]);
+    },
+  );
 
-  it.each(DOCUMENTS)('%s — no word and no destination moves', async (_name, source) => {
-    // The two floors, asserted independently of every normaliser above. A
-    // normaliser is a claim about spelling; these are claims about content, and
-    // they are what stops a normaliser drawn too widely from hiding a real loss.
-    const saved = await openAndSaveUnedited(source);
-    expect(visibleText(saved)).toBe(visibleText(source));
-    expect(destinations(saved)).toEqual(destinations(source));
-  });
+  it.each(DOCUMENTS)(
+    '%s — no word and no destination moves',
+    DOCUMENT_CASE_TIMEOUT,
+    async (_name, source) => {
+      // The two floors, asserted independently of every normaliser above. A
+      // normaliser is a claim about spelling; these are claims about content, and
+      // they are what stops a normaliser drawn too widely from hiding a real loss.
+      const saved = await openAndSaveUnedited(source);
+      expect(visibleText(saved)).toBe(visibleText(source));
+      expect(destinations(saved)).toEqual(destinations(source));
+    },
+  );
 
   /**
    * The census, one case per document (#241).
@@ -1891,19 +1968,23 @@ describe('the repository, opened and saved unedited (R-C2)', () => {
    */
   const census = new Map<string, string>();
 
-  it.each(DOCUMENTS)('%s — census: which recorded exceptions it meets', async (name, source) => {
-    const saved = await openAndSaveUnedited(source);
-    const sourceLines = source.split('\n');
-    const met = new Set<string>();
-    for (const region of differenceRegions(source, saved)) {
-      for (const used of normalisersUsed(sideText(region.removed))) met.add(used);
-      for (const used of normalisersUsed(sideText(region.added))) met.add(used);
-      for (const rule of REGION_RULES) {
-        if (rule.claims(region, sourceLines)) met.add(rule.name);
+  it.each(DOCUMENTS)(
+    '%s — census: which recorded exceptions it meets',
+    DOCUMENT_CASE_TIMEOUT,
+    async (name, source) => {
+      const saved = await openAndSaveUnedited(source);
+      const sourceLines = source.split('\n');
+      const met = new Set<string>();
+      for (const region of differenceRegions(source, saved)) {
+        for (const used of normalisersUsed(sideText(region.removed))) met.add(used);
+        for (const used of normalisersUsed(sideText(region.added))) met.add(used);
+        for (const rule of REGION_RULES) {
+          if (rule.claims(region, sourceLines)) met.add(rule.name);
+        }
       }
-    }
-    census.set(name, `${name}: ${met.size === 0 ? 'byte-identical' : [...met].join('; ')}`);
-  });
+      census.set(name, `${name}: ${met.size === 0 ? 'byte-identical' : [...met].join('; ')}`);
+    },
+  );
 
   it('census — the whole table, computed by the cases above', () => {
     // Opens no document and saves none: every row was already computed by the
