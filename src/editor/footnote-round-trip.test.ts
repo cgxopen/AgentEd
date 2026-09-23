@@ -126,6 +126,76 @@ describe('the shapes GitHub does not render as footnotes survive too (#408)', ()
   });
 });
 
+/**
+ * Issue #418, point j — the gap between two definitions is the file's to
+ * spell.
+ *
+ * **Measured on `297874c`, and what was lost was the distinction rather than a
+ * blank line**: two definitions a blank line apart came back one newline
+ * apart, three came back consecutive, and a run spelled both ways came back
+ * uniform - levelled to the tighter spelling, so a file that used the gap to
+ * group its notes lost the grouping entirely. The second save was stable in
+ * every case, so this was bytes rather than drift, and `gh api markdown` in
+ * gfm mode renders both spellings alike.
+ *
+ * The repair reads the gap where it is still readable - `marked` hands a
+ * definition its own trailing blank line in `raw` - and carries it on the node,
+ * the way #408 already carries the continuation indents.
+ */
+describe('a run of definitions keeps the gaps the file spelled (#418, point j)', () => {
+  it('two a blank line apart keep it — before: one newline apart', () => {
+    survives('A.[^a] B.[^b]\n\n[^a]: one\n\n[^b]: two');
+  });
+
+  it('three a blank line apart keep all of them — before: all three consecutive', () => {
+    survives('A.[^a] B.[^b] C.[^c]\n\n[^a]: one\n\n[^b]: two\n\n[^c]: three');
+  });
+
+  it('a run spelled both ways keeps both — before: levelled to consecutive', () => {
+    // The row the whole point turns on. A file that separates its first note
+    // and keeps the other two together said something, and before this the
+    // saved file could no longer say it.
+    survives('A.[^a] B.[^b] C.[^c]\n\n[^a]: one\n\n[^b]: two\n[^c]: three');
+  });
+
+  it('and the other order, so the rule is the gap rather than the position', () => {
+    survives('A.[^a] B.[^b] C.[^c]\n\n[^a]: one\n[^b]: two\n\n[^c]: three');
+  });
+
+  it('two consecutive stay consecutive, which is the R-C17 row that already exists', () => {
+    survives('A.[^a] B.[^b]\n\n[^a]: one\n[^b]: two');
+  });
+
+  it('a definition continued on an indented line, then a blank line', () => {
+    // The continuation and the gap are two attributes on one node, and this is
+    // the row that would fail if the gap were taken off the wrong end of the
+    // bytes: the blank line would become an empty continuation line.
+    survives('A.[^a] B.[^b]\n\n[^a]: one\n    more\n\n[^b]: two');
+  });
+
+  it('a blank line between the last definition and what follows it', () => {
+    survives('A.[^a]\n\n[^a]: one\n\nAfter.');
+  });
+});
+
+/**
+ * **What this does not hold, measured rather than left to be discovered.**
+ * Two or more blank lines between definitions come back as none, before this
+ * change and after it. `marked` gives the definition a single trailing newline
+ * in that case and puts the rest in a `space` token the renderer never sees,
+ * so the count is not readable where the gap is read. It is an instance of a
+ * wider difference this repository has not recorded - `A.`⏎⏎⏎`B.` comes back
+ * `A.`⏎⏎`B.` for two ordinary paragraphs too - and it is reported on #418
+ * rather than repaired here, because it is not about footnotes.
+ */
+describe('the run of blank lines is not counted (#418, point j)', () => {
+  it('two blank lines between definitions come back as none, as they did before', () => {
+    expect(openAndSave('A.[^a] B.[^b]\n\n[^a]: one\n\n\n[^b]: two')).toBe(
+      'A.[^a] B.[^b]\n\n[^a]: one\n[^b]: two',
+    );
+  });
+});
+
 describe('what this change must not move (#408)', () => {
   /** What the shipped build wrote on `651bb40`, before any of this. */
   const TODAY: Record<string, [string, string]> = {

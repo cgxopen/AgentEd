@@ -7,6 +7,7 @@ import { type ContainerReplacements, createBlankReplacement } from './empty-fenc
 import { createNarrowedEscape } from './escape';
 import {
   decodeIndents,
+  FOOTNOTE_BLANK_LINE_ATTRIBUTE,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
   joinDefinition,
@@ -740,7 +741,16 @@ turndown.addRule('footnoteDefinition', {
     }
     lines.push(current);
     const text = joinDefinition({ lines, indents });
-    const lead = isFootnoteDefinition(element.previousElementSibling) ? '\n' : '\n\n';
+    // Two definitions are a single newline apart unless the one above spelled
+    // a blank line there (#418). The gap belongs to the pair, and it is read
+    // off the sibling that carries it rather than off this one.
+    const above = element.previousElementSibling;
+    const lead =
+      above !== null &&
+      isFootnoteDefinition(above) &&
+      !above.hasAttribute(FOOTNOTE_BLANK_LINE_ATTRIBUTE)
+        ? '\n'
+        : '\n\n';
     const tail = isFootnoteDefinition(element.nextElementSibling) ? '' : '\n\n';
     return `${lead}${text}${tail}`;
   },

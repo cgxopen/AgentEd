@@ -43,7 +43,11 @@ import {
   encodeComment,
   MARKDOWN_COMMENT_ATTRIBUTE,
 } from './markdown/comment-spelling';
-import { FOOTNOTE_DEFINITION_ATTRIBUTE, FOOTNOTE_INDENTS_ATTRIBUTE } from './markdown/footnote';
+import {
+  FOOTNOTE_BLANK_LINE_ATTRIBUTE,
+  FOOTNOTE_DEFINITION_ATTRIBUTE,
+  FOOTNOTE_INDENTS_ATTRIBUTE,
+} from './markdown/footnote';
 import {
   decodeHtmlSource,
   encodeHtmlSource,
@@ -124,6 +128,14 @@ const FootnoteDefinition = TipTapNode.create({
         typeof attributes.indents === 'string' && attributes.indents !== ''
           ? { [FOOTNOTE_INDENTS_ATTRIBUTE]: attributes.indents }
           : {},
+    },
+    // The gap the file left under this definition (#418). A boolean rather
+    // than a value, because the only two spellings are one newline and two.
+    blankLineAfter: {
+      default: false,
+      parseHTML: (element: HTMLElement) => element.hasAttribute(FOOTNOTE_BLANK_LINE_ATTRIBUTE),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        attributes.blankLineAfter === true ? { [FOOTNOTE_BLANK_LINE_ATTRIBUTE]: '' } : {},
     },
   }),
 

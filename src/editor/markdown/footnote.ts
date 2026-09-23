@@ -43,6 +43,22 @@
 /** The file's indentation for each continuation line, in document order. */
 export const FOOTNOTE_INDENTS_ATTRIBUTE = 'data-footnote-indents';
 
+/**
+ * Whether the file left a blank line under this definition (#418).
+ *
+ * The serializer writes consecutive definitions a single newline apart, so a
+ * run the file spelled a blank line apart came back tightened - and a run
+ * spelled both ways came back uniform, which loses the distinction rather than
+ * one blank line. The spelling is a property of the gap, and the gap is read
+ * here because `marked` hands the definition its own trailing blank line in
+ * `raw`: `[^a]: one\n\n` against `[^a]: one\n`. Measured at the lexer.
+ *
+ * It is stamped on the definition **above** the gap, which is the one whose
+ * bytes carry it, and read by the definition below - the sibling whose lead
+ * the serializer is choosing.
+ */
+export const FOOTNOTE_BLANK_LINE_ATTRIBUTE = 'data-footnote-blank-line';
+
 /** Marks the element the definition is carried in. */
 export const FOOTNOTE_DEFINITION_ATTRIBUTE = 'data-footnote-definition';
 
