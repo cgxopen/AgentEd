@@ -3,6 +3,7 @@ import { AllSelection } from '@tiptap/pm/state';
 import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
 import { canInsertFootnote, FOOTNOTE_SHORTCUT, insertFootnote } from '../editor/insert-footnote';
+import { hasNodeSelection } from '../editor/node-selection';
 import { editorRoom, withinRoom } from './editor-room';
 import {
   activeHeadingLevels,
@@ -240,6 +241,11 @@ const buttons: ToolbarEntry[] = [
       e.chain().focus().toggleCode().run();
     },
     isActive: (e) => e.isActive('code'),
+    // Not drawn over a selected image or rule (#427). The command refuses
+    // there, so this is the bar agreeing with it rather than the repair: a
+    // control that cannot act is left out instead of drawn inert, the rule
+    // the image description already keeps (owner decision of 2026-09-17).
+    appliesTo: (e) => !hasNodeSelection(e),
   },
   {
     // Labelled with the syntax it writes, the way `1.` is for the ordered
@@ -255,6 +261,9 @@ const buttons: ToolbarEntry[] = [
     // The button toggles, and says so by lighting up inside a fence (#279).
     action: toggleCodeBlock,
     isActive: (e) => e.isActive('codeBlock'),
+    // The same rule as the control above, and for the same measurement: this
+    // one left an empty fence where the picture had been (#427).
+    appliesTo: (e) => !hasNodeSelection(e),
   },
   {
     // One control for six levels (#267). It used to be three buttons for three,

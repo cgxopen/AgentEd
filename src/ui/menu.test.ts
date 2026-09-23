@@ -35,6 +35,9 @@ const everyEntryOffered = () => ({
   // The ninth entry a reading can grey (#409); when it is greyed is asserted
   // over a real editor in `editor/footnote-insert.test.ts`.
   insertFootnote: true,
+  // The tenth (#427), greyed over a node selection because the command
+  // refuses one; asserted over a real editor in `code-block-routes.test.ts`.
+  insertCodeBlock: true,
   addRowAbove: true,
   addRowBelow: true,
   deleteRow: true,

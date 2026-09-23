@@ -72,6 +72,7 @@ export type EntryAvailability = Readonly<Record<string, boolean>>;
 const GREYABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
   ['menu-image-description', 'imageDescription'],
   ['menu-insert-footnote', 'insertFootnote'],
+  ['menu-insert-code-block', 'insertCodeBlock'],
   ['menu-table-add-row-above', 'addRowAbove'],
   ['menu-table-add-row-below', 'addRowBelow'],
   ['menu-table-delete-row', 'deleteRow'],

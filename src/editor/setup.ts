@@ -1,5 +1,6 @@
 import {
   type AnyExtension,
+  type CommandProps,
   Editor,
   Extension,
   type Node as NodeExtension,
@@ -60,6 +61,7 @@ import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
+import { isNodeSelected } from './node-selection';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
@@ -437,7 +439,41 @@ function starterKitWithLocalSchemaRules() {
         throw new Error('StarterKit no longer registers a node named "codeBlock" (see #237)');
       }
       return registered.map((extension) => {
-        if (extension.name === 'code') return extension.extend({ excludes: '', priority: 1 });
+        if (extension.name === 'code') {
+          return extension.extend({
+            excludes: '',
+            priority: 1,
+            // ── The refusal on a node selection (#427) ──
+            //
+            // `toggleCode` on a selected image wrote the image markdown as
+            // literal text inside a code span - the picture gone, measured on
+            // `8934c82`. It is reached by the toolbar button and by `Ctrl+E`,
+            // and the chord is TipTap's own binding on this extension, so a
+            // guard around one caller would leave the other one working. This
+            // is the extension both routes run, which is why the refusal is
+            // here rather than in `toolbar.ts`.
+            //
+            // The inherited command is **wrapped rather than restated**: what
+            // a code span does to a text selection goes on being whatever the
+            // shipped extension does, and goes on doing so across a release
+            // that changes it. Returning `false` is the ordinary way a
+            // ProseMirror command declines, so `can()` answers false too and
+            // nothing downstream has to know why.
+            addCommands() {
+              const inherited = this.parent?.() ?? {};
+              return {
+                ...inherited,
+                toggleCode:
+                  () =>
+                  (props: CommandProps): boolean => {
+                    if (isNodeSelected(props.state)) return false;
+                    const original = inherited.toggleCode;
+                    return original ? original()(props) : false;
+                  },
+              };
+            },
+          });
+        }
         if (extension.name === 'listItem') return extension.extend({ content: 'block+' });
         // The fence input rules, widened to every language CommonMark admits
         // (#237). Extended off the kit rather than imported, for the reason
