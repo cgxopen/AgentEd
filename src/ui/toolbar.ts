@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { AllSelection } from '@tiptap/pm/state';
 import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
+import { canInsertFootnote, FOOTNOTE_SHORTCUT, insertFootnote } from '../editor/insert-footnote';
 import { editorRoom, withinRoom } from './editor-room';
 import {
   activeHeadingLevels,
@@ -23,20 +24,25 @@ export interface ToolbarHandlers {
 }
 
 /**
- * An entry that runs a command when it is pressed. Eleven of the twelve.
+ * An entry that runs a command when it is pressed. Twelve of the thirteen.
  *
  * Counted in `shippedButtons` at this head: B, I, U, S, the link, inline code,
  * the fenced block, the heading control, the bullet list, the ordered list,
- * the quote and the image description. Eleven carry an action; the heading
- * control is the other shape below. **Twelve entries and eleven drawn at a
- * time**: the image description is drawn only with an image selected, which is
- * the rule below, so a text selection still meets the eleven this comment
- * counted before #291 — measured on the built page, 338.66 px of bar on a
- * text selection and 372.66 on an image.
+ * the quote, the footnote and the image description. Twelve carry an action;
+ * the heading control is the other shape below.
  *
- * The figure before that one said twelve of thirteen and had been stale for
- * long enough that nobody could say since when, which is why it is counted
- * here rather than carried.
+ * **Thirteen entries, and how many are drawn depends on the selection**, two
+ * of them carrying a rule: the image description is drawn only with an image
+ * selected, and the footnote only where it can act, which is anywhere but
+ * inside a fenced block. So an ordinary text selection draws **twelve**, an
+ * image draws thirteen, and a selection inside a fence draws eleven. Measured
+ * on the built page: 338.66 px of bar for the eleven that carry no rule,
+ * 372.66 with one drawn symbol beside them — the figure for a text selection
+ * since #409 and for an image before it — and 406.66 with both.
+ *
+ * The figure two counts ago said twelve of thirteen and had been stale for
+ * long enough that nobody could say since when, which is why each of these is
+ * counted in the file rather than carried.
  */
 export interface ToolbarButton {
   readonly kind?: 'action';
@@ -54,11 +60,13 @@ export interface ToolbarButton {
    */
   icon?: () => SVGSVGElement;
   /**
-   * The selections this control is offered for, or absent for the ten that
-   * are offered for every one (#291). A control that means something only on
-   * an image is **not drawn at all** on a text selection, rather than drawn
-   * inert: owner decision of 2026-09-17, taken against a bar 34 px wider for
-   * every selection in a session.
+   * The selections this control is offered for, or absent for the eleven that
+   * are offered for every one (#291, #409). A control that means something
+   * only on an image is **not drawn at all** on a text selection, rather than
+   * drawn inert: owner decision of 2026-09-17, taken against a bar 34 px
+   * wider for every selection in a session. The footnote control takes the
+   * same shape for the state it cannot act in, a fenced block, because
+   * nothing on this bar greys.
    */
   appliesTo?: (editor: Editor) => boolean;
 }
@@ -114,9 +122,15 @@ function headingLevelAt(editor: Editor): HeadingChoice['level'] {
  * The symbol on the image description button: a frame with a horizon inside
  * it, in `currentColor` so it takes the palette the bar already carries.
  *
- * Built rather than written as markup: nothing in this application assigns
- * `innerHTML`, and a drawn symbol is no reason to start. The header does the
- * same picture in `index.html`, where it is markup rather than a string.
+ * Built rather than written as markup, and the reason is the bar rather than
+ * the application: nothing here has a string of markup to assign, so nothing
+ * here reaches for `innerHTML`. **The sentence this replaces said no code in
+ * this application assigns it, and that stopped being true at #366**, where
+ * `window-frame.ts` writes the brand mark and each caption glyph that way,
+ * from constant strings of its own. Corrected at #409 rather than left
+ * standing: a comment may not assert a property the code does not have.
+ * `index.html` draws the same picture as markup, where markup is what the
+ * file is.
  */
 function imageSymbol(): SVGSVGElement {
   const NS = 'http://www.w3.org/2000/svg';
@@ -135,6 +149,40 @@ function imageSymbol(): SVGSVGElement {
   const horizon = document.createElementNS(NS, 'path');
   horizon.setAttribute('d', 'M3 11l3.5-3.5 2.5 2.5 2-2L13 11');
   svg.append(frame, horizon);
+  return svg;
+}
+
+/**
+ * The symbol on the footnote button: three lines of text with a mark raised
+ * over the end of the first, which is a footnote reference as a reader meets
+ * one. Drawn rather than written for the same reason as the picture above,
+ * and in `currentColor` so it takes whichever palette the bar is carrying.
+ *
+ * A word would have been the clearest label and is what the tooltip carries:
+ * the bar is where the room is tightest, and #291 made a control whose name
+ * is a word carry a symbol instead. Measured on the built page at `37d4c07`:
+ * a drawn symbol takes the bar from 338.66 to 372.66 px, which is exactly
+ * what the image description already costs when it is drawn, where the label
+ * `[^1]` would take it to 388.48.
+ */
+function footnoteSymbol(): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.5');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const line of ['M2 6h7', 'M2 10h10', 'M2 14h6']) {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', line);
+    svg.appendChild(path);
+  }
+  // The raised mark, over the end of the first line.
+  const marker = document.createElementNS(NS, 'path');
+  marker.setAttribute('d', 'M11.5 4.5L13 3v4');
+  svg.appendChild(marker);
   return svg;
 }
 
@@ -265,7 +313,32 @@ const buttons: ToolbarEntry[] = [
     isActive: (e) => e.isActive('blockquote'),
   },
   {
-    // The twelfth control, and the first the bar offers for one kind of
+    // Making a footnote from the bar (#409). It is the **twelfth drawn**: the
+    // eleven above it are drawn for every selection, and the image
+    // description below is drawn for an image alone.
+    //
+    // **It does not reach an empty caret, and that is what the menu entry is
+    // for.** `positionToolbar` hides the bar whenever the selection is empty,
+    // measured at 0 px wide with the `hidden` class on a bare caret, so the
+    // route with nothing selected is Insert then Footnote, or `Ctrl+Alt+F`.
+    // The same split `insert-blocks.ts` records for a checklist and a rule.
+    //
+    // `isActive` is `false` always: there is no state to light. Nothing on
+    // this bar greys — `updateActiveStates` writes one class and the
+    // stylesheet has no disabled rule for a toolbar button — so a selection
+    // this cannot act in is answered the way #291 answered it, by not
+    // drawing the control at all.
+    label: '',
+    title: `Footnote (${FOOTNOTE_SHORTCUT.chord})`,
+    icon: footnoteSymbol,
+    appliesTo: (e) => canInsertFootnote(e),
+    action: (e) => {
+      insertFootnote(e);
+    },
+    isActive: () => false,
+  },
+  {
+    // The thirteenth control, and the first the bar offered for one kind of
     // selection only (#291). Its name is read in the tooltip, in the menu
     // entry and in the title of the dialog it opens — the three places a
     // person reads words — and the button itself carries the symbol above.
@@ -349,9 +422,10 @@ function bindToolbarEvents(
   btnElements: HTMLButtonElement[],
 ): void {
   /**
-   * Which controls this selection is offered (#291). Ten of the twelve are
-   * offered for every selection and carry no rule; the image description is
-   * drawn only for an image.
+   * Which controls this selection is offered (#291, #409). Eleven of the
+   * thirteen are offered for every selection and carry no rule; the image
+   * description is drawn only for an image, and the footnote everywhere but
+   * inside a fenced block.
    *
    * **It runs before the bar is measured, and that order is the repair of
    * #265 applied to a second cause.** A hidden control changes the width of
@@ -398,7 +472,11 @@ function bindToolbarEvents(
     // Owner decision of 2026-09-16: the bar carried eleven controls and none of
     // them had an evident use applied to a whole document, so it is not shown
     // for one. The twelfth, added by #291, is drawn for an image alone and so
-    // has none there either — a whole-document selection is not a node. Before this it was shown and could not be reached — the
+    // has none there either — a whole-document selection is not a node. The
+    // thirteenth, added by #409, would have one: a footnote reference after
+    // the whole document is a place a reference could go. It is not offered
+    // there either, because the bar itself is not, and the entry in the
+    // Insert menu is the route that reaches every selection. Before this it was shown and could not be reached — the
     // placement put it 40.0 px below the window, measured at both window sizes
     // and at every scroll position.
     //

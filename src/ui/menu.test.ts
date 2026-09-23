@@ -25,12 +25,16 @@ const bothAvailable = () => ({ canUndo: true, canRedo: true });
  * Every entry the reading can grey, enabled. The rows that click an entry need
  * it choosable, and a greyed entry cannot be chosen; **when each is greyed is
  * asserted over a real editor in `editor/table-shape.test.ts` for the seven
- * Table entries and in `editor/image-description.test.ts` for the eighth entry
- * of Edit**. What is asserted here is that the reading reaches the entries at
+ * Table entries, in `editor/image-description.test.ts` for the eighth entry
+ * of Edit and in `editor/footnote-insert.test.ts` for the Footnote entry of
+ * Insert**. What is asserted here is that the reading reaches the entries at
  * all, and the order in which it is read (#292, #291, #307).
  */
 const everyEntryOffered = () => ({
   imageDescription: true,
+  // The ninth entry a reading can grey (#409); when it is greyed is asserted
+  // over a real editor in `editor/footnote-insert.test.ts`.
+  insertFootnote: true,
   addRowAbove: true,
   addRowBelow: true,
   deleteRow: true,
@@ -61,6 +65,7 @@ function callbacks(): MenuCallbacks {
     onInsertMedia: vi.fn(),
     onInsertCodeBlock: vi.fn(),
     onInsertChecklist: vi.fn(),
+    onInsertFootnote: vi.fn(),
     onInsertHorizontalRule: vi.fn(),
     onInsertMetadata: vi.fn(),
     onInsertEmoji: vi.fn(),
@@ -185,6 +190,7 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-insert', 'Media', 'menu-insert-media', 'onInsertMedia'],
   ['menu-panel-insert', 'Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
   ['menu-panel-insert', 'Checklist', 'menu-insert-checklist', 'onInsertChecklist'],
+  ['menu-panel-insert', 'Footnote', 'menu-insert-footnote', 'onInsertFootnote'],
   ['menu-panel-insert', 'Horizontal Rule', 'menu-insert-horizontal-rule', 'onInsertHorizontalRule'],
   ['menu-panel-insert', 'Metadata', 'menu-insert-metadata', 'onInsertMetadata'],
   ['menu-panel-insert', 'Emoji', 'menu-insert-emoji', 'onInsertEmoji'],

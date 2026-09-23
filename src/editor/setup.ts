@@ -21,6 +21,7 @@ import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
 import { replaceDocument } from './document-load';
+import { FootnoteHover } from './footnote-hover';
 import { HistoryStaysWithFocus } from './history-focus';
 import {
   type CanWriteCompanions,
@@ -31,6 +32,7 @@ import {
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { createImageNodeView } from './image-resize';
+import { FootnoteShortcut } from './insert-footnote';
 import { HTML_SOURCE, htmlForSave, KEPT_HTML_SOURCE } from './kept-html-table';
 import { isRelativeLinkAddress } from './link-url';
 import {
@@ -766,6 +768,11 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     OrderedListContinuity,
     CodeBlockLanguage,
     CodeBlockCopy,
+    // A reference shows its note under the pointer, and `Ctrl+Alt+F` makes a
+    // footnote from the document (#409). Both are the editing surface R-C17
+    // names; neither reaches the file.
+    FootnoteHover,
+    FootnoteShortcut,
     // Find & Replace highlights (R-C4). The wrapper in
     // src/editor/search-extension.ts owns the user-facing API; this
     // call only registers the underlying decoration plugin so matches

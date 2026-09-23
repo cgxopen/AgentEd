@@ -25,6 +25,7 @@ import { historyAvailability, historyMenuCallbacks } from './editor/history-rout
 import { imageDescriptionAvailability } from './editor/image-description';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockRoutes } from './editor/insert-code-block';
+import { footnoteAvailability, footnoteMenuCallbacks } from './editor/insert-footnote';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
@@ -330,6 +331,7 @@ setupMenu(
     ...imageDescription,
     ...codeBlock,
     ...insertMenuCallbacks(ctx.editor),
+    ...footnoteMenuCallbacks(ctx.editor),
     ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
     ...emojiMenuCallbacks(editor),
     ...spellcheckMenuCallbacks(ctx.state),
@@ -348,7 +350,11 @@ setupMenu(
   },
   () => historyAvailability(editor),
   // One reading, answered by the module that owns each entry.
-  () => ({ ...tableShapeAvailability(editor), ...imageDescriptionAvailability(editor) }),
+  () => ({
+    ...tableShapeAvailability(editor),
+    ...imageDescriptionAvailability(editor),
+    ...footnoteAvailability(editor),
+  }),
   // No list until the platform has said its paths outlive the session (#381),
   // which it answers once it has loaded; the web build never does.
   () => (keepsRecentFiles ? loadRecentFiles() : null),
