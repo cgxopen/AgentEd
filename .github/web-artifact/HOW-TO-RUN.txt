@@ -9,7 +9,8 @@ Check you are running the build you think you are
 
 The zip is named AgentEd-web-<sha>, where <sha> is seven characters. The
 same seven characters appear on the pull request page, and again inside
-the application under the kebab menu (the three dots) -> About.
+the application under the menu (the three lines at the left of the
+header) -> Help -> About AgentEd.
 
 Three places, one value. If any of them disagree, this is not the build
 under review, and whatever you find will be about something else. Most
