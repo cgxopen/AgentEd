@@ -1,0 +1,29 @@
+name: Idea or suggestion
+description: Something AgentEd could do, or do better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AgentEd deliberately stays small. When two goals conflict, the order is: ease of use first, then speed and lightness, then the AI-era instrumentation.
+        Before you suggest a feature, please read what the project does not aim to be, in section 5 of REQUIREMENTS.md.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you suggest
+      description: How AgentEd could help. A sketch or a screenshot is welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do today instead
+    validations:
+      required: false
