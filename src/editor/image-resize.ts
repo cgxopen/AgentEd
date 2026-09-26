@@ -24,16 +24,32 @@
  *    stylesheet saying something else, and a stylesheet rule pointing at
  *    nothing is not a failure anyone sees.
  *  - **The transaction**, which is where R-C16 lives: one gesture is one undo.
+ *  - **The release**, in `releasedSize`, which is pure as well: what the
+ *    drawn size at the start and at the release decide, with the two sizes
+ *    handed in rather than read.
  *
- * ── Why the start size is not read from layout ──
+ * ── Where a drag starts, and what a release writes (#439) ──
  *
- * `startSizeOf` asks the node first and the loaded image second. That is the
- * right order regardless of any test: a node carrying `width="600"` is 600
- * wide because the document says so, and asking the browser what it painted
- * would hand back whatever `max-width: 100%` had done to it in a narrow
- * window — so a drag begun in a narrow window would jump. It is also what
- * makes a drag drivable in a harness with no layout at all, which is a
- * consequence rather than the reason.
+ * `startSizeOf` asks the node first and the loaded image second, **unless the
+ * picture is drawn narrower than that**, and then it starts from what was
+ * drawn. Measured in Chromium on #439: a 1920 px screenshot drawn at 720 by
+ * `max-width: 100%` started its drag at 1920, so a corner had to travel 1201
+ * px inwards before the picture moved at all - further than the window. The
+ * cost, accepted by the owner on 2026-09-26: in a window narrower than the
+ * column, a drag writes the width seen there rather than the one the document
+ * held, because that is the width the person chose by looking.
+ *
+ * `releasedSize` then keeps a release to what the screen showed. When the
+ * drawn size did not change, nothing is written - the 1920 picture used to
+ * gain a width, a modified mark and an undo step from a drag nobody saw
+ * move. And the width written is never wider than the width drawn at the
+ * release: an outward drag past the column used to write 900 for a picture
+ * shown at 720.
+ *
+ * Where layout reports nothing - a drawn width of 0, which is what `happy-dom`
+ * answers - both fall back to the node and the natural size, so a harness
+ * with no layout still drives a drag, and a release is never dropped merely
+ * because there was no layout to read.
  */
 import { closeHistory } from '@tiptap/pm/history';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
@@ -107,6 +123,13 @@ export interface DragGeometry {
  * A locked drag is driven by whichever axis the pointer moved further along,
  * so dragging a corner sideways and dragging it downwards both work; driving
  * from the width alone would make a purely vertical drag do nothing at all.
+ * **Further is measured against the picture diagonal, not against 45
+ * degrees** (#439). On the picture diagonal the two axes give the same width,
+ * so a pointer crossing it changes axis without changing the answer. Against
+ * 45 degrees they disagree by the ratio: a pointer moving at about 45 degrees
+ * over a 3:1 picture reversed direction 316 times per corner over 42 paths
+ * and jumped by up to 59 px, which is the stutter #439 reported. At a ratio
+ * of 1 the two lines are the same line.
  *
  * The minimum applies to **both** dimensions even when only the width is
  * written: for a wide image, a width at the minimum would put the height below
@@ -135,7 +158,7 @@ export function resizedSize(drag: DragGeometry): DraggedSize {
   }
 
   const driven =
-    Math.abs(growX) >= Math.abs(growY)
+    Math.abs(growX) * drag.startHeight >= Math.abs(growY) * drag.startWidth
       ? drag.startWidth + growX
       : (drag.startHeight + growY) * ratio;
 
@@ -144,15 +167,35 @@ export function resizedSize(drag: DragGeometry): DraggedSize {
 }
 
 /**
+ * The size a picture is drawn at, in CSS pixels, or `0` by `0` where nothing
+ * is laid out - which is what `happy-dom` answers, and what an element not yet
+ * in the document answers too.
+ */
+export interface DrawnSize {
+  readonly width: number;
+  readonly height: number;
+}
+
+function drawnSizeOf(img: HTMLImageElement): DrawnSize {
+  const box = img.getBoundingClientRect();
+  return { width: box.width, height: box.height };
+}
+
+/**
  * The size a drag starts from: what the document says, then what the browser
- * loaded, then nothing.
+ * loaded, then nothing - **and the drawn width instead, when the picture is
+ * drawn narrower than that** (#439, 1a). A picture capped by `max-width: 100%`
+ * then moves from the first pixel of the drag rather than after the whole
+ * distance between its own width and the cap.
  *
  * A height of `0` is *not known* rather than *zero high*, and `resizedSize`
  * reads it that way — an image whose file has not loaded yet can still be
  * widened, it just cannot keep a ratio nobody knows.
  */
 export function startSizeOf(node: ProseMirrorNode, img: HTMLImageElement): DragGeometry {
-  const width = typeof node.attrs.width === 'number' ? node.attrs.width : img.naturalWidth;
+  const own = typeof node.attrs.width === 'number' ? node.attrs.width : img.naturalWidth;
+  const drawn = Math.round(drawnSizeOf(img).width);
+  const width = drawn > 0 && drawn < own ? drawn : own;
   const height =
     typeof node.attrs.height === 'number'
       ? node.attrs.height
@@ -160,6 +203,38 @@ export function startSizeOf(node: ProseMirrorNode, img: HTMLImageElement): DragG
         ? Math.round((width * img.naturalHeight) / img.naturalWidth)
         : img.naturalHeight;
   return { startWidth: width, startHeight: height, corner: 'se', dx: 0, dy: 0, freeRatio: false };
+}
+
+/**
+ * What a release writes, given the size the drag reached and the size drawn
+ * at the start and at the release (#439, 1b). `null` means write nothing.
+ *
+ * - **Nothing changed on screen, nothing is written**: no width, no modified
+ *   mark, no undo step. Compared in whole pixels, width and height both, so a
+ *   freed drag that changed only the height still writes.
+ * - **Never wider than what was drawn**: the arithmetic has no upper bound and
+ *   the column does, so the width reached is capped by the width drawn at the
+ *   release. A freed height is left as reached: `styles.css` gives an image
+ *   `max-width` and no `max-height`, so the height the preview set is the
+ *   height drawn.
+ *
+ * A drawn width of 0 at either end is *no layout*, not *zero wide*, and the
+ * size reached is written as it is.
+ */
+export function releasedSize(
+  reached: DraggedSize,
+  drawnAtStart: DrawnSize,
+  drawnAtRelease: DrawnSize,
+): DraggedSize | null {
+  if (drawnAtStart.width <= 0 || drawnAtRelease.width <= 0) return reached;
+  const drawnWidth = Math.round(drawnAtRelease.width);
+  if (
+    drawnWidth === Math.round(drawnAtStart.width) &&
+    Math.round(drawnAtRelease.height) === Math.round(drawnAtStart.height)
+  ) {
+    return null;
+  }
+  return { width: Math.min(reached.width, drawnWidth), height: reached.height };
 }
 
 /**
@@ -213,12 +288,17 @@ export function fallbackWidthFor(picture: {
   readonly nodeWidth: number | null;
   readonly isSvg: boolean;
   readonly naturalWidth: number;
-  readonly drawnWidth: number;
+  /**
+   * Asked last and only when the three above let the picture through, so an
+   * ordinary picture never pays for a layout read. Measured on #439 before it
+   * was made lazy: two reads per image as a document loads, 40 for 20 images.
+   */
+  readonly drawnWidth: () => number;
 }): number | null {
   if (picture.nodeWidth !== null) return null;
   if (!picture.isSvg) return null;
   if (picture.naturalWidth < 1) return null;
-  if (picture.drawnWidth >= 1) return null;
+  if (picture.drawnWidth() >= 1) return null;
   return picture.naturalWidth;
 }
 
@@ -302,9 +382,9 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
   const img = document.createElement('img');
   // The bytes are not decoded and the element is not in the layout when the
   // first paint runs, so the rescue below is asked again once both are true
-  // (#252). One listener, never removed, because the element and the node
-  // view die together.
-  img.addEventListener('load', () => rescueZeroWidth());
+  // (#252). Removed in `destroy` with the handle listeners.
+  const onLoad = (): void => rescueZeroWidth();
+  img.addEventListener('load', onLoad);
   dom.appendChild(img);
 
   const handles = CORNERS.map((corner) => {
@@ -320,8 +400,13 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
   });
 
   /** The gesture in progress, or `null` between gestures. */
-  let drag: (DragGeometry & { readonly pointerId: number; readonly handle: HTMLElement }) | null =
-    null;
+  let drag:
+    | (DragGeometry & {
+        readonly pointerId: number;
+        readonly handle: HTMLElement;
+        readonly drawnAtStart: DrawnSize;
+      })
+    | null = null;
 
   function paint(): void {
     img.setAttribute('src', String(node.attrs.src ?? ''));
@@ -355,7 +440,7 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
       nodeWidth: typeof node.attrs.width === 'number' ? node.attrs.width : null,
       isSvg: isSvgDisplayUrl(String(node.attrs.src ?? '')),
       naturalWidth: img.naturalWidth,
-      drawnWidth: img.getBoundingClientRect().width,
+      drawnWidth: () => drawnSizeOf(img).width,
     });
     if (width !== null) img.style.width = `${width}px`;
   }
@@ -399,6 +484,7 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
       freeRatio: event.shiftKey,
       pointerId: event.pointerId,
       handle,
+      drawnAtStart: drawnSizeOf(img),
     };
     // Guarded rather than assumed: pointer capture keeps a drag that leaves the
     // handle attached to it, and a runtime without it still resizes — the
@@ -432,7 +518,7 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
   function onPointerUp(event: PointerEvent): void {
     if (drag === null || event.pointerId !== drag.pointerId) return;
     event.preventDefault();
-    const size = resizedSize(geometryAt(event));
+    const size = releasedSize(resizedSize(geometryAt(event)), drag.drawnAtStart, drawnSizeOf(img));
     const handle = drag.handle;
     if (
       typeof handle.releasePointerCapture === 'function' &&
@@ -443,9 +529,10 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
     drag = null;
 
     const pos = positionOf();
-    if (pos === null) {
-      // The node has left the document under the gesture. Put the picture back
-      // to what the node last said rather than leaving the preview on screen.
+    if (pos === null || size === null) {
+      // The node has left the document under the gesture, or the gesture
+      // changed nothing on screen. Either way the picture goes back to what
+      // the node last said rather than keeping the preview.
       paint();
       return;
     }
@@ -499,6 +586,7 @@ export function createImageNodeView(props: NodeViewProps): NodeView {
     },
 
     destroy() {
+      img.removeEventListener('load', onLoad);
       for (const handle of handles) {
         handle.removeEventListener('pointerdown', onPointerDown);
         handle.removeEventListener('pointermove', onPointerMove);

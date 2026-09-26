@@ -1900,12 +1900,14 @@ button.indicator-search:hover {
   caret-color: transparent;
 }
 
-/* Images */
+/*
+ * Images. The space above and below a picture is on the wrapper the resize
+ * node view builds, not on the picture: see `.tiptap .image-resize` (#439).
+ */
 .tiptap img {
   max-width: 100%;
   height: auto;
   border-radius: 4px;
-  margin: 0.5em 0;
 }
 
 /*
@@ -1952,11 +1954,20 @@ button.indicator-search:hover {
  * `line-height: 0` keeps the wrapper the height of the picture. Without it the
  * line box adds descender space below the image, the wrapper is taller than
  * what it holds, and the two bottom handles float below the corner they name.
+ *
+ * The margin is here rather than on the picture for the same reason (#439).
+ * On the picture it sat inside the wrapper, which was then 16 px taller than
+ * what it held: measured in Chromium at scale 1 and 1.5, every handle stood
+ * 8 px off its corner, a press on the corner itself missed the handle, and
+ * the selection outline stood 8 px off the picture. Moved out, the handles and
+ * the outline sit on the picture. It costs 8 px less space under every image,
+ * accepted by the owner on 2026-09-26.
  */
 .tiptap .image-resize {
   position: relative;
   display: inline-block;
   line-height: 0;
+  margin: 0.5em 0;
 }
 
 /*
