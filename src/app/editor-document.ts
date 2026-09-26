@@ -58,5 +58,7 @@ export async function applyLoadedDocument(
   ctx.statusbar.refresh();
   ctx.frontmatterPanel.refresh();
   ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
-  ctx.state.setModified(false);
+  // What was just read is what is on disk: the snapshot the modified rule
+  // compares against from here on (#441).
+  ctx.state.markSaved(ctx.state.frontmatter);
 }

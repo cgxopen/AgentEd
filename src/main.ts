@@ -78,8 +78,10 @@ let docActions!: DocumentActions;
 const editorEl = document.getElementById('editor')!;
 const { editor, getMarkdown, setMarkdown } = createEditor(
   editorEl,
+  // Every change to the document asks the rule rather than setting the mark
+  // (#441), so an undo back to the saved state clears it.
   () => {
-    ctx.state.setModified(true);
+    ctx.state.refreshModified();
   },
   {
     getFilePath: () => ctx.state.filePath,
@@ -105,6 +107,11 @@ const { editor, getMarkdown, setMarkdown } = createEditor(
 ctx.editor = editor;
 ctx.getMarkdown = getMarkdown;
 ctx.setMarkdown = setMarkdown;
+// The one reader of the editor document for the modified rule (#441), set
+// before any document is loaded; the empty document the editor starts with
+// is the first snapshot, as a New would take it.
+state.readEditorDocument = () => editor.state.doc;
+state.markSaved(state.frontmatter);
 
 // Phase 4 — UI panels that attach to the editor. The link dialog itself is
 // built in Phase 8 (it needs no more than the editor, but it lives with the
