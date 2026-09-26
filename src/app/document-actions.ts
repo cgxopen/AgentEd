@@ -112,7 +112,10 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.frontmatterPanel.refresh();
     ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(ctx.state));
     clearImages();
-    ctx.state.setModified(false);
+    // The empty document is the snapshot a never-saved document compares
+    // against (#441): typing and undoing back to empty is unmodified, as New
+    // itself is, and a seed applied after this differs from it.
+    ctx.state.markSaved(ctx.state.frontmatter);
   }
 
   /**
@@ -249,6 +252,10 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     if (target !== null && (await resolveExternalChange(io, target)) === 'stop') return false;
 
     const document = buildDocument(ctx.state, ctx.getMarkdown);
+    // Read in the same synchronous step as the serialization above, so it is
+    // the document this save writes (#441). The write below is awaited, and a
+    // keystroke landing during it must not count as saved.
+    const serialized = ctx.state.readEditorDocument?.() ?? null;
 
     let result: Awaited<ReturnType<typeof saveDocument>>;
     try {
@@ -264,7 +271,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       // **None of the document reached the disk**, which is what
       // separates this from the assets branch below: there, part of it
       // did. Everything after this `catch` is skipped, so `isFirstSave`,
-      // the R-C14 baseline and `setModified(false)` all keep the values
+      // the R-C14 baseline and the snapshot (#441) all keep the values
       // they had — and the document stays **modified**, which is the
       // accurate statement and is the point of returning here rather
       // than a consequence of it (#171). That is what keeps the
@@ -302,21 +309,24 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     // AgentEd accusing itself of its own write.
     ctx.state.knownDiskText = result.writtenText;
 
-    if (result.assetsError) {
-      // The .md is on disk; its images are not. The save stands — we
-      // never un-write a document — but the document stays **modified**,
-      // because that is the accurate statement: not all of it reached
-      // the disk. A clipboard image exists only in the in-memory
-      // registry, so clearing the flag here would leave nothing between
-      // the user and closing the app on top of it. Keeping it on puts
-      // the existing unsaved-changes gate back in front of that loss
-      // (R-C3/Q4) and gives the retry the modal promises somewhere to
-      // land: Ctrl+S tries again, and discarding stays a knowing act.
-      ctx.state.setModified(true);
-      await reportAssetsFailure(result.assetsError);
-    } else {
-      ctx.state.setModified(false);
-    }
+    // The snapshot is the document serialized above, not the editor now
+    // (#441): anything typed while the write was in flight differs from it
+    // and keeps the mark on.
+    //
+    // When the images failed: the .md is on disk; its images are not. The
+    // save stands — we never un-write a document — but the document stays
+    // **modified**, because that is the accurate statement: not all of it
+    // reached the disk. A clipboard image exists only in the in-memory
+    // registry, so clearing the flag here would leave nothing between the
+    // user and closing the app on top of it. `imagesPending` keeps it on,
+    // through any undo, until a save writes them (R-C3/Q4), and gives the
+    // retry the modal promises somewhere to land: Ctrl+S tries again, and
+    // discarding stays a knowing act.
+    ctx.state.markSaved(document.frontmatterRaw, {
+      doc: serialized,
+      imagesPending: result.assetsError !== null,
+    });
+    if (result.assetsError) await reportAssetsFailure(result.assetsError);
 
     if (ctx.state.filePath) {
       const folder = dirname(ctx.state.filePath);
@@ -405,9 +415,10 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     // it is modified; Blank Document holds nothing, and marking it would raise
     // the unsaved-changes gate over an empty document nobody typed in - which
     // File then New, reaching the same reset one line above, does not do.
-    // Measured before it held: the two routes agreed on the document, the path,
-    // the metadata and the panel, and differed on this flag alone.
-    ctx.state.setModified(template.body.trim() !== '');
+    // Since #441 that is the rule rather than a test of the seed: the reset
+    // took the empty document as the snapshot, and a seed with content
+    // differs from it.
+    ctx.state.refreshModified();
   }
 
   async function handleClose(): Promise<void> {

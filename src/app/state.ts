@@ -1,4 +1,6 @@
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { DEFAULT_LINE_CONVENTIONS, type LineConventions } from '../formats/line-conventions';
+import { differsFromSaved, type SavedState } from './saved-state';
 
 /**
  * Central mutable state for the app. All handlers read/write through a
@@ -162,6 +164,21 @@ export class AppState {
 
   private _modified = false;
   private modifiedListeners: Array<(modified: boolean) => void> = [];
+
+  /**
+   * What the document was when it last matched the disk, or was created
+   * empty (#441). Compared by `refreshModified`; see `saved-state.ts` for
+   * the rule and the figures behind it.
+   */
+  private saved: SavedState | null = null;
+
+  /**
+   * Reads the editor document. Set once by `main.ts`, as soon as the editor
+   * exists and before any document is loaded, so every snapshot and every
+   * comparison reads the same editor. `null` in an `AppState` built without
+   * an editor, where `differsFromSaved` says what that costs.
+   */
+  readEditorDocument: (() => ProseMirrorNode) | null = null;
   /**
    * Session-only spellcheck flag. Defaults to `false` (R-C9) because
    * technical documents are full of identifiers and code blocks that
@@ -202,6 +219,43 @@ export class AppState {
 
   onModifiedChange(cb: (modified: boolean) => void): void {
     this.modifiedListeners.push(cb);
+  }
+
+  /**
+   * Record what is now on disk, or the empty document just created, and
+   * recompute the mark (#441).
+   *
+   * **A save passes the document it serialized, not the one in the editor
+   * when the write completes** (owner decision of 2026-09-26). The write is
+   * asynchronous; a keystroke landing in between is in the editor and not
+   * in the file, so it must differ from the snapshot. Measured on `main`
+   * before this: the mark was cleared at completion and a close then
+   * discarded that keystroke without asking. A load and a reset pass
+   * nothing, and the editor document is read here.
+   */
+  markSaved(
+    frontmatter: string | null,
+    options: { readonly doc?: ProseMirrorNode | null; readonly imagesPending?: boolean } = {},
+  ): void {
+    this.saved = {
+      doc: options.doc !== undefined ? options.doc : (this.readEditorDocument?.() ?? null),
+      frontmatter,
+      imagesPending: options.imagesPending ?? false,
+    };
+    this.refreshModified();
+  }
+
+  /**
+   * Set the mark from the rule rather than from the event that asked (#441):
+   * every route that used to set it unconditionally calls this instead.
+   */
+  refreshModified(): void {
+    this.setModified(
+      differsFromSaved(
+        { doc: this.readEditorDocument?.() ?? null, frontmatter: this.frontmatter },
+        this.saved,
+      ),
+    );
   }
 
   get spellcheckEnabled(): boolean {

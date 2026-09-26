@@ -89,7 +89,10 @@ export function insertMetadata(state: AppState, panel: FrontmatterPanel): void {
   if (state.frontmatter === null) {
     state.frontmatter = metadataBlockFor(state.filePath);
     panel.refresh();
-    state.setModified(true);
+    // Asked rather than set (#441). A block added is always a difference,
+    // and deleting it again by hand clears the mark, since this is outside
+    // undo.
+    state.refreshModified();
   }
   panel.reveal();
 }

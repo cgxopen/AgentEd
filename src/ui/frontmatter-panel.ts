@@ -38,7 +38,8 @@ export function setupFrontmatterPanel(state: AppState): FrontmatterPanel {
   textarea.addEventListener('input', () => {
     const value = textarea.value;
     state.frontmatter = value.trim() === '' ? null : value;
-    state.setModified(true);
+    // Asked rather than set (#441): a field changed back by hand is saved.
+    state.refreshModified();
   });
 
   function refresh(): void {
