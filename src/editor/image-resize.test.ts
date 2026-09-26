@@ -35,7 +35,9 @@ import {
   MIN_IMAGE_SIZE_PX,
   RESIZE_HANDLE_CLASS,
   RESIZE_WRAPPER_CLASS,
+  releasedSize,
   resizedSize,
+  startSizeOf,
 } from './image-resize';
 import { createEditor, type EditorInstance } from './setup';
 
@@ -192,6 +194,147 @@ describe('the size a drag reaches', () => {
     const odd = resizedSize({ ...SQUARE, startWidth: 401, startHeight: 300, dx: 0, dy: 7 });
     expect(Number.isInteger(odd.width)).toBe(true);
   });
+
+  it('a pointer crossing 45 degrees over a 2:1 picture never reverses the drag (#439)', () => {
+    // The stutter #439 reported. The pointer climbs a staircase along 45
+    // degrees, one pixel at a time, which is how a hand moving diagonally
+    // arrives. Climbing down first, it crosses 45 degrees on every other
+    // step: against 45 degrees the driving axis flipped each time and the two
+    // axes disagree by the ratio, so the width went up by two and back by
+    // one, over and over. Against the picture diagonal they agree where they
+    // switch. Both orders are walked, so the path crosses in both directions.
+    for (const corner of CORNERS) {
+      const sx = corner.endsWith('e') ? 1 : -1;
+      const sy = corner.startsWith('s') ? 1 : -1;
+      for (const downFirst of [true, false]) {
+        let previous = resizedSize({ ...SQUARE, corner }).width;
+        for (let step = 1; step <= 200; step += 1) {
+          const across = downFirst ? Math.floor(step / 2) : Math.ceil(step / 2);
+          const down = downFirst ? Math.ceil(step / 2) : Math.floor(step / 2);
+          const width = resizedSize({ ...SQUARE, corner, dx: sx * across, dy: sy * down }).width;
+          const where = `${corner}, ${downFirst ? 'down' : 'across'} first, step ${step}`;
+          expect(width, where).toBeGreaterThanOrEqual(previous);
+          expect(width - previous, where).toBeLessThanOrEqual(2);
+          previous = width;
+        }
+      }
+    }
+  });
+
+  it('on the picture diagonal both axes give the same width, so the switch is invisible', () => {
+    // 400 by 200: 100 across and 50 down is on the diagonal, and either axis
+    // reaches 500 from there.
+    expect(resizedSize({ ...SQUARE, dx: 100, dy: 50 }).width).toBe(500);
+    expect(resizedSize({ ...SQUARE, dx: 100, dy: 51 }).width).toBe(502);
+    expect(resizedSize({ ...SQUARE, dx: 101, dy: 50 }).width).toBe(501);
+  });
+});
+
+/** An image element whose layout answers are the ones given, and nothing else stubbed. */
+function laidOut(natural: number, naturalHeight: number, drawn: () => number): HTMLImageElement {
+  const img = document.createElement('img');
+  Object.defineProperty(img, 'naturalWidth', { value: natural, configurable: true });
+  Object.defineProperty(img, 'naturalHeight', { value: naturalHeight, configurable: true });
+  img.getBoundingClientRect = () => {
+    const width = drawn();
+    return { width, height: (width * naturalHeight) / natural } as DOMRect;
+  };
+  return img;
+}
+
+describe('where a drag starts (#439, 1a)', () => {
+  const unsized = { attrs: { width: null, height: null } } as unknown as Parameters<
+    typeof startSizeOf
+  >[0];
+
+  it('a picture drawn narrower than its own width starts from what was drawn', () => {
+    // The 1920 px screenshot of #439, drawn at 720 by the column. Started
+    // from 1920, a corner had to travel 1201 px before anything moved.
+    const start = startSizeOf(
+      unsized,
+      laidOut(1920, 1080, () => 720),
+    );
+    expect(start.startWidth).toBe(720);
+    expect(start.startHeight).toBe(405);
+  });
+
+  it('a picture narrower than the editor still starts from its own width', () => {
+    const start = startSizeOf(
+      unsized,
+      laidOut(300, 200, () => 300),
+    );
+    expect(start.startWidth).toBe(300);
+    expect(start.startHeight).toBe(200);
+  });
+
+  it('a width the document gave is the start when nothing narrower is drawn', () => {
+    const sized = { attrs: { width: 600, height: null } } as unknown as typeof unsized;
+    expect(
+      startSizeOf(
+        sized,
+        laidOut(1920, 1080, () => 600),
+      ).startWidth,
+    ).toBe(600);
+    expect(
+      startSizeOf(
+        sized,
+        laidOut(1920, 1080, () => 520),
+      ).startWidth,
+    ).toBe(520);
+  });
+
+  it('no layout is not a width of zero, and the start falls back to the node', () => {
+    expect(
+      startSizeOf(
+        unsized,
+        laidOut(1920, 1080, () => 0),
+      ).startWidth,
+    ).toBe(1920);
+  });
+});
+
+describe('what a release writes (#439, 1b)', () => {
+  const drawn = (width: number, height: number) => ({ width, height });
+
+  it('a release that changed nothing on screen writes nothing', () => {
+    expect(
+      releasedSize({ width: 1720, height: null }, drawn(720, 405), drawn(720, 405)),
+    ).toBeNull();
+  });
+
+  it('the width written is never wider than the width drawn at the release', () => {
+    // The mirror of reading 1, measured on #439: a 300 px picture pulled 600
+    // px outwards reached 900 and was drawn at 720.
+    expect(releasedSize({ width: 900, height: null }, drawn(300, 200), drawn(720, 480))).toEqual({
+      width: 720,
+      height: null,
+    });
+  });
+
+  it('a release inside the column writes the size reached', () => {
+    expect(releasedSize({ width: 250, height: null }, drawn(300, 200), drawn(250, 167))).toEqual({
+      width: 250,
+      height: null,
+    });
+  });
+
+  it('a freed drag that changed only the height still writes', () => {
+    expect(releasedSize({ width: 300, height: 260 }, drawn(300, 200), drawn(300, 260))).toEqual({
+      width: 300,
+      height: 260,
+    });
+  });
+
+  it('no layout at either end writes the size reached, as before #439', () => {
+    expect(releasedSize({ width: 500, height: null }, drawn(0, 0), drawn(0, 0))).toEqual({
+      width: 500,
+      height: null,
+    });
+    expect(releasedSize({ width: 500, height: null }, drawn(300, 200), drawn(0, 0))).toEqual({
+      width: 500,
+      height: null,
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -287,6 +430,35 @@ describe('the stylesheet reaches the handles the editor renders', () => {
     const outlined = Array.from(dom.querySelectorAll(selector));
     expect(outlined).toHaveLength(1);
     expect(outlined[0].classList.contains(RESIZE_WRAPPER_CLASS)).toBe(true);
+  });
+
+  it('the space around a picture is on the wrapper, not on the picture (#439)', () => {
+    // The layout half is measured in Chromium, because happy-dom lays nothing
+    // out: with the margin on the picture every handle stood 8 px off its
+    // corner. What is asserted here is the other half, joined: which element
+    // the rules declaring a margin actually reach, run against the elements
+    // the editor rendered.
+    const { dom } = withSelectedImage('![x](a.png)');
+    const wrapper = dom.querySelector(`.${RESIZE_WRAPPER_CLASS}`) as HTMLElement;
+    const picture = wrapper.querySelector('img') as HTMLImageElement;
+
+    const marginRules = Array.from(
+      STYLES.matchAll(/\n(\.tiptap [^{}@]*?)\{[^}]*?\bmargin(?:-top|-bottom)?:[^}]*\}/g),
+    ).map((match) => match[1].trim());
+    expect(marginRules.length).toBeGreaterThan(0);
+
+    const reaching = (element: Element) =>
+      marginRules.filter((selector) => {
+        try {
+          return Array.from(dom.querySelectorAll(selector)).includes(element);
+        } catch {
+          return false;
+        }
+      });
+    expect(reaching(picture)).toEqual([]);
+    expect(reaching(wrapper)).toEqual([
+      selectorOfRuleDeclaring(RESIZE_WRAPPER_CLASS, /margin:\s*0\.5em 0/, 'spacing an image'),
+    ]);
   });
 
   it('the outline rule is general, which is the line owed since #212', () => {
@@ -442,6 +614,67 @@ describe('one gesture is one entry in the undo stack (R-C16)', () => {
   });
 });
 
+/**
+ * Give the picture the editor rendered the layout `happy-dom` cannot produce:
+ * a natural size, and a drawn width that is what a browser would draw - the
+ * preview width the node view wrote, or the natural width, capped by the
+ * column as `max-width: 100%` caps it. Only those answers are stubbed; the
+ * handlers, the arithmetic and the transaction are the real ones.
+ */
+function withLayout(dom: HTMLElement, natural: [number, number], column: number): void {
+  const img = dom.querySelector(`.${RESIZE_WRAPPER_CLASS} img`) as HTMLImageElement;
+  Object.defineProperty(img, 'naturalWidth', { value: natural[0], configurable: true });
+  Object.defineProperty(img, 'naturalHeight', { value: natural[1], configurable: true });
+  img.getBoundingClientRect = () => {
+    const wanted = Number.parseFloat(img.style.width) || natural[0];
+    const width = Math.min(wanted, column);
+    return { width, height: (width * natural[1]) / natural[0] } as DOMRect;
+  };
+}
+
+describe('a drag measured against what was drawn (#439)', () => {
+  it('a picture capped by the column moves from its drawn width', () => {
+    // 1a through the node view: 200 px in from 720 drawn is 520. Started from
+    // 1920, the same drag reached 1720, was still drawn at 720, and moved
+    // nothing on screen.
+    const { editor, dom, handles } = withSelectedImage('![x](a.png)');
+    withLayout(dom, [1920, 1080], 720);
+    drag(handleFor(handles, 'se'), [0, 0], [-200, 0], { steps: 10 });
+    expect(editor.editor.state.doc.nodeAt(imagePosition(editor))?.attrs.width).toBe(520);
+  });
+
+  it('a drag that showed no change writes nothing to the document and no undo step', () => {
+    // Asserted on the document and the undo depth, not on the screen. A pull
+    // outwards on a picture already at the column reaches a wider size and
+    // is still drawn at 720, so nothing on screen changes.
+    const markdown = '![x](a.png)';
+    const { editor, dom, handles } = withSelectedImage(markdown);
+    withLayout(dom, [1920, 1080], 720);
+    const before = undoDepth(editor.editor.state);
+    drag(handleFor(handles, 'se'), [0, 0], [100, 0], { steps: 10 });
+
+    expect(undoDepth(editor.editor.state) - before).toBe(0);
+    expect(editor.editor.state.doc.nodeAt(imagePosition(editor))?.attrs.width).toBeNull();
+    expect(editor.getMarkdown().trim()).toBe(markdown);
+  });
+
+  it('an outward drag past the column writes the width drawn, not the width reached', () => {
+    // Measured on #439: 300 px pulled 600 px outwards reached 900 and was
+    // drawn at 720.
+    const { editor, dom, handles } = withSelectedImage('![x](a.png)');
+    withLayout(dom, [300, 200], 720);
+    drag(handleFor(handles, 'se'), [0, 0], [600, 0], { steps: 10 });
+    expect(editor.editor.state.doc.nodeAt(imagePosition(editor))?.attrs.width).toBe(720);
+  });
+
+  it('a picture narrower than the column still resizes from its own width', () => {
+    const { editor, dom, handles } = withSelectedImage('![x](a.png)');
+    withLayout(dom, [300, 200], 720);
+    drag(handleFor(handles, 'se'), [0, 0], [-100, 0], { steps: 10 });
+    expect(editor.editor.state.doc.nodeAt(imagePosition(editor))?.attrs.width).toBe(200);
+  });
+});
+
 describe('what a gesture writes into the document', () => {
   it('a resized markdown image becomes inline html with a width in pixels', () => {
     const { editor, handles } = withSelectedImage('![x](a.png)');
@@ -593,23 +826,46 @@ describe('a way back to the natural size (decision 4 on #27)', () => {
 describe('a picture that drew at nothing is given the width the runtime reports (#252)', () => {
   it('an unsized svg that drew at zero is rescued with its natural width', () => {
     expect(
-      fallbackWidthFor({ nodeWidth: null, isSvg: true, naturalWidth: 300, drawnWidth: 0 }),
+      fallbackWidthFor({ nodeWidth: null, isSvg: true, naturalWidth: 300, drawnWidth: () => 0 }),
     ).toBe(300);
   });
 
   it.each([
     [
       'the document already gave it a width',
-      { nodeWidth: 219, isSvg: true, naturalWidth: 300, drawnWidth: 0 },
+      { nodeWidth: 219, isSvg: true, naturalWidth: 300, drawnWidth: () => 0 },
     ],
-    ['it is not an svg', { nodeWidth: null, isSvg: false, naturalWidth: 300, drawnWidth: 0 }],
-    ['it has not loaded yet', { nodeWidth: null, isSvg: true, naturalWidth: 0, drawnWidth: 0 }],
+    ['it is not an svg', { nodeWidth: null, isSvg: false, naturalWidth: 300, drawnWidth: () => 0 }],
+    [
+      'it has not loaded yet',
+      { nodeWidth: null, isSvg: true, naturalWidth: 0, drawnWidth: () => 0 },
+    ],
     [
       'it drew at a size of its own',
-      { nodeWidth: null, isSvg: true, naturalWidth: 300, drawnWidth: 240 },
+      { nodeWidth: null, isSvg: true, naturalWidth: 300, drawnWidth: () => 240 },
     ],
   ])('nothing is written when %s', (_label, picture) => {
     expect(fallbackWidthFor(picture)).toBeNull();
+  });
+
+  it.each([
+    ['the document gave it a width', { nodeWidth: 219, isSvg: true, naturalWidth: 300 }],
+    ['it is not an svg', { nodeWidth: null, isSvg: false, naturalWidth: 300 }],
+    ['it has not loaded yet', { nodeWidth: null, isSvg: true, naturalWidth: 0 }],
+  ])('the layout is not read when %s (#439)', (_label, picture) => {
+    // The debt #439 paid: every image used to pay for a layout read on every
+    // paint, two per image as a document loads, although only an unsized svg
+    // can ever need the answer.
+    let reads = 0;
+    const answer = fallbackWidthFor({
+      ...picture,
+      drawnWidth: () => {
+        reads += 1;
+        return 0;
+      },
+    });
+    expect(answer).toBeNull();
+    expect(reads).toBe(0);
   });
 
   it('a natural width of zero is not-loaded rather than zero wide', () => {
@@ -617,7 +873,7 @@ describe('a picture that drew at nothing is given the width the runtime reports 
     // size would write `width: 0px` onto a picture still being decoded and
     // pin it shut.
     expect(
-      fallbackWidthFor({ nodeWidth: null, isSvg: true, naturalWidth: 0, drawnWidth: 0 }),
+      fallbackWidthFor({ nodeWidth: null, isSvg: true, naturalWidth: 0, drawnWidth: () => 0 }),
     ).toBeNull();
   });
 
@@ -692,6 +948,28 @@ describe('a picture that drew at nothing is given the width the runtime reports 
     editor.editor.commands.updateAttributes('image', { alt: 'changed' });
 
     expect(img.style.width).toBe('300px');
+    clearImages();
+  });
+
+  it('the load listener goes with the node view (#439)', () => {
+    // The one listener `destroy` did not remove. Once the view is gone a late
+    // `load` must not reach the rescue and write onto an element nobody owns.
+    clearImages();
+    registerImage('blob:late-load', {
+      relativePath: 'assets/logo.svg',
+      data: new Uint8Array([1]),
+      filename: 'logo.svg',
+    });
+    const editor = editorWith('![x](blob:late-load)');
+    const img = (editor.editor.view.dom as HTMLElement).querySelector('img') as HTMLImageElement;
+    Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
+    img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
+
+    editor.destroy();
+    instance = null;
+    img.dispatchEvent(new Event('load'));
+
+    expect(img.style.width).toBe('');
     clearImages();
   });
 
