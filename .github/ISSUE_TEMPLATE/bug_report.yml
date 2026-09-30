@@ -1,0 +1,73 @@
+name: Bug report
+description: Something in AgentEd does not work the way it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report this.
+        Please look at **Known limitations** at the end of the README first: some behaviour is documented on purpose.
+  - type: input
+    id: build
+    attributes:
+      label: Version and build
+      description: In AgentEd, open the menu (the three lines at the left of the header), then Help, then About AgentEd, and copy what it shows.
+      placeholder: 0.2.0, build 1a2b3c4
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where you run AgentEd
+      options:
+        - Windows
+        - Linux
+        - Web build in a browser
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System version
+      description: For example Windows 11 24H2, or the browser and its version.
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: What you did, one step per line, starting from opening AgentEd.
+      placeholder: |
+        1. Open a file that holds a table
+        2. Type a word in the second column
+        3. Save
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: If there was a message, copy its text.
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: A file that shows it
+      description: If a file changed when it should not have, attach a small file that shows the problem, or paste its content in a code block. Remove anything private first.
+    validations:
+      required: false
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Before you send
+      options:
+        - label: I searched the existing issues and this is not already reported.
+          required: true
