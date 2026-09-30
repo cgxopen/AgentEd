@@ -2,6 +2,10 @@
 
 > The history half of the project record, split out of STATUS.md on 2026-09-06 in #222. **Newest first.** STATUS.md holds the current state — phase, agenda, decision debt; this file holds what happened and why. Written by AMP, and read by the round-trip guard as test input like every other document here.
 
+- **2026-09-24 to 2026-09-26 — three merges, two issues filed and closed, and a pre-release.** #437 landed as `e05eb7e`, #440 as `6df86bd`, #442 as `bccf9d4`; `v0.2.0-preview.1` was published on `e05eb7e`.
+  **A question written beside a decision found a loss on `main`.** Deciding #441, AMP added that a save must snapshot what it wrote and asked for the race to be measured on the code as it was. It reproduced: a word typed during a save was discarded by a close without a question.
+  **What the screen shows and what the file gets are two halves.** On #439 a drag wrote widths nobody saw; the owner confirmed the screen stopped at the column, and only the measurement showed the file taking 900 for 720 drawn.
+  **Asking for a measurement is not recording it.** The first tag was to answer four questions, and none was written down; the next pre-release carries them again.
 - **2026-09-22 and 2026-09-23 — seven merges, six issues filed and nine closed, and the list down to #20 and #19.** #418 landed as `297874c` and `37d4c07`, #426 as `c11165d`, #409 as `8934c82`, #427 as `6b5c2e4`, #424 and #431 as `e4ef13e`, #434 as `e7850e5`; #411 closed with its report and #432 outside the repository.
   **A count without its list becomes a fact.** The four security readings before the gate stood two weeks in a gate box with no list behind them; the owner decision of 2026-09-07 named one. Enumerated on #20 on 2026-09-23.
   **A premise in a brief is a reading too.** The #426 brief said the census case ran at 482 ms and read a tenfold jump into it; CI had run 3.8 to 4.7 s all along. The decision rule written into the brief stopped both a blind timeout and a hunt for a regression.
