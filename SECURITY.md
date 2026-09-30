@@ -11,7 +11,7 @@ Only the latest release receives security fixes.
 Please do **not** open a public issue for security problems.
 
 - Preferred: GitHub **private vulnerability reporting** — *Security* tab → *Report a vulnerability*.
-- Alternative: email `vasile.g.catalin@gmail.com` with subject `[AgentEd security]`.
+- Alternative: email `contact@cgxconsulting.com` with subject `[AgentEd security]`.
 
 You can expect an initial response within 7 days.
 
