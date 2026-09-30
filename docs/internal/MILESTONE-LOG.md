@@ -2,6 +2,10 @@
 
 > The history half of the project record, split out of STATUS.md on 2026-09-06 in #222. **Newest first.** STATUS.md holds the current state — phase, agenda, decision debt; this file holds what happened and why. Written by AMP, and read by the round-trip guard as test input like every other document here.
 
+- **2026-09-30 — one merge, a second pre-release, and the gate reviewed with the owner.** PR #438 landed as `6f44968`; `v0.2.0-preview.2` was published on `bccf9d4`, and preview.1 deleted as a release.
+  **Three AMP readings were overturned by measurement in one day, and none cost more than a sentence.** The red on `75ca288` was memory, not the census timeout; SmartScreen did appear on an installer pasted into Sandbox; and the nightly was built on `bccf9d4`, not on another commit. Each had been written as a reading.
+  **A measurement written down the day it is taken survives.** Preview 2 answered the four questions preview 1 was cut to answer, because each answer went into the working file the hour it came.
+  **A wrong sentence on an issue is corrected by a new comment, not an edit.** The organization was written as set to the person; the owner showed the Corporate terms, and the correction went on #20 as its own comment.
 - **2026-09-24 to 2026-09-26 — three merges, two issues filed and closed, and a pre-release.** #437 landed as `e05eb7e`, #440 as `6df86bd`, #442 as `bccf9d4`; `v0.2.0-preview.1` was published on `e05eb7e`.
   **A question written beside a decision found a loss on `main`.** Deciding #441, AMP added that a save must snapshot what it wrote and asked for the race to be measured on the code as it was. It reproduced: a word typed during a save was discarded by a close without a question.
   **What the screen shows and what the file gets are two halves.** On #439 a drag wrote widths nobody saw; the owner confirmed the screen stopped at the column, and only the measurement showed the file taking 900 for 720 drawn.
