@@ -39,7 +39,7 @@ export const TEMPLATES: readonly Template[] = [
     displayName: 'Blank Document',
     icon: '\u{1F4C4}',
     description:
-      'A plain markdown file for notes, READMEs, knowledge. Can hold resizable images — paste, drop, or Insert → Media.',
+      'A plain markdown file for notes, READMEs, knowledge. Can hold resizable images — paste, drop, or Insert → Image.',
     body: blankBody,
   },
   {

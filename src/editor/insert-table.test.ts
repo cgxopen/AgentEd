@@ -52,6 +52,7 @@ function spies(): MenuCallbacks {
     onSelectAll: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
+    onInsertLink: vi.fn(),
     onInsertCodeBlock: vi.fn(),
     onInsertChecklist: vi.fn(),
     onInsertFootnote: vi.fn(),

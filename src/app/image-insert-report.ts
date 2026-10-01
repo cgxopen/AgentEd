@@ -137,7 +137,7 @@ function refusalMessage(refusal: ImageInsertRefusal): string {
  *
  * The editor layer reports how the insert ended and nothing else; this
  * turns that into words, or into a deliberate silence. Three entry
- * points — paste, drop and Insert Media — share it, so a refusal is
+ * points — paste, drop and Insert, Image — share it, so a refusal is
  * worded once however the image arrived.
  *
  * The success half is unchanged from #48: the destination cue, once per

@@ -33,7 +33,7 @@ import { AppState } from './state';
 let filesOnDisk: string[] = [];
 /** Every filesystem call the flow made, in order. */
 let calls: string[] = [];
-/** What the native picker answers to Insert Media, if it is used (#145). */
+/** What the native picker answers to Insert, Image, if it is used (#145). */
 let pickedFile: PickedFile | null = null;
 
 const io: PlatformIO = {
@@ -350,7 +350,7 @@ describe('#61 — the drop and paste plugins', () => {
 });
 
 describe('#61 — the third entry point', () => {
-  /** Insert Media, wired as `main.ts` wires it. */
+  /** Insert, Image, wired as `main.ts` wires it. */
   async function pickAndInsert(): Promise<void> {
     await insertMedia({
       state,
@@ -361,7 +361,7 @@ describe('#61 — the third entry point', () => {
     });
   }
 
-  it('reports an Insert Media through the same channel as paste and drop', async () => {
+  it('reports an Insert, Image through the same channel as paste and drop', async () => {
     pickedFile = { ref: '/pictures/diagram.png', name: 'diagram.png' };
 
     await pickAndInsert();
@@ -370,7 +370,7 @@ describe('#61 — the third entry point', () => {
     expect(toastTexts()).toEqual([DESTINATION_CUE]);
   });
 
-  it('reports a declined folder from Insert Media as the same cancellation', async () => {
+  it('reports a declined folder from Insert, Image as the same cancellation', async () => {
     pickedFile = { ref: '/pictures/diagram.png', name: 'diagram.png' };
     vi.mocked(showConfirmDialog).mockResolvedValue('cancel');
 

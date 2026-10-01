@@ -33,7 +33,7 @@ function makeImage(name = 'image.png'): File {
   } as unknown as File;
 }
 
-/** Insert one image the way paste, drop and Insert Media all do. */
+/** Insert one image the way paste, drop and Insert, Image all do. */
 async function insertImage(
   requestSaveAs: () => Promise<string | null>,
   confirmAssetsDir: () => Promise<string | null>,
