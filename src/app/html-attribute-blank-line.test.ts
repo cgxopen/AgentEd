@@ -89,6 +89,18 @@ const REFUSED: ReadonlyArray<readonly [string, string, number]> = [
   ],
   ['inside a list item', '- a\n- <p title="one\n\n  two">x</p>\n- c\n\nAfter.\n', 2],
   ['inside a blockquote', '> <p title="one\n>\n> two">x</p>\n\nAfter.\n', 1],
+  ['the control of the #457 review', '<div title="a\n\nb">x</div>\n\nafter\n', 1],
+];
+
+/**
+ * The words a tag swallows as attribute names (#457 review): `marked` keeps
+ * `<div`, a blank line and `some text` in one block, and the parser reads the
+ * words as attributes of the `div`. Measured in this pipeline: saved as
+ * `after` alone, the words gone.
+ */
+const REFUSED_TAG: ReadonlyArray<readonly [string, string, number]> = [
+  ['words inside a tag after a blank line', '<div\n\nsome text\n\nafter\n', 1],
+  ['the same below a paragraph', 'Before.\n\n<div\n\nsome text\n\nafter\n', 3],
 ];
 
 /** The same class with a comment rather than an attribute (#455). */
@@ -119,10 +131,19 @@ const OPENS: ReadonlyArray<readonly [string, string]> = [
   ['an apostrophe in html text', "<p>it's fine</p>\n\nAfter.\n"],
   ['a quote in html text', '<div>say "hi</div>\n\nAfter.\n'],
   ['the same attribute value with no blank line (#453)', 'Before.\n\n<p title="one\ntwo">x</p>\n'],
+  // The three false refusals of the #457 review, each measured to open whole
+  // in Chromium: a quote inside an unquoted value, a quote inside an unquoted
+  // value after other characters, and quotes in the text of a script.
+  ['an apostrophe in an unquoted value', "<p title=don't>hello</p>\n\nafter\n"],
+  ['a quote inside an unquoted value', '<p class=a"b>hello</p>\n\nafter\n'],
+  [
+    'quotes in the text of a script (R-C2)',
+    '<script>\nif (a<b) s = "x";\n// don\'t\n</script>\n\nafter\n',
+  ],
 ];
 
 describe('a raw HTML block that would cut the document is refused at open (#455)', () => {
-  it.each([...REFUSED, ...REFUSED_COMMENTS])('%s', async (_label, file, line) => {
+  it.each([...REFUSED, ...REFUSED_TAG, ...REFUSED_COMMENTS])('%s', async (_label, file, line) => {
     const refused = await refusalOf(file);
     expect(refused).toBeInstanceOf(Error);
     const message = openFailedMessage(PATH, refused);
