@@ -1,8 +1,9 @@
 import { isTauri } from '../platform/detect';
 
 /**
- * Listen for the Rust backend's `file-open` event, emitted when AgentEd
- * was launched (or re-launched via single-instance) with a file path.
+ * Listen for the Rust backend's `file-open` event, emitted once, at cold
+ * start, when AgentEd was launched with a file path. There is no
+ * single-instance hand-off: every launch is its own window (R-C8).
  * No-op in the web build — File System Access API doesn't surface CLI
  * args or OS file associations.
  */

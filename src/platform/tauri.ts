@@ -127,7 +127,8 @@ export class TauriIO implements PlatformIO {
         mayClose = await guard.confirmClose();
       } catch (e) {
         // A failing gate must not trap the user in the app, but it must not
-        // discard their work either: keep the window open and surface it.
+        // discard their work either: keep the window open. The failure is
+        // logged to the console only, which a release build does not show.
         console.error('[close-guard] gate failed, keeping the window open:', e);
         return;
       }

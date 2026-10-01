@@ -57,8 +57,9 @@ function plural(count: number, unit: string): string {
 }
 
 export function setupStatusbar(editor: Editor): Statusbar {
-  // Non-null: these live in index.html and are asserted by header-markup.test.ts.
-  // A missing one must fail loudly rather than silently drop a count (#33).
+  // Non-null: these live in index.html, and header-button-family.test.ts reads
+  // all four out of it. A missing one throws at the first refresh, below, rather
+  // than silently dropping a count (#33).
   const tokenNumberEl = document.getElementById('token-number')!;
   const tokenUnitEl = document.getElementById('token-unit')!;
   const wordCountEl = document.getElementById('word-count')!;
