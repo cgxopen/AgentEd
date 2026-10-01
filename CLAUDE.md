@@ -38,7 +38,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 
 ## Coding standards (NASA-derived, compact)
 
-- Small, single-purpose functions; modules ≤ ~300 lines as a guideline.
+- Small, single-purpose functions; modules ≤ ~300 lines as a guideline, counted in lines of code: comment and blank lines do not count, since these rules ask for both short modules and comments that explain.
 - No unbounded recursion or loops over user input; every scan has an explicit bound (keep existing bounds visible in the code).
 - Handle every error path explicitly; no silent catch. User-visible failures get a dialog or statusbar note — never data loss.
 - TypeScript strict; `biome` clean; `rustfmt` + `clippy -D warnings` clean.
