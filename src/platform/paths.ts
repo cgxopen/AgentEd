@@ -160,3 +160,20 @@ export function pathKey(path: string): string {
   const slashed = normalize(path);
   return /^[A-Za-z]:\//.test(slashed) || slashed.startsWith('//') ? slashed.toLowerCase() : slashed;
 }
+
+/**
+ * The spelling the operating system shell is handed for a path this layer
+ * holds (#448).
+ *
+ * Every path here has forward slashes. The Windows file APIs read a share
+ * spelled that way, which is why a document on one draws its images, but the
+ * shell does not: measured on Windows on 2026-10-01, `//localhost/C$/...`
+ * answered *Windows cannot find* for a file that was there. So a path in
+ * either Windows shape, a drive or a share, gets its backslashes back. A drive
+ * path was read with forward slashes in the same pass and is converted anyway,
+ * so that the shell always gets the spelling it documents. Any other path, and
+ * a web address, is handed as it is. Decided by the shape, as `pathKey` is.
+ */
+export function shellPath(path: string): string {
+  return /^[A-Za-z]:\//.test(path) || /^\/\/[^/]/.test(path) ? path.replace(/\//g, '\\') : path;
+}

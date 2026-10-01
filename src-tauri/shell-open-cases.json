@@ -50,7 +50,9 @@
     "/home/cata/My Notes/assets/diagram.png",
     "C:/Users/vasil/Documents/New folder/assets/diagram.png",
     "C:/Users/vasil/OneDrive - Personal/notes/assets/diagram.png",
-    "//server/share/notes/assets/diagram.png"
+    "//server/share/notes/assets/diagram.png",
+    "\\\\localhost\\C$\\Users\\vasil\\Documents\\New folder\\assets\\x-dots-1.png",
+    "C:\\Users\\vasil\\Documents\\New folder\\assets\\x.png"
   ],
   "refused": [
     "C:\\Users\\vasil\\Documents\\notes\\other.md",
