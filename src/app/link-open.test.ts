@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import scopeCases from '../../src-tauri/shell-open-cases.json?raw';
 import { WebIO } from '../platform/web';
+import { showToast } from '../ui/toast';
 import { installLinkOpener } from './link-open';
+
+vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
+
+/**
+ * The links of the shell scope cases (#448): what a Ctrl+click on each
+ * spelling must hand to the shell. `src-tauri/src/shell_scope.rs` asserts the
+ * scope admits every `handed` string, so the two tests together say the
+ * spelling opens.
+ */
+const LINKS: ReadonlyArray<{ spelling: string; handed: string }> = JSON.parse(scopeCases).links;
 
 let root: HTMLElement;
 let openExternal: Mock<(url: string) => Promise<void>>;
@@ -95,6 +107,22 @@ describe('Ctrl/Cmd+click follows a link', () => {
  * The gesture has to be taken in the capture phase — by the time the click
  * fires, the selection has already been made.
  */
+/**
+ * F1 of the #20 readings (#448): `link-url.ts` reads an address through the
+ * URL parser, which folds the scheme and repairs the slashes, while the shell
+ * scope matches the raw string. Handing the shell the raw spelling opened
+ * nothing for seven of these.
+ */
+describe('the shell is handed the address the URL parser read', () => {
+  it.each(LINKS.map((link) => [JSON.stringify(link.spelling), link]))('%s', (_label, {
+    spelling,
+    handed,
+  }) => {
+    click(anchor(spelling), { ctrlKey: true });
+    expect(openExternal).toHaveBeenCalledWith(handed);
+  });
+});
+
 describe('the modifier click never reaches the editor', () => {
   it('stops the mousedown before ProseMirror can select the node', () => {
     const { event, reachedEditor } = mouseDown(anchor('https://example.com'), { ctrlKey: true });
@@ -174,6 +202,20 @@ describe('a link click never navigates the editing surface', () => {
 
     expect(openExternal).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe('an open that fails says so (#448)', () => {
+  it('shows a message rather than nothing', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(window, 'open').mockReturnValue(null);
+    openExternal.mockRejectedValue(new Error('failed regex validation'));
+
+    click(anchor('https://example.com/a'), { ctrlKey: true });
+
+    await vi.waitFor(() => expect(showToast).toHaveBeenCalled());
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('example.com'), 'error');
   });
 });
 

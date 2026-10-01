@@ -7,6 +7,8 @@ use tauri::{Emitter, Manager};
 mod browser_args;
 #[cfg(windows)]
 mod main_window;
+#[cfg(test)]
+mod shell_scope;
 
 /// Extract a file path from CLI arguments (skip the executable name)
 fn extract_file_arg(args: &[String]) -> Option<String> {

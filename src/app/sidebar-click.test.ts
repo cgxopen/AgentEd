@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PlatformIO } from '../platform/types';
+import { showToast } from '../ui/toast';
 import type { DocumentActions } from './document-actions';
 import { createSidebarClickHandler } from './sidebar-click';
+
+vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
 
 function makeDocActions(): DocumentActions {
   return {
@@ -99,5 +102,22 @@ describe('createSidebarClickHandler', () => {
     await flush();
     expect(io.openWithSystem).not.toHaveBeenCalled();
     expect(docActions.openFilePath).not.toHaveBeenCalled();
+  });
+
+  // F5 of the #20 readings (#448): the rejection landed in a catch that wrote
+  // to the console only, and the toast sat after the await, so a click on a
+  // file the shell refused did nothing and said nothing.
+  it('says so when the system cannot open the file', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const docActions = makeDocActions();
+    const io = makeIO();
+    vi.mocked(io.openWithSystem).mockRejectedValue(new Error('failed regex validation'));
+    const handle = createSidebarClickHandler(docActions, async () => io);
+    handle(
+      'C:/Users/vasil/Documents/New folder/assets/diagram.png',
+      'C:/Users/vasil/Documents/New folder',
+    );
+    await flush();
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('diagram.png'), 'error');
   });
 });
