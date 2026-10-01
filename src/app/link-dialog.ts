@@ -113,6 +113,12 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
   input.addEventListener('input', clearError);
 
   function open(): void {
+    // Every door reaches here - the toolbar button, Ctrl+K and Insert, Link -
+    // so this is where a place that cannot take a link is refused (#20), the
+    // way #427 refused at the command rather than at the bar. The entry greys
+    // and the bar leaves its button out; Ctrl+K has nothing to show, so it
+    // does nothing.
+    if (!canMakeLink(editor.state.selection)) return;
     clearError();
     const existing = editor.getAttributes('link').href as string | undefined;
     input.value = existing ?? '';
@@ -148,8 +154,10 @@ export const INSERT_LINK_KEY = 'insertLink';
  *     place to decide otherwise.
  *
  * Read by the Insert menu when it opens, the rule of #292: an entry with
- * nothing to do is greyed rather than silent. The toolbar button and Ctrl+K
- * are unchanged.
+ * nothing to do is greyed rather than silent. Since #20 it is also what the
+ * dialog asks before it opens, so Ctrl+K does nothing in those places where
+ * it used to put the address into the fenced block as code text, and what the
+ * toolbar asks before it draws the link button.
  */
 export function canMakeLink(selection: Selection): boolean {
   if (selection instanceof NodeSelection && !selection.node.isInline) return false;

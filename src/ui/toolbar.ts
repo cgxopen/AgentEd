@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import { AllSelection } from '@tiptap/pm/state';
+import { canMakeLink } from '../app/link-dialog';
 import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
 import { canInsertFootnote, FOOTNOTE_SHORTCUT, insertFootnote } from '../editor/insert-footnote';
@@ -32,18 +33,23 @@ export interface ToolbarHandlers {
  * the quote, the footnote and the image description. Twelve carry an action;
  * the heading control is the other shape below.
  *
- * **Thirteen entries, and how many are drawn depends on the selection**, two
+ * **Thirteen entries, and how many are drawn depends on the selection**, five
  * of them carrying a rule: the image description is drawn only with an image
- * selected, and the footnote only where it can act, which is anywhere but
- * inside a fenced block. So an ordinary text selection draws **twelve**, an
- * image draws thirteen, and a selection inside a fence draws eleven. Measured
- * on the built page: 338.66 px of bar for the eleven that carry no rule,
- * 372.66 with one drawn symbol beside them — the figure for a text selection
- * since #409 and for an image before it — and 406.66 with both.
+ * selected; inline code and the fenced block are not drawn for a selected node
+ * (#427); the footnote is not drawn inside a fenced block (#409); and the link
+ * is not drawn inside a fenced block or on a selected rule (#20). So an
+ * ordinary text selection draws **twelve**, an image eleven, a selection
+ * inside a fence ten and a selected rule nine. Measured in Chromium over this
+ * module and the shipped stylesheet, at `7a3d3e6` and after the link took a
+ * symbol: 380.84 px of bar on a text selection (372.66 with the
+ * emoji), 337.55 on an image (329.36), 312.84 in a fence (338.66, when the
+ * link was drawn there) and 269.55 on a rule (295.36). The symbol is 8.19 px
+ * wider than the emoji was.
  *
- * The figure two counts ago said twelve of thirteen and had been stale for
- * long enough that nobody could say since when, which is why each of these is
- * counted in the file rather than carried.
+ * The figures here had gone stale twice, the second time when #427 took two
+ * controls off a node selection and this paragraph went on saying an image
+ * draws thirteen, which is why each of these is counted in the file rather
+ * than carried.
  */
 export interface ToolbarButton {
   readonly kind?: 'action';
@@ -61,8 +67,8 @@ export interface ToolbarButton {
    */
   icon?: () => SVGSVGElement;
   /**
-   * The selections this control is offered for, or absent for the eleven that
-   * are offered for every one (#291, #409). A control that means something
+   * The selections this control is offered for, or absent for the eight that
+   * are offered for every one (#291, #409, #427, #20). A control that means something
    * only on an image is **not drawn at all** on a text selection, rather than
    * drawn inert: owner decision of 2026-09-17, taken against a bar 34 px
    * wider for every selection in a session. The footnote control takes the
@@ -187,6 +193,36 @@ function footnoteSymbol(): SVGSVGElement {
   return svg;
 }
 
+/**
+ * The symbol on the link button: two links of a chain, each open where it
+ * meets the other, the picture a reader knows for a link. Drawn rather than
+ * written for the reason the two above give, and in `currentColor` so it takes
+ * the palette and the active state the way the letter buttons do (#20). Until
+ * then the button carried the emoji U+1F517 from #40, which the Windows emoji
+ * font paints in its own pale colours, so the button read as disabled beside
+ * the letters. The second link is the first turned half a turn about the
+ * centre, so the picture sits square in the button.
+ */
+function linkSymbol(): SVGSVGElement {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.5');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const link of [
+    'M7 9a3 3 0 0 0 4.24 0l2.5-2.5a3 3 0 0 0-4.24-4.24L8.5 3.26',
+    'M9 7a3 3 0 0 0-4.24 0l-2.5 2.5a3 3 0 0 0 4.24 4.24l1-1',
+  ]) {
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', link);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
 const buttons: ToolbarEntry[] = [
   {
     label: 'B',
@@ -222,12 +258,17 @@ const buttons: ToolbarEntry[] = [
   },
   {
     // Links are made here or with Ctrl+K — the editor never invents one (#37).
-    label: '\u{1F517}',
+    label: '',
     title: 'Link (Ctrl+K)',
+    icon: linkSymbol,
     action: (_e, handlers) => {
       handlers.onLink();
     },
     isActive: (e) => e.isActive('link'),
+    // Not drawn inside a fenced block or on a selected rule, where the dialog
+    // makes no link and now does not open (#20): the reading the Insert entry
+    // greys on since #450, so the three doors cannot disagree.
+    appliesTo: (e) => canMakeLink(e.state.selection),
   },
   {
     // The two code buttons sit together and are told apart by both halves of
@@ -322,9 +363,8 @@ const buttons: ToolbarEntry[] = [
     isActive: (e) => e.isActive('blockquote'),
   },
   {
-    // Making a footnote from the bar (#409). It is the **twelfth drawn**: the
-    // eleven above it are drawn for every selection, and the image
-    // description below is drawn for an image alone.
+    // Making a footnote from the bar (#409). It is the twelfth entry, and the
+    // image description below is drawn for an image alone.
     //
     // **It does not reach an empty caret, and that is what the menu entry is
     // for.** `positionToolbar` hides the bar whenever the selection is empty,
@@ -431,15 +471,14 @@ function bindToolbarEvents(
   btnElements: HTMLButtonElement[],
 ): void {
   /**
-   * Which controls this selection is offered (#291, #409). Eleven of the
-   * thirteen are offered for every selection and carry no rule; the image
-   * description is drawn only for an image, and the footnote everywhere but
-   * inside a fenced block.
+   * Which controls this selection is offered (#291, #409, #427, #20). Eight of
+   * the thirteen are offered for every selection and carry no rule; the other
+   * five carry the rules the `ToolbarButton` docblock lists.
    *
    * **It runs before the bar is measured, and that order is the repair of
    * #265 applied to a second cause.** A hidden control changes the width of
-   * the bar — 338.66 px on a text selection against 372.66 on an image,
-   * measured on the built page — and `positionToolbar` centres the bar on
+   * the bar — 380.84 px on a text selection against 337.55 on an image,
+   * measured in Chromium — and `positionToolbar` centres the bar on
    * what is selected from a rectangle it takes once. Toggling after that
    * measurement would centre every image selection against the width of the
    * bar it no longer has.

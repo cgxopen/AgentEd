@@ -444,10 +444,10 @@ describe('the bar is not offered for a whole-document selection (#336)', () => {
 /**
  * **What these rows can and cannot see.** Whether a control is drawn is an
  * attribute, and an attribute is observable. What the bar then *looks like* is
- * not: happy-dom lays nothing out, so the widths — 338.66 px on a text
- * selection against 372.66 px on an image — and the height of 32.00 px that
- * keeps `toolbarTop` where it was are browser measurements, recorded in the
- * pull request and judged by the manual pass.
+ * not: happy-dom lays nothing out, so the widths — 380.84 px on a text
+ * selection against 337.55 px on an image since #20 — and the height of
+ * 32.00 px that keeps `toolbarTop` where it was are browser measurements,
+ * recorded in the pull request and judged by the manual pass.
  *
  * **`shippedButtons` still describes the whole bar**, which is what the owner
  * decision asked to be said plainly. It lists twelve entries and the bar
