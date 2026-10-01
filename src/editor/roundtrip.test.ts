@@ -72,8 +72,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import claudeMd from '../../CLAUDE.md?raw';
 import contributingMd from '../../CONTRIBUTING.md?raw';
 import adrMd from '../../docs/ADR/ADR-001-reset-and-simplification.md?raw';
-import milestoneLogMd from '../../docs/internal/MILESTONE-LOG.md?raw';
-import statusMd from '../../docs/internal/STATUS.md?raw';
 import workflowMd from '../../docs/internal/WORKFLOW.md?raw';
 import readmeMd from '../../README.md?raw';
 import requirementsMd from '../../REQUIREMENTS.md?raw';
@@ -1589,8 +1587,6 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
   ['REQUIREMENTS.md', requirementsMd],
   ['SECURITY.md', securityMd],
   ['docs/ADR/ADR-001-reset-and-simplification.md', adrMd],
-  ['docs/internal/MILESTONE-LOG.md', milestoneLogMd],
-  ['docs/internal/STATUS.md', statusMd],
   ['docs/internal/WORKFLOW.md', workflowMd],
   ['src/templates/blank-frontmatter.md', blankFrontmatterMd],
   // The three seeds left the gallery at #403 and their shapes stayed, so this
@@ -1605,11 +1601,10 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /**
- * The largest document this guard will diff. `docs/internal/MILESTONE-LOG.md`
- * is the longest at ~280 lines and it grows every merge; the alignment below is
- * quadratic in the line count, so the bound is stated rather than left to grow
- * into a slow test nobody can explain. Exceeding it **fails** — the guard never
- * skips a document quietly.
+ * The largest document this guard will diff. The alignment below is quadratic
+ * in the line count, so the bound is stated rather than left to grow into a
+ * slow test nobody can explain. Exceeding it **fails** — the guard never skips
+ * a document quietly.
  */
 const MAX_LINES = 4000;
 
@@ -1877,11 +1872,9 @@ function destinations(markdown: string): string[] {
  * 459 KB at 1457 ms, 919 KB at 2797 ms - 3.52, 3.24 and 3.11 ms per KB, if
  * anything cheaper as it grows. So headroom can be read off the slowest run
  * seen: 6663 ms for 229860 bytes is 29.7 ms per KB, and 30 s covers about
- * 1010 KB. STATUS.md has grown about 6100 bytes a day since it was last cut on
- * 2026-09-06, which leaves roughly **130 days** of room - and the file leaves
- * this repository at the gate before that (#20 section D), which is why this is
- * a timeout rather than a smaller document. Making it smaller stays an AMP debt
- * in STATUS section 4.
+ * 1010 KB. The STATUS.md measured here grew about 6100 bytes a day; it left
+ * this repository on 2026-10-01 with the milestone log (#20 section D), and the
+ * largest document under the guard is now `REQUIREMENTS.md`, at about 129 KB.
  *
  * ── Why all four cases rather than the one that failed ──
  *
@@ -1893,7 +1886,7 @@ function destinations(markdown: string): string[] {
  * passed 1000 ms on CI, the rest belong to `cell-blocks.test.ts`, which carries
  * its own 60 s budget, or are whole-file totals rather than single cases.
  *
- * **What the number costs when it is wrong.** 13 documents times 4 cases is 52
+ * **What the number costs when it is wrong.** 11 documents times 4 cases is 44
  * cases holding this budget, so a case that hangs rather than merely runs slow
  * now takes 30 s to say so instead of 5. That is the trade, and it is accepted
  * because nothing here loops: every one of these is one document through one
@@ -1906,8 +1899,8 @@ function destinations(markdown: string): string[] {
  * result and a row asserting it would assert nothing. It was verified by
  * construction instead, and the same move re-verifies it: put
  * `await new Promise((r) => setTimeout(r, 6000));` at the top of one of the
- * four cases below. With this budget the 13 documents pass; with it taken off
- * that one case, all 13 fail with `Test timed out in 5000ms`. The probe is not
+ * four cases below. With this budget the 11 documents pass; with it taken off
+ * that one case, all 11 fail with `Test timed out in 5000ms`. The probe is not
  * shipped - it exists only for the minute it takes to run.
  */
 const DOCUMENT_CASE_TIMEOUT = { timeout: 30_000 };
@@ -2098,7 +2091,7 @@ describe('the repository, opened and saved unedited (R-C2)', () => {
   it('census — the whole table, computed by the cases above', () => {
     // Opens no document and saves none: every row was already computed by the
     // case for that document, so this costs the string work and nothing else.
-    // It exists because thirteen separate lines scattered through the reporter
+    // It exists because eleven separate lines scattered through the reporter
     // output are not the one table the census is for.
     console.info(`R-C2 census\n  ${[...census.values()].join('\n  ')}`);
 
@@ -2150,8 +2143,8 @@ describe('a loose list written back tight is claimed by nothing (#28)', () => {
   });
 
   it('does not claim it under an item that wraps onto continuation lines', () => {
-    // The shape `docs/internal/STATUS.md` actually held, and the one that
-    // occasioned the normaliser in the first place.
+    // The shape the project status file held while it was guarded here, and
+    // the one that occasioned the normaliser in the first place.
     expect(
       isClaimed(
         region(['- one', '  more about one', '', '- two'], ['- one more about one', '- two']),

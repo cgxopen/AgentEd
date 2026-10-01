@@ -374,7 +374,7 @@ describe('the documents the round-trip guard reads can start the job that runs i
     const documents = documentsUnderGuard();
     expect(documents.length).toBeGreaterThanOrEqual(8);
     expect(documents).toContain('REQUIREMENTS.md');
-    expect(documents).toContain('docs/internal/STATUS.md');
+    expect(documents).toContain('docs/internal/WORKFLOW.md');
     expect(filterPaths('code').length).toBeGreaterThanOrEqual(8);
     expect(filterPaths('guarded_docs').length).toBeGreaterThanOrEqual(5);
   });

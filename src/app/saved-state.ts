@@ -11,8 +11,8 @@
  * ── Why the editor document, and not the text ──
  *
  * Measured on #441 in Chromium 153 on a Ryzen 9 3900: assembling the text
- * and comparing it with the disk text cost 43.8 ms per keystroke on
- * `STATUS.md` (227 KB) and 492.7 ms at 1.8 MB, where `countDocument`, the
+ * and comparing it with the disk text cost 43.8 ms per keystroke on a 227 KB
+ * document and 492.7 ms at 1.8 MB, where `countDocument`, the
  * #215 yardstick, cost 2.2 and 23.6. Comparing two editor documents with
  * `Node.eq` cost 0.40 and 2.20 ms. Comparing undo depths instead was
  * rejected on a figure: after save, undo and a different edit of the same

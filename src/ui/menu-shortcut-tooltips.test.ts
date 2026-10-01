@@ -32,7 +32,7 @@ import { type MenuCallbacks, setupMenu } from './menu';
  *
  * ── Written by hand, except for the last row, and why that is (#409) ──
  *
- * STATUS carried this list as a debt: a chord added to a menu command reddens
+ * The project records carried this list as a debt: a chord added to a menu command reddens
  * nothing until someone adds it here, and Ctrl+Alt+F was that chord. It is
  * added — and the row **reads the chord out of the module that binds it**,
  * `FOOTNOTE_SHORTCUT`, which the extension keymap and the toolbar tooltip are
