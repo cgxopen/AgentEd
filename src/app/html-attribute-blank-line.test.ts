@@ -136,6 +136,12 @@ const OPENS: ReadonlyArray<readonly [string, string]> = [
   // value after other characters, and quotes in the text of a script.
   ['an apostrophe in an unquoted value', "<p title=don't>hello</p>\n\nafter\n"],
   ['a quote inside an unquoted value', '<p class=a"b>hello</p>\n\nafter\n'],
+  // Text that would open a value, were the script read as markup: only the
+  // raw-text rule keeps this one open.
+  [
+    'a tag spelled in the text of a script (R-C2)',
+    "<script>\nconst t = '<p title=\"';\n</script>\n\nafter\n",
+  ],
   [
     'quotes in the text of a script (R-C2)',
     '<script>\nif (a<b) s = "x";\n// don\'t\n</script>\n\nafter\n',

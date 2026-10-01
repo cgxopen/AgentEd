@@ -1,4 +1,5 @@
 import type { Token } from 'marked';
+import { htmlBlockEnd } from './html-block-end';
 import { lexMarkdown } from './parse';
 
 /**
@@ -10,7 +11,10 @@ import { lexMarkdown } from './parse';
  * everything after it as part of that value or that comment, up to the next
  * raw quote, the next `-->` or the end of the document, and what it read is
  * gone from the document the editor opens. Measured on #453 and #455: 96 bytes
- * of file opened as 17, and a save wrote the 17 over the file.
+ * of file opened as 17, and a save wrote the 17 over the file. **A third face
+ * of the same blank line** (#457 review): words standing inside a tag after a
+ * blank line, which `marked` keeps in the block, are read as attribute names
+ * and are gone too. `html-block-end.ts` reads where the tokenizer stands.
  *
  * **The question is asked of the tokens, not of an HTML parser.** The parser
  * of the test harness and the one that ships disagree exactly here - happy-dom
@@ -45,44 +49,6 @@ const LINE_OPENS_WITH_TAG =
 
 export function mayHoldOpenCut(markdown: string): boolean {
   return LINE_OPENS_WITH_TAG.test(markdown);
-}
-
-type TokenizerState = 'data' | 'tag' | 'quote' | 'comment';
-
-/**
- * Where the HTML tokenizer stands when `raw` ends. One pass over the block's
- * own text, which bounds it.
- */
-function endState(raw: string): TokenizerState {
-  let state: TokenizerState = 'data';
-  let quote = '';
-  let i = 0;
-  while (i < raw.length) {
-    const c = raw[i];
-    if (state === 'data') {
-      if (raw.startsWith('<!--', i)) {
-        // `<!-->` and `<!--->` are whole, empty comments.
-        const empty = raw.startsWith('>', i + 4) ? 5 : raw.startsWith('->', i + 4) ? 6 : 0;
-        if (empty === 0) state = 'comment';
-        i += empty === 0 ? 4 : empty;
-        continue;
-      }
-      if (c === '<' && /[A-Za-z/]/.test(raw[i + 1] ?? '')) state = 'tag';
-    } else if (state === 'comment') {
-      if (raw.startsWith('-->', i)) {
-        state = 'data';
-        i += 3;
-        continue;
-      }
-    } else if (state === 'tag') {
-      if (c === '"' || c === "'") {
-        state = 'quote';
-        quote = c;
-      } else if (c === '>') state = 'data';
-    } else if (c === quote) state = 'tag';
-    i++;
-  }
-  return state;
 }
 
 interface Placed {
@@ -153,9 +119,13 @@ export function openCutIn(markdown: string): OpenCut | null {
   }
   for (let i = 0; i < lastContent; i++) {
     if (placed[i].token.type !== 'html') continue;
-    const state = endState(placed[i].token.raw);
-    if (state === 'quote') return { line: lineOf(placed[i]), kind: 'attribute' };
-    if (state === 'comment') return { line: lineOf(placed[i]), kind: 'comment' };
+    const end = htmlBlockEnd(placed[i].token.raw);
+    // Words a tag swallowed as attribute names are the attribute shape seen
+    // from the other side (#457 review): the repair is the same blank line.
+    if (end.state === 'quote' || end.wordsAfterBlankLineInTag) {
+      return { line: lineOf(placed[i]), kind: 'attribute' };
+    }
+    if (end.state === 'comment') return { line: lineOf(placed[i]), kind: 'comment' };
   }
   return null;
 }
