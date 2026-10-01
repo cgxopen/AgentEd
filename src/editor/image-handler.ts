@@ -2,7 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { EditorView } from '@tiptap/pm/view';
 import { getPlatformIO } from '../platform/index';
-import { basename, joinPath } from '../platform/paths';
+import { basename, decodePercentEscapes, joinPath } from '../platform/paths';
 import type { FileEntry } from '../platform/types';
 import { bytesEqual, findIdenticalImage, findNameAmong } from './image-dedup';
 import type { ReportImageInsert } from './image-insert-outcome';
@@ -107,7 +107,11 @@ type AssetsFolderNames =
 async function readAssetsFolder(assetsDir: string): Promise<AssetsFolderNames> {
   const onDisk = new Set<string>();
   const all = new Set<string>();
-  for (const image of getAllImages()) all.add(basename(image.relativePath));
+  // Names as the disk spells them (#454), so a loaded `my%20diagram.png`
+  // counts as `my diagram.png` rather than a name no file has. No outcome
+  // moves with it today: a loaded image is on disk, so the listing below
+  // already holds the same name. It keeps the two sets in one spelling.
+  for (const image of getAllImages()) all.add(basename(decodePercentEscapes(image.relativePath)));
 
   const io = await getPlatformIO();
   let entries: readonly FileEntry[];

@@ -1,4 +1,4 @@
-import { dirname, joinPath } from '../platform/paths';
+import { decodePercentEscapes, dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { applyByteOrderMark, hasByteOrderMark, stripByteOrderMark } from './byte-order-mark';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
@@ -142,7 +142,12 @@ export async function saveMarkdown(
   try {
     await io.mkdir(joinPath(parent, 'assets'));
     await Promise.all(
-      assetImages.map((img) => io.writeBinary(joinPath(parent, img.relativePath), img.data)),
+      // The file the address names, as the loader read it (#454): an image
+      // loaded from `assets/my%20diagram.png` goes back to `my diagram.png`,
+      // not to a new file named with the escape.
+      assetImages.map((img) =>
+        io.writeBinary(joinPath(parent, decodePercentEscapes(img.relativePath)), img.data),
+      ),
     );
   } catch (e) {
     return { assetsError: e, writtenText };

@@ -1,6 +1,6 @@
 import { displayMimeFromName, registerImage } from '../editor/image-registry';
 import type { MarkdownDocument } from '../formats/types';
-import { dirname, joinPath } from '../platform/paths';
+import { decodePercentEscapes, dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 
 const MAX_IMAGES = 200;
@@ -121,7 +121,9 @@ async function resolveFilesystemImages(
     if (ABS_URL_RE.test(src)) return src;
     const cached = urlCache.get(src);
     if (cached) return cached;
-    const abs = joinPath(docDir, src);
+    // The disk is asked for the file the address names, its escapes read
+    // (#454); `src` itself is what is registered and written back.
+    const abs = joinPath(docDir, decodePercentEscapes(src));
     try {
       const data = await io.readBinary(abs);
       const filename = src.split('/').pop() || src;
