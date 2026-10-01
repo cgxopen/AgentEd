@@ -12,8 +12,8 @@
  * - **`withinRoom` takes numbers and returns a number**, so it is asserted
  *   directly, the way `toolbarTop` is in `toolbar-placement.test.ts`;
  * - **each of the four callers reads the room rather than the window**, which is
- *   normally the half no test in this repository can see. STATUS section 4
- *   records the shape: on #270 the header-bottom read was replaced with the
+ *   normally the half no test in this repository can see. The shape was
+ *   recorded on #270: the header-bottom read was replaced with the
  *   constant 44 and all 2786 tests stayed green, because the arithmetic cannot
  *   see where its caller found its arguments.
  *

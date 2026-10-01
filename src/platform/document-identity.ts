@@ -91,7 +91,7 @@ export class DocumentIdentity {
    * than by a separate line remembering to.
    *
    * **It survives File → Close and File → New**, which is recorded debt
-   * rather than a decision (STATUS §4): nothing between a close and the
+   * rather than a decision: nothing between a close and the
    * next open or Save As reads a bare name, so it is correct because of
    * a guard elsewhere. Giving that debt a home is what this module does;
    * changing when the field is released is not, and would be a

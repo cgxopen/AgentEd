@@ -579,8 +579,8 @@ describe('the Table entries are greyed from where the caret is (#292)', () => {
   });
 
   /**
-   * **The witness the refresh order has never had** (#307, recorded in STATUS
-   * section 4). Reading the greyed state is the first line of `open()`, so it
+   * **The witness the refresh order has never had** (#307, recorded as a debt
+   * at its review). Reading the greyed state is the first line of `open()`, so it
    * runs before a header moves focus to the first entry that can be chosen —
    * and until this section existed nothing could see it: Undo and Redo are the
    * fifth and sixth entries of Edit, and Find is enabled whichever way they are

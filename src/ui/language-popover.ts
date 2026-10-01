@@ -265,8 +265,8 @@ export function languagePopoverOffset(
  * lines each wraps to depends on the font, and the font on Windows is not the
  * one this was measured with.
  *
- * **A copy with no refusal line in it throws**, which is the debt STATUS
- * section 4 recorded against this file at the #288 and #290 reviews and which
+ * **A copy with no refusal line in it throws**, which is the debt recorded
+ * against this file at the #288 and #290 reviews and which
  * this change carries. It used to `break` out of the loop, and the function
  * then returned the height of the popover as it stands — a real number, quietly
  * describing the wrong popover, which would place the thing a little wrong

@@ -1921,7 +1921,7 @@ button.indicator-search:hover {
  * only an image had anything to replace it with. A horizontal rule clicked as
  * a node therefore had no visible feedback at all.
  *
- * STATUS recorded that as a reading rather than a measurement, so it was
+ * The project records held that as a reading rather than a measurement, so it was
  * measured before this line was written: `prosemirror-view` **1.41.7**,
  * `style/prosemirror.css` line 29, carries a general `.ProseMirror-selectednode`
  * outline that this repository never took while taking the hide-selection rules

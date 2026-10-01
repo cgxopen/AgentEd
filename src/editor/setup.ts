@@ -353,7 +353,7 @@ const MarkdownComment = TipTapNode.create({
  *
  * **The second value this call used to pass has gone**, owed since #202 and
  * carried here because this file is in the diff for #27, which is the condition
- * STATUS attached to it. `codeBlock: { HTMLAttributes: { class: 'code-block' } }`
+ * the project records attached to it. `codeBlock: { HTMLAttributes: { class: 'code-block' } }`
  * put a class on every fenced block that nothing consumed: the styling is
  * `.tiptap pre` in `src/styles.css`, which never mentioned it. It had also been
  * doing a second job as the *other* half of the pin above, and that job is

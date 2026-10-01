@@ -1,25 +1,25 @@
 # Working agreement — how a change reaches `main`
 
-> The loop between owner, AMP and DEV. [STATUS.md](STATUS.md) says *where the project is*; this says *how work moves*. Written after a day in which five parallel PRs produced a merge-conflict cascade, a defect "reproduced" on a stale installer, and a testing step that moved between before-merge and after-merge — all avoidable, none of it written down.
+> The loop between owner, AMP and DEV. The project status, kept by the maintainer in a private repository, says *where the project is*; this says *how work moves*. Written after a day in which five parallel PRs produced a merge-conflict cascade, a defect "reproduced" on a stale installer, and a testing step that moved between before-merge and after-merge — all avoidable, none of it written down.
 
 ## Roles
 
 | | Does | Never does |
 | --- | --- | --- |
 | **Owner** | Decides product questions, tests on Windows, approves merges, owns releases | — |
-| **AMP** | Requirements, issues, briefs, product review on every PR, keeps STATUS current, merges on the owner's go-ahead | Writes production code |
+| **AMP** | Requirements, issues, briefs, product review on every PR, keeps the project status current, merges on the owner's go-ahead | Writes production code |
 | **DEV** | Implements one issue at a time, with tests and full local verification | Merges, pushes to `main`, or decides product questions |
 
 ## The cycle
 
 1. **AMP writes the issue** — what, why, acceptance criteria, and what the owner will have to check by hand.
-2. **DEV takes the top item** of the STATUS agenda, or the issue the owner hands it. It reads REQUIREMENTS → STATUS → CLAUDE.md first, and verifies the live repository state before planning.
+2. **DEV takes the top item** of the agenda in the project status, or the issue the owner hands it. It reads REQUIREMENTS, CLAUDE.md and the project status first, and verifies the live repository state before planning.
 3. **DEV implements**: a branch cut from *current* `main`, tests alongside the change, then the full verification suite. It opens the PR describing what changed, why, how it was verified, and — plainly — what it could **not** verify. Then it stops.
 4. **CI runs.** A PR touching code publishes `AgentEd-windows-<sha>` as an artifact, 7-day retention.
 5. **AMP reviews** against REQUIREMENTS and states explicitly which manual checks the owner should run.
 6. **The owner tests** — downloading the installer **from that PR's own run**, not from `main` and not from Nightly.
 7. **AMP squash-merges** on the owner's word. The branch auto-deletes.
-8. **AMP updates STATUS**, and REQUIREMENTS if the change altered a requirement.
+8. **AMP updates the project status**, and REQUIREMENTS if the change altered a requirement.
 
 ## Rules that keep it untangled
 
@@ -34,11 +34,11 @@
 
 ## What "done" means
 
-An issue is done when the PR is merged, the owner has tested it, and STATUS records it. Not before — a merged PR with an untested behavior is work in progress with a green checkmark.
+An issue is done when the PR is merged, the owner has tested it, and the project status records it. Not before — a merged PR with an untested behavior is work in progress with a green checkmark.
 
 ## When something is off
 
 - **A manual result that contradicts the automated tests: suspect the input before the code.** Three experiments in one batch were contaminated, each differently — a behavior that fired *after* the paste, a clipboard payload that differed *before* it, and a guard that branched on a value nobody thought to vary. Each cost a round of argument that measurement then settled in minutes. Before debating a surprising result, confirm the input was identical across the runs being compared, and instrument rather than reason when it is not.
 - **A defect that will not reproduce**: confirm the build first (artifact sha, or About), then write down the hypothesis for *why* it disappeared rather than assuming luck. See #4 for the pattern.
-- **A DEV session reporting stale state**: point it at STATUS and ask it to verify against the repository. The rule lives in CLAUDE.md.
+- **A DEV session reporting stale state**: point it at the project status and ask it to verify against the repository. The rule lives in CLAUDE.md.
 - **Conflicts after a batch**: DEV resolves them on its branch with a merge (not a rebase with force-push), so approved reviews stay attached.

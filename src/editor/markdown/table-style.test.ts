@@ -1,7 +1,6 @@
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 import claudeMd from '../../../CLAUDE.md?raw';
-import status from '../../../docs/internal/STATUS.md?raw';
 import workflow from '../../../docs/internal/WORKFLOW.md?raw';
 import readme from '../../../README.md?raw';
 import requirements from '../../../REQUIREMENTS.md?raw';
@@ -200,7 +199,6 @@ describe('the detector and the validator agree — a property, not a case', () =
     ['REQUIREMENTS.md', requirements],
     ['CLAUDE.md', claudeMd],
     ['docs/internal/WORKFLOW.md', workflow],
-    ['docs/internal/STATUS.md', status],
   ])('accepts every style read from %s', (_name, source) => {
     const styles = detectTableStyles(source);
     for (const style of styles) {

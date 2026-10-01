@@ -89,8 +89,6 @@ jobs:
               - 'REQUIREMENTS.md'
               - 'SECURITY.md'
               - 'docs/ADR/ADR-001-reset-and-simplification.md'
-              - 'docs/internal/MILESTONE-LOG.md'
-              - 'docs/internal/STATUS.md'
               - 'docs/internal/WORKFLOW.md'
 
       - name: Decide whether the code jobs run
@@ -187,9 +185,9 @@ jobs:
         run: cp .github/web-artifact/serve.ps1 .github/web-artifact/HOW-TO-RUN.txt dist/
 
       # **Narrower than the job it sits in, deliberately.** This job also
-      # runs for `guarded_docs` — the eight documents the round-trip guard
-      # reads as test input (#118) — and a web build published on a STATUS
-      # edit is seconds spent on something nobody will download. The build
+      # runs for `guarded_docs` — the seven documents the round-trip guard
+      # reads as test input (#118) — and a web build published on a
+      # documentation edit is seconds spent on something nobody will download. The build
       # is what those documents change; the artifact is not.
       - name: Upload web build
         if: needs.changes.outputs.code == 'true'

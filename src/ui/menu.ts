@@ -186,7 +186,7 @@ export function setupMenu(
    * so before a header moves focus to the first entry that can be chosen: that
    * selector skips disabled entries, and it must read the state this sets
    * rather than the state of the last opening.** Until #292 that order had no
-   * witness — STATUS recorded it as such — because Undo and Redo are the fifth
+   * witness — recorded as such — because Undo and Redo are the fifth
    * and sixth entries of Edit, and Find is enabled whichever way they are
    * greyed. **Add Row Above is the first entry of the Table section and is
    * greyed with the caret in a header row**, so the order is asserted now: a
