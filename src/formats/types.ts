@@ -40,3 +40,24 @@ export interface MarkdownDocument {
    */
   lineConventions: LineConventions;
 }
+
+/**
+ * A file whose raw HTML would cut the document at open, refused rather than
+ * opened (#455), as a file that is not UTF-8 is refused (R-C3). Thrown while
+ * the file is read, before the open changes anything, so the document that
+ * was open stays as it was under its own path. `line` counts in the whole
+ * file, metadata block included.
+ */
+export class OpenCutError extends Error {
+  readonly path: string;
+  readonly line: number;
+  readonly kind: 'attribute' | 'comment';
+
+  constructor(path: string, line: number, kind: 'attribute' | 'comment') {
+    super(`OPEN_CUT: ${path}, line ${line}`);
+    this.name = 'OpenCutError';
+    this.path = path;
+    this.line = line;
+    this.kind = kind;
+  }
+}

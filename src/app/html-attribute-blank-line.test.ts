@@ -1,26 +1,27 @@
 /**
- * A blank line inside an attribute value of raw HTML loses the rest of the
- * document on an untouched save (R-C2 known exception, #20).
+ * A raw HTML block that ends inside an attribute value or a comment is
+ * refused at open (#455), where it used to cut the rest of the document.
  *
  * CommonMark ends an HTML block at a blank line, so `<p title="one` followed
  * by a blank line is a block whose attribute value is still open. `marked`
  * renders what follows as markdown, where every double quote is written
- * `&quot;`, and the HTML parser then reads all of it as that attribute value,
- * up to the next raw double quote or the end of the document; an element
- * whose attribute never closes is dropped. So the cut happens while the file
- * is being read, the editor already holds the shorter document when it
- * opens, and the save writes what it holds. Measured on `7a3d3e6`, and the
- * same cut was read off headless Chromium parsing the HTML `marked` writes,
- * so it is the HTML parser and not DOMPurify that drops it.
+ * `&quot;`, and the HTML parser reads all of it as that attribute value, up to
+ * the next raw double quote or the end of the document, and drops the element.
+ * An unclosed `<!--` inside a container does the same to everything after the
+ * container. Measured on #453 and #455: the editor opened on the shorter
+ * document, nothing said so, and a save wrote it over the file.
+ *
+ * Refused as a file that is not UTF-8 is refused (R-C3), owner decision of
+ * 2026-10-01 on #455: at read, before the open changes any state, with a
+ * message naming the line where the cut begins. The eight fixtures of #453
+ * are refused; the thirteen controls of the #455 scan open.
  */
 import { marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 import { markdownToHtml } from '../editor/markdown/parse';
-import { createEditor } from '../editor/setup';
-import { loadMarkdown, saveMarkdown } from '../formats/plain';
+import { loadMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
-import { buildDocument } from './editor-document';
-import { AppState } from './state';
+import { openFailedMessage } from './open-failure';
 
 const PATH = '/doc/notes.md';
 
@@ -54,85 +55,135 @@ function recordingIO(disk: Map<string, string>): PlatformIO {
   };
 }
 
-/** Open `text` as a file, save it with no edits, return what was written. */
-async function openAndSaveUnedited(text: string): Promise<string> {
+/** Open `text` as a file; the rejection, or null where it opened. */
+async function refusalOf(text: string): Promise<unknown> {
   const disk = new Map<string, string>([[PATH, text]]);
-  const io = recordingIO(disk);
-  const loaded = await loadMarkdown(PATH, io);
-
-  const host = document.createElement('div');
-  document.body.appendChild(host);
-  const editor = createEditor(host);
-  editor.setMarkdown(loaded.document.markdownBody);
-
-  const state = new AppState();
-  state.filePath = PATH;
-  state.frontmatter = loaded.document.frontmatterRaw;
-  state.lineConventions = loaded.document.lineConventions;
-
-  const result = await saveMarkdown(buildDocument(state, editor.getMarkdown), io);
-
-  editor.destroy();
-  host.remove();
-
-  // What the caller records as the R-C14 baseline must be what landed
-  // on disk, so the two are asserted to agree here rather than trusted.
-  expect(result.writtenText).toBe(disk.get(PATH));
-  return result.writtenText;
+  try {
+    await loadMarkdown(PATH, recordingIO(disk));
+    return null;
+  } catch (refused) {
+    // Refused at read: the file is exactly what it was.
+    expect(disk.get(PATH)).toBe(text);
+    return refused;
+  }
 }
 
 const AROUND =
   '# Notes\n\nBefore.\n\n<p title="one\n\ntwo">inside</p>\n\nAfter.\n\n## Next\n\n- item\n\nLast "quoted" words.\n';
 
-/** [label, the file, what an untouched save writes] - bytes in the labels. */
-const ROWS: ReadonlyArray<readonly [string, string, string]> = [
-  ['the shape alone, 24 bytes to 0', '<p title="\n\nkeep">a</p>\n', ''],
-  ['a list element, 45 bytes to 0', '<ul title="\n\nkeep"><li>a</li><li>b</li></ul>\n', ''],
-  ['with a document around it, 96 bytes to 17', AROUND, '# Notes\n\nBefore.\n'],
+/** [label, the file, the line the message names] - the eight fixtures of #453. */
+const REFUSED: ReadonlyArray<readonly [string, string, number]> = [
+  ['the shape alone', '<p title="\n\nkeep">a</p>\n', 1],
+  ['a list element', '<ul title="\n\nkeep"><li>a</li><li>b</li></ul>\n', 1],
+  ['with a document around it', AROUND, 5],
   [
-    'a block element other than a paragraph, 57 bytes to 17',
+    'a block element other than a paragraph',
     '# Notes\n\nBefore.\n\n<div class="x\n\ny">inside</div>\n\nAfter.\n',
-    '# Notes\n\nBefore.\n',
+    5,
   ],
+  ['an attribute in single quotes', "Before.\n\n<p title='one\n\ntwo'>inside</p>\n\nAfter.\n", 3],
   [
-    'an attribute in single quotes, 48 bytes to 8',
-    "Before.\n\n<p title='one\n\ntwo'>inside</p>\n\nAfter.\n",
-    'Before.\n',
-  ],
-  [
-    'a later raw double quote ends the loss there, 90 bytes to 27',
+    'a later raw double quote that ends the loss there',
     'Before.\n\n<p title="one\n\ntwo">inside</p>\n\nAfter.\n\n<span class="k">kept?</span> tail\n\nLast.\n',
-    'Before.\n\nkept? tail\n\nLast.\n',
+    3,
   ],
-  [
-    'inside a list item, the items after it go too, 46 bytes to 4',
-    '- a\n- <p title="one\n\n  two">x</p>\n- c\n\nAfter.\n',
-    '- a\n',
-  ],
-  ['inside a blockquote, 39 bytes to 0', '> <p title="one\n>\n> two">x</p>\n\nAfter.\n', ''],
+  ['inside a list item', '- a\n- <p title="one\n\n  two">x</p>\n- c\n\nAfter.\n', 2],
+  ['inside a blockquote', '> <p title="one\n>\n> two">x</p>\n\nAfter.\n', 1],
+  ['the control of the #457 review', '<div title="a\n\nb">x</div>\n\nafter\n', 1],
 ];
 
-describe('a blank line inside a raw HTML attribute value (R-C2, #20)', () => {
-  it.each(ROWS)('%s', async (_label, file, written) => {
-    expect(await openAndSaveUnedited(file)).toBe(written);
+/**
+ * The words a tag swallows as attribute names (#457 review): `marked` keeps
+ * `<div`, a blank line and `some text` in one block, and the parser reads the
+ * words as attributes of the `div`. Measured in this pipeline: saved as
+ * `after` alone, the words gone.
+ */
+const REFUSED_TAG: ReadonlyArray<readonly [string, string, number]> = [
+  ['words inside a tag after a blank line', '<div\n\nsome text\n\nafter\n', 1],
+  ['the same below a paragraph', 'Before.\n\n<div\n\nsome text\n\nafter\n', 3],
+];
+
+/** The same class with a comment rather than an attribute (#455). */
+const REFUSED_COMMENTS: ReadonlyArray<readonly [string, string, number]> = [
+  ['an unclosed comment inside a blockquote', '> <!-- never closed\n\nAfter.\n', 1],
+  ['an unclosed comment inside a list item', 'Intro.\n\n- <!-- never closed\n\nAfter.\n', 3],
+];
+
+/** The thirteen controls of the #455 scan, and the control of #453. */
+const OPENS: ReadonlyArray<readonly [string, string]> = [
+  ['the attribute at the very end, nothing after it', 'Before.\n\n<p title="one\n\n'],
+  [
+    'an unclosed comment at the top level, which runs to the end',
+    'Before.\n\n<!-- never closed\n\nAfter.\n',
+  ],
+  [
+    'a style and a script block (R-C2)',
+    '# Notes\n\n<style>\np { color: red }\n</style>\n\nBetween.\n\n<script>\nalert(1)\n</script>\n\nThe end.\n',
+  ],
+  ['a closed comment', 'one <!-- note --> two\n\n<!-- alone -->\n\nAfter.\n'],
+  ['a closed comment holding a quote', '<!-- say "x -->\n\nAfter.\n'],
+  ['an unclosed style block (R-C2)', 'Before.\n\n<style>\np{}\n\nAfter.\n'],
+  ['a table inside a div (R-C2)', '<div><table><tr><td>a</td></tr></table></div>\n\nAfter.\n'],
+  ['a raw table with a blank line (R-C2)', '<table>\n<tr><td>a</td></tr>\n\n</table>\n\nAfter.\n'],
+  ['a value spanning one line break', 'Before.\n\n<p title="one\ntwo">inside</p>\n\nAfter.\n'],
+  ['an html image', '<img src="a.png" alt="x" width="9">\n\nAfter.\n'],
+  ['a tag left open with no quote', 'Before.\n\n<div class="x"\n\nAfter.\n'],
+  ['an apostrophe in html text', "<p>it's fine</p>\n\nAfter.\n"],
+  ['a quote in html text', '<div>say "hi</div>\n\nAfter.\n'],
+  ['the same attribute value with no blank line (#453)', 'Before.\n\n<p title="one\ntwo">x</p>\n'],
+  // The three false refusals of the #457 review, each measured to open whole
+  // in Chromium: a quote inside an unquoted value, a quote inside an unquoted
+  // value after other characters, and quotes in the text of a script.
+  ['an apostrophe in an unquoted value', "<p title=don't>hello</p>\n\nafter\n"],
+  ['a quote inside an unquoted value', '<p class=a"b>hello</p>\n\nafter\n'],
+  // Text that would open a value, were the script read as markup: only the
+  // raw-text rule keeps this one open.
+  [
+    'a tag spelled in the text of a script (R-C2)',
+    "<script>\nconst t = '<p title=\"';\n</script>\n\nafter\n",
+  ],
+  [
+    'quotes in the text of a script (R-C2)',
+    '<script>\nif (a<b) s = "x";\n// don\'t\n</script>\n\nafter\n',
+  ],
+];
+
+describe('a raw HTML block that would cut the document is refused at open (#455)', () => {
+  it.each([...REFUSED, ...REFUSED_TAG, ...REFUSED_COMMENTS])('%s', async (_label, file, line) => {
+    const refused = await refusalOf(file);
+    expect(refused).toBeInstanceOf(Error);
+    const message = openFailedMessage(PATH, refused);
+    expect(message).toContain(`at line ${line} `);
+    expect(message).toContain('Nothing has changed on disk.');
+    expect(message.endsWith(PATH)).toBe(true);
   });
 
-  it.each(ROWS)('%s - and the second save moves nothing', async (_label, file) => {
-    const once = await openAndSaveUnedited(file);
-    expect(await openAndSaveUnedited(once)).toBe(once);
+  it.each(OPENS)('%s opens', async (_label, file) => {
+    expect(await refusalOf(file)).toBeNull();
   });
 
-  it('is cut while the file is read: the block ends at the blank line and the parse stops there', () => {
+  it('names the repair for each kind', async () => {
+    expect(openFailedMessage(PATH, await refusalOf(AROUND))).toContain(
+      'Remove the blank line inside that tag',
+    );
+    expect(openFailedMessage(PATH, await refusalOf(REFUSED_COMMENTS[0][1]))).toContain(
+      'Close that comment with -->',
+    );
+  });
+
+  it('counts the line in the file, metadata block and Windows line endings included', async () => {
+    const file = '---\ntitle: x\n---\n\nBefore.\n\n<p title="one\n\ntwo">x</p>\n\nAfter.\n';
+    expect(openFailedMessage(PATH, await refusalOf(file))).toContain('at line 7 ');
+    expect(openFailedMessage(PATH, await refusalOf(file.replace(/\n/g, '\r\n')))).toContain(
+      'at line 7 ',
+    );
+  });
+
+  it('is what the editor would have done: the block ends at the blank line and the parse stops there', () => {
+    // The cause, kept as the reason for the refusal: were the file opened,
+    // this is the document the editor would hold.
     const html = marked.lexer(AROUND).find((token) => token.type === 'html');
     expect(html?.raw).toBe('<p title="one\n\n');
     expect(markdownToHtml(AROUND)).not.toMatch(/inside|After|Next|item|Last/);
-  });
-
-  it('leaves the same attribute value alone without the blank line', async () => {
-    // The control: a value that spans one line break, not a blank line, is
-    // no part of this. The element itself is written as markdown, which is
-    // the exception for raw HTML that is not one whole table (#283).
-    const file = 'Before.\n\n<p title="one\ntwo">inside</p>\n\nAfter.\n';
-    expect(await openAndSaveUnedited(file)).toBe('Before.\n\ninside\n\nAfter.\n');
   });
 });

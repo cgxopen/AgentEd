@@ -7,6 +7,7 @@
  * (the #50 precedent).
  */
 
+import { OpenCutError } from '../formats/types';
 import { FILE_ABSENT, NOT_UTF8, READ_REFUSED } from '../platform/types';
 
 /** The dialog's title. */
@@ -81,6 +82,7 @@ export const OPEN_FAILED_TITLE = 'This file could not be opened';
  * is what was clicked.
  */
 export function openFailedMessage(path: string, cause?: unknown): string {
+  if (cause instanceof OpenCutError) return openCutMessage(path, cause);
   if (marked(cause, NOT_UTF8)) {
     // Three blocks rather than one, because `.dialog-message` renders
     // with `white-space: pre-wrap`: the cause, the repair, then the path.
@@ -113,6 +115,24 @@ export function openFailedMessage(path: string, cause?: unknown): string {
   return (
     `AgentEd could not open ${path}. It may have been moved, renamed or removed, ` +
     'or it may no longer be readable from here. The document you had open is unchanged.'
+  );
+}
+
+/**
+ * A file whose raw HTML would cut the document (#455), in the words the owner
+ * approved on #455, and the three blocks the UTF-8 refusal uses: the cause,
+ * the repair, the path. The repair is the one edit that makes the file open,
+ * made elsewhere, as for an encoding; AgentEd offers no rescue of its own.
+ */
+function openCutMessage(path: string, cause: OpenCutError): string {
+  const repair =
+    cause.kind === 'attribute'
+      ? 'Remove the blank line inside that tag in a text editor, then open the file again.'
+      : 'Close that comment with --> in a text editor, then open the file again.';
+  return (
+    `This file has raw HTML at line ${cause.line} that AgentEd cannot read in full, ` +
+    'and what follows it would be lost, so it has not been opened. ' +
+    `Nothing has changed on disk.\n\n${repair}\n\n${path}`
   );
 }
 
