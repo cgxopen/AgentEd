@@ -34,17 +34,32 @@ export function stripExtension(path: string): string {
 }
 
 /**
+ * The root a normalized path starts from: `//` for a network share, `/` for
+ * any other absolute path, nothing for a relative one (#448).
+ *
+ * Collapsing slashes is right everywhere but at the start of a share:
+ * `\\server\share` arrives here as `//server/share`, and the two slashes are
+ * what name the host. With one of them dropped the path names a folder on the
+ * current drive, which is how a document opened from a share drew every image
+ * as missing on Windows. Three or more slashes are not a share and keep one.
+ */
+function rootOf(path: string): string {
+  if (/^\/\/[^/]/.test(path)) return '//';
+  return path.startsWith('/') ? '/' : '';
+}
+
+/**
  * Join path segments with `/`, stripping duplicate and trailing slashes.
- * Preserves a leading slash on the first segment (absolute paths).
- * Empty or falsy segments are dropped.
+ * Preserves the root of the first segment: a leading slash for an absolute
+ * path, and both for a network share (#448). Empty or falsy segments are
+ * dropped.
  */
 export function joinPath(...parts: string[]): string {
   const nonEmpty = parts.map(normalize).filter((p) => p.length > 0);
   if (nonEmpty.length === 0) return '';
-  const isAbsolute = nonEmpty[0].startsWith('/');
+  const root = rootOf(nonEmpty[0]);
   const segments = nonEmpty.flatMap((p) => p.split('/').filter((s) => s.length > 0));
-  const joined = segments.join('/');
-  return isAbsolute ? `/${joined}` : joined;
+  return root + segments.join('/');
 }
 
 /**
@@ -55,7 +70,7 @@ export function joinPath(...parts: string[]): string {
  */
 export function collapseDotSegments(path: string): string {
   const norm = normalize(path);
-  const isAbsolute = norm.startsWith('/');
+  const root = rootOf(norm);
   const parts = norm.split('/').filter((p) => p.length > 0);
   const stack: string[] = [];
   for (const part of parts) {
@@ -66,7 +81,7 @@ export function collapseDotSegments(path: string): string {
     }
     stack.push(part);
   }
-  return (isAbsolute ? '/' : '') + stack.join('/');
+  return root + stack.join('/');
 }
 
 /**
