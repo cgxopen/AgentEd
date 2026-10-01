@@ -242,8 +242,9 @@ export interface PlatformIO {
   mkdir(path: string): Promise<void>;
   /**
    * Open `path` with the host OS's default application for that
-   * file type (Tauri-only). Throws on Web — there's no equivalent
-   * primitive in the browser File System Access API.
+   * file type (Tauri-only). On the web a web address opens in a new tab and
+   * anything else throws — there's no equivalent primitive in the browser
+   * File System Access API (#448).
    */
   openWithSystem(path: string): Promise<void>;
 }

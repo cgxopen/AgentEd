@@ -1,7 +1,8 @@
-import { isMarkdownPath, isPathInsideRoot } from '../platform/paths';
+import { basename, isMarkdownPath, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { showToast } from '../ui/toast';
 import type { DocumentActions } from './document-actions';
+import { reportSystemOpenFailure } from './system-open-failure';
 
 /**
  * Build the sidebar's file-click handler. Decision tree:
@@ -16,7 +17,8 @@ import type { DocumentActions } from './document-actions';
  *      offers.
  *   3. Anything else → open with the host OS via Tauri shell. The
  *      current document's editor state stays untouched in the
- *      background. Brief toast confirms the action.
+ *      background. Brief toast confirms the action, and one that fails
+ *      says so (#448).
  *
  * **This handler knows nothing about the platform, and that is the
  * shape rather than an omission** (#146). On the web a non-markdown
@@ -60,7 +62,9 @@ export function createSidebarClickHandler(
         await io.openWithSystem(absPath);
         showToast('Opening with system viewer…', 'info');
       } catch (e) {
-        console.error('[sidebar] openWithSystem failed:', e);
+        // A path the shell scope refuses, a file gone since the listing, or
+        // no application for the extension: the person is told (#448).
+        reportSystemOpenFailure(basename(absPath), e);
       }
     })();
   };

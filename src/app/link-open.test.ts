@@ -69,13 +69,14 @@ beforeEach(() => {
 afterEach(() => {
   uninstall();
   vi.restoreAllMocks();
+  vi.mocked(showToast).mockClear();
 });
 
 describe('Ctrl/Cmd+click follows a link', () => {
   it('opens the address through the platform on Ctrl+click', () => {
     const event = click(anchor('https://example.com'), { ctrlKey: true });
 
-    expect(openExternal).toHaveBeenCalledWith('https://example.com');
+    expect(openExternal).toHaveBeenCalledWith('https://example.com/');
     expect(event.defaultPrevented).toBe(true);
   });
 
@@ -92,7 +93,7 @@ describe('Ctrl/Cmd+click follows a link', () => {
 
     click(inner, { ctrlKey: true });
 
-    expect(openExternal).toHaveBeenCalledWith('https://example.com');
+    expect(openExternal).toHaveBeenCalledWith('https://example.com/');
   });
 
   it('follows mailto, which is a link a reader means to use', () => {
@@ -206,52 +207,33 @@ describe('a link click never navigates the editing surface', () => {
 });
 
 describe('an open that fails says so (#448)', () => {
-  it('shows a message rather than nothing', async () => {
+  it('shows a message rather than nothing, and opens no tab behind it', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    vi.spyOn(window, 'open').mockReturnValue(null);
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     openExternal.mockRejectedValue(new Error('failed regex validation'));
 
     click(anchor('https://example.com/a'), { ctrlKey: true });
 
     await vi.waitFor(() => expect(showToast).toHaveBeenCalled());
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('example.com'), 'error');
-  });
-});
-
-describe('when the platform cannot open it', () => {
-  it('falls back to a new tab instead of losing the click', async () => {
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    openExternal.mockRejectedValue(new Error('not supported on the web platform'));
-
-    click(anchor('https://example.com'), { ctrlKey: true });
-    await vi.waitFor(() => expect(openSpy).toHaveBeenCalled());
-
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+    expect(openSpy).not.toHaveBeenCalled();
   });
 });
 
 /**
- * The same fallback, with the rejection coming from `WebIO` itself (#146).
+ * The new tab of the web build, with `WebIO` itself as the opener (#146).
  *
- * **The test above satisfies the criterion this replaces and pins
- * nothing of the thing it is for.** Its rejection comes from
- * `openExternal.mockRejectedValue`, so it asserts what happens *given* a
- * rejection; nothing asserted that the web build produces one. Measured
- * on this branch: making `WebIO.openWithSystem` resolve instead of throw
- * left the whole suite green — 84 files, 1815 tests — with that test
- * among them. The repair this issue warns about would have shipped
- * behind a green run.
- *
- * So this one wires the real implementation into `openExternal`, exactly
- * as `main.ts` does. The throw in `web.ts` is load-bearing and this is
- * what says so.
+ * #146 found that a stub which rejects on request pins nothing of the web
+ * build: making `WebIO.openWithSystem` resolve left the suite green. That is
+ * why this wires the real implementation into `openExternal`, as `main.ts`
+ * does. #448 moved the tab from the opener into `WebIO`, so a rejection in the
+ * opener now means a failure the person is told about; what stays load-bearing
+ * is that the web build opens the tab, and these say so.
  */
-describe('#146 — the rejection comes from WebIO, not from a stub', () => {
-  it('a Ctrl+click still opens a new tab when the web build is the opener', async () => {
+describe('#146, #448: the web build opens a new tab itself', () => {
+  it('a Ctrl+click opens a new tab when the web build is the opener, and says nothing', async () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
     const web = new WebIO();
     const ownRoot = document.createElement('div');
@@ -269,16 +251,19 @@ describe('#146 — the rejection comes from WebIO, not from a stub', () => {
     );
 
     await vi.waitFor(() => expect(openSpy).toHaveBeenCalled());
-    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+    expect(openSpy).toHaveBeenCalledWith('https://example.com/', '_blank', 'noopener,noreferrer');
+    expect(showToast).not.toHaveBeenCalled();
 
     stop();
     ownRoot.remove();
   });
 
-  it('and the implementation rejects, which is the half the fallback needs', async () => {
-    // Stated separately so a failure says which half moved: the platform
-    // stopped refusing, or the opener stopped falling back.
-    await expect(new WebIO().openWithSystem('https://example.com')).rejects.toBeInstanceOf(Error);
+  it('and the web implementation refuses what is not a web address', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+    await expect(new WebIO().openWithSystem('/proj/notes/assets/x.png')).rejects.toBeInstanceOf(
+      Error,
+    );
+    expect(openSpy).not.toHaveBeenCalled();
   });
 });
 

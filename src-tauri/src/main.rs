@@ -151,14 +151,15 @@ mod tests {
     }
 
     /// Issue #249, decision 4 of #220 - `svg` is not in the shell `open`
-    /// scope, on either path alternative.
+    /// scope, on any path alternative. The scope as the plugin matches it is
+    /// tested against named paths in `shell_scope.rs` (#448).
     ///
     /// The scope is the last thing between a sidebar click and a process
     /// started by the OS, and `svg` was the one extension in it for which
     /// open means execute: measured on Windows on 2026-09-07, a click on
     /// an `.svg` opened it in the browser associated with svg, which runs
-    /// whatever script the document carries. The other twelve extensions
-    /// name documents a viewer displays.
+    /// whatever script the document carries. The other extensions name
+    /// documents a viewer displays.
     ///
     /// Read from `tauri.conf.json` for the same reason the test above
     /// reads it: JSON carries no comment saying why an entry must stay
@@ -177,10 +178,10 @@ mod tests {
         // assertion while opening far more than svg ever did.
         assert_eq!(
             scope.matches("png").count(),
-            2,
-            "the open scope should carry its extension whitelist on both path \
-             alternatives - the POSIX one and the Windows one - or this test is \
-             reading something other than the whitelist: {scope}"
+            3,
+            "the open scope should carry its extension whitelist on all three path \
+             alternatives - the POSIX one, the drive one and the UNC one (#448) - or \
+             this test is reading something other than the whitelist: {scope}"
         );
         assert!(
             !scope.contains("svg"),
