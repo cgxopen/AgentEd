@@ -156,9 +156,9 @@ export function watchHeaderRoom(): () => void {
   const words = document.getElementById('word-count');
   const characters = document.getElementById('char-count');
   if (!bar || !left || !indicators || !readout || !filename || !words || !characters) {
-    // The header is asserted by `header-markup.test.ts`; a build that reaches
-    // here without it has a broken page, and a silent no-op is the wrong answer
-    // only if it hides something - the counts simply keep the bar.
+    // Every one of these is in index.html, and nothing in the suite runs this
+    // function over it, so the throw is the check: a page that lost one stops
+    // at boot rather than leaving the counts in the bar unmeasured.
     throw new Error('the header is missing an element the room rule measures');
   }
 

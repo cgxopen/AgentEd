@@ -125,8 +125,7 @@ export interface Sidebar {
  * a step is named only where one works, and here there is nothing left to do.
  *
  * **It is shown only to whoever asked**, and two acts ask: accepting the
- * folder offer, and opening the panel by hand (#354, the line R-A2 draws for
- * Refresh). A document switch into this state stays silent, because nobody
+ * folder offer, and opening the panel by hand (#354). A document switch into this state stays silent, because nobody
  * asked; a notice there would be the permanent one #58, #61 and #130 refuse.
  * What separates them is not a flag on the decision but where the knowledge
  * lives — the handler that ran the picker and the open by hand are the only

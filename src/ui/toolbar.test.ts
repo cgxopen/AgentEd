@@ -131,6 +131,18 @@ describe('floating toolbar — the link button (#25)', () => {
     expect(editor.getMarkdown()).toBe('the docs');
   });
 
+  it('carries a drawn symbol in the text colour and no characters (#20)', () => {
+    // An emoji from #40 until #20, which the Windows emoji font paints in its
+    // own pale colours, so the button read as disabled beside the letters.
+    // A symbol in `currentColor` takes the palette and the active state the
+    // way the letter buttons do; what it looks like is the manual pass.
+    mountEditorWithToolbar('the docs');
+    const button = toolbarButton('Link (Ctrl+K)');
+
+    expect(button.textContent).toBe('');
+    expect(button.querySelector('svg')?.getAttribute('stroke')).toBe('currentColor');
+  });
+
   it('marks itself active when the caret sits in a link', () => {
     const { editor } = mountEditorWithToolbar('[docs](https://example.com)');
     select(editor, 'docs');
@@ -432,10 +444,10 @@ describe('the bar is not offered for a whole-document selection (#336)', () => {
 /**
  * **What these rows can and cannot see.** Whether a control is drawn is an
  * attribute, and an attribute is observable. What the bar then *looks like* is
- * not: happy-dom lays nothing out, so the widths — 338.66 px on a text
- * selection against 372.66 px on an image — and the height of 32.00 px that
- * keeps `toolbarTop` where it was are browser measurements, recorded in the
- * pull request and judged by the manual pass.
+ * not: happy-dom lays nothing out, so the widths — 380.84 px on a text
+ * selection against 337.55 px on an image since #20 — and the height of
+ * 32.00 px that keeps `toolbarTop` where it was are browser measurements,
+ * recorded in the pull request and judged by the manual pass.
  *
  * **`shippedButtons` still describes the whole bar**, which is what the owner
  * decision asked to be said plainly. It lists twelve entries and the bar

@@ -26,7 +26,8 @@ fn emit_file_open(app: &tauri::AppHandle, path: &str) {
     }
     // Bring window to foreground. Both calls are best-effort — the window
     // may already be gone if the user closed it between event arrival and
-    // here — but R7 forbids silently dropping the Result. Log on failure.
+    // here. Each failure is logged to stderr, which a Windows release build
+    // has no console for (the attribute at the top of this file).
     if let Some(window) = app.get_webview_window("main") {
         if let Err(e) = window.set_focus() {
             eprintln!("Failed to focus main window: {e}");
