@@ -11,7 +11,7 @@ import {
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
 import { decodeFileText } from './decode';
-import { basename, dirname, joinPath } from './paths';
+import { basename, dirname, joinPath, shellPath } from './paths';
 import type {
   CloseGuard,
   EntryPresence,
@@ -191,7 +191,8 @@ export class TauriIO implements PlatformIO {
   }
 
   async openWithSystem(path: string): Promise<void> {
-    await shellOpen(path);
+    // The shell reads a share only with backslashes (#448).
+    await shellOpen(shellPath(path));
   }
 }
 

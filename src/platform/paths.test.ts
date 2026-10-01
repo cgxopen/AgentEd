@@ -167,3 +167,49 @@ describe('samePath (#381)', () => {
     expect(samePath('C:\\notes\\a.md', 'D:\\notes\\a.md')).toBe(false);
   });
 });
+
+/**
+ * A document on a network share (#448). Every path is normalized to forward
+ * slashes, so `\\server\share` arrives as `//server/share`, and the two
+ * leading slashes are the host: a path that keeps one of them names a folder
+ * on the current drive instead. Measured on Windows on 2026-10-01 before this
+ * held: a document opened through `\\localhost\C$\...` drew its images as
+ * missing, because their paths were built here.
+ */
+describe('a network share keeps its host (#448)', () => {
+  const doc = '\\\\server\\share\\notes\\doc.md';
+
+  it('dirname of a document on a share', () => {
+    expect(dirname(doc)).toBe('//server/share/notes');
+  });
+
+  it.each([
+    [['//server/share/notes', 'assets'], '//server/share/notes/assets'],
+    [['//server/share/notes', 'assets', 'x.png'], '//server/share/notes/assets/x.png'],
+    [['\\\\server\\share\\notes', 'assets/x.png'], '//server/share/notes/assets/x.png'],
+    [['//server/share/notes/', '/assets/'], '//server/share/notes/assets'],
+  ])('joinPath(%j) is %s', (parts, joined) => {
+    expect(joinPath(...parts)).toBe(joined);
+  });
+
+  it('collapseDotSegments keeps the host and collapses below it', () => {
+    expect(collapseDotSegments('//server/share/notes/./assets/../x.png')).toBe(
+      '//server/share/notes/x.png',
+    );
+  });
+
+  it('a file in the folder of a document on a share is inside it, and one on another share is not', () => {
+    const root = dirname(doc);
+    expect(isPathInsideRoot(joinPath(root, 'assets', 'x.png'), root)).toBe(true);
+    expect(isPathInsideRoot('//server/other/notes/assets/x.png', root)).toBe(false);
+    expect(isPathInsideRoot('/server/share/notes/assets/x.png', root)).toBe(false);
+  });
+
+  it('a path with one leading slash is unchanged, and so is a drive path', () => {
+    expect(joinPath('/home/cata/notes', 'assets')).toBe('/home/cata/notes/assets');
+    expect(joinPath('C:/Users/vasil/New folder', 'assets')).toBe(
+      'C:/Users/vasil/New folder/assets',
+    );
+    expect(collapseDotSegments('/home/cata/../x')).toBe('/home/x');
+  });
+});

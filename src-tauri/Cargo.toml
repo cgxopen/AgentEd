@@ -25,6 +25,11 @@ tauri-plugin-shell = "2"
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
 
+# #448: the shell open scope is tested with the regex crate the shell plugin
+# itself compiles it with, already in Cargo.lock. Tests only; nothing ships.
+[dev-dependencies]
+regex = "1"
+
 [profile.release]
 strip = true
 lto = true

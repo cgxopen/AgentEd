@@ -1,4 +1,5 @@
-import { isSingleUrl } from '../editor/link-url';
+import { webAddressFor } from '../editor/link-url';
+import { reportSystemOpenFailure } from './system-open-failure';
 
 /**
  * Ctrl/Cmd+click follows a link; a plain click places the caret (#25).
@@ -25,10 +26,11 @@ import { isSingleUrl } from '../editor/link-url';
  *     decline to open. What the scheme decides is only whether the address is
  *     handed to the OS: `http`, `https` and `mailto` are, and a relative path
  *     or whatever a converter left behind is not, because handing an arbitrary
- *     string to the shell is not a thing to do on a click.
+ *     string to the shell is not a thing to do on a click. What is handed is
+ *     the address as the URL parser read it (#448).
  */
 export interface LinkOpenerOptions {
-  /** Hand the URL to the OS (Tauri) — rejects on the web build. */
+  /** Hand the URL to the OS, or to a new tab on the web build. */
   openExternal: (url: string) => Promise<void>;
 }
 
@@ -65,13 +67,16 @@ export function installLinkOpener(root: HTMLElement, options: LinkOpenerOptions)
     // No link click navigates the editing surface, whatever it points at.
     event.preventDefault();
 
-    if (!isFollowGesture(event) || !isSingleUrl(href)) return;
+    if (!isFollowGesture(event)) return;
+    // The address as the URL parser read it, which is what the allow-list
+    // judged, rather than the spelling the document holds (#448).
+    const address = webAddressFor(href);
+    if (address === null) return;
 
-    void options.openExternal(href).catch((error) => {
-      // The web build has no OS opener; a new tab is the equivalent there.
-      console.warn('[agented] opening the link through the platform failed:', error);
-      window.open(href, '_blank', 'noopener,noreferrer');
-    });
+    // A failure is told to the person rather than to the console alone
+    // (#448). On the web the platform opens a new tab itself, so a rejection
+    // here is a real failure on either build.
+    void options.openExternal(address).catch((error) => reportSystemOpenFailure(address, error));
   }
 
   root.addEventListener('mousedown', onMouseDown, true);

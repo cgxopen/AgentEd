@@ -390,36 +390,33 @@ export class WebIO implements PlatformIO {
   }
 
   /**
-   * There is no equivalent of a shell open in the File System Access
-   * API, so this rejects. **The rejection is load-bearing** (#146).
+   * A web address opens in a new tab, which is what the browser has for a
+   * shell open; anything else rejects, since the File System Access API has
+   * no way to hand a file to the host system.
    *
-   * The comment that stood here said the sidebar guards on `isTauri`
-   * before calling this, so the branch never runs. No such guard existed
-   * anywhere in the repository, and the branch ran on every web session.
-   * A comment asserting a protection that is not there is worse than no
-   * comment: it is what stopped anyone looking.
+   * **This used to reject for everything** (#146), and `link-open.ts` caught
+   * the rejection and opened the tab itself. #448 made a rejection there
+   * mean a failure the person is told about, on both builds, so the tab moved
+   * here: the platform owns what opening means on it, and the opener no
+   * longer has to tell a refusal from a platform that opens differently.
+   * `link-open.test.ts` drives this implementation, not a stub, so a version
+   * that stopped opening the tab is red there.
    *
-   * **Two production callers, and they want opposite things:**
+   * The one caller on the web is the link opener, which has already reduced
+   * the address to `http`, `https` or `mailto` as the URL parser reads it.
+   * The files panel does not call this here: a non-markdown entry is drawn
+   * with no click listener on the web (#146). The scheme is asked again rather
+   * than trusted, so a later caller handing a path gets a rejection rather
+   * than a tab pointed at it.
    *
-   *   - `app/link-open.ts:70`, through the `openExternal` callback wired
-   *     in `main.ts` — catches this and calls `window.open`. **Links
-   *     open on the web because this throws.** Making it resolve would
-   *     break link opening in silence, and the whole suite would stay
-   *     green: measured on this branch, the mutation turned zero tests
-   *     red. `link-open.test.ts` now drives this implementation itself
-   *     rather than a stub that rejects on request, so that mutation is
-   *     red today.
-   *   - `app/sidebar-click.ts:53` — no longer reaches here on the web.
-   *     A non-markdown entry is drawn with no click listener at all
-   *     (#146), so nothing calls it, rather than something calling it
-   *     and swallowing the result.
-   *
-   * The second caller stopping is why the first one is written down. A
-   * reader who sees only the sidebar half could conclude this rejection
-   * is now vestigial and remove it.
+   * `noopener` makes `window.open` answer `null` whether or not a tab opened,
+   * so a tab a popup blocker refused cannot be told from one that opened.
    */
-  async openWithSystem(_path: string): Promise<void> {
-    throw new Error('openWithSystem is not supported on the web platform');
+  async openWithSystem(path: string): Promise<void> {
+    if (!WEB_OPENABLE.has(protocolOf(path))) {
+      throw new Error('openWithSystem on the web platform opens web addresses only');
+    }
+    window.open(path, '_blank', 'noopener,noreferrer');
   }
 
   // ── Private helpers ──
@@ -586,5 +583,17 @@ export class WebIO implements PlatformIO {
       'NO_DIR_HANDLE: web mode requires directory access to write files ' +
         'other than the one initially opened; use Save As to acquire',
     );
+  }
+}
+
+/** The schemes a browser tab is opened for (#448). */
+const WEB_OPENABLE = new Set(['http:', 'https:', 'mailto:']);
+
+function protocolOf(address: string): string {
+  try {
+    return new URL(address).protocol;
+  } catch {
+    // Not an absolute address, so not one a tab is opened for.
+    return '';
   }
 }

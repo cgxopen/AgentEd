@@ -1,0 +1,88 @@
+{
+  "_about": "Cases for the shell open scope (#448), read by src-tauri/src/shell_scope.rs, which matches them against the scope as tauri-plugin-shell compiles it, and by src/app/link-open.test.ts, which asserts what a Ctrl+click hands to the shell. The links are F1 and the paths F5 of the readings on #20.",
+  "links": [
+    {
+      "spelling": "https://example.com/a",
+      "handed": "https://example.com/a"
+    },
+    {
+      "spelling": "mailto:hi@example.com",
+      "handed": "mailto:hi@example.com"
+    },
+    {
+      "spelling": "HTTPS://example.com/a",
+      "handed": "https://example.com/a"
+    },
+    {
+      "spelling": "Https://example.com/a",
+      "handed": "https://example.com/a"
+    },
+    {
+      "spelling": "MAILTO:hi@example.com",
+      "handed": "mailto:hi@example.com"
+    },
+    {
+      "spelling": "https:\\\\example.com\\a",
+      "handed": "https://example.com/a"
+    },
+    {
+      "spelling": "https:example.com/a",
+      "handed": "https://example.com/a"
+    },
+    {
+      "spelling": "https:/example.com/a",
+      "handed": "https://example.com/a"
+    },
+    {
+      "spelling": "\u0001https://example.com/a",
+      "handed": "https://example.com/a"
+    }
+  ],
+  "admittedPaths": [
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\diagram.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\DIAGRAM.PNG",
+    "C:\\Users\\vasil\\Documents\\New folder\\assets\\diagram.png",
+    "C:\\Users\\vasil\\OneDrive - Personal\\notes\\assets\\diagram.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\my diagram.png",
+    "\\\\server\\share\\notes\\assets\\diagram.png",
+    "\\\\server.example.com\\share name\\notes\\assets\\diagram.pdf",
+    "/home/cata/notes/assets/diagram.png",
+    "/home/cata/My Notes/assets/diagram.png",
+    "C:/Users/vasil/Documents/New folder/assets/diagram.png",
+    "C:/Users/vasil/OneDrive - Personal/notes/assets/diagram.png",
+    "//server/share/notes/assets/diagram.png",
+    "\\\\localhost\\C$\\Users\\vasil\\Documents\\New folder\\assets\\x-dots-1.png",
+    "C:\\Users\\vasil\\Documents\\New folder\\assets\\x.png"
+  ],
+  "refused": [
+    "C:\\Users\\vasil\\Documents\\notes\\other.md",
+    "C:\\Users\\vasil\\Documents\\notes\\other.markdown",
+    "/home/cata/notes/other.md",
+    "\\\\server\\share\\notes\\other.MD",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\diagram.svg",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\page.html",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\run.exe",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\run.png.exe",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\line\nbreak.png",
+    "\\\\?\\C:\\Users\\vasil\\assets\\diagram.png",
+    "\\\\.\\C:\\Users\\vasil\\assets\\diagram.png",
+    "assets\\diagram.png",
+    "assets/diagram.png",
+    "javascript:alert(1)",
+    "JaVaScRiPt:alert(1)",
+    "vbscript:msgbox(1)",
+    "data:text/html,x",
+    "blob:https://example.com/uuid",
+    "file:///C:/Windows/System32/calc.exe",
+    "ms-settings:privacy",
+    "ms-msdt:/id PCWDiagnostic",
+    "search-ms:query=x",
+    "shell:startup",
+    "tel:+15551234567",
+    "ftp://example.com/x",
+    "HTTPS://example.com/a",
+    "https:example.com/a",
+    "//server/share/notes/assets/run.exe",
+    "///server/share/x.png"
+  ]
+}

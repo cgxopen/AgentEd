@@ -122,3 +122,21 @@ export function isSingleUrl(text: string): boolean {
   if (trimmed === '' || /\s/.test(trimmed)) return false;
   return hasAllowedScheme(trimmed);
 }
+
+/**
+ * The address to hand the operating system for `text`, as the URL parser read
+ * it, or `null` when `text` is not a single web address (#448).
+ *
+ * `isSingleUrl` answers through the URL parser, which folds the scheme and
+ * repairs what WHATWG repairs: `HTTPS://`, `https:\\host`, `https:host` and a
+ * leading control character are all `https://host/`. The shell scope in
+ * `tauri.conf.json` matches the string it is handed, so handing it the
+ * spelling rather than the parse opened nothing for exactly those addresses.
+ * Handing it the parse means the scope and the allow-list judge the same
+ * string, and the scope did not have to be widened to do it: the scheme of
+ * what is handed is the scheme `classify` admitted.
+ */
+export function webAddressFor(text: string): string | null {
+  if (!isSingleUrl(text)) return null;
+  return new URL(text.trim()).href;
+}

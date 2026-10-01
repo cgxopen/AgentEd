@@ -75,3 +75,34 @@ describe('TauriIO.canWriteCompanions - the shape of the desktop answer (#201)', 
     expect(await io.canWriteCompanions(path)).toBe(false);
   });
 });
+
+/**
+ * What the shell is handed for a file in the files panel (#448).
+ *
+ * This layer holds every path with forward slashes, and the Windows shell
+ * reads a drive path spelled that way but not a network share: measured on
+ * Windows on 2026-10-01, `//localhost/C$/.../x-dots-1.png` answered *Windows
+ * cannot find* for a file that was there, while the editor drew the same
+ * image through the filesystem. A path in either Windows shape is handed over
+ * with backslashes; a POSIX path and a web address are handed as they are.
+ */
+describe('TauriIO.openWithSystem - the spelling the shell is handed (#448)', () => {
+  it.each([
+    [
+      '//localhost/C$/Users/vasil/Documents/New folder/assets/x-dots-1.png',
+      '\\\\localhost\\C$\\Users\\vasil\\Documents\\New folder\\assets\\x-dots-1.png',
+    ],
+    [
+      'C:/Users/vasil/Documents/New folder/assets/x.png',
+      'C:\\Users\\vasil\\Documents\\New folder\\assets\\x.png',
+    ],
+    ['/home/cata/My Notes/assets/x.png', '/home/cata/My Notes/assets/x.png'],
+    ['https://example.com/a', 'https://example.com/a'],
+    ['mailto:hi@example.com', 'mailto:hi@example.com'],
+  ])('%s is handed as %s', async (held, handed) => {
+    const { open } = await import('@tauri-apps/plugin-shell');
+    vi.mocked(open).mockClear();
+    await new TauriIO().openWithSystem(held);
+    expect(open).toHaveBeenCalledWith(handed);
+  });
+});
