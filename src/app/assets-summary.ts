@@ -1,6 +1,13 @@
 import type { Editor } from '@tiptap/core';
 import { getRelativePath } from '../editor/image-registry';
-import { collapseDotSegments, dirname, joinPath, normalize, pathKey } from '../platform/paths';
+import {
+  collapseDotSegments,
+  decodePercentEscapes,
+  dirname,
+  joinPath,
+  normalize,
+  pathKey,
+} from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 
 /**
@@ -82,19 +89,14 @@ const DRIVE = /^[a-z]:\//i;
  * Where an image reference points, as a path the platform would give the
  * file, or `null` for a URL, which is no file beside the document.
  *
- * Read against the folder of the document, with its percent-encoding taken
- * off, since a reference spells a space `%20` where the disk has a space,
- * and with `./` and `..` collapsed.
+ * Read against the folder of the document, with its percent escapes read by
+ * the rule the loader and the save use (#454), since a reference spells a
+ * space `%20` where the disk has a space, and with `./` and `..` collapsed.
  */
 function fileOfReference(reference: string, documentFolder: string): string | null {
   const slashed = normalize(reference);
   if (SCHEME.test(slashed) && !DRIVE.test(slashed)) return null;
-  let decoded = slashed;
-  try {
-    decoded = decodeURI(slashed);
-  } catch {
-    // A stray `%` is the name's own character, so the reference is read as written.
-  }
+  const decoded = decodePercentEscapes(slashed);
   const absolute =
     decoded.startsWith('/') || DRIVE.test(decoded) ? decoded : joinPath(documentFolder, decoded);
   return collapseDotSegments(absolute);

@@ -33,6 +33,76 @@ export function stripExtension(path: string): string {
   return path.replace(/\.[^/.]+$/, '');
 }
 
+/** A run of percent escapes; the regex engine bounds it by the reference. */
+const ESCAPE_RUN = /(?:%[0-9A-Fa-f]{2})+/g;
+const ONE_ESCAPE = /%[0-9A-Fa-f]{2}/g;
+
+/**
+ * How many escapes the UTF-8 sequence led by `lead` takes, or 0 for a byte
+ * that cannot lead one.
+ */
+function sequenceLength(lead: number): number {
+  if (lead < 0x80) return 1;
+  if (lead >= 0xc2 && lead < 0xe0) return 2;
+  if (lead >= 0xe0 && lead < 0xf0) return 3;
+  if (lead >= 0xf0 && lead < 0xf5) return 4;
+  return 0;
+}
+
+function decodeSequence(sequence: string): string | null {
+  try {
+    return decodeURIComponent(sequence);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decode one run of escapes, one UTF-8 sequence at a time, so a malformed one
+ * is kept as written without costing the ones beside it. Each pass of the
+ * loop consumes at least one escape of the run, which bounds it.
+ */
+function decodeRun(run: string): string {
+  const escapes = run.match(ONE_ESCAPE) ?? [];
+  let out = '';
+  let i = 0;
+  while (i < escapes.length) {
+    const length = sequenceLength(Number.parseInt(escapes[i].slice(1), 16));
+    const fits = length > 0 && i + length <= escapes.length;
+    const decoded = fits ? decodeSequence(escapes.slice(i, i + length).join('')) : null;
+    if (decoded === null || decoded === '/' || decoded === '\\') {
+      out += escapes[i];
+      i += 1;
+    } else {
+      out += decoded;
+      i += length;
+    }
+  }
+  return out;
+}
+
+/**
+ * The path an image address names on disk, with its percent escapes read
+ * (#454): `assets/my%20diagram.png` names `assets/my diagram.png`, and a
+ * file written by another tool spells a space, a `#` or a letter beyond ASCII
+ * that way. The one rule for every place that turns an address into a disk
+ * path - the loader, the save, the names an insert keeps free, and the #380
+ * answer to which files are used - so they cannot disagree. The address in
+ * the document is never rewritten; only the path asked of the disk is.
+ *
+ * - **A malformed escape is left as written**, a `%` not followed by two hex
+ *   digits or bytes that are not UTF-8, and the escapes beside it are still
+ *   read: a name may hold a `%` of its own.
+ * - **An escape for a path separator, `%2F` or `%5C`, is left as written.**
+ *   A name on disk can hold neither, so reading one would turn an escaped
+ *   character into a folder boundary the address did not spell. Such an
+ *   address names no file, as it did before, which is also how a URL reads
+ *   `%2F` inside a segment.
+ */
+export function decodePercentEscapes(address: string): string {
+  return address.replace(ESCAPE_RUN, decodeRun);
+}
+
 /**
  * The root a normalized path starts from: `//` for a network share, `/` for
  * any other absolute path, nothing for a relative one (#448).

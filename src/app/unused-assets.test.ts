@@ -156,6 +156,18 @@ const SHAPES: ReadonlyArray<
   ['a reference from ./', '![b](./assets/b.png)', 'b.png', true],
   ['an HTML image (#27)', '<img src="assets/c.png" width="100">', 'c.png', true],
   ['a name with a space, spelled %20', '![p](assets/my%20pic.png)', 'my pic.png', true],
+  // Every escape is read, not only those `decodeURI` reads (#454): it leaves a
+  // `#` spelled `%23`, which a name may hold and a reference must escape.
+  ['a name with a hash, spelled %23', '![h](assets/a%23b.png)', 'a#b.png', true],
+  [
+    'a name with letters beyond ASCII, escaped',
+    '![r](assets/%C8%99coal%C4%83.png)',
+    'școală.png',
+    true,
+  ],
+  // A malformed escape is left as written and the escape beside it is read
+  // (#454); `decodeURI` gave up on the whole reference.
+  ['a malformed escape beside a space', '![m](assets/50%zz%20off.png)', '50%zz off.png', true],
   ['a name in other capitals, on Windows', '![g](Assets/G.PNG)', 'g.png', true],
   ['the same name in another folder', '![e](other/e.png)', 'e.png', false],
   ['the same name at a web address', '![f](https://example.com/f.png)', 'f.png', false],

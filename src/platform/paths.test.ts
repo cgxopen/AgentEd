@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   basename,
   collapseDotSegments,
+  decodePercentEscapes,
   dirname,
   isPathInsideRoot,
   joinPath,
@@ -211,5 +212,41 @@ describe('a network share keeps its host (#448)', () => {
       'C:/Users/vasil/New folder/assets',
     );
     expect(collapseDotSegments('/home/cata/../x')).toBe('/home/x');
+  });
+});
+
+describe('decodePercentEscapes (#454)', () => {
+  it.each([
+    ['a space', 'assets/my%20diagram.png', 'assets/my diagram.png'],
+    ['a hash, which decodeURI leaves escaped', 'assets/a%23b.png', 'assets/a#b.png'],
+    ['a letter beyond ASCII, two bytes', 'assets/%C8%99.png', 'assets/ș.png'],
+    ['an escape in lower case', 'assets/%c8%99.png', 'assets/ș.png'],
+    ['a percent sign, spelled %25', 'assets/100%25.png', 'assets/100%.png'],
+    ['nothing to read', 'assets/plain.png', 'assets/plain.png'],
+  ])('reads %s', (_label, address, path) => {
+    expect(decodePercentEscapes(address)).toBe(path);
+  });
+
+  it.each([
+    ['a stray percent sign', 'assets/100%.png', 'assets/100%.png'],
+    ['a percent sign before one hex digit', 'assets/a%2.png', 'assets/a%2.png'],
+    ['a percent sign before letters', 'assets/50%zz%20off.png', 'assets/50%zz off.png'],
+    ['a lead byte with no continuation', 'assets/%C8%20x.png', 'assets/%C8 x.png'],
+    ['a continuation byte alone', 'assets/%99%20x.png', 'assets/%99 x.png'],
+    ['a sequence cut short at the end', 'assets/x%E2%82', 'assets/x%E2%82'],
+  ])('leaves %s as written and still reads what is beside it', (_label, address, path) => {
+    expect(decodePercentEscapes(address)).toBe(path);
+  });
+
+  it.each([
+    ['a slash', 'assets/a%2Fb.png'],
+    ['a slash in lower case', 'assets/a%2fb.png'],
+    ['a backslash', 'assets/a%5Cb.png'],
+  ])('leaves an escaped %s as written, since a name cannot hold one', (_label, address) => {
+    expect(decodePercentEscapes(address)).toBe(address);
+  });
+
+  it('reads the escapes beside an escaped separator', () => {
+    expect(decodePercentEscapes('assets/a%2F%20b.png')).toBe('assets/a%2F b.png');
   });
 });
