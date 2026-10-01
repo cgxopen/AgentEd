@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findOpenCut, mayHoldOpenCut } from './open-cut';
+import { findOpenCut, mayHoldOpenCut, openCutIn } from './open-cut';
 
 /**
  * The filter decides only whether to lex, and must never skip a file the
@@ -33,14 +33,30 @@ const OPENERS: ReadonlyArray<readonly [string, string]> = [
   ['a comment', '<!-- never closed'],
 ];
 
+const SWEEP = CONTAINERS.flatMap(([where, wrap]) =>
+  OPENERS.map(([kind, opener]) => [
+    `${kind} in ${where}`,
+    `Intro.\n\n${wrap(opener)}\n\nAfter.\n\nMore.\n`,
+  ]),
+);
+
 describe('the filter never skips a file the detector refuses (#455)', () => {
-  for (const [where, wrap] of CONTAINERS) {
-    it.each(OPENERS)(`%s in ${where}`, (_kind, opener) => {
-      const file = `Intro.\n\n${wrap(opener)}\n\nAfter.\n\nMore.\n`;
-      const cut = findOpenCut(file);
-      if (cut !== null) expect(mayHoldOpenCut(file), file).toBe(true);
-    });
-  }
+  // Asked of the detector with no filter in front of it: through the filter,
+  // a filter that skipped a file would make the detector answer null and the
+  // row would assert nothing.
+  it.each(SWEEP)('%s', (_label, file) => {
+    if (openCutIn(file) !== null) expect(mayHoldOpenCut(file), file).toBe(true);
+  });
+
+  it('refuses all of the sweep but two, so the rows above assert something', () => {
+    // The two: an unclosed comment at the top level runs to the end of the
+    // document, so it has nothing after it to take.
+    const opened = SWEEP.filter(([, file]) => openCutIn(file) === null).map(([label]) => label);
+    expect(opened).toEqual([
+      'a comment in the top level',
+      'a comment in a top level indented by three spaces',
+    ]);
+  });
 
   it('refuses at least the shapes the issue names, so the sweep is not vacuous', () => {
     for (const [where, wrap] of CONTAINERS.slice(0, 6)) {

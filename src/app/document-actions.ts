@@ -7,6 +7,7 @@ import {
   parseDocument,
   saveDocument,
 } from '../formats/index';
+import { OpenCutError } from '../formats/types';
 import { NotUtf8Error } from '../platform/decode';
 import { getPlatformIO } from '../platform/index';
 import { basename, dirname } from '../platform/paths';
@@ -180,6 +181,13 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       // would be false on the only failure that route can still reach
       // (#141). It reports the mechanism instead, which is the useful
       // thing to show for a fault with no user action behind it.
+      // A file refused for what its text would do (#455) reads the same
+      // words on every route, the reload of R-C14 included: the refusal is
+      // made at read, so the sentence that nothing changed is true here.
+      if (e instanceof OpenCutError) {
+        await ctx.reporter.dialog(openFailedMessage(path, e), e, OPEN_FAILED_TITLE, 'omit');
+        return;
+      }
       const label = typeof failure.label === 'function' ? failure.label(e) : failure.label;
       await ctx.reporter.dialog(label, e, failure.title, failure.detail);
     }
@@ -467,10 +475,19 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     // The text came back with the path, read from the handle the user
     // picked — so it is used, rather than the file being looked up again
     // by a name that on the web may not identify it (#141).
+    // Parsed here, outside the open, so a refusal of the text (#455) is
+    // caught here: it used to reach no dialog at all.
+    let preloaded: ReturnType<typeof parseDocument>;
+    try {
+      preloaded = parseDocument(result.content, result.path);
+    } catch (e) {
+      await ctx.reporter.dialog(openFailedMessage(result.path, e), e, OPEN_FAILED_TITLE, 'omit');
+      return;
+    }
     await openDocumentAtPath(
       result.path,
       { label: `Failed to open document: ${result.path}` },
-      { preloaded: parseDocument(result.content, result.path) },
+      { preloaded },
     );
   }
 

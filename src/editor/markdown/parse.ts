@@ -319,6 +319,15 @@ function escapeHtmlText(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * The block tokens of `markdown`, read by the `marked` this module configures
+ * above, so a caller that asks a question of the tokens reads the file the way
+ * the editor will (#455). Nothing is rendered.
+ */
+export function lexMarkdown(markdown: string): ReturnType<typeof marked.lexer> {
+  return marked.lexer(markdown);
+}
+
 export function markdownToHtml(markdown: string, options: ParseOptions = {}): string {
   const html = marked.parse(markdown, { async: false, breaks: options.breaks ?? false }) as string;
 

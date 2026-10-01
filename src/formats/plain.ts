@@ -1,9 +1,10 @@
+import { findOpenCut } from '../editor/markdown/open-cut';
 import { decodePercentEscapes, dirname, joinPath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { applyByteOrderMark, hasByteOrderMark, stripByteOrderMark } from './byte-order-mark';
 import { assembleMarkdown, splitFrontmatter } from './frontmatter';
 import { applyLineConventions, detectLineConventions } from './line-conventions';
-import type { MarkdownDocument } from './types';
+import { type MarkdownDocument, OpenCutError } from './types';
 
 export interface LoadResult {
   readonly document: MarkdownDocument;
@@ -46,6 +47,16 @@ export function parseMarkdown(text: string, path: string): LoadResult {
   const mark = hasByteOrderMark(text);
   const withoutMark = stripByteOrderMark(text);
   const { raw, body } = splitFrontmatter(withoutMark);
+  // Refused here, with the UTF-8 refusal one step before it, because nothing
+  // has changed yet (#455): a refusal after the open began would leave the
+  // document that was open under this path, where a save writes it over this
+  // file. The body is a suffix of the text, so the lines above it are the
+  // metadata block's.
+  const cut = findOpenCut(body);
+  if (cut !== null) {
+    const above = withoutMark.slice(0, withoutMark.length - body.length);
+    throw new OpenCutError(path, (above.match(/\n/g) ?? []).length + cut.line, cut.kind);
+  }
   return {
     document: {
       byteOrderMark: mark,
