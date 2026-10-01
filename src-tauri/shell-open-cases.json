@@ -1,5 +1,5 @@
 {
-  "_about": "Cases for the shell open scope (#448), read by src-tauri/src/shell_scope.rs, which matches them against the scope as tauri-plugin-shell compiles it, and by src/app/link-open.test.ts, which asserts what a Ctrl+click hands to the shell. The links are F1 and the paths F5 of the readings on #20.",
+  "_about": "Cases for the shell open scope (#448), read by src-tauri/src/shell_scope.rs, which matches them against the scope as tauri-plugin-shell compiles it, and by src/app/link-open.test.ts, which asserts what a Ctrl+click hands to the shell. The links are F1 and the paths F5 of the readings on #20. The refused drive and share paths holding a double quote, a less-than, a greater-than, a pipe, a question mark or an asterisk are the characters Windows forbids in a name (#20).",
   "links": [
     {
       "spelling": "https://example.com/a",
@@ -83,6 +83,26 @@
     "HTTPS://example.com/a",
     "https:example.com/a",
     "//server/share/notes/assets/run.exe",
-    "///server/share/x.png"
+    "///server/share/x.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\x\" y.png",
+    "C:\\Users\\vasil\\Documents\\New folder\\assets\\a\" --flag b.pdf",
+    "C:/Users/vasil/Documents/notes/assets/x\" y.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\x<y.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\x>y.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\x|y.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\x?y.png",
+    "C:\\Users\\vasil\\Documents\\notes\\assets\\x*y.png",
+    "C:\\Users\\vasil\\Documents\\notes\"\\assets\\diagram.png",
+    "\\\\server\\share\\notes\\assets\\x\" y.png",
+    "\\\\server\\share name\\notes\\assets\\x|y.pdf",
+    "\\\\server\\share\\notes\\assets\\x<y.png",
+    "\\\\server\\share\\notes\\assets\\x>y.png",
+    "\\\\server\\share\\notes\\assets\\x?y.png",
+    "\\\\server\\share\\notes\\assets\\x*y.png",
+    "\\\\ser\"ver\\share\\notes\\assets\\diagram.png",
+    "\\\\ser<ver\\share\\notes\\assets\\diagram.png",
+    "\\\\ser>ver\\share\\notes\\assets\\diagram.png",
+    "\\\\ser|ver\\share\\notes\\assets\\diagram.png",
+    "//server/share/notes/assets/x\" y.png"
   ]
 }
