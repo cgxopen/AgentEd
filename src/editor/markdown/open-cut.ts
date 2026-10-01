@@ -26,13 +26,40 @@ import { lexMarkdown } from './parse';
  * **A block with nothing after it is not a cut**: it can take nothing but its
  * own text, which is what the recorded exceptions already say of it.
  */
-export type OpenCutKind = 'attribute' | 'comment';
+export type OpenCutKind = 'attribute' | 'comment' | 'raw-text';
 
 export interface OpenCut {
-  /** The line of the file, counted from 1, where the cutting block begins. */
+  /** The line of the file, counted from 1, where the cut begins. */
   readonly line: number;
   readonly kind: OpenCutKind;
+  /** For `raw-text`, the element left open, which the repair names (#458). */
+  readonly element?: string;
 }
+
+/**
+ * The raw-text elements whose text, left open, takes what follows with it
+ * (#458), measured in Chromium through the editor. `textarea` is the one left
+ * out: its text survives, folded into the field, so it is not a cut.
+ */
+const CUTTING_RAW_TEXT = new Set([
+  'script',
+  'style',
+  'title',
+  'xmp',
+  'iframe',
+  'noembed',
+  'noframes',
+  'plaintext',
+]);
+
+/**
+ * Whether a `script` or a `style` left open at the top level runs on past a
+ * blank line (#458). Their block runs to the end of the file, so nothing
+ * follows it for the walk to see, and what a reader takes for the next
+ * paragraphs is the text of the element. The other elements end their block
+ * at the blank line, where the text after it is a block of its own.
+ */
+const BLANK_LINE_THEN_TEXT = /\n[ \t]*\n[\s\S]*\S/;
 
 /**
  * Whether some line opens, after the markers and indentation of the
@@ -89,6 +116,10 @@ function blocksInOrder(tokens: Token[]): Placed[] {
 
 const CONTAINERS = new Set(['space', 'blockquote', 'list', 'list_item']);
 
+function countLines(text: string): number {
+  return (text.match(/\n/g) ?? []).length;
+}
+
 /** The line of `token` inside the top-level token that holds it. */
 function lineOf(entry: Placed): number {
   if (entry.token === entry.top) return entry.topLine;
@@ -117,9 +148,19 @@ export function openCutIn(markdown: string): OpenCut | null {
     const { token } = placed[i];
     if (!CONTAINERS.has(token.type) && token.raw.trim() !== '') lastContent = i;
   }
-  for (let i = 0; i < lastContent; i++) {
+  for (let i = 0; i < placed.length; i++) {
     if (placed[i].token.type !== 'html') continue;
     const end = htmlBlockEnd(placed[i].token.raw);
+    const raw = end.rawText;
+    if (raw && CUTTING_RAW_TEXT.has(raw.element)) {
+      const textAfter = i < lastContent;
+      const runsOn = /^(script|style)$/.test(raw.element) && BLANK_LINE_THEN_TEXT.test(raw.text);
+      if (textAfter || runsOn) {
+        const line = lineOf(placed[i]) + countLines(placed[i].token.raw.slice(0, raw.start));
+        return { line, kind: 'raw-text', element: raw.element };
+      }
+    }
+    if (i >= lastContent) continue;
     // Words a tag swallowed as attribute names are the attribute shape seen
     // from the other side (#457 review): the repair is the same blank line.
     if (end.state === 'quote' || end.wordsAfterBlankLineInTag) {

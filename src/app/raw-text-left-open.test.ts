@@ -109,6 +109,8 @@ const REFUSED: ReadonlyArray<readonly [string, string, number, string]> = [
     4,
     '</style>',
   ],
+  // A control of #457, which let it open; refused by the rule of #458.
+  ['the unclosed style of the #457 controls', 'Before.\n\n<style>\np{}\n\nAfter.\n', 3, '</style>'],
 ];
 
 const PLAINTEXT: ReadonlyArray<readonly [string, string, number]> = [
