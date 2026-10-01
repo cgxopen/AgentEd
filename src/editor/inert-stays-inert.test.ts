@@ -1,0 +1,193 @@
+import { Marked } from 'marked';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { normalizeLinkUrl } from './link-url';
+import type { PredictablePasteStorage } from './paste';
+import { createEditor, type EditorInstance } from './setup';
+
+vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
+
+/**
+ * Content a file holds inert stays inert through an AgentEd save (#447).
+ *
+ * Found by the section B readings on #20, sections 1 and 3 of comment
+ * 5925655575, where each reproduction below was measured: an untouched save
+ * turned an entity in a link destination into a `javascript:` link (F2), an
+ * image tag carried inside a hand-written `data-html-source` into a live tag
+ * with an event handler (F3), and the entries of a hand-written
+ * `data-footnote-indents` into a heading or a live tag (F4). Nothing ran
+ * inside AgentEd in any of them; what changed was the file, for the next
+ * renderer that does not sanitize.
+ *
+ * "Live" is asked of a pristine `marked`, which sanitizes nothing: the saved
+ * file holds no event handler and no link that resolves to `javascript:` or
+ * `data:`. "Holds still" is the second save writing what the first wrote.
+ */
+
+const pristine = new Marked();
+const E = encodeURIComponent;
+const LIVE = '<img src=x onerror=alert(1)>';
+
+let open: EditorInstance[] = [];
+
+function editorWith(markdown: string): EditorInstance {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const instance = createEditor(host);
+  (instance.editor.storage.predictablePaste as PredictablePasteStorage).plainPasteRequestedAt = 0;
+  instance.setMarkdown(markdown);
+  open.push(instance);
+  return instance;
+}
+
+afterEach(() => {
+  for (const instance of open) instance.destroy();
+  open = [];
+  document.body.innerHTML = '';
+});
+
+/** What a renderer with no sanitizer makes of `markdown`, as a DOM. */
+function rendered(markdown: string): HTMLElement {
+  const container = document.createElement('div');
+  container.innerHTML = String(pristine.parse(markdown));
+  return container;
+}
+
+/** Every way the saved file is live in a renderer that does not sanitize. */
+function liveIn(markdown: string): string[] {
+  const found: string[] = [];
+  for (const element of Array.from(rendered(markdown).querySelectorAll('*'))) {
+    for (const attribute of Array.from(element.attributes)) {
+      if (/^on/i.test(attribute.name)) found.push(`${element.tagName} ${attribute.name}`);
+    }
+    const href = element.getAttribute('href');
+    if (href !== null && /^\s*(javascript|vbscript|data):/i.test(href)) found.push(`href ${href}`);
+  }
+  return found;
+}
+
+/** The first save, and the save after reopening it. */
+function twoSaves(first: EditorInstance): { saved: string; again: string } {
+  const saved = first.getMarkdown();
+  const again = editorWith(saved).getMarkdown();
+  return { saved, again };
+}
+
+describe('F2: an entity in a link destination stays text', () => {
+  it.each([
+    ['a named entity for the colon', 'javascript&amp;colon;alert(1)', 'javascript&colon;alert(1)'],
+    [
+      'a numeric entity for the first letter',
+      '&amp;#106;avascript:alert(1)',
+      '&#106;avascript:alert(1)',
+    ],
+    ['a named entity in a data address', 'data&amp;colon;text/html,x', 'data&colon;text/html,x'],
+  ])('a raw anchor holding %s', (_label, attribute, href) => {
+    const { saved, again } = twoSaves(editorWith(`before <a href="${attribute}">t</a> after\n`));
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+    // The destination the file held is still the destination on reopen.
+    expect(editorWith(saved).editor.getHTML()).toContain(`href="${href.replace(/&/g, '&amp;')}"`);
+  });
+
+  it('the link dialog, typed with a named entity', () => {
+    const instance = editorWith('word');
+    instance.editor.commands.setTextSelection({ from: 1, to: 5 });
+    instance.editor.chain().setLink({ href: 'javascript&colon;alert(1)' }).run();
+    const { saved, again } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+    expect(editorWith(saved).editor.getHTML()).toContain('href="javascript&amp;colon;alert(1)"');
+  });
+
+  it('the neighbour: the dialog refuses a control character, as it refuses whitespace', () => {
+    expect(normalizeLinkUrl('java\u0000script:alert(1)')).toBeNull();
+    expect(normalizeLinkUrl('https://example.com/a\u0001')).toBeNull();
+  });
+});
+
+describe('F3: a hand-written data-html-source is not the bytes of the file', () => {
+  const carried = `data-html-source="${E(LIVE)}"`;
+  it.each([
+    ['first', `<img ${carried} src="a.png" alt="a">\n`],
+    ['last', `<img src="a.png" alt="a" ${carried}>\n`],
+    ['inside a paragraph', `text <img ${carried} src="a.png" alt="a"> text\n`],
+  ])('the attribute placed %s: the file is written back as it was', (_label, file) => {
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(saved).toBe(file.trimEnd());
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+  });
+});
+
+describe('F4: a hand-written data-footnote-indents writes no markup', () => {
+  const definition = (entries: string[]) =>
+    `<div data-footnote-definition data-footnote-indents="${E(JSON.stringify(entries))}">[^a]: one<br>two</div>\n`;
+
+  it('an entry holding a heading', () => {
+    const { saved, again } = twoSaves(editorWith(definition(['\n# Injected heading\n'])));
+    expect(rendered(saved).querySelector('h1')).toBeNull();
+    expect(again).toBe(saved);
+  });
+
+  it('an entry holding a raw tag', () => {
+    const { saved, again } = twoSaves(editorWith(definition([`\n\n${LIVE}\n\n`])));
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+  });
+});
+
+/**
+ * The paste route, which the readings did not reach (#447 step zero). Two
+ * ways in: HTML from elsewhere, which `cleanPastedHtml` runs through the
+ * serializer and the parser; and HTML carrying `data-pm-slice`, which
+ * `isInternalPaste` takes for a copy from this editor and hands to
+ * ProseMirror as it is - and which any page can spell.
+ */
+function pasteHtml(instance: EditorInstance, html: string): void {
+  const data: Record<string, string> = { 'text/html': html, 'text/plain': 'x' };
+  const event = {
+    clipboardData: { types: Object.keys(data), getData: (t: string) => data[t] ?? '', files: [] },
+    preventDefault: () => undefined,
+  } as unknown as ClipboardEvent;
+  const { view } = instance.editor;
+  const handled = view.someProp('handlePaste', (handler) =>
+    handler(view, event, view.state.selection.content()),
+  );
+  if (!handled) view.pasteHTML(html);
+}
+
+const PASTED: [string, string][] = [
+  [
+    'an entity in a link destination',
+    '<p>before <a href="javascript&amp;colon;alert(1)">t</a> after</p>',
+  ],
+  [
+    'a carried image tag',
+    `<p>x <img data-html-source="${E(LIVE)}" src="https://example.com/a.png" alt="a"> y</p>`,
+  ],
+  [
+    'footnote indents holding a heading',
+    `<div data-footnote-definition data-footnote-indents="${E(JSON.stringify(['\n# Injected heading\n']))}">[^a]: one<br>two</div>`,
+  ],
+  [
+    'footnote indents holding a raw tag',
+    `<div data-footnote-definition data-footnote-indents="${E(JSON.stringify([`\n\n${LIVE}\n\n`]))}">[^a]: one<br>two</div>`,
+  ],
+];
+
+describe.each([
+  ['from elsewhere', (html: string) => html],
+  [
+    'spelling data-pm-slice',
+    (html: string) => html.replace(/^<(\w+)/, '<$1 data-pm-slice="0 0 []"'),
+  ],
+])('a paste %s', (_route, spell) => {
+  it.each(PASTED)('%s writes nothing live and holds still', (_label, html) => {
+    const instance = editorWith('');
+    pasteHtml(instance, spell(html));
+    const { saved, again } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+    expect(rendered(saved).querySelector('h1')).toBeNull();
+    expect(again).toBe(saved);
+  });
+});
