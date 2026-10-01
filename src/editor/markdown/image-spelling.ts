@@ -1,3 +1,4 @@
+import { literalAmpersands } from './destination';
 /**
  * How an image was spelled in the file it came from (#27).
  *
@@ -132,7 +133,7 @@ function startsImageTag(raw: string, at: number): boolean {
  * ends first. Quoted attribute values are skipped whole, so a `>` inside one
  * does not end the tag.
  */
-function tagEnd(raw: string, open: number): number {
+export function tagEnd(raw: string, open: number): number {
   let i = open + 1;
   while (i < raw.length) {
     const ch = raw[i];
@@ -176,8 +177,10 @@ interface AttributeSpan {
  * would throw rather than spin on a document.
  */
 function eachAttribute(tag: string, visit: (name: string, span: AttributeSpan) => void): void {
-  // Past `<img`.
-  let i = 4;
+  // Past the tag name - `<img` here, any element for the guard in
+  // `stamped-attributes.ts` (#447).
+  let i = 1;
+  while (i < tag.length && !/[\s/>]/.test(tag[i])) i += 1;
   while (i < tag.length) {
     const before = i;
     while (i < tag.length && /\s/.test(tag[i])) i += 1;
@@ -305,6 +308,22 @@ function insertionPoint(tag: string): number {
 // ── The stamp the parser writes ──
 
 /**
+ * `tag` with every occurrence of `name` taken out, however many the tag spells.
+ *
+ * Bounded by the length of the tag: each pass that changes anything removes one
+ * attribute, so no tag can take more passes than it has characters.
+ */
+export function withoutTagAttribute(tag: string, name: string): string {
+  let current = tag;
+  for (let pass = 0; pass <= tag.length; pass += 1) {
+    const next = setTagAttribute(current, name, null);
+    if (next === current) return current;
+    current = next;
+  }
+  return current;
+}
+
+/**
  * `html`, with every `<img>` in it carrying its own source bytes.
  *
  * Called with the text of a `marked` html token, which is the file bytes for
@@ -312,11 +331,21 @@ function insertionPoint(tag: string): number {
  * than one image gives each of them its own spelling and no arithmetic pairs
  * them.
  *
- * A tag that already carries the attribute is left alone: the value would be
- * the file's own, and this pass has no better answer than the one already
- * there.
+ * **A tag that already carries the attribute is stamped all the same** (#447).
+ * The value on it is not something this pipeline wrote: the file is read from
+ * its bytes, and every stamp is made here. So it is what the document claims
+ * its own bytes are, and until #447 it was believed, which let a file holding
+ * an image tag encoded inside the attribute - inert in every renderer - be
+ * written back as that tag, event handler and all. Now the claim is taken out
+ * of the element and the stamp is the tag as the file spelled it, the claim
+ * included, so the file is written back byte for byte. `clean` takes out the
+ * other attributes this pipeline stamps for itself, passed in by
+ * `stamped-attributes.ts`, which owns that list.
  */
-export function stampImageSources(html: string): string {
+export function stampImageSources(
+  html: string,
+  clean: (tag: string) => string = (tag) => withoutTagAttribute(tag, IMAGE_HTML_SOURCE_ATTRIBUTE),
+): string {
   const spans = imageTagSpans(html);
   if (spans.length === 0) return html;
 
@@ -326,9 +355,11 @@ export function stampImageSources(html: string): string {
     const tag = html.slice(start, end);
     out.push(html.slice(cursor, start));
     out.push(
-      findAttribute(tag, IMAGE_HTML_SOURCE_ATTRIBUTE) !== null
-        ? tag
-        : setTagAttribute(tag, IMAGE_HTML_SOURCE_ATTRIBUTE, encodeHtmlSource(tag)),
+      setTagAttribute(
+        withoutTagAttribute(clean(tag), IMAGE_HTML_SOURCE_ATTRIBUTE),
+        IMAGE_HTML_SOURCE_ATTRIBUTE,
+        encodeHtmlSource(tag),
+      ),
     );
     cursor = end;
   }
@@ -488,7 +519,7 @@ export function imageMarkup(
   // The markdown form. The alt is escaped for the brackets it sits between
   // (#232) and the title is written beside it (#230).
   if (width === null && height === null) {
-    return `![${markdownAlt(alt)}](${src}${title === null ? '' : markdownTitle(title)})`;
+    return `![${markdownAlt(alt)}](${literalAmpersands(src)}${title === null ? '' : markdownTitle(title)})`;
   }
 
   // The canonical HTML form, written when a markdown image has been resized.

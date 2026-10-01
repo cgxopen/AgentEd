@@ -545,17 +545,72 @@ describe('predictable paste', () => {
     });
   });
 
-  describe('a copy from this editor is left to ProseMirror', () => {
-    it('recognises its own clipboard markup', () => {
-      expect(isInternalPaste('<p data-pm-slice="1 1 []">text</p>')).toBe(true);
-      expect(isInternalPaste('<p>text</p>')).toBe(false);
+  describe('a copy from this window is left to ProseMirror', () => {
+    /** What this window puts on the clipboard for a copy of the whole document. */
+    function copied(editorInstance: EditorInstance): string {
+      const { view, state } = editorInstance.editor;
+      const slice = state.doc.slice(0, state.doc.content.size);
+      return view.serializeForClipboard(slice).dom.innerHTML;
+    }
+
+    it('recognises what it copied, by the token it wrote (#447)', () => {
+      const html = copied(editorWith('* one\n* two'));
+      expect(html).toContain('data-pm-slice');
+      expect(isInternalPaste(html)).toBe(true);
     });
 
-    it('does not handle the paste itself', () => {
+    it('does not take data-pm-slice alone for its own, since any page can spell it (#447)', () => {
+      expect(isInternalPaste('<p data-pm-slice="1 1 []">text</p>')).toBe(false);
+      expect(isInternalPaste('<p>text</p>')).toBe(false);
+      expect(
+        isInternalPaste('<p data-pm-slice="1 1 []" data-agented-copy="0123456789abcdef">text</p>'),
+      ).toBe(false);
+    });
+
+    it('does not handle its own copy itself', () => {
+      const source = editorWith('text');
+      const html = copied(source);
       const editor = editorWith('');
-      expect(paste(editor, { text: 'text', html: '<p data-pm-slice="1 1 []">text</p>' })).toBe(
-        false,
-      );
+      expect(paste(editor, { text: 'text', html })).toBe(false);
+    });
+
+    it('keeps what the pipeline stamped on its own copy: a list marker survives copy and paste', () => {
+      const html = copied(editorWith('* one\n* two'));
+      const target = editorWith('');
+      // Through the handler, as the app pastes: it declines its own copy, and
+      // ProseMirror then reads the HTML as it is.
+      if (!paste(target, { text: 'one\ntwo', html })) target.editor.view.pasteHTML(html);
+      expect(target.getMarkdown()).toBe('* one\n* two');
+    });
+  });
+
+  describe('a copy from another AgentEd window is foreign (#447, the R-C2 exception)', () => {
+    // Each window makes its own token, so a copy carrying another one is
+    // cleaned like any foreign HTML: what the pipeline stamped is taken out
+    // and the construct arrives the way the editor writes it by default.
+    it('a list marker arrives as the default one', () => {
+      const source = editorWith('* one\n* two');
+      const { view, state } = source.editor;
+      const html = view
+        .serializeForClipboard(state.doc.slice(0, state.doc.content.size))
+        .dom.innerHTML.replace(/data-agented-copy="[0-9a-f]+"/, 'data-agented-copy="0000"');
+      const target = editorWith('');
+      paste(target, { text: 'one\ntwo', html });
+      expect(target.getMarkdown()).toBe('- one\n- two');
+    });
+
+    it('an HTML comment is lost, and the words around it arrive', () => {
+      const source = editorWith('before <!-- note --> after');
+      const { view, state } = source.editor;
+      const html = view
+        .serializeForClipboard(state.doc.slice(0, state.doc.content.size))
+        .dom.innerHTML.replace(/data-agented-copy="[0-9a-f]+"/, 'data-agented-copy="0000"');
+      const target = editorWith('');
+      paste(target, { text: 'before  after', html });
+      const saved = target.getMarkdown();
+      expect(saved).not.toContain('note');
+      expect(saved).toContain('before');
+      expect(saved).toContain('after');
     });
   });
 

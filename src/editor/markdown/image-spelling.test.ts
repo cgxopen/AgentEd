@@ -360,9 +360,16 @@ describe('the stamp the parser writes', () => {
     expect(stamped.endsWith('> after\n')).toBe(true);
   });
 
-  it('does not stamp over a value the file already carried', () => {
+  it('stamps over a value the file already carried, with the bytes the file wrote (#447)', () => {
+    // The value is what the document claims its bytes are, not a stamp this
+    // pipeline made. Believing it let an image tag carried inside the
+    // attribute be written back live. The stamp is the tag as spelled, the
+    // claim included as text, and the claim is no longer on the element.
     const raw = `<img src="a.png" ${IMAGE_HTML_SOURCE_ATTRIBUTE}="whatever">`;
-    expect(stampImageSources(raw)).toBe(raw);
+    const stamped = stampImageSources(raw);
+    expect(decodeHtmlSource(readTagAttribute(stamped, IMAGE_HTML_SOURCE_ATTRIBUTE))).toBe(raw);
+    // Once as an attribute; the encoded stamp spells the name again as text.
+    expect(stamped.match(new RegExp(`\\s${IMAGE_HTML_SOURCE_ATTRIBUTE}=`, 'g'))).toHaveLength(1);
   });
 });
 
