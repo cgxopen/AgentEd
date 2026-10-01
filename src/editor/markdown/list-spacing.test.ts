@@ -165,21 +165,24 @@ describe('the list renderer matches marked byte for byte apart from the attribut
  * how **that list** is written back, and there is no fallback by which it
  * reaches another one.
  */
-describe('a list the file wrote as raw HTML carrying the attribute', () => {
-  it('keeps it, and therefore chooses how it is written back', () => {
+describe('a list the file wrote as raw HTML carrying the attribute (#447)', () => {
+  // Until #447 the attribute was kept, so a raw HTML list chose how it was
+  // written back. The pipeline stamps it for itself, and a document no longer
+  // supplies it: the list is written the way any raw HTML list is.
+  it('does not keep it', () => {
     const container = document.createElement('div');
     container.innerHTML = markdownToHtml(
       `<ul ${LIST_SPACING_ATTRIBUTE}="true">\n<li>one</li>\n<li>two</li>\n</ul>`,
     );
-    expect(container.querySelector('ul')?.getAttribute(LIST_SPACING_ATTRIBUTE)).toBe('true');
+    expect(container.querySelector('ul')?.hasAttribute(LIST_SPACING_ATTRIBUTE)).toBe(false);
   });
 
-  it('reaches no other list, because a markdown list is answered from its own bytes', () => {
+  it('and a markdown list beside it is still answered from its own bytes', () => {
     const container = document.createElement('div');
     container.innerHTML = markdownToHtml(
-      `<ul ${LIST_SPACING_ATTRIBUTE}="true">\n<li>one</li>\n</ul>\n\n- a\n- b`,
+      `<ul ${LIST_SPACING_ATTRIBUTE}="true">\n<li>one</li>\n</ul>\n\n- a\n\n- b`,
     );
     const lists = Array.from(container.querySelectorAll('ul'));
-    expect(lists.map((l) => l.hasAttribute(LIST_SPACING_ATTRIBUTE))).toEqual([true, false]);
+    expect(lists.map((l) => l.hasAttribute(LIST_SPACING_ATTRIBUTE))).toEqual([false, true]);
   });
 });

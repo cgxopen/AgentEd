@@ -137,6 +137,20 @@ describe('F4: a hand-written data-footnote-indents writes no markup', () => {
 });
 
 /**
+ * The comment carrier the readings missed (#447 step zero): the readings tried
+ * `data-comment` on a `span`, and the carrier is a `wbr`. A file holding one
+ * was written back with a real comment where it had an inert attribute value.
+ */
+describe('a hand-written comment carrier makes no comment', () => {
+  it('a wbr carrying data-comment', () => {
+    const file = `a <wbr data-comment="${E('<!-- note -->')}"> b\n`;
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(saved).not.toContain('<!--');
+    expect(again).toBe(saved);
+  });
+});
+
+/**
  * The paste route, which the readings did not reach (#447 step zero). Two
  * ways in: HTML from elsewhere, which `cleanPastedHtml` runs through the
  * serializer and the parser; and HTML carrying `data-pm-slice`, which

@@ -373,12 +373,14 @@ describe('a table the file wrote as raw HTML carrying the attribute', () => {
     emptyCell: null,
   }).replaceAll('"', '&quot;');
 
-  it('keeps a value the validator accepts', () => {
+  it('does not keep even a value the validator accepts (#447)', () => {
+    // Until #447 a valid value was kept and could be the spelling a table the
+    // user creates takes. The pipeline stamps the attribute for itself, and a
+    // document no longer supplies it; the bytes of the table keep it as text.
     const table = tableIn(
       `<table ${TABLE_STYLE_ATTRIBUTE}="${PADDED_STYLE}">\n<tr><td>one</td><td>two</td></tr>\n</table>`,
     );
-    const style = decodeTableStyle(table?.getAttribute(TABLE_STYLE_ATTRIBUTE) ?? null);
-    expect(style?.columns.map((c) => c.kind)).toEqual(['fixed', 'fixed']);
+    expect(table?.hasAttribute(TABLE_STYLE_ATTRIBUTE)).toBe(false);
   });
 
   it('and a value the validator refuses buys nothing, whatever it holds', () => {

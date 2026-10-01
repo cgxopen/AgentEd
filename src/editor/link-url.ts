@@ -98,15 +98,32 @@ export function isRelativeLinkAddress(candidate: string): boolean {
 }
 
 /**
+ * Whether `text` holds a C0 control character or DEL (#447).
+ *
+ * The URL parser strips or ignores most of them, so `java` NUL `script:`
+ * classified as a relative path and the dialog stored it; the save wrote the
+ * NUL into the file and the link came back as text on the next open.
+ * Measured on #20. A link address is one token of printable characters.
+ */
+function hasControlCharacter(text: string): boolean {
+  for (let i = 0; i < text.length; i += 1) {
+    const code = text.charCodeAt(i);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/**
  * The address to store for `input`, or `null` when there is nothing usable.
- * Whitespace anywhere disqualifies it: a link address is one token.
+ * Whitespace or a control character anywhere disqualifies it: a link address
+ * is one token.
  *
  * What survives is stored **as typed** — no scheme added, no `./` added, no
  * judgement about whether a scheme-less token looks like a file.
  */
 export function normalizeLinkUrl(input: string): string | null {
   const trimmed = input.trim();
-  if (trimmed === '' || /\s/.test(trimmed)) return null;
+  if (trimmed === '' || /\s/.test(trimmed) || hasControlCharacter(trimmed)) return null;
   return classify(trimmed) === 'refused' ? null : trimmed;
 }
 

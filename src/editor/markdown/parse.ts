@@ -10,9 +10,9 @@ import {
   FOOTNOTE_INDENTS_ATTRIBUTE,
   splitDefinition,
 } from './footnote';
-import { stampImageSources } from './image-spelling';
 import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
+import { stampedFromTheFile } from './stamped-attributes';
 import { stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
 import { markTaskLists } from './task-list';
@@ -93,8 +93,12 @@ marked.use({
       // goes on to the image stamp exactly as before.
       const carrier = commentCarrier(token.text, token.block);
       if (carrier !== null) return carrier;
-      const table = token.block ? stampTableSource(token.text, token.raw) : null;
-      return stampImageSources(table ?? token.text);
+      // The attributes this pipeline stamps are taken out of what the file
+      // spelled before any stamp is made, and each image is stamped with its
+      // own bytes (#447). A table is stamped from `token.raw`, the bytes the
+      // file wrote, so what it held is kept as it was.
+      const own = stampedFromTheFile(token.text);
+      return (token.block ? stampTableSource(own, token.raw) : null) ?? own;
     },
   },
 });
@@ -347,42 +351,24 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // together on #283, the suite moved not one test. They were lines that
   // looked load-bearing and were not, the reason #245 gave for leaving
   // `data-comment` out, and the table source from #283 is left out for the same
-  // reason. What follows is about what a document can *say* with each
-  // attribute, which is the question that was always the real one.
+  // reason.
   //
-  // **The table style and the list spacing: the value is bounded** (#200).
-  // Until the renderers above existed, the two passes over this string removed
-  // both attributes from every table and list before writing the detected
-  // ones, so a document carrying its own could not reach the serializer at
-  // all; the passes are gone and so is the strip. What a document can do now
-  // is mostly what the attribute means anyway: a list the file wrote as **raw
-  // HTML** keeps the spacing the file gave it, and a raw HTML table keeps the
-  // spelling it is written in once it is edited — unedited, it is written back
-  // as its own bytes (#283). A markdown table and a markdown list cannot be
-  // reached that way, because both get their value written at render time from
-  // their own bytes.
-  //
-  // **One element it can reach besides its own**, and it is named here rather
-  // than left to be discovered: a table the *user created* has no spelling, so
-  // `styleFor` in `serialize.ts` gives it the spelling of the first table in
-  // the document that has one — the rule from #93 that keeps a document from
-  // being spelled two ways — and a raw HTML table carrying its own attribute
-  // can be that first table. What it can say there is bounded by
-  // `decodeTableStyle`: a separator cell is dashes, colons and spaces or the
-  // whole style is refused, and a width is a small whole number. So the reach
-  // is one new table, and what it costs is column padding. `data-loose` has no
-  // such fallback — it is read as the literal `true` or not at all, on the list
-  // carrying it.
-  //
-  // **The image source and the table source: safe by construction** (#27,
-  // #283). Each value is `encodeURIComponent` output, so it holds no `<`, `>`,
-  // `&` or `"` and cannot end the attribute or open an element, and its
-  // decoder refuses anything that is not one image tag or one whole table. A
-  // document carrying its own `data-html-source` therefore chooses at most how
-  // *its own* image is written back, which is what the attribute means anyway.
-  // A document carrying its own `data-table-html-source` chooses nothing: the
-  // renderer stamps the file's bytes ahead of it, and an HTML parser keeps the
-  // first of two attributes with one name.
+  // **What a document can say with them: nothing, since #447.** DOMPurify
+  // keeps them, so the question was always what a document that spelled one
+  // could make the serializer write, and the answer measured on #20 was too
+  // much: a hand-written `data-html-source` was written back as the image tag
+  // it carried, event handler included, and a hand-written
+  // `data-footnote-indents` as a heading or a raw tag. The `html` renderer
+  // above now takes every attribute this pipeline stamps for itself out of
+  // the raw HTML of a file before it stamps its own, through
+  // `stamped-attributes.ts`, which holds the list; pasted HTML has them taken
+  // out the same way in `cleanPastedHtml`. So the value on an element is the
+  // one this pipeline wrote, and a raw HTML list or table no longer chooses
+  // its own spacing or spelling, or the spelling a table the user creates
+  // takes after it. What the file spelled stays in its bytes where bytes are
+  // kept, as the inert text it was. `data-type` and `data-checked` are not on
+  // the list, by owner decision on #447: TipTap writes them too, and what a
+  // document can say with them is a checkbox.
   return DOMPurify.sanitize(withTaskLists, {
     ALLOWED_URI_REGEXP:
       /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,

@@ -3,6 +3,7 @@ import { getRelativePath } from '../image-registry';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
+import { literalAmpersands } from './destination';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import {
   createNarrowedEscape,
@@ -225,6 +226,23 @@ if (!builtinHeading) {
  * `colspan` round-trips byte-identically with this line in place.
  */
 turndown.remove(['style', 'script', 'title', 'noscript']);
+
+// A link as turndown writes it, with one difference: an ampersand in the
+// destination that would begin a character reference is written as `&amp;`, so
+// the next reader does not decode it into another address (#447, see
+// `destination.ts`). Everything else is turndown's own `inlineLink`, restated
+// because a rule cannot be adjusted in place: parentheses escaped, and the
+// title quoted with its newlines collapsed the way turndown collapses them.
+turndown.addRule('inlineLinkKeepingAmpersands', {
+  filter: (node) => node.nodeName === 'A' && Boolean((node as HTMLElement).getAttribute('href')),
+  replacement: (content, node) => {
+    const element = node as HTMLElement;
+    const href = literalAmpersands(element.getAttribute('href') ?? '').replace(/([()])/g, '\\$1');
+    const rawTitle = element.getAttribute('title');
+    const title = rawTitle ? ` "${rawTitle.replace(/(\n+\s*)+/g, '\n').replace(/"/g, '\\"')}"` : '';
+    return `[${content}](${href}${title})`;
+  },
+});
 
 turndown.addRule('heading', {
   filter: builtinHeading.filter,

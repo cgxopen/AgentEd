@@ -1,5 +1,5 @@
 import { Extension } from '@tiptap/core';
-import { Fragment, DOMParser as ProseMirrorDOMParser, Slice } from '@tiptap/pm/model';
+import { Fragment, DOMParser as ProseMirrorDOMParser, type Schema, Slice } from '@tiptap/pm/model';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import {
   CellSelection,
@@ -9,9 +9,11 @@ import {
 } from '@tiptap/pm/tables';
 import type { EditorView } from '@tiptap/pm/view';
 import { showToast } from '../ui/toast';
+import { carriesThisWindowsToken, clipboardSerializerWithToken } from './clipboard-token';
 import { isSingleUrl } from './link-url';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
+import { withoutStampedAttributes } from './markdown/stamped-attributes';
 
 /**
  * Predictable paste (R-C13, defect D2).
@@ -89,14 +91,28 @@ export function isPlainPasteShortcut(event: KeyboardEvent): boolean {
   return event.code === 'KeyV' || event.key === 'v' || event.key === 'V';
 }
 
-/** Rich HTML rewritten as the markdown pipeline would write and read it. */
+/**
+ * Rich HTML rewritten as the markdown pipeline would write and read it.
+ *
+ * The attributes the pipeline stamps for itself are taken out first (#447):
+ * the serializer trusts them, and a page that spelled them put an event
+ * handler or a heading into a file through one paste.
+ */
 export function cleanPastedHtml(html: string): string {
-  return markdownToHtml(htmlToMarkdown(html));
+  return markdownToHtml(htmlToMarkdown(withoutStampedAttributes(html)));
 }
 
-/** True for HTML this editor put on the clipboard itself. */
+/**
+ * True for HTML this window put on the clipboard itself.
+ *
+ * `data-pm-slice` alone used to answer this, and any page can spell it (#447),
+ * so the token this window writes on what it copies is asked for as well. A
+ * copy from another AgentEd window carries a token this one does not know,
+ * and is cleaned as foreign HTML: the R-C2 exception for a copy between
+ * windows.
+ */
 export function isInternalPaste(html: string): boolean {
-  return html.includes('data-pm-slice');
+  return html.includes('data-pm-slice') && carriesThisWindowsToken(html);
 }
 
 /** True when the caret sits in a block whose content is literal text. */
@@ -406,7 +422,7 @@ function armPlainPasteOnKeydown(view: EditorView, storage: PredictablePasteStora
   return () => doc.removeEventListener('keydown', onKeydown, true);
 }
 
-export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
+export function createPastePlugin(storage: PredictablePasteStorage, schema: Schema): Plugin {
   return new Plugin({
     key: new PluginKey('predictablePaste'),
     view(view: EditorView) {
@@ -414,6 +430,8 @@ export function createPastePlugin(storage: PredictablePasteStorage): Plugin {
       return { destroy: disarm };
     },
     props: {
+      // What a copy puts on the clipboard carries this window's token (#447).
+      clipboardSerializer: clipboardSerializerWithToken(schema),
       handlePaste(view: EditorView, event: ClipboardEvent): boolean {
         if (!event.clipboardData) return false;
         const text = event.clipboardData.getData('text/plain');
@@ -492,6 +510,6 @@ export const PredictablePaste = Extension.create<Record<string, never>, Predicta
   // keyboard shortcut here — see isPlainPasteShortcut for why (#32).
 
   addProseMirrorPlugins() {
-    return [createPastePlugin(this.storage)];
+    return [createPastePlugin(this.storage, this.editor.schema)];
   },
 });
