@@ -131,6 +131,18 @@ describe('floating toolbar — the link button (#25)', () => {
     expect(editor.getMarkdown()).toBe('the docs');
   });
 
+  it('carries a drawn symbol in the text colour and no characters (#20)', () => {
+    // An emoji from #40 until #20, which the Windows emoji font paints in its
+    // own pale colours, so the button read as disabled beside the letters.
+    // A symbol in `currentColor` takes the palette and the active state the
+    // way the letter buttons do; what it looks like is the manual pass.
+    mountEditorWithToolbar('the docs');
+    const button = toolbarButton('Link (Ctrl+K)');
+
+    expect(button.textContent).toBe('');
+    expect(button.querySelector('svg')?.getAttribute('stroke')).toBe('currentColor');
+  });
+
   it('marks itself active when the caret sits in a link', () => {
     const { editor } = mountEditorWithToolbar('[docs](https://example.com)');
     select(editor, 'docs');
