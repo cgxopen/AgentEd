@@ -58,6 +58,8 @@ const CHORDS: ReadonlyMap<string, string> = new Map([
   ['menu-undo', 'Ctrl+Z'],
   ['menu-redo', 'Ctrl+Y'],
   ['menu-select-all', 'Ctrl+A'],
+  // #450: Insert, Link opens what Ctrl+K opens, from `keyboard.ts`.
+  ['menu-insert-link', 'Ctrl+K'],
   ['menu-insert-code-block', 'Ctrl+Shift+K'],
   ['menu-insert-footnote', FOOTNOTE_SHORTCUT.chord],
 ]);

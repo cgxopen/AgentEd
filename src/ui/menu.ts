@@ -19,7 +19,10 @@ export interface MenuCallbacks {
   onRedo: () => void;
   onSelectAll: () => void;
   onInsertTable: () => void;
+  /** Insert, Image: the picker filtered to images (#450 renamed it from Media). */
   onInsertMedia: () => void;
+  /** Insert, Link: the link dialog, the same `open` the toolbar and Ctrl+K call (#450). */
+  onInsertLink: () => void;
   onInsertCodeBlock: () => void;
   onInsertChecklist: () => void;
   onInsertFootnote: () => void;
@@ -56,15 +59,16 @@ export interface HistoryAvailability {
  * `tableShapeAvailability` in `editor/table-shape.ts` for the seven Table
  * entries, `imageDescriptionAvailability` in `editor/image-description.ts`
  * for the eighth entry of Edit, and `footnoteAvailability` in
- * `editor/insert-footnote.ts` for the Footnote entry of Insert. Each records
- * what its rules refuse and why.
+ * `editor/insert-footnote.ts` for the Footnote entry of Insert, and
+ * `linkAvailability` in `app/link-dialog.ts` for the Link entry (#450). Each
+ * records what its rules refuse and why.
  */
 export type EntryAvailability = Readonly<Record<string, boolean>>;
 
 /**
  * Every entry that is greyed from that reading, with the key it is greyed
- * from — the seven of the Table section, the image description in Edit and
- * the footnote in Insert.
+ * from — the seven of the Table section, the image description in Edit, and
+ * the footnote, the code block and the link in Insert.
  * The ids are the markup's, and a key the reading does not carry greys its
  * entry: a reading that forgot one fails safe, rather than offering a route
  * that would do nothing.
@@ -72,6 +76,7 @@ export type EntryAvailability = Readonly<Record<string, boolean>>;
 const GREYABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
   ['menu-image-description', 'imageDescription'],
   ['menu-insert-footnote', 'insertFootnote'],
+  ['menu-insert-link', 'insertLink'],
   ['menu-insert-code-block', 'insertCodeBlock'],
   ['menu-table-add-row-above', 'addRowAbove'],
   ['menu-table-add-row-below', 'addRowBelow'],
@@ -294,6 +299,7 @@ export function setupMenu(
   bind('menu-image-description', callbacks.onImageDescription);
   bind('menu-insert-table', callbacks.onInsertTable);
   bind('menu-insert-media', callbacks.onInsertMedia);
+  bind('menu-insert-link', callbacks.onInsertLink);
   bind('menu-insert-code-block', callbacks.onInsertCodeBlock);
   bind('menu-insert-checklist', callbacks.onInsertChecklist);
   bind('menu-insert-footnote', callbacks.onInsertFootnote);

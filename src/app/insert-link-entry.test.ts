@@ -1,8 +1,9 @@
+import { AllSelection, NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import shippedPage from '../../index.html?raw';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import { type MenuCallbacks, setupMenu } from '../ui/menu';
-import { type LinkDialog, setupLinkDialog } from './link-dialog';
+import { INSERT_LINK_KEY, type LinkDialog, linkAvailability, setupLinkDialog } from './link-dialog';
 
 /**
  * Insert, Link (#450): the door the link dialog had at a bare caret.
@@ -37,7 +38,10 @@ function editorWith(markdown: string): EditorInstance {
   setupMenu(
     callbacks,
     () => ({ canUndo: true, canRedo: true }),
-    () => new Proxy({}, { get: () => true }),
+    () =>
+      new Proxy(linkAvailability((instance as EditorInstance).editor), {
+        get: (reading, key) => (key === INSERT_LINK_KEY ? Reflect.get(reading, key) : true),
+      }),
   );
   return instance;
 }
@@ -96,5 +100,101 @@ describe('Insert, Link (#450)', () => {
     expect(remove().classList.contains('hidden')).toBe(false);
     remove().click();
     expect(editor.getMarkdown()).toBe('read the docs now');
+  });
+});
+
+/**
+ * Where the entry is greyed (#450 step zero, the rule of #292). Each place was
+ * measured by confirming the dialog there before the entry existed: in a
+ * fenced block the address went in as code text or nothing changed, and on a
+ * selected rule nothing changed. A selected image, an inline code span and
+ * the whole document each took a link, so the entry stays offered there.
+ */
+describe('Insert, Link is greyed where the dialog cannot make a link (#450)', () => {
+  function position(editor: EditorInstance, type: string): number {
+    let found = -1;
+    editor.editor.state.doc.descendants((node, pos) => {
+      if (found < 0 && node.type.name === type) found = pos;
+    });
+    return found;
+  }
+
+  function greyedAfter(markdown: string, place: (editor: EditorInstance) => void): boolean {
+    const editor = editorWith(markdown);
+    place(editor);
+    (document.getElementById('menu-toggle') as HTMLElement).click();
+    return (linkEntry() as HTMLButtonElement).disabled;
+  }
+
+  const fence = 'before\n\n```\ncode here\n```\n\nafter';
+
+  it.each([
+    [
+      'the caret in a fenced block',
+      true,
+      fence,
+      (e: EditorInstance) => {
+        const p = position(e, 'codeBlock');
+        e.editor.view.dispatch(
+          e.editor.state.tr.setSelection(TextSelection.create(e.editor.state.doc, p + 3)),
+        );
+      },
+    ],
+    [
+      'text selected in a fenced block',
+      true,
+      fence,
+      (e: EditorInstance) => {
+        const p = position(e, 'codeBlock');
+        e.editor.view.dispatch(
+          e.editor.state.tr.setSelection(TextSelection.create(e.editor.state.doc, p + 1, p + 5)),
+        );
+      },
+    ],
+    [
+      'a selected horizontal rule',
+      true,
+      'a\n\n---\n\nb',
+      (e: EditorInstance) => {
+        const p = position(e, 'horizontalRule');
+        e.editor.view.dispatch(
+          e.editor.state.tr.setSelection(NodeSelection.create(e.editor.state.doc, p)),
+        );
+      },
+    ],
+    [
+      'a selected image',
+      false,
+      'a ![alt](i.png) b',
+      (e: EditorInstance) => {
+        const p = position(e, 'image');
+        e.editor.view.dispatch(
+          e.editor.state.tr.setSelection(NodeSelection.create(e.editor.state.doc, p)),
+        );
+      },
+    ],
+    [
+      'the caret in inline code',
+      false,
+      'a `code here` b',
+      (e: EditorInstance) => e.editor.commands.setTextSelection(6),
+    ],
+    [
+      'the whole document',
+      false,
+      '# Title\n\npara',
+      (e: EditorInstance) =>
+        e.editor.view.dispatch(
+          e.editor.state.tr.setSelection(new AllSelection(e.editor.state.doc)),
+        ),
+    ],
+    [
+      'the caret in a paragraph',
+      false,
+      'plain words',
+      (e: EditorInstance) => e.editor.commands.setTextSelection(3),
+    ],
+  ])('%s: greyed %s', (_label, greyed, markdown, place) => {
+    expect(greyedAfter(markdown, place)).toBe(greyed);
   });
 });

@@ -85,6 +85,8 @@ describe('every other tooltip is unchanged (#352)', () => {
       ['menu-undo', 'Ctrl+Z'],
       ['menu-redo', 'Ctrl+Y'],
       ['menu-select-all', 'Ctrl+A'],
+      // The Insert entry #450 added, the door at a bare caret for Ctrl+K.
+      ['menu-insert-link', 'Ctrl+K'],
       ['menu-insert-code-block', 'Ctrl+Shift+K'],
       // The Insert entry #409 added, which carries its chord the way #390
       // gave every other entry one.

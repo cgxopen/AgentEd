@@ -38,6 +38,9 @@ const everyEntryOffered = () => ({
   // The tenth (#427), greyed over a node selection because the command
   // refuses one; asserted over a real editor in `code-block-routes.test.ts`.
   insertCodeBlock: true,
+  // The eleventh (#450), greyed in a fenced block and on a selected rule;
+  // asserted over a real editor in `app/insert-link-entry.test.ts`.
+  insertLink: true,
   addRowAbove: true,
   addRowBelow: true,
   deleteRow: true,
@@ -66,6 +69,7 @@ function callbacks(): MenuCallbacks {
     onSelectAll: vi.fn(),
     onInsertTable: vi.fn(),
     onInsertMedia: vi.fn(),
+    onInsertLink: vi.fn(),
     onInsertCodeBlock: vi.fn(),
     onInsertChecklist: vi.fn(),
     onInsertFootnote: vi.fn(),
@@ -190,7 +194,8 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-edit', 'Image description', 'menu-image-description', 'onImageDescription'],
   ['menu-panel-edit', 'Spell check', 'menu-spellcheck', 'onToggleSpellcheck'],
   ['menu-panel-insert', 'Table', 'menu-insert-table', 'onInsertTable'],
-  ['menu-panel-insert', 'Media', 'menu-insert-media', 'onInsertMedia'],
+  ['menu-panel-insert', 'Image', 'menu-insert-media', 'onInsertMedia'],
+  ['menu-panel-insert', 'Link', 'menu-insert-link', 'onInsertLink'],
   ['menu-panel-insert', 'Code Block', 'menu-insert-code-block', 'onInsertCodeBlock'],
   ['menu-panel-insert', 'Checklist', 'menu-insert-checklist', 'onInsertChecklist'],
   ['menu-panel-insert', 'Footnote', 'menu-insert-footnote', 'onInsertFootnote'],

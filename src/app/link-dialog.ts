@@ -1,4 +1,5 @@
 import type { Editor } from '@tiptap/core';
+import { NodeSelection, type Selection } from '@tiptap/pm/state';
 import { normalizeLinkUrl } from '../editor/link-url';
 
 /**
@@ -122,4 +123,41 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
   }
 
   return { open };
+}
+
+/** The key the Insert menu reads the Link entry's availability from (#450). */
+export const INSERT_LINK_KEY = 'insertLink';
+
+/**
+ * Whether the link dialog can make a link where the selection is (#450).
+ *
+ * Measured at step zero by confirming the dialog with an address in each
+ * place, rather than reasoned:
+ *
+ *   - **Inside a fenced block it cannot.** With the caret there the address
+ *     was inserted as plain code text, and with text selected nothing changed:
+ *     a code block takes no marks. Either end of the selection inside one is
+ *     enough, since that end is where nothing can be linked.
+ *   - **On a selected horizontal rule it cannot**: nothing changed. A rule is
+ *     a block node and a link is a mark on inline content.
+ *   - **On a selected image it can**, and wrote `[![alt](i.png)](url)`, a
+ *     linked image, which is legitimate markdown. Inside an inline code span
+ *     it can too: a link at the caret, or around the selected code.
+ *   - **Over the whole document it can**, and links the text of every block
+ *     with the one address. Ctrl+K does the same there; the entry is not the
+ *     place to decide otherwise.
+ *
+ * Read by the Insert menu when it opens, the rule of #292: an entry with
+ * nothing to do is greyed rather than silent. The toolbar button and Ctrl+K
+ * are unchanged.
+ */
+export function canMakeLink(selection: Selection): boolean {
+  if (selection instanceof NodeSelection && !selection.node.isInline) return false;
+  const inCode = selection.$from.parent.type.spec.code === true;
+  return !(inCode || selection.$to.parent.type.spec.code === true);
+}
+
+/** The Link entry's availability, keyed for the Insert menu. */
+export function linkAvailability(editor: Editor): Readonly<Record<string, boolean>> {
+  return { [INSERT_LINK_KEY]: canMakeLink(editor.state.selection) };
 }

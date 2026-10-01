@@ -387,6 +387,7 @@ describe('the routes reach the one command (#409)', () => {
       onSelectAll: vi.fn(),
       onInsertTable: vi.fn(),
       onInsertMedia: vi.fn(),
+      onInsertLink: vi.fn(),
       onInsertCodeBlock: vi.fn(),
       onInsertChecklist: vi.fn(),
       onInsertHorizontalRule: vi.fn(),

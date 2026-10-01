@@ -11,7 +11,7 @@ import { imageDescriptionRoutes } from './app/image-description-dialog';
 import { createImageInsertReporter } from './app/image-insert-report';
 import { metadataMenuCallbacks } from './app/insert-metadata';
 import { setupKeyboard } from './app/keyboard';
-import { type LinkDialog, setupLinkDialog } from './app/link-dialog';
+import { type LinkDialog, linkAvailability, setupLinkDialog } from './app/link-dialog';
 import { installLinkOpener } from './app/link-open';
 import { insertMedia } from './app/media-picker';
 import { createSearchManager } from './app/search-manager';
@@ -342,6 +342,9 @@ setupMenu(
     ...metadataMenuCallbacks(ctx.state, ctx.frontmatterPanel),
     ...emojiMenuCallbacks(editor),
     ...spellcheckMenuCallbacks(ctx.state),
+    // The same `open` the toolbar button and Ctrl+K call, so the three doors
+    // are one code path (#450).
+    onInsertLink: () => linkDialog.open(),
     onInsertMedia: () => {
       void insertMedia({
         state: ctx.state,
@@ -362,6 +365,7 @@ setupMenu(
     ...imageDescriptionAvailability(editor),
     ...footnoteAvailability(editor),
     ...codeBlockAvailability(editor),
+    ...linkAvailability(editor),
   }),
   // No list until the platform has said its paths outlive the session (#381),
   // which it answers once it has loaded; the web build never does.

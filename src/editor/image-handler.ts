@@ -417,7 +417,7 @@ function applyGestureBudget(files: readonly File[]): GestureBudget {
  * outcome kind is needed to tell its `null` from a user's Cancel. A
  * second gesture cannot start under the dialog either: the overlay is
  * fixed over the whole viewport and takes the focus, so the menu that
- * reaches Insert Media is beneath it and neither a paste nor a drop is
+ * reaches Insert, Image is beneath it and neither a paste nor a drop is
  * delivered to the editor while it is open.
  *
  * Sequencing also settles three things the concurrent loop left to

@@ -1,5 +1,5 @@
 /**
- * Issue #145 — Insert Media on the web wrote the image as
+ * Issue #145 — Insert, Image on the web wrote the image as
  * `picked-<name>.png`, an internal prefix reaching a file name on disk.
  *
  * `WebIO.pickFile` answers a pseudo-path, `picked:<name>`, and keys the

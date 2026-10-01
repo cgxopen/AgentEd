@@ -20,7 +20,7 @@ import { getTemplate, TEMPLATES, type TemplateId } from './index';
 const APPROVED: Record<TemplateId, { name: string; card: string }> = {
   blank: {
     name: 'Blank Document',
-    card: 'A plain markdown file for notes, READMEs, knowledge. Can hold resizable images — paste, drop, or Insert → Media.',
+    card: 'A plain markdown file for notes, READMEs, knowledge. Can hold resizable images — paste, drop, or Insert → Image.',
   },
   'blank-frontmatter': {
     name: 'Document with Metadata',
@@ -53,7 +53,7 @@ describe('the gallery offers two seeds and no more (#403)', () => {
   it('the card text is where the door is spelled, and it is spelled one way', () => {
     // README and R-C5 say the same thing since #403; this row holds the third
     // place, so a later edit to one of the two cannot leave the card behind.
-    expect(TEMPLATES[0].description).toContain('Insert → Media');
+    expect(TEMPLATES[0].description).toContain('Insert → Image');
   });
 });
 
