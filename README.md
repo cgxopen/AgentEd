@@ -10,7 +10,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 [Website](https://agentedapp.com/) · [Windows preview](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/catge/AgentEd/issues)
 
-![AgentEd editing project-brief.md with a floating formatting toolbar, a collapsed YAML metadata panel, live counts, headings, a quote and a checklist.](docs/images/project-brief.png)
+![AgentEd editing project-brief.md: a line becomes a heading from the floating toolbar, checklist items are ticked, the YAML metadata panel opens, and the menu shows Insert.](docs/images/project-brief.gif)
 
 [**See AgentEd in action · 1 minute**](https://agentedapp.com/#demo)
 
