@@ -34,6 +34,7 @@ Markdown is a plain-text format for headings, lists, links, and more. You may ha
 - **Private by design.** No account, no telemetry, no built-in cloud service. Your documents stay on your computer, and AgentEd makes no network calls of its own, which matters when your instructions carry project or client details. On Windows, the web runtime underneath connects on its own; [SECURITY.md](SECURITY.md) says when.
 - **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files.
 - **Keep your files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault or creating an account.
+- **Read as well as write.** Open a `.md` file and it reads like a finished document; start typing when you want to change it.
 
 AgentEd helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
 
