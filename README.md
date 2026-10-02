@@ -10,7 +10,9 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 [Website](https://agentedapp.com/) · [Windows preview](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/catge/AgentEd/issues)
 
-![AgentEd editing project-brief.md: a line becomes a heading from the floating toolbar, checklist items are ticked, the YAML metadata panel opens, and the menu shows Insert.](docs/images/project-brief.gif)
+<p align="center">
+  <img src="docs/images/project-brief.gif" alt="AgentEd editing project-brief.md: a line becomes a heading from the floating toolbar, checklist items are ticked, the YAML metadata panel opens, and the menu shows Insert.">
+</p>
 
 [**See AgentEd in action · 1 minute**](https://agentedapp.com/#demo)
 
@@ -63,13 +65,17 @@ The Windows installer is in the **~3 MB class**. This refers to the installer do
 
 Write goals, preferences, and boundaries in Markdown, with YAML metadata alongside the document.
 
-![AgentEd showing reusable workshop assistant instructions, an expanded YAML metadata panel and the heading formatting toolbar.](docs/images/assistant.png)
+<p align="center">
+  <img src="docs/images/assistant.png" alt="AgentEd showing reusable workshop assistant instructions, an expanded YAML metadata panel and the heading formatting toolbar.">
+</p>
 
 ### Explain with images and tables
 
 Combine written instructions, illustrations, and practical details in one document.
 
-![AgentEd showing a natural-light guide with a camera photograph and a session table.](docs/images/guide-frame.png)
+<p align="center">
+  <img src="docs/images/guide-frame.png" alt="AgentEd showing a natural-light guide with a camera photograph and a session table.">
+</p>
 
 When sharing a document that uses local images, include its referenced `assets/` folder so the images remain available.
 
