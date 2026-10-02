@@ -14,14 +14,14 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 ## Why AgentEd?
 
-Markdown is a plain-text format for headings, lists, links, and more. You may have encountered it while working with AI assistants or apps like Obsidian. AgentEd lets you edit these files visually, without memorising the formatting syntax.
+Markdown is a plain-text format for headings, lists, links, and more. You may have encountered it while working with AI assistants. AgentEd lets you edit these files visually, without memorising the formatting syntax.
 
 - **Focus on your words.** Format documents with visual controls and see the result as you write.
 - **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files.
 - **Keep your files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault or creating an account.
 - **Work offline.** No account, telemetry, or built-in cloud service. The editor works locally.
 
-The current application is **AgentEd Editor**. It helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
+AgentEd helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
 
 ## Download and get started
 
@@ -103,7 +103,7 @@ Signing is planned for a future release. [Read the installation help](https://ag
 - **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle near the right end of the header, one place in from the panel button). On Windows the whole bar, title bar included, is in the colour of your palette.
 - **Multiple windows** — isolated instances, one file each.
 - **Offline by design** — AgentEd makes no network calls of its own. No telemetry, no account, no cloud.
-- **Lightweight** — an installer in the ~3 MB class, opens in seconds. No Electron.
+- **Lightweight** — an installer in the ~3 MB class, opens in seconds.
 
 </details>
 
@@ -138,7 +138,7 @@ Signing is planned for a future release. [Read the installation help](https://ag
 Honest edges, documented rather than discovered:
 
 - **Line breaks inside a paragraph** are made with `Shift+Enter` or `Ctrl+Enter`. There is no button or menu entry for one.
-- **A file that begins with a line of three hyphens** and has another such line further down opens with everything between them as metadata — the panel at the top — rather than as text. Tools that read front matter, Obsidian among them, read such a file the same way. AgentEd never writes a file in this shape itself, so this concerns files written by hand or by another tool. Where the second line of hyphens sits inside a code block, the file opens without that block and the text after it shows as code; saving loses no bytes, but the file keeps opening this way.
+- **A file that begins with a line of three hyphens** and has another such line further down opens with everything between them as metadata — the panel at the top — rather than as text. AgentEd never writes a file in this shape itself, so this concerns files written by hand or by another tool. Where the second line of hyphens sits inside a code block, the file opens without that block and the text after it shows as code; saving loses no bytes, but the file keeps opening this way.
 - **Paste as plain text** in the right-click menu behaves like an ordinary paste — Windows hands the page the same content either way, so AgentEd cannot tell them apart. For a literal paste, use `Ctrl+Shift+V`.
 - **Spell check works in one language at a time**, and on Windows that language is the first one in the Windows preferred-languages list (Settings, Language) when the checker has a dictionary for it, and the Windows display language otherwise; the list is read when AgentEd starts, so a change there applies once every AgentEd window has been closed and AgentEd opened again.
 - **Insert → Metadata** is not part of undo: `Ctrl+Z` does not remove the block it adds. Deleting every field in the panel removes the block as if it had never been there.
@@ -146,11 +146,9 @@ Honest edges, documented rather than discovered:
 ---
 
 
-## Project status and direction
+## Project status
 
-AgentEd Editor is in active development. The preview focuses on visual editing of local Markdown files, with Windows as the primary platform.
-
-**AgentEd Knowledge** is a future direction for the open-source application. It is not included in this Editor preview. Commercial specialist packages and paid Knowledge services are separate future offerings.
+AgentEd is in active development. The preview focuses on visual editing of local Markdown files, with Windows as the primary platform.
 
 The product definition and documented exceptions live in [REQUIREMENTS.md](REQUIREMENTS.md).
 
