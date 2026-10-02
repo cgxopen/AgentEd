@@ -29,7 +29,7 @@ The current test build is **v0.2.0-preview.2 for Windows x64**, prepared before 
 
 [**Download the Windows preview**](https://github.com/catge/AgentEd/releases/download/v0.2.0-preview.2/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2)
 
-The installer for this build is approximately **2.62 MB**. This is the download size of the installer, not the application's total installed footprint or any required runtime.
+The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
 
 1. Download the installer from the release page.
 2. Install AgentEd. This preview is unsigned; see [Windows installation](#windows-installation) below if Windows displays a warning.
@@ -40,20 +40,20 @@ The installer for this build is approximately **2.62 MB**. This is the download 
 
 **Platforms:** Windows is the primary preview platform. The current release contains a Windows installer; it does not contain Linux or macOS packages. Experimental Linux availability and tested distributions will be documented when a build is released.
 
-## Features at a glance
+## Features
 
-- **Visual editing:** headings, lists, checklists, links, tables, images, code blocks, and footnotes.
-- **Portable Markdown:** ordinary `.md` files you can use in other tools.
-- **Document metadata:** view and edit YAML front matter in a dedicated panel.
-- **Live counts:** tokens, words, and characters in the header.
-- **Find and replace:** match case, whole words, and regular expressions.
-- **Local images:** paste, drop, or insert images, stored in an `assets/` folder next to your document.
-- **Appearance choices:** light, dark, automatic mode, and curated palettes.
-- **Explicit saving:** control when changes reach disk, with a warning if the file has changed outside AgentEd.
-
-### About the token count
-
-The live token count runs offline using `gpt-tokenizer` with the `cl100k_base` encoding. It is a useful reference when preparing text for AI tools, but it is not a universal count for every model. Other tokenizers, chat formatting, and attachments can produce different totals. AgentEd does not send your text to a model to calculate this count.
+- **Visual formatting:** headings, lists, checklists, links, and tables, with a floating toolbar and Markdown input shortcuts. Add or remove table rows and columns from the menu.
+- **Portable Markdown and explicit saving:** work with ordinary `.md` files and choose when to save. If a file changes on disk, choose whether to reload, overwrite, or save elsewhere. Documented format exceptions are listed in [REQUIREMENTS.md](REQUIREMENTS.md).
+- **Images:** paste, drop, or insert images into a local `assets/` folder beside your document; add image descriptions for accessibility.
+- **Code blocks:** select a language, copy a block with its Copy button, or use a plain-text block with soft wrapping.
+- **Footnotes:** insert a reference and its note together, then hover over the reference to read it.
+- **Document metadata and templates:** edit YAML front matter in a dedicated panel; start with a blank document or one with metadata.
+- **Live counts:** tokens, words, and characters in the header. Token counting runs offline using `gpt-tokenizer` with `cl100k_base`; other models, chat formatting, and attachments can produce different totals.
+- **Find and replace:** match case, whole words, or regular expressions.
+- **Files panel:** browse the document's adjacent file structure in a side panel.
+- **Appearance:** light, dark, automatic mode, and curated palettes.
+- **Multiple windows:** work with one document in each independent window.
+- **Spell check:** optional and off by default.
 
 ## For AI instructions and everyday notes
 
@@ -82,30 +82,6 @@ If you have verified the source and choose to continue, select **More info**, th
 Do not disable antivirus protection or SmartScreen. If your antivirus reports a specific threat, stop and report the exact message and release version.
 
 Signing is planned for a future release. [Read the installation help](https://agentedapp.com/installation-help.html).
-
-## Editing details
-
-<details>
-<summary>Formatting, files, metadata, and editor behaviour</summary>
-
-- **WYSIWYG editing** — inline formatting, a floating toolbar on selection, and markdown input rules (`#` + space → heading, `-` + space → list, ``` → code block — optionally with a language, `[ ]` → task list). Tables, task lists, code blocks and images are edited visually.
-- **Clean round-trip** — the file you save is plain, portable markdown; opening and saving without edits never alters it. The handful of deliberate exceptions are documented, one by one, in [REQUIREMENTS.md](REQUIREMENTS.md).
-- **No silent writes, no silent overwrites** — nothing reaches disk without your say-so. If the file changed on disk while you were editing, AgentEd tells you and you choose: reload, overwrite, or save elsewhere. No lock files next to your documents, ever.
-- **A quiet header, not a status bar** — the live token count (`gpt-tokenizer`, cl100k_base, fully offline) with word and character counts, and search — all in one row that stays out of the way. On Windows that row is also the title bar: the AgentEd name at the left, the window buttons at the right, one bar instead of two.
-- **A real menu** — File, Edit (Find and Replace, Undo, Redo, Select All, Image description, and Spell check — off by default, so technical documents stay free of noisy underlines), Insert (Table, Image, Link, Code Block, Checklist, Footnote, Horizontal Rule, Metadata, Emoji), Table (Add Row Above, Add Row Below, Delete Row, Add Column Before, Add Column After, Delete Column, Delete Table), Help. Everything the editor can do has a visible door — that is a design rule here, not an accident.
-- **Code blocks** — click the language label to set the language; a hover **Copy** button on every block; a fence with no language is a plain-text box that soft-wraps — the "prompt box" familiar from AI chat tools, in plain standard markdown.
-- **Images** — paste, drop, or Insert → Image; saved to an `assets/` folder next to your file, referenced with standard `![alt](path)` syntax, human-readable names. **Image description** — from the toolbar button on a selected image or from the Edit menu — writes what a screen reader reads out and what a renderer shows when the picture cannot be loaded.
-- **Footnotes** — the bracket form GitHub reads, `[^1]` where you refer to a note and `[^1]: the note` where you write it. Make one from the floating-toolbar button, from Insert → Footnote or with `Ctrl+Alt+F`: the reference lands after what you selected and the note at the end of the document, both in one step, so one `Ctrl+Z` takes the pair back. Hover a reference to read its note without leaving your place. A document that already had footnotes opens and saves with its own spelling untouched.
-- **Metadata without the jargon** — a document's title, date and other front-matter fields live in a small panel, not in raw YAML in your face. Insert → Metadata adds the block to any document; deleting every field removes it completely.
-- **New from Template** — two plain seeds: a blank document, and a document with a metadata block.
-- **Find & Replace** — an inline panel, match case / whole word / regex (safe-parse), `F3` navigation.
-- **Files panel** — a file tree when your document has an `assets/` folder beside it and uses it. It opens and closes from the panel button at the right end of the header, or with `Ctrl+Shift+E`, and the button shows which of the two the next press will do. It sits on the right, drawn as a card, and takes its own room rather than covering what you were writing.
-- **Themes** — Light / Dark / Auto and curated palettes, from the Appearance button (the half-filled circle near the right end of the header, one place in from the panel button). On Windows the whole bar, title bar included, is in the colour of your palette.
-- **Multiple windows** — isolated instances, one file each.
-- **Offline by design** — AgentEd makes no network calls of its own. No telemetry, no account, no cloud.
-- **Lightweight** — an installer in the ~3 MB class, opens in seconds.
-
-</details>
 
 ## Keyboard shortcuts
 
