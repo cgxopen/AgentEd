@@ -82,7 +82,7 @@ async function openAndSaveUnedited(text: string): Promise<string> {
 }
 
 const IMG = '<img src="https://example.com/logo.png" alt="logo" width="120">';
-const before = (shape: string) => `${shape}\n\nx\n`;
+const fileOf = (shape: string) => `${shape}\n\nx\n`;
 
 const CONTENTS: ReadonlyArray<readonly [string, string, string]> = [
   ['text', 'AgentEd', 'AgentEd'],
@@ -101,11 +101,11 @@ const RAW_HEADINGS = [1, 2, 3, 4, 5, 6].flatMap((level) =>
     CONTENTS.flatMap(([content, one, across]) => [
       [
         `h${level} ${kind}, ${content}, one line`,
-        before(`<h${level}${attribute}>${one}</h${level}>`),
+        fileOf(`<h${level}${attribute}>${one}</h${level}>`),
       ] as const,
       [
         `h${level} ${kind}, ${content}, across lines`,
-        before(`<h${level}${attribute}>\n  ${across}\n</h${level}>`),
+        fileOf(`<h${level}${attribute}>\n  ${across}\n</h${level}>`),
       ] as const,
     ]),
   ),
@@ -113,10 +113,14 @@ const RAW_HEADINGS = [1, 2, 3, 4, 5, 6].flatMap((level) =>
 
 /** A wrapper around a markdown heading with blank lines inside: shape 2 of #470. */
 const WRAPPED: ReadonlyArray<readonly [string, string]> = [
-  ['a centred div around a markdown h1', before('<div align="center">\n\n# AgentEd\n\n</div>')],
-  ['a centred div around a markdown h2', before('<div align="center">\n\n## AgentEd\n\n</div>')],
-  ['a plain div around a markdown h1', before('<div>\n\n# AgentEd\n\n</div>')],
-  ['center around a markdown h1', before('<center>\n\n# AgentEd\n\n</center>')],
+  ['a centred div around a markdown h1', fileOf('<div align="center">\n\n# AgentEd\n\n</div>')],
+  ['a centred div around a markdown h2', fileOf('<div align="center">\n\n## AgentEd\n\n</div>')],
+  ['a plain div around a markdown h1', fileOf('<div>\n\n# AgentEd\n\n</div>')],
+  ['center around a markdown h1', fileOf('<center>\n\n# AgentEd\n\n</center>')],
+  // Expected at the step zero to stay out of reach, since the browser closes a
+  // `p` before a heading; the joined wrapper is drawn as the heading itself,
+  // so no `p` reaches the browser and the shape is kept.
+  ['a centred p around a markdown h1', fileOf('<p align="center">\n\n# AgentEd\n\n</p>')],
 ];
 
 describe('a heading spelled as HTML keeps its bytes (#470)', () => {
@@ -131,15 +135,6 @@ describe('a heading spelled as HTML keeps its bytes (#470)', () => {
     ['in a list item', `- <h2 align="center">AgentEd</h2>\n\nx\n`],
   ])('the same, %s', async (_label, file) => {
     expect(await openAndSaveUnedited(file)).toBe(file);
-  });
-
-  it('a centred p around a markdown heading, which the browser splits, keeps the loss it had', async () => {
-    // Not reached, recorded: the browser closes the `p` before the heading, so
-    // an empty paragraph stands where the wrapper was and nothing joins it.
-    const file = before('<p align="center">\n\n# AgentEd\n\n</p>');
-    const once = await openAndSaveUnedited(file);
-    expect(once).toBe(before('# AgentEd'));
-    expect(await openAndSaveUnedited(once)).toBe(once);
   });
 });
 
@@ -168,7 +163,7 @@ function typeAtTheEndOfTheFirstBlock(editor: ReturnType<typeof createEditor>): v
 
 describe('what the person sees and what an edit does (#470)', () => {
   it('a raw heading is drawn as a heading of its level', () => {
-    const { editor, done } = editorWith(before('<h2 align="center">AgentEd</h2>'));
+    const { editor, done } = editorWith(fileOf('<h2 align="center">AgentEd</h2>'));
     const first = editor.editor.state.doc.firstChild;
     expect(first?.type.name).toBe('heading');
     expect(first?.attrs.level).toBe(2);
@@ -176,14 +171,23 @@ describe('what the person sees and what an edit does (#470)', () => {
   });
 
   it('an edit lets the HTML go and writes the markdown heading (option i)', () => {
-    const { editor, done } = editorWith(before('<h1 align="center">AgentEd</h1>'));
+    const { editor, done } = editorWith(fileOf('<h1 align="center">AgentEd</h1>'));
     typeAtTheEndOfTheFirstBlock(editor);
     expect(editor.getMarkdown()).toBe('# AgentEd!\n\nx');
     done();
   });
 
+  it('a change of level alone is an edit, and writes the markdown heading of the new level', () => {
+    // The level is not in the content, so the check at save compares it apart:
+    // without that, the old bytes would be written back over the change.
+    const { editor, done } = editorWith(fileOf('<h1 align="center">AgentEd</h1>'));
+    editor.editor.chain().setTextSelection(2).setHeading({ level: 2 }).run();
+    expect(editor.getMarkdown()).toBe('## AgentEd\n\nx');
+    done();
+  });
+
   it('an edit undone gives the bytes back', () => {
-    const file = before('<h1 align="center">AgentEd</h1>');
+    const file = fileOf('<h1 align="center">AgentEd</h1>');
     const { editor, done } = editorWith(file);
     typeAtTheEndOfTheFirstBlock(editor);
     editor.editor.commands.undo();
@@ -192,7 +196,7 @@ describe('what the person sees and what an edit does (#470)', () => {
   });
 
   it('an edit to a heading holding an image, a br and text still writes it split, recorded', () => {
-    const { editor, done } = editorWith(before(`<h1 align="center">${IMG}<br>AgentEd</h1>`));
+    const { editor, done } = editorWith(fileOf(`<h1 align="center">${IMG}<br>AgentEd</h1>`));
     typeAtTheEndOfTheFirstBlock(editor);
     expect(editor.getMarkdown()).toBe(`# ${IMG}  \nAgentEd!\n\nx`);
     done();

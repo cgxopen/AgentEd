@@ -12,6 +12,7 @@ import {
 } from './footnote';
 import {
   type HtmlWrapperToken,
+  headingBlock,
   inlineWrapperParagraph,
   joinedWrapperBlock,
   joinWrappers,
@@ -116,7 +117,12 @@ marked.use({
       const own = stampedFromTheFile(text);
       if (!token.block) return own;
       // A wrapper around an image or text keeps its bytes the same way (#468).
-      return stampTableSource(own, token.raw) ?? wrapperBlock(own, token.raw) ?? own;
+      return (
+        stampTableSource(own, token.raw) ??
+        headingBlock(own, token.raw) ??
+        wrapperBlock(own, token.raw) ??
+        own
+      );
     },
   },
 });
@@ -145,7 +151,7 @@ marked.use({
       renderer(token) {
         const wrapper = token as unknown as HtmlWrapperToken;
         const content =
-          wrapper.content.type === 'paragraph'
+          wrapper.content.type === 'paragraph' || wrapper.content.type === 'heading'
             ? this.parser.parseInline(wrapper.content.tokens)
             : this.parser.parse([wrapper.content]);
         const startTag =
