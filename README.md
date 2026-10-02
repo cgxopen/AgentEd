@@ -1,6 +1,6 @@
 # <img src="docs/images/agented_persona_01.png" alt="AgentEd mascot" height="70">   AgentEd — A comfortable visual Markdown editor
 
-Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually. Keep your files.
+Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually, keep your files, and see a live token estimate as you write.
 
 <div align="center">
 
