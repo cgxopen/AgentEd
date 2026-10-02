@@ -1,30 +1,92 @@
 # AgentEd
 
-**A WYSIWYG markdown editor for the generative-AI era. Easy to use first — renders as you write, plain portable markdown underneath.**
+**A comfortable visual Markdown editor**
 
-> READ and WRITE markdown the way you'd expect in 2026: visual editing with no syntax in your face, on top of plain, portable `.md` files. A live token count — quietly, when it matters. No vault. No account. No cloud.
+Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually. Keep your files.
 
-[![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
+**Free · Open source · Local files**
 
----
+[Website](https://agentedapp.com/) · [Windows preview](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/catge/AgentEd/issues)
 
-## Why AgentEd
+![AgentEd editing project-brief.md with a floating formatting toolbar, a collapsed YAML metadata panel, live counts, headings, a quote and a checklist.](docs/images/project-brief.png)
 
-In 2026 a growing share of what we write in markdown is read by a model before it is read by a person. The text is the same, but there is a second reader now. Existing editors solve the human half well and tell you nothing about the other half.
+[**See AgentEd in action · 1 minute**](https://agentedapp.com/#demo)
 
-AgentEd is, first, a normal, comfortable markdown editor — and, quietly, one that also answers those questions.
+## Why AgentEd?
 
-- **Against a plain text editor** — WYSIWYG. Inline formatting, no syntax in your face. The document looks like a document.
-- **Against Obsidian** — *file-first, not vault-first*. No vault to set up, no wiki-links, no graph view, no plugin ecosystem. Open any `.md` from anywhere; AgentEd never claims ownership of your folders. A native binary in the ~3 MB class, not Electron.
-- **Against Typora** — free, open source, and the AI-era instrumentation (a live token count) is native, not bolted on.
+Markdown is a plain-text format for headings, lists, links, and more. You may have encountered it while working with AI assistants or apps like Obsidian. AgentEd lets you edit these files visually, without memorising the formatting syntax.
 
-What it is **not**: a note-taking or knowledge-management app, a wiki, a word processor, a code editor, or a prompt playground.
+- **Focus on your words.** Format documents with visual controls and see the result as you write.
+- **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files.
+- **Keep your files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault or creating an account.
+- **Work offline.** No account, telemetry, or built-in cloud service. The editor works locally.
 
----
+The current application is **AgentEd Editor**. It helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
 
-## Features
+## Download and get started
+
+The current test build is **v0.2.0-preview.2 for Windows x64**, prepared before the public launch. It is a pre-release and may be replaced.
+
+[**Download the Windows preview**](https://github.com/catge/AgentEd/releases/download/v0.2.0-preview.2/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2)
+
+The installer for this build is approximately **2.62 MB**. This is the download size of the installer, not the application's total installed footprint or any required runtime.
+
+1. Download the installer from the release page.
+2. Install AgentEd. This preview is unsigned; see [Windows installation](#windows-installation) below if Windows displays a warning.
+3. Open an existing Markdown file or create a new document.
+4. Save it to a folder on your computer.
+
+[Read the full quick start](https://agentedapp.com/quick-start.html).
+
+**Platforms:** Windows is the primary preview platform. The current release contains a Windows installer; it does not contain Linux or macOS packages. Experimental Linux availability and tested distributions will be documented when a build is released.
+
+## Features at a glance
+
+- **Visual editing:** headings, lists, checklists, links, tables, images, code blocks, and footnotes.
+- **Portable Markdown:** ordinary `.md` files you can use in other tools.
+- **Document metadata:** view and edit YAML front matter in a dedicated panel.
+- **Live counts:** tokens, words, and characters in the header.
+- **Find and replace:** match case, whole words, and regular expressions.
+- **Local images:** paste, drop, or insert images, stored in an `assets/` folder next to your document.
+- **Appearance choices:** light, dark, automatic mode, and curated palettes.
+- **Explicit saving:** control when changes reach disk, with a warning if the file has changed outside AgentEd.
+
+### About the token count
+
+The live token count runs offline using `gpt-tokenizer` with the `cl100k_base` encoding. It is a useful reference when preparing text for AI tools, but it is not a universal count for every model. Other tokenizers, chat formatting, and attachments can produce different totals. AgentEd does not send your text to a model to calculate this count.
+
+## For AI instructions and everyday notes
+
+### Keep reusable AI instructions together
+
+Write goals, preferences, and boundaries in Markdown, with YAML metadata alongside the document.
+
+![AgentEd showing reusable workshop assistant instructions, an expanded YAML metadata panel and the heading formatting toolbar.](docs/images/assistant.png)
+
+### Explain with images and tables
+
+Combine written instructions, illustrations, and practical details in one document.
+
+![AgentEd showing a natural-light guide with a camera photograph and a session table.](docs/images/guide-frame.png)
+
+When sharing a document that uses local images, include its referenced `assets/` folder so the images remain available.
+
+## Windows installation
+
+This preview is not digitally signed. Windows may display **Windows protected your PC** or **Unknown publisher** when you open the installer.
+
+Download from the official release linked above and check the filename and version. The release also provides SHA-256 checksums for checking that your download matches the published file.
+
+If you have verified the source and choose to continue, select **More info**, then **Run anyway**, if Windows offers that option. An unknown publisher label does not verify the developer's identity. Managed computers or other Windows settings may prevent installation.
+
+Do not disable antivirus protection or SmartScreen. If your antivirus reports a specific threat, stop and report the exact message and release version.
+
+Signing is planned for a future release. [Read the installation help](https://agentedapp.com/installation-help.html).
+
+## Editing details
+
+<details>
+<summary>Formatting, files, metadata, and editor behaviour</summary>
 
 - **WYSIWYG editing** — inline formatting, a floating toolbar on selection, and markdown input rules (`#` + space → heading, `-` + space → list, ``` → code block — optionally with a language, `[ ]` → task list). Tables, task lists, code blocks and images are edited visually.
 - **Clean round-trip** — the file you save is plain, portable markdown; opening and saving without edits never alters it. The handful of deliberate exceptions are documented, one by one, in [REQUIREMENTS.md](REQUIREMENTS.md).
@@ -43,19 +105,7 @@ What it is **not**: a note-taking or knowledge-management app, a wiki, a word pr
 - **Offline by design** — AgentEd makes no network calls of its own. No telemetry, no account, no cloud.
 - **Lightweight** — an installer in the ~3 MB class, opens in seconds. No Electron.
 
----
-
-## Installing on Windows
-
-AgentEd is currently unsigned, so the first run of the installer meets Microsoft Defender SmartScreen. The dialog is titled **"Windows protected your PC"** and its first screen has no Run button — that is by design, and here is the way through:
-
-1. Click **More info** (the small link under the text).
-2. Check that the app is the installer you downloaded and the publisher reads *Unknown publisher* — that is us, for now.
-3. Click **Run anyway**.
-
-This happens **once, at install**. The installed application starts quietly afterwards. Signing is planned once the project can carry it; until then, the two clicks above are the honest price of a small free tool.
-
----
+</details>
 
 ## Keyboard shortcuts
 
@@ -95,27 +145,29 @@ Honest edges, documented rather than discovered:
 
 ---
 
-## Project status
 
-AgentEd is in active development, built and tested on **Windows**; the Windows installer is the shipping target. Linux and macOS builds are planned after the first public releases. The product definition lives in [REQUIREMENTS.md](REQUIREMENTS.md) — what it promises, what it deliberately does not do, and every known exception, in one file.
+## Project status and direction
 
----
+AgentEd Editor is in active development. The preview focuses on visual editing of local Markdown files, with Windows as the primary platform.
+
+**AgentEd Knowledge** is a future direction for the open-source application. It is not included in this Editor preview. Commercial specialist packages and paid Knowledge services are separate future offerings.
+
+The product definition and documented exceptions live in [REQUIREMENTS.md](REQUIREMENTS.md).
 
 ## Building from source
 
-**Prerequisites:** Node.js 20+, Rust toolchain (via [rustup](https://rustup.rs/)), Tauri CLI.
+You need a compatible Node.js version, the Rust toolchain (via [rustup](https://rustup.rs/)), and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Check the project's dependency requirements when choosing your Node.js version.
 
-```
+```sh
 git clone https://github.com/catge/AgentEd.git
 cd AgentEd
 npm install
-cargo install tauri-cli
 npm run tauri dev
 ```
 
-Production build: `npm run tauri build`
+The Tauri CLI is included in the project's development dependencies.
 
----
+Production build: `npm run tauri build`
 
 ## Contributing
 
@@ -133,7 +185,9 @@ MIT — see [LICENSE](LICENSE).
 
 The MIT license covers the code, not the AgentEd name or logo: a fork is welcome, under a name of its own.
 
-## Author
+## Author and contact
+
+AgentEd is a project by **CGXC — [CGX Consulting SRL](https://cgxconsulting.com/)**.
 
 Built by [Cătălin Vasile](https://github.com/catge) using Claude Code.
-Questions or feedback — open an issue or reach out on [X](https://x.com/CatalinG_Vasile).
+For bugs and feature requests, [open an issue](https://github.com/catge/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
