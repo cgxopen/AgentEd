@@ -4,7 +4,7 @@
 
 Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually. Keep your files.
 
-**Free · Open source · Local files**
+**Free · Open source · Local files · No account · No telemetry**
 
 [![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -21,9 +21,9 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 Markdown is a plain-text format for headings, lists, links, and more. You may have encountered it while working with AI assistants. AgentEd lets you edit these files visually, without memorising the formatting syntax.
 
 - **Focus on your words.** Format documents with visual controls and see the result as you write.
+- **Private by design.** No account, no telemetry, no built-in cloud service. Your documents stay on your computer, and AgentEd makes no network calls of its own, which matters when your instructions carry project or client details. On Windows, the web runtime underneath connects on its own; [SECURITY.md](SECURITY.md) says when.
 - **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files.
 - **Keep your files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault or creating an account.
-- **Work offline.** No account, telemetry, or built-in cloud service. The editor works locally.
 
 AgentEd helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
 
@@ -151,9 +151,17 @@ Production build: `npm run tauri build`
 
 Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first. For larger changes, open an issue to discuss direction. Everything in this repository — code, docs, commits, PRs, issues — is in English.
 
-## Support
+## Support AgentEd
 
-If you find this project useful, consider supporting its development on [Ko-fi](https://ko-fi.com/cgxone).
+AgentEd is free. If it is useful to you, you can support it on [Ko-fi](https://ko-fi.com/cgxone).
+
+Support goes to CGX Consulting SRL, the company that publishes AgentEd, and is spent on maintaining and developing AgentEd, for example:
+
+- fixing reported bugs;
+- testing on Linux;
+- a macOS build, which needs an Apple developer certificate paid every year.
+
+How money given to the project is handled is set out in [CONTRIBUTING.md](CONTRIBUTING.md#money-given-to-the-project).
 
 AgentEd itself does not collect, store, or process any payment information. All contributions are handled entirely by Ko-fi under its own [terms and privacy policy](https://more.ko-fi.com/privacy).
 
