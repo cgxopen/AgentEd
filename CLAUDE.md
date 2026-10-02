@@ -15,7 +15,7 @@ Then **verify the live state against the repository before planning or reporting
 
 AgentEd is an **easy-to-use WYSIWYG markdown editor** (Tauri 2 + TypeScript + TipTap), with light AI-era instrumentation (a token count) as a secondary layer. Priority order on any trade-off: **(1) ease of use → (2) speed & lightness → (3) AI instrumentation.**
 
-Read REQUIREMENTS.md before changing anything — it is the single source of product truth. The repository was reset in August 2026 ([ADR-001](docs/ADR/ADR-001-reset-and-simplification.md)); pre-reset history and ADR-001..034 live in the private `agented-archive` repo. Do not reintroduce removed machinery (profiles, validation panel, frontmatter injection) — that is a deliberate post-public phase, not a refactor opportunity.
+Read REQUIREMENTS.md before changing anything — it is the single source of product truth. The repository was reset in August 2026 ([ADR-001](docs/ADR/ADR-001-reset-and-simplification.md)); pre-reset history and ADR-001..034 live in the private `agented-archive` repo. Do not reintroduce removed machinery (profiles, validation panel, frontmatter injection) — the removal is deliberate, not a refactor opportunity.
 
 ## Non-negotiable invariants
 
