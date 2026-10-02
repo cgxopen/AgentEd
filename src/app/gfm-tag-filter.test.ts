@@ -222,6 +222,55 @@ describe('what the person sees and types (#461)', () => {
   });
 });
 
+/**
+ * A block mixing one of the nine with other markup, measured after #461
+ * landed (the exception REQUIREMENTS records beside the tag-filter position).
+ * GitHub draws the link, the emphasis and the image and writes only the tag of
+ * the nine as text; here the whole block is one paragraph of plain text, so the
+ * other markup is not drawn, and an edit writes that text.
+ */
+describe('a block mixing one of the nine with other markup', () => {
+  const MIXED =
+    '<div>\n<a href="https://example.com">link</a> and <em>emph</em> <style>p { color: red }</style>\n</div>\n\nAfter.\n';
+  const IMAGE =
+    '<div><img src="https://example.com/a.png" alt="pic"> <style>p {}</style></div>\n\nAfter.\n';
+
+  it.each([
+    ['a link, emphasis and a style', MIXED],
+    ['an image and a style', IMAGE],
+  ])('holding %s, is written back byte for byte while untouched', async (_label, file) => {
+    expect(await openAndSaveUnedited(file)).toBe(file);
+  });
+
+  it('is shown as plain text: the link and the emphasis are not drawn', () => {
+    const { editor, done } = editorWith(MIXED);
+    const marks = new Set<string>();
+    editor.editor.state.doc.descendants((node) => {
+      for (const mark of node.marks) marks.add(mark.type.name);
+    });
+    expect([...marks]).toEqual([]);
+    expect(editor.editor.state.doc.firstChild?.textContent).toBe(
+      'link and emph <style>p { color: red }</style>',
+    );
+    done();
+  });
+
+  it.each([
+    ['the link address goes', MIXED, 'link and emph <style>p { color: red }</style>!\n\nAfter.'],
+    ['the image goes', IMAGE, '<style>p {}</style>!\n\nAfter.'],
+  ])('an edit folds it into its text: %s', (_label, file, written) => {
+    const { editor, done } = editorWith(file);
+    const first = editor.editor.state.doc.firstChild;
+    editor.editor
+      .chain()
+      .setTextSelection((first?.nodeSize ?? 2) - 1)
+      .insertContent('!')
+      .run();
+    expect(editor.getMarkdown()).toBe(written);
+    done();
+  });
+});
+
 describe('what stays as it was (#461)', () => {
   it('a raw HTML table holding one of the nine keeps its bytes (#283)', async () => {
     const file = '<table>\n<tr><td>a<script>x()</script></td><td>b</td></tr>\n</table>\n\nAfter.\n';
