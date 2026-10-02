@@ -1,5 +1,5 @@
 import DOMPurify from 'dompurify';
-import { marked } from 'marked';
+import { marked, type Token } from 'marked';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { commentCarrier } from './comment-spelling';
 import {
@@ -10,6 +10,13 @@ import {
   FOOTNOTE_INDENTS_ATTRIBUTE,
   splitDefinition,
 } from './footnote';
+import {
+  type HtmlWrapperToken,
+  inlineWrapperParagraph,
+  joinedWrapperBlock,
+  joinWrappers,
+  wrapperBlock,
+} from './html-wrapper';
 import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { stampedFromTheFile } from './stamped-attributes';
@@ -107,9 +114,46 @@ marked.use({
       // own bytes (#447). A table is stamped from `token.raw`, the bytes the
       // file wrote, so what it held is kept as it was.
       const own = stampedFromTheFile(text);
-      return (token.block ? stampTableSource(own, token.raw) : null) ?? own;
+      if (!token.block) return own;
+      // A wrapper around an image or text keeps its bytes the same way (#468).
+      return stampTableSource(own, token.raw) ?? wrapperBlock(own, token.raw) ?? own;
     },
   },
+});
+
+// A paragraph that is one `a` or `picture` and nothing else is a wrapper read
+// as inline HTML (#468), kept as its bytes the same way. The rest is
+// `marked`'s own paragraph, restated: a `p` holding the inline content.
+marked.use({
+  renderer: {
+    paragraph(token) {
+      const inline = this.parser.parseInline(token.tokens);
+      return inlineWrapperParagraph(token.raw, inline) ?? `<p>${inline}</p>\n`;
+    },
+  },
+});
+
+// A wrapper spelled across three blocks, a start tag, a paragraph and an end
+// tag, is joined into one token before rendering (#468, shape 5), and drawn as
+// the paragraph it holds, carrying the bytes of all three.
+marked.use({
+  hooks: { processAllTokens: (tokens) => joinWrappers(tokens as Token[]) },
+  extensions: [
+    {
+      name: 'htmlWrapper',
+      level: 'block',
+      renderer(token) {
+        const wrapper = token as unknown as HtmlWrapperToken;
+        const content =
+          wrapper.content.type === 'paragraph'
+            ? this.parser.parseInline(wrapper.content.tokens)
+            : this.parser.parse([wrapper.content]);
+        const startTag =
+          wrapper.inlineStartTag === null ? null : stampedFromTheFile(wrapper.inlineStartTag);
+        return joinedWrapperBlock(wrapper, content, startTag);
+      },
+    },
+  ],
 });
 
 // How each list was spaced — loose or tight — written onto the list it belongs

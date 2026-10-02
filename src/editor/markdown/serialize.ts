@@ -18,6 +18,7 @@ import {
   FOOTNOTE_INDENTS_ATTRIBUTE,
   joinDefinition,
 } from './footnote';
+import { decodeKeptBlockSource } from './html-wrapper';
 import {
   decodeHtmlSource,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
@@ -34,7 +35,7 @@ import {
   TABLE_STYLE_ATTRIBUTE,
   type TableStyle,
 } from './table-style';
-import { decodeBlockSource, HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
+import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
 
 // ── An empty fenced block (#94) ──
 //
@@ -1155,10 +1156,27 @@ function styleFor(table: HTMLTableElement): TableStyle {
 /** Whether the running conversion writes kept tables. Set only by `htmlToMarkdown`. */
 let writingKeptTables = false;
 
+/** A display address the image loader puts in place of an image it resolved. */
+const DISPLAY_ADDRESS = /blob:[^\s"'<>()]+/g;
+
+/**
+ * Kept bytes with each display address written back as the image path the
+ * file used (#468). Every kept source is read from the markdown after the
+ * display pass has put a `blob:` address in place of each image it resolved,
+ * the same thing the image spelling met at #27, so its bytes hold that address
+ * and an untouched save wrote it into the file: measured on #468 for a raw
+ * table, a block of the tag filter and a wrapper alike. The registry answers
+ * with the address as the file wrote it; one it does not know stays as it is.
+ */
+function withFileAddresses(bytes: string): string {
+  return bytes.replace(DISPLAY_ADDRESS, (address) => getRelativePath(address) ?? address);
+}
+
 /** The bytes to write for a table, or `null` when it is written as GFM. */
 function keptHtmlSource(table: HTMLTableElement): string | null {
   if (!writingKeptTables) return null;
-  return decodeTableSource(table.getAttribute(TABLE_HTML_SOURCE_ATTRIBUTE));
+  const source = decodeTableSource(table.getAttribute(TABLE_HTML_SOURCE_ATTRIBUTE));
+  return source === null ? null : withFileAddresses(source);
 }
 
 // ── A raw HTML block of the GFM tag filter (#461) ──
@@ -1172,7 +1190,10 @@ function keptHtmlSource(table: HTMLTableElement): string | null {
 /** The bytes to write for a paragraph, or `null` when it is written as text. */
 function keptHtmlBlockSource(node: Node): string | null {
   if (!writingKeptTables || node.nodeName !== 'P') return null;
-  return decodeBlockSource((node as HTMLElement).getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE));
+  const source = decodeKeptBlockSource(
+    (node as HTMLElement).getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE),
+  );
+  return source === null ? null : withFileAddresses(source);
 }
 
 turndown.addRule('keptHtmlBlock', {
