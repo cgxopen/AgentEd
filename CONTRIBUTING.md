@@ -59,6 +59,10 @@ AgentEd has one maintainer. Expect a first reply to a new issue or pull request 
 
 AgentEd is released under the MIT licence in [LICENSE](LICENSE). By opening a pull request you agree that your contribution is released under the same licence.
 
+## Money given to the project
+
+The company that publishes AgentEd receives any money given to the project, through sponsorship or otherwise, and spends it on maintaining and developing AgentEd. Contributions are voluntary and unpaid: making one gives no share of that money and no claim to payment. If a piece of work is ever paid for, that is agreed in writing before the work starts.
+
 ## Working with Claude Code
 
 If you use Claude Code on this repository, it reads [CLAUDE.md](CLAUDE.md) on its own: the coding rules there apply to every change, whoever or whatever writes it.
