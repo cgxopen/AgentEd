@@ -159,7 +159,8 @@ Support goes to CGX Consulting SRL, the company that publishes AgentEd, and is s
 
 - fixing reported bugs;
 - testing on Linux;
-- a macOS build, which needs an Apple developer certificate paid every year.
+- a macOS build, which needs an Apple developer certificate paid every year;
+- new features, within what [REQUIREMENTS.md](REQUIREMENTS.md) sets out.
 
 How money given to the project is handled is set out in [CONTRIBUTING.md](CONTRIBUTING.md#money-given-to-the-project).
 
@@ -173,7 +174,7 @@ The MIT license covers the code, not the AgentEd name or logo: a fork is welcome
 
 ## Author and contact
 
-AgentEd is a project by **CGXC — [CGX Consulting SRL](https://cgxconsulting.com/)**.
+AgentEd is a project by **CGXC —** [**CGX Consulting SRL**](https://cgxconsulting.com/).
 
 Built by [Cătălin Vasile](https://github.com/catge) using Claude Code.
 For bugs and feature requests, [open an issue](https://github.com/catge/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
