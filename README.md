@@ -1,8 +1,9 @@
 <p align="center">
-  <img src="docs/images/agented_persona_01.png" alt="AgentEd mascot" height="120">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.png">
+    <img src="docs/images/banner-light.png" alt="AgentEd — A comfortable visual Markdown editor">
+  </picture>
 </p>
-
-<h1 align="center">AgentEd — A comfortable visual Markdown editor</h1>
 
 Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually, keep your files, and see a live token estimate as you write.
 
