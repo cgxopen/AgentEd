@@ -4,7 +4,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 <div align="center">
 
-**Free · Open source · Local files · No account · No telemetry**
+**Free · Open source · Local files · No account · No telemetry · Installer under 3 MB**
 
 </div>
 
