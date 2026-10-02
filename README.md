@@ -2,11 +2,23 @@
 
 Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually. Keep your files.
 
+<div align="center">
+
 **Free · Open source · Local files · No account · No telemetry**
+
+</div>
+
+<div align="center">
 
 [![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
 
+</div>
+
+<div align="center">
+
 [Website](https://agentedapp.com/) · [Windows preview](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/catge/AgentEd/issues)
+
+</div>
 
 <p align="center">
   <img src="docs/images/project-brief.gif" alt="AgentEd editing project-brief.md: a line becomes a heading from the floating toolbar, checklist items are ticked, the YAML metadata panel opens, and the menu shows Insert.">
