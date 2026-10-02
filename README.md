@@ -131,6 +131,8 @@ AgentEd itself does not collect, store, or process any payment information. All 
 
 MIT — see [LICENSE](LICENSE).
 
+The MIT license covers the code, not the AgentEd name or logo: a fork is welcome, under a name of its own.
+
 ## Author
 
 Built by [Cătălin Vasile](https://github.com/catge) using Claude Code.
