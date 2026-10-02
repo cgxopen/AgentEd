@@ -271,3 +271,48 @@ describe('the display pass rewrites the address, and the save puts it back', () 
     expect(await openAndSaveThroughDisplay(text)).toBe(text);
   });
 });
+
+/**
+ * Bytes kept for a block are written back with the addresses the file wrote
+ * (#468). Every kept source, a raw table (#283), a block of the tag filter
+ * (#461) and a wrapper (#468), is read from the markdown after the display
+ * pass has put a `blob:` address in place of each image it resolved, so its
+ * bytes held that address, and an untouched save wrote it into the file in
+ * place of the image path: measured on #468 for all three, on the route these
+ * rows run, which every other guard skips. The image spelling had met the same
+ * thing at #27 and maps the address back; the kept bytes now do too.
+ */
+describe('bytes kept for a block carry the image path, not the display address (#468)', () => {
+  const IMG = '<img src="assets/a.png" alt="pic" width="200">';
+  it.each([
+    [
+      'a raw table holding an image (#283)',
+      `<table>\n<tr><td>${IMG}</td><td>b</td></tr>\n</table>\n`,
+    ],
+    [
+      'a block of the tag filter holding an image (#461)',
+      `<div>\n${IMG} <style>p {}</style>\n</div>\n`,
+    ],
+    [
+      'a centred p around an image, three lines (#468)',
+      `x\n\n<p align="center">\n  ${IMG}\n</p>\n\ny\n`,
+    ],
+    ['a centred p around an image, one line (#468)', `x\n\n<p align="center">${IMG}</p>\n\ny\n`],
+    [
+      'a centred div around an image, three lines (#468)',
+      `x\n\n<div align="center">\n  ${IMG}\n</div>\n\ny\n`,
+    ],
+    [
+      'a centred div around an image, one line (#468)',
+      `x\n\n<div align="center">${IMG}</div>\n\ny\n`,
+    ],
+    [
+      'a centred div around a markdown image, blank lines inside (#468)',
+      'x\n\n<div align="center">\n\n![pic](assets/a.png)\n\n</div>\n\ny\n',
+    ],
+  ])('%s', async (_label, text) => {
+    const written = await openAndSaveThroughDisplay(text);
+    expect(written).not.toContain('blob:');
+    expect(written).toBe(text);
+  });
+});
