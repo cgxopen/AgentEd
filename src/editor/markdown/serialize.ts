@@ -18,6 +18,7 @@ import {
   FOOTNOTE_INDENTS_ATTRIBUTE,
   joinDefinition,
 } from './footnote';
+import { decodeKeptBlockSource } from './html-wrapper';
 import {
   decodeHtmlSource,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
@@ -34,7 +35,7 @@ import {
   TABLE_STYLE_ATTRIBUTE,
   type TableStyle,
 } from './table-style';
-import { decodeBlockSource, HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
+import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
 
 // ── An empty fenced block (#94) ──
 //
@@ -1172,7 +1173,7 @@ function keptHtmlSource(table: HTMLTableElement): string | null {
 /** The bytes to write for a paragraph, or `null` when it is written as text. */
 function keptHtmlBlockSource(node: Node): string | null {
   if (!writingKeptTables || node.nodeName !== 'P') return null;
-  return decodeBlockSource((node as HTMLElement).getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE));
+  return decodeKeptBlockSource((node as HTMLElement).getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE));
 }
 
 turndown.addRule('keptHtmlBlock', {

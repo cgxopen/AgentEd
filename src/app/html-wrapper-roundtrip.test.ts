@@ -97,7 +97,9 @@ const FIVE: ReadonlyArray<readonly [string, string]> = [
 ];
 
 const WRAPPERS: ReadonlyArray<readonly [string, string, string]> = [
+  ['a centred p', '<p align="center">', '</p>'],
   ['a plain p', '<p>', '</p>'],
+  ['a centred div', '<div align="center">', '</div>'],
   ['a plain div', '<div>', '</div>'],
   ['center', '<center>', '</center>'],
   ['a link', '<a href="https://example.com">', '</a>'],
@@ -107,21 +109,73 @@ const WRAPPERS: ReadonlyArray<readonly [string, string, string]> = [
 
 const CONTENTS: ReadonlyArray<readonly [string, string]> = [
   ['an HTML image', IMG],
+  ['a markdown image', '![pic](https://example.com/a.png)'],
   ['text', 'Some text'],
+  ['markdown text', 'Some **bold** and [link](https://example.com)'],
 ];
 
-/** Each wrapper around each content, on one line and on three. */
+const LAYOUTS: ReadonlyArray<
+  readonly [string, (open: string, inner: string, close: string) => string]
+> = [
+  ['one line', (o, inner, c) => `${o}${inner}${c}`],
+  ['three lines', (o, inner, c) => `${o}\n  ${inner}\n${c}`],
+  ['blank lines inside', (o, inner, c) => `${o}\n\n${inner}\n\n${c}`],
+];
+
+/** The breadth of the #468 step zero: every wrapper, around every content, in every layout. */
 const BREADTH = WRAPPERS.flatMap(([wrapper, open, close]) =>
-  CONTENTS.flatMap(([content, inner]) => [
-    [`${wrapper} around ${content}, one line`, around(`${open}${inner}${close}`)] as const,
-    [`${wrapper} around ${content}, three lines`, around(`${open}\n  ${inner}\n${close}`)] as const,
-  ]),
+  CONTENTS.flatMap(([content, inner]) =>
+    LAYOUTS.map(
+      ([layout, make]) =>
+        [`${wrapper} around ${content}, ${layout}`, around(make(open, inner, close))] as const,
+    ),
+  ),
 );
 
+/**
+ * The eight the route does not reach, recorded in REQUIREMENTS: a `picture` or
+ * a `details` with blank lines inside, whose start tag shares its line with a
+ * second tag, so the wrapper is not one start tag alone and nothing joins it.
+ * Each keeps the loss it had, written back as below, and holds still.
+ */
+const NOT_REACHED: Readonly<Record<string, string>> = {
+  'picture around an HTML image, blank lines inside': around(IMG),
+  'picture around a markdown image, blank lines inside': around(
+    '![pic](https://example.com/a.png)',
+  ),
+  'picture around text, blank lines inside': around('Some text'),
+  'picture around markdown text, blank lines inside': around(
+    'Some **bold** and [link](https://example.com)',
+  ),
+  'details around an HTML image, blank lines inside': around(`More ${IMG}`),
+  'details around a markdown image, blank lines inside': around(
+    'More\n\n![pic](https://example.com/a.png)',
+  ),
+  'details around text, blank lines inside': around('More\n\nSome text'),
+  'details around markdown text, blank lines inside': around(
+    'More\n\nSome **bold** and [link](https://example.com)',
+  ),
+};
+
 describe('an HTML block wrapping an image or text keeps its wrapper (#468)', () => {
-  it.each([...FIVE, ...BREADTH])('%s', async (_label, file) => {
+  it.each(FIVE)('%s', async (_label, file) => {
     const once = await openAndSaveUnedited(file);
     expect(once).toBe(file);
+    expect(await openAndSaveUnedited(once)).toBe(once);
+  });
+
+  it.each(BREADTH.filter(([label]) => !(label in NOT_REACHED)))('%s', async (_label, file) => {
+    const once = await openAndSaveUnedited(file);
+    expect(once).toBe(file);
+    expect(await openAndSaveUnedited(once)).toBe(once);
+  });
+
+  it.each(
+    Object.entries(NOT_REACHED),
+  )('%s keeps the loss it had, recorded, and holds still', async (label, written) => {
+    const file = BREADTH.find(([name]) => name === label)?.[1] ?? '';
+    const once = await openAndSaveUnedited(file);
+    expect(once).toBe(written);
     expect(await openAndSaveUnedited(once)).toBe(once);
   });
 

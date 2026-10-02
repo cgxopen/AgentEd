@@ -57,6 +57,7 @@ import {
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
 } from './markdown/footnote';
+import { decodeKeptBlockSource } from './markdown/html-wrapper';
 import {
   decodeHtmlSource,
   encodeHtmlSource,
@@ -68,7 +69,7 @@ import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
-import { decodeBlockSource, HTML_BLOCK_SOURCE_ATTRIBUTE } from './markdown/tag-filter';
+import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './markdown/tag-filter';
 import { isNodeSelected } from './node-selection';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
@@ -432,13 +433,19 @@ function bareBlankMarkerAttribute() {
 
 /**
  * A paragraph that may stand for a raw HTML block holding one of the nine
- * names of the GFM tag filter (#461): the bytes the file wrote, never
- * rendered, and the mark that says to write them, never parsed. The same pair
- * a raw table carries (#283), for the same reason, set out in
- * `kept-html-table.ts`.
+ * names of the GFM tag filter (#461), or for a wrapper around an image or
+ * text (#468): the bytes the file wrote, never rendered, and the mark that
+ * says to write them, never parsed. The same pair a raw table carries (#283),
+ * for the same reason, set out in `kept-html-table.ts`. A wrapper reaches the
+ * editor as an element carrying the bytes, read as the paragraph it holds.
  */
 function paragraphKeepingBlockSource(extension: AnyExtension): AnyExtension {
   return extension.extend({
+    // The paragraph extension reads `p` alone; the element a wrapper reaches
+    // the editor as is read as a paragraph too.
+    parseHTML() {
+      return [{ tag: 'p' }, { tag: `div[${HTML_BLOCK_SOURCE_ATTRIBUTE}]`, priority: 60 }];
+    },
     addAttributes() {
       return {
         ...this.parent?.(),
@@ -446,7 +453,7 @@ function paragraphKeepingBlockSource(extension: AnyExtension): AnyExtension {
           default: null,
           rendered: false,
           parseHTML: (element: HTMLElement) =>
-            decodeBlockSource(element.getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE)),
+            decodeKeptBlockSource(element.getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE)),
         },
         [KEPT_HTML_BLOCK_SOURCE]: {
           default: null,
