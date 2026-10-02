@@ -34,7 +34,13 @@ import {
 import type { ReportImageInsert } from './image-insert-outcome';
 import { createImageNodeView } from './image-resize';
 import { FootnoteShortcut } from './insert-footnote';
-import { HTML_SOURCE, htmlForSave, KEPT_HTML_SOURCE } from './kept-html-table';
+import {
+  HTML_BLOCK_SOURCE,
+  HTML_SOURCE,
+  htmlForSave,
+  KEPT_HTML_BLOCK_SOURCE,
+  KEPT_HTML_SOURCE,
+} from './kept-html-table';
 import { isRelativeLinkAddress } from './link-url';
 import {
   BARE_BLANK_MARKER,
@@ -62,6 +68,7 @@ import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
+import { decodeBlockSource, HTML_BLOCK_SOURCE_ATTRIBUTE } from './markdown/tag-filter';
 import { isNodeSelected } from './node-selection';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
@@ -423,6 +430,39 @@ function bareBlankMarkerAttribute() {
   };
 }
 
+/**
+ * A paragraph that may stand for a raw HTML block holding one of the nine
+ * names of the GFM tag filter (#461): the bytes the file wrote, never
+ * rendered, and the mark that says to write them, never parsed. The same pair
+ * a raw table carries (#283), for the same reason, set out in
+ * `kept-html-table.ts`.
+ */
+function paragraphKeepingBlockSource(extension: AnyExtension): AnyExtension {
+  return extension.extend({
+    addAttributes() {
+      return {
+        ...this.parent?.(),
+        [HTML_BLOCK_SOURCE]: {
+          default: null,
+          rendered: false,
+          parseHTML: (element: HTMLElement) =>
+            decodeBlockSource(element.getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE)),
+        },
+        [KEPT_HTML_BLOCK_SOURCE]: {
+          default: null,
+          parseHTML: () => null,
+          renderHTML: (attributes: Record<string, unknown>) => {
+            const source = attributes[KEPT_HTML_BLOCK_SOURCE];
+            return typeof source === 'string'
+              ? { [HTML_BLOCK_SOURCE_ATTRIBUTE]: encodeURIComponent(source) }
+              : {};
+          },
+        },
+      };
+    },
+  });
+}
+
 function starterKitWithLocalSchemaRules() {
   return StarterKit.configure({
     heading: { levels: [1, 2, 3, 4, 5, 6] },
@@ -451,6 +491,7 @@ function starterKitWithLocalSchemaRules() {
         throw new Error('StarterKit no longer registers a node named "codeBlock" (see #237)');
       }
       return registered.map((extension) => {
+        if (extension.name === 'paragraph') return paragraphKeepingBlockSource(extension);
         if (extension.name === 'code') {
           return extension.extend({
             excludes: '',

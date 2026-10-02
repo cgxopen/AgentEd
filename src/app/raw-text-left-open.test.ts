@@ -1,23 +1,21 @@
 /**
- * A raw-text element left open with text after it is refused at open (#458).
+ * The files #458 refused at open now open (#461).
  *
- * The text of `script`, `style`, `title`, `xmp`, `iframe`, `noembed` and
- * `noframes` is not markup until its end tag, and nothing ends `plaintext`.
- * Left open inside a container, the HTML block ends with the container and the
- * parser reads everything after it as the text of that element; at the top
- * level `title` and the others end at a blank line with the same result, and
- * `script` and `style` run to the end of the file. Measured on `ed3e978` in
- * Chromium, through the editor itself: each saves the paragraph before it and
- * nothing after. The test harness disagrees there, so these rows assert the
- * refusal, which reads the tokens, rather than what a parser makes of them.
- *
- * Owner decision of 2026-10-01 on #458: refused as #455 refuses, at the line
- * where the element begins, with a repair naming the missing end tag.
+ * #458 refused a `script`, `style`, `title`, `xmp`, `iframe`, `noembed`,
+ * `noframes` or `plaintext` left open with text after it, because the text of
+ * each was not markup until its end tag and took what followed it. All eight
+ * are names of the GFM tag filter, which #461 follows: the tag is text, a
+ * block holding one is shown as its text and keeps its bytes, and nothing
+ * after it is taken. So every file that face refused opens, and an untouched
+ * save writes it back as it was. The rows are kept as #458 wrote them, so the
+ * removal of that face is what they assert. The faces of #455 are unchanged.
  */
 import { describe, expect, it } from 'vitest';
-import { loadMarkdown } from '../formats/plain';
+import { createEditor } from '../editor/setup';
+import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
-import { openFailedMessage } from './open-failure';
+import { buildDocument } from './editor-document';
+import { AppState } from './state';
 
 const PATH = '/doc/notes.md';
 
@@ -62,6 +60,25 @@ async function refusalOf(text: string): Promise<unknown> {
     expect(disk.get(PATH)).toBe(text);
     return refused;
   }
+}
+
+/** Open `text` as a file, save it with no edits, return what was written. */
+async function savedUntouched(text: string): Promise<string> {
+  const disk = new Map<string, string>([[PATH, text]]);
+  const io = recordingIO(disk);
+  const loaded = await loadMarkdown(PATH, io);
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = createEditor(host);
+  editor.setMarkdown(loaded.document.markdownBody);
+  const state = new AppState();
+  state.filePath = PATH;
+  state.frontmatter = loaded.document.frontmatterRaw;
+  state.lineConventions = loaded.document.lineConventions;
+  const result = await saveMarkdown(buildDocument(state, editor.getMarkdown), io);
+  editor.destroy();
+  host.remove();
+  return result.writtenText;
 }
 
 const CLOSABLE = ['script', 'style', 'title', 'xmp', 'iframe', 'noembed', 'noframes'];
@@ -139,25 +156,13 @@ const OPENS: ReadonlyArray<readonly [string, string]> = [
   ['a script left open with no blank line to the end', 'Before.\n\n<script>\na()\nb()\n'],
 ];
 
-describe('a raw-text element left open with text after it is refused at open (#458)', () => {
-  it.each(REFUSED)('%s', async (_label, file, line, endTag) => {
-    const message = openFailedMessage(PATH, await refusalOf(file));
-    expect(message).toContain(`at line ${line} `);
-    expect(message).toContain(
-      `Add the missing ${endTag} in a text editor, where that element should end, then open the file again.`,
-    );
-    expect(message).toContain('Nothing has changed on disk.');
-  });
-
-  it.each(PLAINTEXT)('%s', async (_label, file, line) => {
-    const message = openFailedMessage(PATH, await refusalOf(file));
-    expect(message).toContain(`at line ${line} `);
-    expect(message).toContain(
-      'Remove the <plaintext> tag in a text editor, then open the file again.',
-    );
-  });
-
-  it.each(OPENS)('%s opens', async (_label, file) => {
+describe('a raw-text element left open is not refused since #461, and saves as it was', () => {
+  it.each([
+    ...REFUSED.map(([label, file]) => [label, file] as const),
+    ...PLAINTEXT.map(([label, file]) => [label, file] as const),
+    ...OPENS,
+  ])('%s', async (_label, file) => {
     expect(await refusalOf(file)).toBeNull();
+    expect(await savedUntouched(file)).toBe(file);
   });
 });

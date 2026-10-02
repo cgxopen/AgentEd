@@ -51,21 +51,13 @@ export interface MarkdownDocument {
 export class OpenCutError extends Error {
   readonly path: string;
   readonly line: number;
-  readonly kind: 'attribute' | 'comment' | 'raw-text';
-  /** For `raw-text`, the element left open, which the repair names (#458). */
-  readonly element: string | undefined;
+  readonly kind: 'attribute' | 'comment';
 
-  constructor(
-    path: string,
-    line: number,
-    kind: 'attribute' | 'comment' | 'raw-text',
-    element?: string,
-  ) {
+  constructor(path: string, line: number, kind: 'attribute' | 'comment') {
     super(`OPEN_CUT: ${path}, line ${line}`);
     this.name = 'OpenCutError';
     this.path = path;
     this.line = line;
     this.kind = kind;
-    this.element = element;
   }
 }

@@ -228,6 +228,24 @@ describe('what stays as it was (#461)', () => {
     expect(await openAndSaveUnedited(file)).toBe(file);
   });
 
+  it('and that table is still a table in the editor, its tag drawn as text in the cell', () => {
+    // Bytes alone cannot tell: a table kept as a block of text would keep them
+    // too. What the person sees is the table, as GitHub draws it.
+    const { editor, done } = editorWith(
+      '<table>\n<tr><td>a<script>x()</script></td><td>b</td></tr>\n</table>',
+    );
+    expect(editor.editor.state.doc.firstChild?.type.name).toBe('table');
+    expect(editor.editor.state.doc.textContent).toContain('a<script>x()</script>');
+    done();
+  });
+
+  it('a raw table whose cell holds a tag of the nine with an open quote still opens', async () => {
+    // The quote is in the text of a tag GFM writes as text, so it opens nothing;
+    // the check for a cut reads it that way too.
+    const file = '<table>\n<tr><td><style title="x</td><td>b</td></tr>\n</table>\n\nAfter.\n';
+    expect(await openAndSaveUnedited(file)).toBe(file);
+  });
+
   it('a comment holding one of the nine keeps its bytes (#245)', async () => {
     const file = 'Before <!-- see <style> --> after.\n';
     expect(await openAndSaveUnedited(file)).toBe(file);

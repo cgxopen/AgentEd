@@ -117,7 +117,8 @@ describe('the checkbox of an item whose first child is a block (#157)', () => {
     );
 
     expect(JSON.stringify(editor.editor.getJSON())).toContain(
-      '{"type":"paragraph","content":[{"type":"text","text":"b"}]}',
+      // The two attributes every paragraph carries since #461, unset here.
+      '{"type":"paragraph","attrs":{"htmlBlockSource":null,"keptHtmlBlockSource":null},"content":[{"type":"text","text":"b"}]}',
     );
     expect(editor.getMarkdown()).toBe('- [ ] a\n  b');
     // What the file says when it is opened again: one paragraph, the checkbox
