@@ -137,13 +137,16 @@ function asLoaded(doc: ProseMirrorNode): ProseMirrorNode {
  */
 export function isUneditedHtmlBlock(node: ProseMirrorNode, schema: Schema): boolean {
   const source = node.attrs[HTML_BLOCK_SOURCE];
-  if (node.type.name !== 'paragraph' || typeof source !== 'string') return false;
+  const kind = node.type.name;
+  if ((kind !== 'paragraph' && kind !== 'heading') || typeof source !== 'string') return false;
   const reread = parseDocument(schema, source);
   const block = reread.firstChild;
   return (
     reread.childCount === 1 &&
     block !== null &&
     block.type === node.type &&
+    // A heading of #470 keeps its level apart from its content.
+    block.attrs.level === node.attrs.level &&
     block.content.eq(node.content)
   );
 }

@@ -1189,7 +1189,7 @@ function keptHtmlSource(table: HTMLTableElement): string | null {
 
 /** The bytes to write for a paragraph, or `null` when it is written as text. */
 function keptHtmlBlockSource(node: Node): string | null {
-  if (!writingKeptTables || node.nodeName !== 'P') return null;
+  if (!writingKeptTables || !/^(?:P|H[1-6])$/.test(node.nodeName)) return null;
   const source = decodeKeptBlockSource(
     (node as HTMLElement).getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE),
   );
