@@ -307,6 +307,10 @@ describe('bytes kept for a block carry the image path, not the display address (
       `x\n\n<div align="center">${IMG}</div>\n\ny\n`,
     ],
     [
+      'a centred heading holding an image (#470)',
+      `<h1 align="center">${IMG}<br>AgentEd</h1>\n\nx\n`,
+    ],
+    [
       'a centred div around a markdown image, blank lines inside (#468)',
       'x\n\n<div align="center">\n\n![pic](assets/a.png)\n\n</div>\n\ny\n',
     ],

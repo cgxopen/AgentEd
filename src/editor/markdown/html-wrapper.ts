@@ -46,9 +46,31 @@ function wrapperName(raw: string): string | null {
   return BLOCK_WRAPPERS.has(name) || INLINE_WRAPPERS.has(name) ? name : null;
 }
 
-/** Whether `raw` is a wrapper whose bytes this module keeps, by its spelling. */
+/** A heading spelled as HTML, `h1` to `h6`, one element alone (#470). */
+const HEADING = /^h[1-6]$/;
+
+function headingName(raw: string): string | null {
+  const match = ONE_ELEMENT.exec(raw.trim());
+  return match && HEADING.test(match[1].toLowerCase()) ? match[1].toLowerCase() : null;
+}
+
+/** Whether `raw` is a wrapper or a heading whose bytes this module keeps, by its spelling. */
 export function isHtmlWrapper(raw: string): boolean {
-  return wrapperName(raw) !== null || joinedWrapperName(raw) !== null;
+  return wrapperName(raw) !== null || headingName(raw) !== null || joinedWrapperName(raw) !== null;
+}
+
+/**
+ * A raw HTML heading, as the heading the editor draws, its bytes stamped on
+ * its own start tag the way #283 stamps a `table` (#470). GitHub centres a
+ * heading only this way or with a wrapper, and the heading node carries its
+ * level and nothing else, so the alignment was lost on an untouched save.
+ */
+export function headingBlock(html: string, raw: string): string | null {
+  const name = headingName(raw);
+  if (name === null) return null;
+  const tag = new RegExp(`^(\\s*<${name})(?=[\\s>])`, 'i');
+  if (!tag.test(html)) return null;
+  return html.replace(tag, `$1 ${HTML_BLOCK_SOURCE_ATTRIBUTE}="${encode(raw)}"`);
 }
 
 /**
@@ -70,7 +92,7 @@ export interface HtmlWrapperToken {
   readonly type: 'htmlWrapper';
   readonly raw: string;
   /** The one block between the tags: a paragraph, or a block of raw HTML such as an image. */
-  readonly content: Tokens.Paragraph | Tokens.HTML;
+  readonly content: Tokens.Paragraph | Tokens.HTML | Tokens.Heading;
   /** The start tag, for a wrapper that is content itself: a link keeps its mark. */
   readonly inlineStartTag: string | null;
   readonly name: string;
@@ -115,7 +137,9 @@ export function joinWrappers(tokens: Token[]): Token[] {
       const close = tokens[k];
       const content = tokens[p];
       if (
-        (content?.type === 'paragraph' || content?.type === 'html') &&
+        (content?.type === 'paragraph' ||
+          content?.type === 'html' ||
+          content?.type === 'heading') &&
         close?.type === 'html' &&
         close.raw.trim().toLowerCase() === `</${open[1].toLowerCase()}>`
       ) {
@@ -127,7 +151,7 @@ export function joinWrappers(tokens: Token[]): Token[] {
         const joined: HtmlWrapperToken = {
           type: 'htmlWrapper',
           raw,
-          content: content as Tokens.Paragraph | Tokens.HTML,
+          content: content as Tokens.Paragraph | Tokens.HTML | Tokens.Heading,
           inlineStartTag: INLINE_WRAPPERS.has(name) ? token.raw.trim() : null,
           name,
         };
@@ -152,7 +176,9 @@ export function joinedWrapperBlock(
   startTag: string | null,
 ): string {
   const inner = startTag === null ? content : `${startTag}${content}</${token.name}>`;
-  return `<div ${HTML_BLOCK_SOURCE_ATTRIBUTE}="${encode(token.raw)}">${inner}</div>\n`;
+  // A markdown heading between the tags is drawn as that heading (#470).
+  const element = token.content.type === 'heading' ? `h${token.content.depth}` : 'div';
+  return `<${element} ${HTML_BLOCK_SOURCE_ATTRIBUTE}="${encode(token.raw)}">${inner}</${element}>\n`;
 }
 
 /**

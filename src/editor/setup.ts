@@ -439,6 +439,28 @@ function bareBlankMarkerAttribute() {
  * for the same reason, set out in `kept-html-table.ts`. A wrapper reaches the
  * editor as an element carrying the bytes, read as the paragraph it holds.
  */
+/** The pair of attributes a block standing for kept bytes carries (#461, #468, #470). */
+function keptBlockSourceAttributes() {
+  return {
+    [HTML_BLOCK_SOURCE]: {
+      default: null,
+      rendered: false,
+      parseHTML: (element: HTMLElement) =>
+        decodeKeptBlockSource(element.getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE)),
+    },
+    [KEPT_HTML_BLOCK_SOURCE]: {
+      default: null,
+      parseHTML: () => null,
+      renderHTML: (attributes: Record<string, unknown>) => {
+        const source = attributes[KEPT_HTML_BLOCK_SOURCE];
+        return typeof source === 'string'
+          ? { [HTML_BLOCK_SOURCE_ATTRIBUTE]: encodeURIComponent(source) }
+          : {};
+      },
+    },
+  };
+}
+
 function paragraphKeepingBlockSource(extension: AnyExtension): AnyExtension {
   return extension.extend({
     // The paragraph extension reads `p` alone; the element a wrapper reaches
@@ -447,25 +469,20 @@ function paragraphKeepingBlockSource(extension: AnyExtension): AnyExtension {
       return [{ tag: 'p' }, { tag: `div[${HTML_BLOCK_SOURCE_ATTRIBUTE}]`, priority: 60 }];
     },
     addAttributes() {
-      return {
-        ...this.parent?.(),
-        [HTML_BLOCK_SOURCE]: {
-          default: null,
-          rendered: false,
-          parseHTML: (element: HTMLElement) =>
-            decodeKeptBlockSource(element.getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE)),
-        },
-        [KEPT_HTML_BLOCK_SOURCE]: {
-          default: null,
-          parseHTML: () => null,
-          renderHTML: (attributes: Record<string, unknown>) => {
-            const source = attributes[KEPT_HTML_BLOCK_SOURCE];
-            return typeof source === 'string'
-              ? { [HTML_BLOCK_SOURCE_ATTRIBUTE]: encodeURIComponent(source) }
-              : {};
-          },
-        },
-      };
+      return { ...this.parent?.(), ...keptBlockSourceAttributes() };
+    },
+  });
+}
+
+/**
+ * A heading that may stand for a heading spelled as HTML, or a wrapper around
+ * a markdown heading (#470): the same pair, so a centred `h1` keeps its bytes
+ * while it is drawn as the heading of its level it is.
+ */
+function headingKeepingBlockSource(extension: AnyExtension): AnyExtension {
+  return extension.extend({
+    addAttributes() {
+      return { ...this.parent?.(), ...keptBlockSourceAttributes() };
     },
   });
 }
@@ -499,6 +516,7 @@ function starterKitWithLocalSchemaRules() {
       }
       return registered.map((extension) => {
         if (extension.name === 'paragraph') return paragraphKeepingBlockSource(extension);
+        if (extension.name === 'heading') return headingKeepingBlockSource(extension);
         if (extension.name === 'code') {
           return extension.extend({
             excludes: '',
