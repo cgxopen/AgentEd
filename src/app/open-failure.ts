@@ -125,33 +125,14 @@ export function openFailedMessage(path: string, cause?: unknown): string {
  * made elsewhere, as for an encoding; AgentEd offers no rescue of its own.
  */
 function openCutMessage(path: string, cause: OpenCutError): string {
-  const repair = openCutRepair(cause);
+  const repair =
+    cause.kind === 'attribute'
+      ? 'Remove the blank line inside that tag in a text editor, then open the file again.'
+      : 'Close that comment with --> in a text editor, then open the file again.';
   return (
     `This file has raw HTML at line ${cause.line} that AgentEd cannot read in full, ` +
     'and what follows it would be lost, so it has not been opened. ' +
     `Nothing has changed on disk.\n\n${repair}\n\n${path}`
-  );
-}
-
-/**
- * The one edit that makes the file open, for each kind of cut. A raw-text
- * element names its own end tag (#458), in the order the owner set on #458 so
- * the text editor is not read as the place where the element ends; nothing
- * ends `plaintext`, so its tag is what goes.
- */
-function openCutRepair(cause: OpenCutError): string {
-  if (cause.kind === 'attribute') {
-    return 'Remove the blank line inside that tag in a text editor, then open the file again.';
-  }
-  if (cause.kind === 'comment') {
-    return 'Close that comment with --> in a text editor, then open the file again.';
-  }
-  if (cause.element === 'plaintext') {
-    return 'Remove the <plaintext> tag in a text editor, then open the file again.';
-  }
-  return (
-    `Add the missing </${cause.element}> in a text editor, where that element should end, ` +
-    'then open the file again.'
   );
 }
 

@@ -34,6 +34,7 @@ import {
   TABLE_STYLE_ATTRIBUTE,
   type TableStyle,
 } from './table-style';
+import { decodeBlockSource, HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
 
 // ── An empty fenced block (#94) ──
 //
@@ -1159,6 +1160,25 @@ function keptHtmlSource(table: HTMLTableElement): string | null {
   if (!writingKeptTables) return null;
   return decodeTableSource(table.getAttribute(TABLE_HTML_SOURCE_ATTRIBUTE));
 }
+
+// ── A raw HTML block of the GFM tag filter (#461) ──
+//
+// Written back as the bytes the file used, when the editor marked it unedited
+// at save, under the same switch as a kept table: only the save path writes
+// them, so a pasted paragraph that spells the attribute is written as its text.
+// Everything else, the same block once it is edited included, falls through to
+// the paragraph rules as the text the editor shows.
+
+/** The bytes to write for a paragraph, or `null` when it is written as text. */
+function keptHtmlBlockSource(node: Node): string | null {
+  if (!writingKeptTables || node.nodeName !== 'P') return null;
+  return decodeBlockSource((node as HTMLElement).getAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE));
+}
+
+turndown.addRule('keptHtmlBlock', {
+  filter: (node) => keptHtmlBlockSource(node) !== null,
+  replacement: (_content, node) => `\n\n${keptHtmlBlockSource(node)}\n\n`,
+});
 
 turndown.addRule('table', {
   filter: 'table',

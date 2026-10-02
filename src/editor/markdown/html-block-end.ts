@@ -9,11 +9,13 @@
  * - **A quote opens a value only where a value begins**, right after `=` and
  *   any whitespace. Inside an attribute name or an unquoted value it is a
  *   character of that name or value, so `title=don't` holds no open quote.
- * - **The text of a raw-text element is not markup.** Inside `script`,
- *   `style`, `textarea`, `title`, `xmp`, `iframe`, `noembed` and `noframes`
- *   nothing is a tag or a quote until the matching end tag, and after
- *   `plaintext` nothing ever is. `noscript` is not one of them here: the
- *   parse this pipeline runs has scripting off, where its content is markup.
+ * - **The nine names of the GFM tag filter are text, not tags** (#461), as
+ *   the parser reads them since then: `script`, `style`, `textarea`, `title`,
+ *   `xmp`, `iframe`, `noembed`, `noframes` and `plaintext`. Until #461 they
+ *   were read as the raw-text elements HTML makes of them, whose text is not
+ *   markup; they are the only raw-text elements, so that state is gone, and
+ *   what follows one of them is read as the parser now reads it. `noscript`
+ *   was never one: the parse here runs with scripting off.
  * - **Words inside a tag after a blank line are attribute names.** `marked`
  *   keeps `<div`, a blank line and `some text` in one block, and the parser
  *   reads `some` and `text` as attributes of the `div`, so the words are gone.
@@ -21,30 +23,15 @@
  * One pass over the block's own text, which bounds it.
  */
 
-export type BlockEndState = 'data' | 'tag' | 'quote' | 'comment' | 'raw-text';
+import { filteredTagAt } from './tag-filter';
+
+export type BlockEndState = 'data' | 'tag' | 'quote' | 'comment';
 
 export interface BlockEnd {
   readonly state: BlockEndState;
   /** Whether words stood inside a tag after a blank line inside that tag. */
   readonly wordsAfterBlankLineInTag: boolean;
-  /**
-   * Where the block ends inside raw text (#458): the element, the offset of its
-   * start tag in the block, and its text up to the end of the block.
-   */
-  readonly rawText?: { readonly element: string; readonly start: number; readonly text: string };
 }
-
-const RAW_TEXT = new Set([
-  'script',
-  'style',
-  'textarea',
-  'title',
-  'xmp',
-  'iframe',
-  'noembed',
-  'noframes',
-  'plaintext',
-]);
 
 type Inside =
   | 'data'
@@ -55,8 +42,7 @@ type Inside =
   | 'before-value'
   | 'quoted-value'
   | 'unquoted-value'
-  | 'comment'
-  | 'raw-text';
+  | 'comment';
 
 const IN_TAG = new Set<Inside>([
   'tag-name',
@@ -77,23 +63,9 @@ function blankLineAt(raw: string, i: number): boolean {
   return raw[j] === '\n';
 }
 
-/** Whether the end tag of `name` begins at `i`, as the tokenizer matches it. */
-function endTagAt(raw: string, i: number, name: string): boolean {
-  if (raw[i] !== '<' || raw[i + 1] !== '/') return false;
-  const candidate = raw.slice(i + 2, i + 2 + name.length).toLowerCase();
-  const after = raw[i + 2 + name.length] ?? '';
-  return candidate === name && (after === '' || after === '>' || after === '/' || isSpace(after));
-}
-
 export function htmlBlockEnd(raw: string): BlockEnd {
   let inside: Inside = 'data';
   let quote = '';
-  let tagName = '';
-  let endTag = false;
-  let rawTextName = '';
-  let tagStart = 0;
-  let rawTextStart = 0;
-  let rawTextBody = 0;
   let blankInTag = false;
   let wordsAfterBlankLineInTag = false;
   let i = 0;
@@ -112,16 +84,13 @@ export function htmlBlockEnd(raw: string): BlockEnd {
           i += empty === 0 ? 4 : empty;
           continue;
         }
+        // A tag of the nine is text, as the parser reads it since #461.
+        if (filteredTagAt(raw, i)) break;
         if (c === '<' && /[A-Za-z]/.test(raw[i + 1] ?? '')) {
-          tagStart = i;
           inside = 'tag-name';
-          tagName = '';
-          endTag = false;
           blankInTag = false;
         } else if (c === '<' && raw[i + 1] === '/' && /[A-Za-z]/.test(raw[i + 2] ?? '')) {
           inside = 'tag-name';
-          tagName = '';
-          endTag = true;
           blankInTag = false;
           i += 2;
           continue;
@@ -134,16 +103,6 @@ export function htmlBlockEnd(raw: string): BlockEnd {
           continue;
         }
         break;
-      case 'raw-text':
-        if (rawTextName !== 'plaintext' && endTagAt(raw, i, rawTextName)) {
-          inside = 'tag-name';
-          tagName = '';
-          endTag = true;
-          blankInTag = false;
-          i += 2;
-          continue;
-        }
-        break;
       case 'quoted-value':
         if (c === quote) inside = 'after-name';
         break;
@@ -152,26 +111,11 @@ export function htmlBlockEnd(raw: string): BlockEnd {
         if (inside === 'before-value' && (c === '"' || c === "'")) {
           inside = 'quoted-value';
           quote = c;
-        } else if (c === '>' && inside === 'data') {
-          const name = tagName.toLowerCase();
-          if (!endTag && RAW_TEXT.has(name)) {
-            inside = 'raw-text';
-            rawTextName = name;
-            rawTextStart = tagStart;
-            rawTextBody = i + 1;
-          }
-        } else if (inside === 'tag-name') tagName += c;
+        }
     }
     i++;
   }
-  const state = endStateOf(inside);
-  if (state !== 'raw-text') return { state, wordsAfterBlankLineInTag };
-  const text = raw.slice(rawTextBody);
-  return {
-    state,
-    wordsAfterBlankLineInTag,
-    rawText: { element: rawTextName, start: rawTextStart, text },
-  };
+  return { state: endStateOf(inside), wordsAfterBlankLineInTag };
 }
 
 /**
@@ -209,6 +153,5 @@ function inTag(inside: Inside, c: string): Inside {
 function endStateOf(inside: Inside): BlockEndState {
   if (inside === 'quoted-value') return 'quote';
   if (inside === 'comment') return 'comment';
-  if (inside === 'raw-text') return 'raw-text';
   return IN_TAG.has(inside) ? 'tag' : 'data';
 }

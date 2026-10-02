@@ -55,12 +55,7 @@ export function parseMarkdown(text: string, path: string): LoadResult {
   const cut = findOpenCut(body);
   if (cut !== null) {
     const above = withoutMark.slice(0, withoutMark.length - body.length);
-    throw new OpenCutError(
-      path,
-      (above.match(/\n/g) ?? []).length + cut.line,
-      cut.kind,
-      cut.element,
-    );
+    throw new OpenCutError(path, (above.match(/\n/g) ?? []).length + cut.line, cut.kind);
   }
   return {
     document: {
