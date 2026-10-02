@@ -13,8 +13,9 @@ import {
 import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { stampedFromTheFile } from './stamped-attributes';
-import { stampTableSource } from './table-html-source';
+import { isWholeHtmlTable, stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
+import { filterTags, holdsFilteredTag, keptBlock } from './tag-filter';
 import { markTaskLists } from './task-list';
 
 // Configure marked for GFM compatibility
@@ -93,11 +94,19 @@ marked.use({
       // goes on to the image stamp exactly as before.
       const carrier = commentCarrier(token.text, token.block);
       if (carrier !== null) return carrier;
+      // The nine names of the GFM tag filter are text, as GitHub reads them
+      // (#461). A block holding one is shown as its text and keeps its bytes,
+      // unless it is a whole raw table, which keeps its bytes by #283 and is
+      // drawn from the filtered markup so the table stays a table.
+      const text = holdsFilteredTag(token.text) ? filterTags(token.text) : token.text;
+      if (text !== token.text && token.block && !isWholeHtmlTable(token.raw)) {
+        return keptBlock(text, token.raw);
+      }
       // The attributes this pipeline stamps are taken out of what the file
       // spelled before any stamp is made, and each image is stamped with its
       // own bytes (#447). A table is stamped from `token.raw`, the bytes the
       // file wrote, so what it held is kept as it was.
-      const own = stampedFromTheFile(token.text);
+      const own = stampedFromTheFile(text);
       return (token.block ? stampTableSource(own, token.raw) : null) ?? own;
     },
   },

@@ -55,7 +55,16 @@ export const HTML_SOURCE = 'htmlSource';
 /** The table node attribute the serializer writes from. Never parsed. */
 export const KEPT_HTML_SOURCE = 'keptHtmlSource';
 
-/** The document as HTML for the serializer, with each unedited raw HTML table marked to be kept. */
+/** The paragraph attribute holding the bytes of a raw HTML block (#461). Never rendered. */
+export const HTML_BLOCK_SOURCE = 'htmlBlockSource';
+
+/** The paragraph attribute the serializer writes from (#461). Never parsed. */
+export const KEPT_HTML_BLOCK_SOURCE = 'keptHtmlBlockSource';
+
+/**
+ * The document as HTML for the serializer, with each unedited raw HTML table
+ * and each unedited raw HTML block of the GFM tag filter marked to be kept.
+ */
 export function htmlForSave(editor: Editor): string {
   const { state, schema } = editor;
   const tr = state.tr;
@@ -64,6 +73,14 @@ export function htmlForSave(editor: Editor): string {
     if (!isUneditedHtmlTable(node, schema)) return;
     // `offset` is the child's position: the document node has no opening token.
     tr.setNodeAttribute(offset, KEPT_HTML_SOURCE, node.attrs[HTML_SOURCE]);
+    kept += 1;
+  });
+  // A block of the tag filter can sit in a quote or a list item (#461), so it
+  // is looked for at every depth, where a raw table is kept at the top only.
+  // Setting an attribute moves no position, so the walk's positions hold.
+  state.doc.descendants((node, pos) => {
+    if (!isUneditedHtmlBlock(node, schema)) return;
+    tr.setNodeAttribute(pos, KEPT_HTML_BLOCK_SOURCE, node.attrs[HTML_BLOCK_SOURCE]);
     kept += 1;
   });
   return getHTMLFromFragment(kept > 0 ? tr.doc.content : state.doc.content, schema);
@@ -109,4 +126,24 @@ export function isUneditedHtmlTable(node: ProseMirrorNode, schema: Schema): bool
 function asLoaded(doc: ProseMirrorNode): ProseMirrorNode {
   const repair = fixTables(EditorState.create({ doc }));
   return repair ? repair.doc : doc;
+}
+
+/**
+ * Whether a paragraph standing for a raw HTML block of the tag filter is still
+ * what its bytes read as (#461), asked as `isUneditedHtmlTable` asks it: the
+ * bytes are read again through the route a load takes, and the paragraph is
+ * unedited exactly when they give the same paragraph back. So no edit route
+ * can be missed, and an edit that is undone gives the bytes back.
+ */
+export function isUneditedHtmlBlock(node: ProseMirrorNode, schema: Schema): boolean {
+  const source = node.attrs[HTML_BLOCK_SOURCE];
+  if (node.type.name !== 'paragraph' || typeof source !== 'string') return false;
+  const reread = parseDocument(schema, source);
+  const block = reread.firstChild;
+  return (
+    reread.childCount === 1 &&
+    block !== null &&
+    block.type === node.type &&
+    block.content.eq(node.content)
+  );
 }

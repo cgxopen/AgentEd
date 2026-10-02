@@ -53,11 +53,13 @@ import { LIST_MARKER_ATTRIBUTE } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './table-style';
+import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
 
 /** Every attribute the pipeline stamps for itself and the serializer trusts. */
 export const STAMPED_ATTRIBUTES: readonly string[] = [
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   TABLE_HTML_SOURCE_ATTRIBUTE,
+  HTML_BLOCK_SOURCE_ATTRIBUTE,
   TABLE_STYLE_ATTRIBUTE,
   LIST_SPACING_ATTRIBUTE,
   LIST_MARKER_ATTRIBUTE,

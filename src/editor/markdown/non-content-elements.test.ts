@@ -175,7 +175,13 @@ describe('the address this was put at costs a file nothing (#311)', () => {
    * stops holding still — which is every direction the exception could quietly
    * change under.
    */
-  it('a file holding the four blocks raw has already lost them before the save path runs', () => {
+  /**
+   * **Three of the four are text since #461**: `style`, `script` and `title`
+   * are names of the GFM tag filter, so a block of each is shown as its text
+   * and written back as its own bytes, as GitHub shows it. `noscript` is not
+   * one of the nine, and is still lost exactly as #343 recorded.
+   */
+  it('a file holding the four blocks raw keeps three of them as text, and loses noscript', () => {
     const file = [
       '# Notes',
       '',
@@ -199,10 +205,8 @@ describe('the address this was put at costs a file nothing (#311)', () => {
     const instance = editorWith(file);
     const out = saved(instance);
 
-    for (const gone of ['.highlight', 'alert(1)', 'Book One', 'No script here']) {
-      expect(out).not.toContain(gone);
-    }
-    expect(out).toBe('# Notes\n\nBetween the blocks.\n\nThe end.');
+    expect(out).not.toContain('No script here');
+    expect(out).toBe(file.replace('<noscript>No script here</noscript>\n\n', ''));
   });
 
   /**
@@ -226,18 +230,18 @@ describe('the address this was put at costs a file nothing (#311)', () => {
     ],
   ] as Array<
     [string, (block: string) => string, string]
-  >)('inline inside %s, all four are removed and the words close up', (_host, wrap, expected) => {
-    for (const [block, leftover] of [
-      ['<style>.x{color:red}</style>', '.x{color:red}'],
-      ['<script>alert(1)</script>', 'alert(1)'],
-      ['<title>Book One</title>', 'Book One'],
-      ['<noscript>fallback</noscript>', 'fallback'],
-    ] as Array<[string, string]>) {
-      const instance = editorWith(wrap(block));
-      const out = saved(instance);
-
-      expect(out, block).toBe(expected);
-      expect(out, block).not.toContain(leftover);
+  >)('inline inside %s, noscript is removed and the words close up, and the three of the tag filter stay as text', (_host, wrap, expected) => {
+    const noscript = editorWith(wrap('<noscript>fallback</noscript>'));
+    const out = saved(noscript);
+    expect(out).toBe(expected);
+    expect(out).not.toContain('fallback');
+    // Text since #461, written back as the file wrote it.
+    for (const block of [
+      '<style>.x{color:red}</style>',
+      '<script>alert(1)</script>',
+      '<title>Book One</title>',
+    ]) {
+      expect(saved(editorWith(wrap(block))), block).toBe(wrap(block));
     }
   });
 
