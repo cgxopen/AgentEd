@@ -6,9 +6,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 **Free · Open source · Local files · No account · No telemetry**
 
-[![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
+[![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
 
 [Website](https://agentedapp.com/) · [Windows preview](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/catge/AgentEd/issues)
 
@@ -125,7 +123,6 @@ Honest edges, documented rather than discovered:
 
 ---
 
-
 ## Project status
 
 AgentEd is in active development. The preview focuses on visual editing of local Markdown files, with Windows as the primary platform.
@@ -176,5 +173,4 @@ The MIT license covers the code, not the AgentEd name or logo: a fork is welcome
 
 AgentEd is a project by **CGXC —** [**CGX Consulting SRL**](https://cgxconsulting.com/).
 
-Built by [Cătălin Vasile](https://github.com/catge) using Claude Code.
-For bugs and feature requests, [open an issue](https://github.com/catge/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
+Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/catge/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
