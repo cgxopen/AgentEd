@@ -31,6 +31,9 @@ const OPENERS: ReadonlyArray<readonly [string, string]> = [
   ['an attribute value', '<p title="one'],
   ['an attribute value in single quotes', "<div class='one"],
   ['a comment', '<!-- never closed'],
+  // The raw-text elements of #458, one of each kind of block they begin.
+  ['a style left open', '<style>'],
+  ['a title left open', '<title>'],
 ];
 
 const SWEEP = CONTAINERS.flatMap(([where, wrap]) =>

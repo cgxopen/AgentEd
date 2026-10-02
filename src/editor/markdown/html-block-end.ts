@@ -27,6 +27,11 @@ export interface BlockEnd {
   readonly state: BlockEndState;
   /** Whether words stood inside a tag after a blank line inside that tag. */
   readonly wordsAfterBlankLineInTag: boolean;
+  /**
+   * Where the block ends inside raw text (#458): the element, the offset of its
+   * start tag in the block, and its text up to the end of the block.
+   */
+  readonly rawText?: { readonly element: string; readonly start: number; readonly text: string };
 }
 
 const RAW_TEXT = new Set([
@@ -86,6 +91,9 @@ export function htmlBlockEnd(raw: string): BlockEnd {
   let tagName = '';
   let endTag = false;
   let rawTextName = '';
+  let tagStart = 0;
+  let rawTextStart = 0;
+  let rawTextBody = 0;
   let blankInTag = false;
   let wordsAfterBlankLineInTag = false;
   let i = 0;
@@ -105,6 +113,7 @@ export function htmlBlockEnd(raw: string): BlockEnd {
           continue;
         }
         if (c === '<' && /[A-Za-z]/.test(raw[i + 1] ?? '')) {
+          tagStart = i;
           inside = 'tag-name';
           tagName = '';
           endTag = false;
@@ -148,12 +157,21 @@ export function htmlBlockEnd(raw: string): BlockEnd {
           if (!endTag && RAW_TEXT.has(name)) {
             inside = 'raw-text';
             rawTextName = name;
+            rawTextStart = tagStart;
+            rawTextBody = i + 1;
           }
         } else if (inside === 'tag-name') tagName += c;
     }
     i++;
   }
-  return { state: endStateOf(inside), wordsAfterBlankLineInTag };
+  const state = endStateOf(inside);
+  if (state !== 'raw-text') return { state, wordsAfterBlankLineInTag };
+  const text = raw.slice(rawTextBody);
+  return {
+    state,
+    wordsAfterBlankLineInTag,
+    rawText: { element: rawTextName, start: rawTextStart, text },
+  };
 }
 
 /**

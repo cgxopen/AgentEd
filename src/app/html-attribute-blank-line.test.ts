@@ -122,7 +122,11 @@ const OPENS: ReadonlyArray<readonly [string, string]> = [
   ],
   ['a closed comment', 'one <!-- note --> two\n\n<!-- alone -->\n\nAfter.\n'],
   ['a closed comment holding a quote', '<!-- say "x -->\n\nAfter.\n'],
-  ['an unclosed style block (R-C2)', 'Before.\n\n<style>\np{}\n\nAfter.\n'],
+  // An unclosed style left open at the top level opened here until #458, which
+  // refuses it by owner decision: its text runs past the blank line and takes
+  // `After.` with it, measured in Chromium. It is a row of
+  // `raw-text-left-open.test.ts` now; a style left open on the last lines of
+  // the file, which takes only its own text, still opens there.
   ['a table inside a div (R-C2)', '<div><table><tr><td>a</td></tr></table></div>\n\nAfter.\n'],
   ['a raw table with a blank line (R-C2)', '<table>\n<tr><td>a</td></tr>\n\n</table>\n\nAfter.\n'],
   ['a value spanning one line break', 'Before.\n\n<p title="one\ntwo">inside</p>\n\nAfter.\n'],
