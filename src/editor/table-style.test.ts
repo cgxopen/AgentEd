@@ -177,11 +177,12 @@ describe('the spelling survives the document model, not just the text', () => {
 
 describe('three real documents, opened and saved unedited', () => {
   // The acceptance criterion, as an equality: zero bytes attributable to
-  // tables. What remains in `README.md` is three bytes of #96's recorded
-  // backtick exception, and the test says so rather than leaving the number
-  // to be discovered.
+  // tables. `README.md` used to keep three bytes of #96's recorded backtick
+  // exception; the launch README of PR #467 no longer holds that example and
+  // is written back byte for byte, so what remains is zero. The number stays
+  // in the test so that a change to it is seen rather than discovered.
   it.each([
-    ['README.md', readme, 3],
+    ['README.md', readme, 0],
     ['docs/internal/WORKFLOW.md', workflow, 0],
     ['a project document with a table (was src/templates/project-document.md)', projectDocument, 0],
   ])('%s: no byte of the difference is a table', (_name, source, expectedRest) => {
