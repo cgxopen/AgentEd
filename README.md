@@ -21,7 +21,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 <div align="center">
 
-[Website](https://agentedapp.com/) · [Windows preview](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/catge/AgentEd/issues)
+[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
 
 </div>
 
@@ -47,7 +47,7 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 The current test build is **v0.2.0-preview.2 for Windows x64**, prepared before the public launch. It is a pre-release and may be replaced.
 
-[**Download the Windows preview**](https://github.com/catge/AgentEd/releases/download/v0.2.0-preview.2/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/catge/AgentEd/releases/tag/v0.2.0-preview.2)
+[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.2/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.2)
 
 The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
 
@@ -156,7 +156,7 @@ The product definition and documented exceptions live in [REQUIREMENTS.md](REQUI
 You need a compatible Node.js version, the Rust toolchain (via [rustup](https://rustup.rs/)), and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Check the project's dependency requirements when choosing your Node.js version.
 
 ```sh
-git clone https://github.com/catge/AgentEd.git
+git clone https://github.com/cgxopen/AgentEd.git
 cd AgentEd
 npm install
 npm run tauri dev
@@ -195,4 +195,4 @@ The MIT license covers the code, not the AgentEd name or logo: a fork is welcome
 
 AgentEd is a project by **CGXC —** [**CGX Consulting SRL**](https://cgxconsulting.com/).
 
-Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/catge/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
+Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
