@@ -1,10 +1,10 @@
 [package]
 name = "agented"
 version = "0.2.0"
-description = "WYSIWYG Markdown editor for AI agent knowledge bases"
+description = "A WYSIWYG markdown editor for the generative-AI era"
 authors = ["Cătălin Vasile"]
 license = "MIT"
-repository = "https://github.com/catge/agented"
+repository = "https://github.com/cgxopen/AgentEd"
 default-run = "agented"
 edition = "2021"
 
