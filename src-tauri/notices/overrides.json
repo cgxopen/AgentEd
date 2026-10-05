@@ -1,0 +1,102 @@
+{
+  "about": "Packages that publish no licence file of their own. Each entry gives the copyright line, read from the licence file of the upstream repository at the matching version where one exists, and the standard texts in texts/ that the declared licence names. Keyed by package name; a key that matches no shipped package fails the generator, so an entry cannot outlive its package.",
+  "crates": {
+    "alloc-stdlib": {
+      "copyright": "Copyright (c) 2016 Dropbox, Inc.",
+      "texts": ["BSD-3-Clause"],
+      "source": "LICENSE of github.com/dropbox/rust-alloc-no-stdlib"
+    },
+    "convert_case": {
+      "copyright": "Copyright (c) 2020 David Purdum",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/rutrum/convert-case as added in 2020"
+    },
+    "fxhash": {
+      "copyright": "The fxhash authors: cbreeden",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "the repository publishes no licence file; authors from Cargo.toml"
+    },
+    "mac": {
+      "copyright": "The mac authors: Jonathan Reem",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "the repository publishes no licence file; authors from Cargo.toml"
+    },
+    "match_token": {
+      "copyright": "Copyright (c) 2014 The html5ever Project Developers",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "LICENSE-MIT of github.com/servo/html5ever"
+    },
+    "phf": {
+      "copyright": "Copyright (c) 2014-2016 Steven Fackler",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/rust-phf/rust-phf at v0.8.0 and v0.10.1"
+    },
+    "phf_generator": {
+      "copyright": "Copyright (c) 2014-2016 Steven Fackler",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/rust-phf/rust-phf at v0.10.1"
+    },
+    "phf_macros": {
+      "copyright": "Copyright (c) 2014-2016 Steven Fackler",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/rust-phf/rust-phf at v0.10.1"
+    },
+    "phf_shared": {
+      "copyright": "Copyright (c) 2014-2016 Steven Fackler",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/rust-phf/rust-phf at v0.8.0 and v0.10.1"
+    },
+    "selectors": {
+      "copyright": "The Servo Project Developers",
+      "texts": ["MPL-2.0"],
+      "source": "LICENSE of github.com/servo/servo; authors from Cargo.toml"
+    },
+    "unic-char-property": {
+      "copyright": "The UNIC Project Developers",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "LICENSE-MIT of github.com/open-i18n/rust-unic carries no copyright line; authors from Cargo.toml"
+    },
+    "unic-char-range": {
+      "copyright": "The UNIC Project Developers",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "LICENSE-MIT of github.com/open-i18n/rust-unic carries no copyright line; authors from Cargo.toml"
+    },
+    "unic-common": {
+      "copyright": "The UNIC Project Developers",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "LICENSE-MIT of github.com/open-i18n/rust-unic carries no copyright line; authors from Cargo.toml"
+    },
+    "unic-ucd-ident": {
+      "copyright": "The UNIC Project Developers",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "LICENSE-MIT of github.com/open-i18n/rust-unic carries no copyright line; authors from Cargo.toml"
+    },
+    "unic-ucd-version": {
+      "copyright": "The UNIC Project Developers",
+      "texts": ["MIT", "Apache-2.0"],
+      "source": "LICENSE-MIT of github.com/open-i18n/rust-unic carries no copyright line; authors from Cargo.toml"
+    },
+    "webview2-com": {
+      "copyright": "Copyright (c) 2021 Bill Avery",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/wravery/webview2-rs"
+    },
+    "webview2-com-macros": {
+      "copyright": "Copyright (c) 2021 Bill Avery",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/wravery/webview2-rs"
+    },
+    "webview2-com-sys": {
+      "copyright": "Copyright (c) 2021 Bill Avery",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/wravery/webview2-rs"
+    }
+  },
+  "npmScopes": {
+    "@tiptap/": {
+      "copyright": "Copyright (c) 2025, Tiptap GmbH",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/ueberdosis/tiptap at tag @tiptap/core@2.27.2"
+    }
+  }
+}

@@ -81,3 +81,21 @@ export async function ownWindowFrame(): Promise<WindowControls | null> {
   const { ownWindowFrame: own } = await import('./tauri');
   return await own();
 }
+
+/** The third-party notices file the installer places beside the executable (#475). */
+export const THIRD_PARTY_NOTICES_FILE = 'THIRD-PARTY-NOTICES.txt';
+
+/**
+ * The name of the third-party notices file installed with this build, or
+ * `null` where nothing installed one (#475).
+ *
+ * The file ships through `bundle.resources` in `src-tauri/tauri.conf.json`,
+ * so it is beside the executable of the desktop build and nowhere else: the
+ * web build is served from `dist/` and carries no notices file. `isTauri`
+ * answers only that question, which build this is. What would replace it is
+ * a value the bundler hands the page at build time naming what it installed;
+ * there is none.
+ */
+export function thirdPartyNoticesFile(): string | null {
+  return isTauri ? THIRD_PARTY_NOTICES_FILE : null;
+}

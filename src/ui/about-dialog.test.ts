@@ -81,6 +81,22 @@ describe('showAboutDialog', () => {
     expect(kind).toBe('warn');
   });
 
+  it('names the notices file the installer placed beside the application (#475)', async () => {
+    const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt');
+    expect(dialog().textContent).toContain(
+      'Third-party notices: THIRD-PARTY-NOTICES.txt in the install folder.',
+    );
+    button('Close').click();
+    await pending;
+  });
+
+  it('names no notices file on a build that has none, such as the web build', async () => {
+    const pending = showAboutDialog(CI_BUILD, null);
+    expect(dialog().textContent).not.toContain('Third-party notices');
+    button('Close').click();
+    await pending;
+  });
+
   it('closes on Escape without copying', async () => {
     const pending = showAboutDialog(CI_BUILD);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
