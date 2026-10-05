@@ -72,7 +72,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import claudeMd from '../../CLAUDE.md?raw';
 import contributingMd from '../../CONTRIBUTING.md?raw';
 import adrMd from '../../docs/ADR/ADR-001-reset-and-simplification.md?raw';
-import workflowMd from '../../docs/internal/WORKFLOW.md?raw';
 import readmeMd from '../../README.md?raw';
 import requirementsMd from '../../REQUIREMENTS.md?raw';
 import securityMd from '../../SECURITY.md?raw';
@@ -1587,7 +1586,6 @@ const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
   ['REQUIREMENTS.md', requirementsMd],
   ['SECURITY.md', securityMd],
   ['docs/ADR/ADR-001-reset-and-simplification.md', adrMd],
-  ['docs/internal/WORKFLOW.md', workflowMd],
   ['src/templates/blank-frontmatter.md', blankFrontmatterMd],
   // The three seeds left the gallery at #403 and their shapes stayed, so this
   // guard runs over the same number of documents it ran over before. They are

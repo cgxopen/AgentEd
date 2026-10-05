@@ -1020,7 +1020,8 @@ function cellInline(block: Element): string {
 //
 // AgentEd used to pad every cell of every table out to a uniform width,
 // whatever the file had: 628 of the 630 bytes by which an untouched save grew
-// `README.md`, and 488 of the 487 by which it grew `WORKFLOW.md` — the
+// `README.md`, and 488 of the 487 by which it grew `WORKFLOW.md`, since moved
+// out of this repository (#474) — the
 // largest single term in "an untouched save rewrites the user's file" (R-C2).
 // Minimal cells everywhere would have removed those bytes and moved the same
 // exception onto every file whose author aligned a table by hand, so what is
