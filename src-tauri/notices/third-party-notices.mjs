@@ -187,6 +187,7 @@ function npmPackages(overrides) {
       files: licenceFiles(dir),
       authors: [],
       override: scope ? overrides.npmScopes[scope] : undefined,
+      copyrightOverride: overrides.npmCopyright[name],
     };
     if (/MPL-2\.0/.test(entry.licence)) {
       // As for the crates, MPL-2.0 section 3.2 (a); where the MPL is one
@@ -216,6 +217,30 @@ function vendoredPackage() {
   };
 }
 
+/**
+ * The copyright line an override gives a package whose licence file carries
+ * none (#492): DOMPurify 3.4.5 and later publish the Apache text alone, with
+ * the copyright only in the `@license` header of their code, which the bundle
+ * drops. The override names the exact version it was read from, so that any
+ * update fails here and the header is read again, and it fails as well once
+ * the licence file carries a copyright line of its own.
+ */
+export function copyrightFromOverride(pkg, lines) {
+  const override = pkg.copyrightOverride;
+  if (!override) return lines;
+  if (override.version !== pkg.version) {
+    fail(
+      `overrides.json gives the copyright of ${pkg.name} ${override.version}, but ${pkg.version} is installed: read its licence and @license header again`,
+    );
+  }
+  if (lines.length > 0) {
+    fail(
+      `${pkg.name} ${pkg.version} now publishes a copyright line: remove its entry from overrides.json`,
+    );
+  }
+  return [override.copyright];
+}
+
 /** Each package's copyright lines and the numbers of its texts; texts numbered by first use. */
 export function assemble(packages) {
   const texts = [];
@@ -243,7 +268,10 @@ export function assemble(packages) {
       ids.push(numberOf.get(split.text));
     }
     if (pkg.override && sources.length === 0) copyright.unshift(pkg.override.copyright);
-    const unique = [...new Set(copyright)].slice(0, MAX_COPYRIGHT_LINES);
+    const unique = copyrightFromOverride(
+      pkg,
+      [...new Set(copyright)].slice(0, MAX_COPYRIGHT_LINES),
+    );
     if (unique.length === 0 && pkg.authors.length > 0) {
       unique.push(`The ${pkg.name} authors: ${pkg.authors.join(', ')}`);
     }
@@ -293,6 +321,11 @@ function checkOverrides(overrides, packages) {
   for (const name of Object.keys(overrides.crates)) {
     if (!packages.some((p) => p.kind === 'crate' && p.name === name)) {
       fail(`overrides.json names ${name}, which is not a shipped crate`);
+    }
+  }
+  for (const name of Object.keys(overrides.npmCopyright)) {
+    if (!packages.some((p) => p.kind === 'npm' && p.name === name)) {
+      fail(`overrides.json gives a copyright for ${name}, which is not a production npm package`);
     }
   }
   for (const prefix of Object.keys(overrides.npmScopes)) {

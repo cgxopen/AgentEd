@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import packageLock from '../../package-lock.json?raw';
-import { parseCargoTree, splitCopyright } from '../../src-tauri/notices/third-party-notices.mjs';
+import {
+  copyrightFromOverride,
+  parseCargoTree,
+  splitCopyright,
+} from '../../src-tauri/notices/third-party-notices.mjs';
 import notices from '../../src-tauri/THIRD-PARTY-NOTICES.txt?raw';
 import tauriConf from '../../src-tauri/tauri.conf.json?raw';
 import { THIRD_PARTY_NOTICES_FILE } from './index';
@@ -126,5 +130,43 @@ describe('what the generator lifts out of a licence text', () => {
       ['serde', '1.0.228'],
       ['serde_derive', '1.0.228'],
     ]);
+  });
+});
+
+describe('a copyright line an override gives a package whose licence carries none (#492)', () => {
+  const dompurify = {
+    name: 'dompurify',
+    version: '3.4.7',
+    copyrightOverride: { version: '3.4.7', copyright: '(c) Cure53 and other contributors' },
+  };
+
+  it('is what the file lists for DOMPurify, whose LICENSE is the Apache text alone', () => {
+    const entry = notices.slice(
+      notices.indexOf('\ndompurify '),
+      notices.indexOf('\n\n', notices.indexOf('\ndompurify ') + 1),
+    );
+    expect(entry).toContain('(c) Cure53 and other contributors');
+  });
+
+  it('is given when the licence file carries no copyright line', () => {
+    expect(copyrightFromOverride(dompurify, [])).toEqual(['(c) Cure53 and other contributors']);
+  });
+
+  it('fails once the package moves past the version it was read from', () => {
+    // 3.4.8 to 3.4.16 still publish no copyright line, so the override is
+    // renewed rather than removed; the version makes someone read it again.
+    expect(() => copyrightFromOverride({ ...dompurify, version: '3.4.8' }, [])).toThrow(
+      /3\.4\.7, but 3\.4\.8 is installed/,
+    );
+  });
+
+  it('fails once the licence file carries a copyright line of its own', () => {
+    expect(() => copyrightFromOverride(dompurify, ['Copyright 2026 Cure53'])).toThrow(
+      /now publishes a copyright line/,
+    );
+  });
+
+  it('leaves a package without an override as it was', () => {
+    expect(copyrightFromOverride({ name: 'marked', version: '15.0.12' }, ['x'])).toEqual(['x']);
   });
 });
