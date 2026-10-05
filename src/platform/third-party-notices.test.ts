@@ -136,16 +136,19 @@ describe('what the generator lifts out of a licence text', () => {
 describe('a copyright line an override gives a package whose licence carries none (#492)', () => {
   const dompurify = {
     name: 'dompurify',
-    version: '3.4.7',
-    copyrightOverride: { version: '3.4.7', copyright: '(c) Cure53 and other contributors' },
+    version: '3.4.16',
+    copyrightOverride: { version: '3.4.16', copyright: '(c) Cure53 and other contributors' },
   };
 
-  it('is what the file lists for DOMPurify, whose LICENSE is the Apache text alone', () => {
+  it('is what the file lists for DOMPurify, whose licence files carry no copyright line', () => {
     const entry = notices.slice(
       notices.indexOf('\ndompurify '),
       notices.indexOf('\n\n', notices.indexOf('\ndompurify ') + 1),
     );
     expect(entry).toContain('(c) Cure53 and other contributors');
+    // From 3.4.8 the MPL text is published beside the Apache one, so the
+    // entry refers to both licences of its choice.
+    expect(entry).toMatch(/Licence texts: \d+, \d+/);
   });
 
   it('is given when the licence file carries no copyright line', () => {
@@ -153,10 +156,11 @@ describe('a copyright line an override gives a package whose licence carries non
   });
 
   it('fails once the package moves past the version it was read from', () => {
-    // 3.4.8 to 3.4.16 still publish no copyright line, so the override is
-    // renewed rather than removed; the version makes someone read it again.
-    expect(() => copyrightFromOverride({ ...dompurify, version: '3.4.8' }, [])).toThrow(
-      /3\.4\.7, but 3\.4\.8 is installed/,
+    // No release from 3.4.5 to 3.4.16 publishes a copyright line, so at each
+    // move the override is renewed rather than removed; the version makes
+    // someone read the header again.
+    expect(() => copyrightFromOverride({ ...dompurify, version: '3.4.17' }, [])).toThrow(
+      /3\.4\.16, but 3\.4\.17 is installed/,
     );
   });
 

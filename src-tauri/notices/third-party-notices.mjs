@@ -219,9 +219,10 @@ function vendoredPackage() {
 
 /**
  * The copyright line an override gives a package whose licence file carries
- * none (#492): DOMPurify 3.4.5 and later publish the Apache text alone, with
- * the copyright only in the `@license` header of their code, which the bundle
- * drops. The override names the exact version it was read from, so that any
+ * none (#492): DOMPurify 3.4.5 and later publish licence files with no
+ * copyright line, the Apache text and from 3.4.8 the MPL text beside it, and
+ * the copyright stands only in the `@license` header of their code, which the
+ * bundle drops. The override names the exact version it was read from, so that any
  * update fails here and the header is read again, and it fails as well once
  * the licence file carries a copyright line of its own.
  */

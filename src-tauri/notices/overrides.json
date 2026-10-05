@@ -94,9 +94,9 @@
   },
   "npmCopyright": {
     "dompurify": {
-      "version": "3.4.7",
+      "version": "3.4.16",
       "copyright": "(c) Cure53 and other contributors",
-      "source": "the @license header of dist/purify.es.mjs in dompurify 3.4.7, whose LICENSE is the Apache text with no copyright line (#492)"
+      "source": "the @license header of dist/purify.es.mjs in dompurify 3.4.16; its LICENSE is the Apache text and its LICENSE-MPL the MPL text, neither with a copyright line (#492)"
     }
   },
   "npmScopes": {
