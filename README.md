@@ -153,7 +153,7 @@ The product definition and documented exceptions live in [REQUIREMENTS.md](REQUI
 
 ## Building from source
 
-You need a compatible Node.js version, the Rust toolchain (via [rustup](https://rustup.rs/)), and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/). Check the project's dependency requirements when choosing your Node.js version.
+You need Node.js 20.19 or later in the 20 line, or 22.12 or later, as the `engines` field in `package.json` states (CI runs Node.js 20). You also need the Rust toolchain (via [rustup](https://rustup.rs/)) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
 git clone https://github.com/cgxopen/AgentEd.git
@@ -165,6 +165,8 @@ npm run tauri dev
 The Tauri CLI is included in the project's development dependencies.
 
 Production build: `npm run tauri build`
+
+Before opening a pull request, run the [verification checklist](CONTRIBUTING.md#verification-checklist-before-a-pull-request) in CONTRIBUTING.md: the linters, the type check, the tests and the web build.
 
 ## Contributing
 
