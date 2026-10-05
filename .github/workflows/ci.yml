@@ -366,8 +366,21 @@ jobs:
             ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-
       - run: npm ci
         timeout-minutes: 10
-      - run: npm run tauri build
+      # Once more if the first attempt fails (#501). `tauri build` downloads
+      # the bundler tools from GitHub on every run, since a fresh runner has
+      # none: WiX and NSIS, and nsis_tauri_utils.dll for the installer. One of
+      # those downloads answered `http status: 500` on run 37356550344, and
+      # an outage that is not ours turned the job red. A retry does not hide
+      # a real failure: a build that fails twice is red, and the warning
+      # below says in the log, and on the run page, that a second attempt
+      # was made.
+      - name: Build the installer
         timeout-minutes: 40
+        shell: bash
+        run: |
+          if npm run tauri build; then exit 0; fi
+          echo "::warning::npm run tauri build failed; running it once more, since its downloads of the bundler tools can fail on an outage upstream (#501). A second failure is the result."
+          npm run tauri build
         env:
           # The build says who it is from the inside, and the artifact below
           # says who it is from the outside. Both read

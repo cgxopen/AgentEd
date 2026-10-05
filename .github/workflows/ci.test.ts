@@ -495,8 +495,9 @@ describe('every workflow that builds the application names its commit (#41)', ()
     {
       file: 'ci.yml',
       source: CI,
-      // The web bundle and the Windows installer.
-      isBuild: /^run: npm run (tauri )?build$/m,
+      // The web bundle, and the Windows installer, whose step runs the build
+      // once more if the first attempt fails (#501).
+      isBuild: /^run: npm run build$|^ {10}npm run tauri build$/m,
       expression: 'needs.changes.outputs.build_sha',
       count: 2,
     },
@@ -507,7 +508,7 @@ describe('every workflow that builds the application names its commit (#41)', ()
       // *which step*, and the step now carries a per-platform bundle list
       // (#8); asserting the arguments here would make an unrelated change to
       // them read as a missing build step.
-      isBuild: /^run: npm run tauri build(?: --.*)?$/m,
+      isBuild: /^ {10}npm run tauri build(?: --.*)?$/m,
       expression: 'github.sha',
       count: 1,
     },
@@ -585,5 +586,31 @@ describe('every workflow that builds the application names its commit (#41)', ()
     expect(VITE_CONFIG).toMatch(
       /const buildCommit = \(process\.env\.AGENTED_BUILD_COMMIT \?\? ''\)\.trim\(\)\.slice\(0, 7\) \|\| 'dev';/,
     );
+  });
+});
+
+describe('a build whose tool download fails once is tried once more (#501)', () => {
+  // `tauri build` downloads WiX and NSIS from GitHub on every run, and an
+  // outage there once turned a build red that had nothing wrong with it.
+  // What this pins is the shape that keeps a real failure red: one retry,
+  // announced, and a second attempt whose failure is the step's failure.
+  it.each([
+    ['ci.yml', CI, 'Build the installer'],
+    ['nightly.yml', NIGHTLY, 'Build the bundles'],
+  ])('%s: the build step retries once and fails on a second failure', (_file, source, name) => {
+    const step = steps(source).find((s) => s.startsWith(`name: ${name}\n`));
+    expect(step, `no step named ${name}`).toBeDefined();
+    const lines = (step ?? '').split('\n').map((line) => line.trim());
+    const first = lines.findIndex((line) =>
+      /^if npm run tauri build.*; then exit 0; fi$/.test(line),
+    );
+    expect(first, 'the first attempt').toBeGreaterThan(-1);
+    expect(lines[first + 1]).toMatch(
+      /^echo "::warning::npm run tauri build failed; running it once more/,
+    );
+    // The second attempt runs the same command as the first, as the last
+    // line and unguarded: nothing turns its failure into a success.
+    expect(lines[first + 2]).toMatch(/^npm run tauri build/);
+    expect(lines[first]).toBe(`if ${lines[first + 2]}; then exit 0; fi`);
   });
 });
