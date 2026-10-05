@@ -49,7 +49,7 @@
     "@tiptap/extension-underline": "^2.11",
     "@tiptap/pm": "^2.11",
     "@tiptap/starter-kit": "^2.11",
-    "dompurify": "^3.4.3",
+    "dompurify": "^3.4.16",
     "gpt-tokenizer": "^3.4.0",
     "marked": "^15",
     "turndown": "^7.2"
