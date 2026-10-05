@@ -29,7 +29,7 @@
     "happy-dom": "^20.9.0",
     "typescript": "~5.9.3",
     "vite": "^8.0.13",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
