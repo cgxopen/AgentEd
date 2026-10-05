@@ -29,7 +29,7 @@
     "@vitest/ui": "^4.1.4",
     "happy-dom": "^20.9.0",
     "typescript": "~5.9.3",
-    "vite": "^8.0.13",
+    "vite": "^8.3.2",
     "vitest": "^4.1.11"
   },
   "dependencies": {
