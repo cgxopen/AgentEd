@@ -427,7 +427,8 @@ describe('markdown roundtrip', () => {
     //
     // AgentEd used to pad every cell of every table to a uniform width: 628
     // of the 630 bytes by which an untouched save grew `README.md` on
-    // `087e232`, and every one of the 488 by which it grew `WORKFLOW.md`.
+    // `087e232`, and every one of the 488 by which it grew `WORKFLOW.md`, a
+    // document that has since left this repository (#474).
     // Minimal cells everywhere would have moved the same exception onto
     // every hand-aligned file, so what is written now is what the file used.
     it.each([

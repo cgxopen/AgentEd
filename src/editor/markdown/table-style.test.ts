@@ -1,7 +1,6 @@
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 import claudeMd from '../../../CLAUDE.md?raw';
-import workflow from '../../../docs/internal/WORKFLOW.md?raw';
 import readme from '../../../README.md?raw';
 import requirements from '../../../REQUIREMENTS.md?raw';
 import { markdownToHtml } from './parse';
@@ -32,9 +31,9 @@ describe('reading a table s spelling', () => {
 
   it('reads a tight separator whose dashes fill the header cell', () => {
     // README.md's own table, and the reason a single "padded or minimal"
-    // boolean cannot describe this repository: the other table in it
-    // (WORKFLOW.md) writes the same hugged cells with a spaced three-dash
-    // separator instead.
+    // boolean could not describe this repository: its other table, in
+    // WORKFLOW.md until #474 moved that file out, wrote the same hugged cells
+    // with a spaced three-dash separator instead.
     const [style] = detectTableStyles('| Shortcut | Action |\n|----------|--------|\n| `x` | y |');
     expect(style.columns.map((c) => c.kind)).toEqual(['hug', 'hug']);
     expect(style.columns.map((c) => c.separator)).toEqual(['----------', '--------']);
@@ -57,8 +56,9 @@ describe('reading a table s spelling', () => {
   });
 
   it('reads the shorter spelling of an empty cell', () => {
-    // WORKFLOW.md's header starts with `| |`; hugging an empty cell on its
-    // own would give `|  |`, so only the shorter spelling is remembered.
+    // WORKFLOW.md's header started with `| |` (the file left with #474);
+    // hugging an empty cell on its own would give `|  |`, so only the
+    // shorter spelling is remembered.
     const [style] = detectTableStyles('| | Does |\n| --- | --- |\n| **Owner** | Decides |');
     expect(style.emptyCell).toBe(' ');
     expect(detectTableStyles('| Step |  |\n| --- | --- |\n|  |  |')[0].emptyCell).toBeNull();
@@ -198,7 +198,6 @@ describe('the detector and the validator agree — a property, not a case', () =
     ['README.md', readme],
     ['REQUIREMENTS.md', requirements],
     ['CLAUDE.md', claudeMd],
-    ['docs/internal/WORKFLOW.md', workflow],
   ])('accepts every style read from %s', (_name, source) => {
     const styles = detectTableStyles(source);
     for (const style of styles) {

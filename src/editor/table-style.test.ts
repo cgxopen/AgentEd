@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import workflow from '../../docs/internal/WORKFLOW.md?raw';
 import readme from '../../README.md?raw';
 import { applyLineConventions, detectLineConventions } from '../formats/line-conventions';
 import { RETIRED_PROJECT_DOCUMENT_SEED as projectDocument } from '../test-support/retired-seeds';
@@ -13,7 +12,8 @@ import { createEditor, type EditorInstance } from './setup';
  * Measured on `087e232` through `createEditor` + `setMarkdown` +
  * `getMarkdown`: every table came back padded to uniform column widths,
  * whatever the file used. That was **628 of the 631 bytes** by which an
- * untouched save grew `README.md`, and **all 488** of `WORKFLOW.md`'s — the
+ * untouched save grew `README.md`, and **all 488** of `WORKFLOW.md`'s, a
+ * document since moved out of this repository (#474) — the
  * largest single term in "an untouched save rewrites the user's file".
  *
  * The pair-level half is in `markdown/roundtrip.test.ts` and the descriptor
@@ -175,7 +175,7 @@ describe('the spelling survives the document model, not just the text', () => {
   });
 });
 
-describe('three real documents, opened and saved unedited', () => {
+describe('two real documents, opened and saved unedited', () => {
   // The acceptance criterion, as an equality: zero bytes attributable to
   // tables. `README.md` used to keep three bytes of #96's recorded backtick
   // exception; the launch README of PR #467 no longer holds that example and
@@ -183,7 +183,6 @@ describe('three real documents, opened and saved unedited', () => {
   // in the test so that a change to it is seen rather than discovered.
   it.each([
     ['README.md', readme, 0],
-    ['docs/internal/WORKFLOW.md', workflow, 0],
     ['a project document with a table (was src/templates/project-document.md)', projectDocument, 0],
   ])('%s: no byte of the difference is a table', (_name, source, expectedRest) => {
     const saved = savedFrom(source, editorWith(source));
@@ -198,18 +197,11 @@ describe('three real documents, opened and saved unedited', () => {
 
   it.each([
     ['README.md', readme],
-    ['docs/internal/WORKFLOW.md', workflow],
     ['a project document with a table (was src/templates/project-document.md)', projectDocument],
   ])('%s holds still on the second save', (_name, source) => {
     const first = savedFrom(source, editorWith(source));
     const second = savedFrom(first, editorWith(first));
     expect(second).toBe(first);
-  });
-
-  it('WORKFLOW.md is byte-identical, end to end', () => {
-    // The whole point of the issue, on a real document: open, save nothing,
-    // and the file has not changed at all. On `087e232` it grew by 488 bytes.
-    expect(savedFrom(workflow, editorWith(workflow))).toBe(workflow);
   });
 });
 

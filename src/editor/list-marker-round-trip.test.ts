@@ -11,7 +11,7 @@ import { createEditor, type EditorInstance } from './setup';
  * single turndown option. For a list on its own that quietly rewrote the file:
  * `* one` came back `- one`, `+ one` came back `- one`, `1) one` came back
  * `1. one`, and a nested `*` under a `-` came back `-`. **None of those was a
- * recorded R-C2 exception**, which by WORKFLOW makes each one a defect rather
+ * recorded R-C2 exception**, which by CONTRIBUTING makes each one a defect rather
  * than a difference.
  *
  * For two lists side by side it lost a document and then kept moving. A marker

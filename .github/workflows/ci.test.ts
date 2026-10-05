@@ -372,9 +372,8 @@ describe('the documents the round-trip guard reads can start the job that runs i
     // above would make every assertion below pass over an empty list, which
     // is the same shape of silent green this whole issue is about.
     const documents = documentsUnderGuard();
-    expect(documents.length).toBeGreaterThanOrEqual(8);
+    expect(documents.length).toBeGreaterThanOrEqual(7);
     expect(documents).toContain('REQUIREMENTS.md');
-    expect(documents).toContain('docs/internal/WORKFLOW.md');
     expect(filterPaths('code').length).toBeGreaterThanOrEqual(8);
     expect(filterPaths('guarded_docs').length).toBeGreaterThanOrEqual(5);
   });
