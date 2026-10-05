@@ -8,3 +8,12 @@ export function splitCopyright(text: string): {
 };
 
 export function parseCargoTree(output: string): string[][];
+
+export function copyrightFromOverride(
+  pkg: {
+    name: string;
+    version: string;
+    copyrightOverride?: { version: string; copyright: string };
+  },
+  lines: string[],
+): string[];

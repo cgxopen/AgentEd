@@ -1,5 +1,5 @@
 {
-  "about": "Packages that publish no licence file of their own. Each entry gives the copyright line, read from the licence file of the upstream repository at the matching version where one exists, and the standard texts in texts/ that the declared licence names. Keyed by package name; a key that matches no shipped package fails the generator, so an entry cannot outlive its package.",
+  "about": "Packages that publish no licence file of their own, and in npmCopyright the copyright line of a package whose licence file carries none. Each entry gives the copyright line, read from the licence file of the upstream repository at the matching version where one exists, and the standard texts in texts/ that the declared licence names. Keyed by package name; a key that matches no shipped package fails the generator, so an entry cannot outlive its package.",
   "crates": {
     "alloc-stdlib": {
       "copyright": "Copyright (c) 2016 Dropbox, Inc.",
@@ -90,6 +90,13 @@
       "copyright": "Copyright (c) 2021 Bill Avery",
       "texts": ["MIT"],
       "source": "LICENSE of github.com/wravery/webview2-rs"
+    }
+  },
+  "npmCopyright": {
+    "dompurify": {
+      "version": "3.4.7",
+      "copyright": "(c) Cure53 and other contributors",
+      "source": "the @license header of dist/purify.es.mjs in dompurify 3.4.7, whose LICENSE is the Apache text with no copyright line (#492)"
     }
   },
   "npmScopes": {
