@@ -1309,7 +1309,7 @@ npm packages (77)
   PackageCopyrightText: 2019-2022, The Tauri Programme in the Commons Conservancy
   Licence text: 49
 
-@tiptap/core 2.27.2
+@tiptap/core 2.27.3
   Licence: MIT
   Copyright (c) 2025, Tiptap GmbH
   Licence text: 13

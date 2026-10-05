@@ -37,7 +37,7 @@
     "@tauri-apps/plugin-dialog": "^2",
     "@tauri-apps/plugin-fs": "^2",
     "@tauri-apps/plugin-shell": "^2.3.5",
-    "@tiptap/core": "^2.11",
+    "@tiptap/core": "^2.27.3",
     "@tiptap/extension-image": "^2.27.2",
     "@tiptap/extension-link": "^2.11",
     "@tiptap/extension-placeholder": "^2.11",
