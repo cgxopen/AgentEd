@@ -1,0 +1,45 @@
+# The licence check of CI (#476), by owner decisions of 2026-10-05 recorded on
+# that issue. cargo-deny reads this file for the crates, and
+# src/dependency-licences.test.ts reads the allow list below for the
+# production npm packages of package-lock.json, so one list holds for both.
+#
+# A licence joins the list after a review of the package that brings it,
+# never to make the check pass. The review of 2026-08-20 (#20, section C)
+# found nothing incompatible in what is listed here.
+#
+# Only licences and sources are checked. Advisories are not: the RustSec
+# database changes with no commit here, and on 2026-10-05 it marked six
+# shipped crates unmaintained (fxhash and five of the unic family), so the
+# check would turn main red on its own. They wait for after publication, with
+# #19. Bans are not checked either: without a policy on duplicates they would
+# report and decide nothing.
+
+[graph]
+# What the installer ships. Build dependencies stay in, since cargo-deny reads
+# them with the normal graph; dev dependencies do not ship.
+targets = ["x86_64-pc-windows-msvc"]
+exclude-dev = true
+
+[licenses]
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Unicode-3.0",
+  "BSD-3-Clause",
+  "MPL-2.0",
+  # The two below are here for the npm half and are met in no crate today:
+  # Python-2.0 is the licence of argparse, BSD-2-Clause that of entities and
+  # @mixmark-io/domino. They are not surplus; removing them turns the npm
+  # test red.
+  "Python-2.0",
+  "BSD-2-Clause",
+]
+confidence-threshold = 0.93
+# The two npm licences above are allowed and never met by a crate; that is
+# by design rather than a stale entry.
+unused-allowed-license = "allow"
+
+[sources]
+# Crates come from crates.io and from nowhere else.
+unknown-registry = "deny"
+unknown-git = "deny"

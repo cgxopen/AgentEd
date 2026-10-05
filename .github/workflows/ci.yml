@@ -153,7 +153,7 @@ jobs:
         timeout-minutes: 10
       - run: npm run check
       - run: npx tsc --noEmit
-      - run: npm test --if-present
+      - run: npm test
         timeout-minutes: 15
       - run: npm run build
         timeout-minutes: 15
@@ -296,6 +296,35 @@ jobs:
       - name: Third-party notices are current
         timeout-minutes: 10
         run: npm run notices -- --check
+      # The licence check (#476): cargo-deny over the crates the installer
+      # ships, against the allow list in `src-tauri/deny.toml`, which the npm
+      # half in `src/dependency-licences.test.ts` reads too. Licences and
+      # sources only; why not advisories or bans is written in that file.
+      #
+      # A pinned release binary, its checksum checked before it runs, rather
+      # than an action or a build from source: 4.9 MB, under a second to fetch,
+      # where compiling it would cost minutes.
+      - name: Install cargo-deny
+        timeout-minutes: 5
+        env:
+          DENY_VERSION: 0.20.2
+          DENY_SHA256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
+        run: |
+          set -euo pipefail
+          archive="cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$archive.tar.gz" \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/$archive.tar.gz"
+          echo "${DENY_SHA256}  $RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/$archive" >> "$GITHUB_PATH"
+      - name: Dependency licences and sources are allowed
+        timeout-minutes: 5
+        working-directory: src-tauri
+        run: |
+          if ! cargo-deny --locked check licenses sources; then
+            echo "::error::A crate brings a licence or a source that src-tauri/deny.toml does not allow; cargo-deny names it above. The allow list changes after a review of that crate, never to make this check pass."
+            exit 1
+          fi
 
   build-windows:
     name: Build Windows (primary target)
