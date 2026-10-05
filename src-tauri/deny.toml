@@ -24,14 +24,12 @@ exclude-dev = true
 allow = [
   "MIT",
   "Apache-2.0",
-  "Unicode-3.0",
   "BSD-3-Clause",
   "MPL-2.0",
   # The two below are here for the npm half and are met in no crate today:
   # Python-2.0 is the licence of argparse, BSD-2-Clause that of entities and
   # @mixmark-io/domino. They are not surplus; removing them turns the npm
   # test red.
-  "Python-2.0",
   "BSD-2-Clause",
 ]
 confidence-threshold = 0.93
