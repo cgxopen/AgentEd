@@ -35,6 +35,8 @@ npm run check && npx tsc --noEmit && npm test && npm run build
 cd src-tauri && cargo fmt --check && cargo clippy -- -D warnings && cargo test
 ```
 
+`npm run build` builds the web bundle only. The Windows installer is built by `npm run tauri build`, which CI runs on every pull request that touches code.
+
 ## How a pull request is checked and tested
 
 How deep a review goes follows what the change touches:

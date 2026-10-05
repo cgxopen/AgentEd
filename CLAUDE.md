@@ -34,7 +34,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 
 ## Module map (post-conversion)
 
-`src/app` (bootstrap/state) · `src/editor` (TipTap setup, input rules) · `src/formats` (markdown serialization — round-trip critical, test any change) · `src/platform` (all Tauri/file access) · `src/templates` (2 plain seeds) · `src/ui` (header, statusbar, sidebar, dialogs) · `src/types` · `src-tauri` (Rust shell — keep minimal; `panic = "abort"`, full LTO on release).
+`src/app` (bootstrap/state) · `src/editor` (TipTap setup, input rules) · `src/formats` (markdown serialization — round-trip critical, test any change) · `src/platform` (all Tauri/file access) · `src/templates` (2 plain seeds) · `src/ui` (header, statusbar, sidebar, dialogs) · `index.html` (the application shell: the visible words of the menus, the header, the sidebar and the dialog markup; `src/ui` binds them by id) · `src/types` · `src-tauri` (Rust shell — keep minimal; `panic = "abort"`, full LTO on release).
 
 ## Coding standards (NASA-derived, compact)
 
@@ -51,7 +51,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 - Work only from a GitHub issue; one issue = one branch (`fix/…`, `feat/…`, `conversion/…`) = one PR to `main`. **Never push to `main` directly.**
 - Conventional commits: `feat:`, `fix:`, `docs:`, `ci:`, `refactor:`, `chore:`.
 - PR description: what changed, why, how it was verified (include Windows verification), and size impact for anything touching dependencies or bundling.
-- CI must be green (`pipeline-ok` is the single required check). Do not change workflows unless an issue asks for it.
+- CI must be green. The single required check is `pipeline-ok`, the last job of `.github/workflows/ci.yml`, shown on a pull request as Pipeline OK. Do not change workflows unless an issue asks for it.
 - Do not fix unrelated things in the same PR — open an issue instead.
 
 ## Verification before any PR
