@@ -1,4 +1,5 @@
 import { BUILD_INFO, type BuildInfo, describeBuildInfo, formatBuildInfo } from '../app/build-info';
+import { thirdPartyNoticesFile } from '../platform';
 import { copyText } from './clipboard';
 import { showConfirmDialog } from './confirm-dialog';
 import { showToast } from './toast';
@@ -13,12 +14,19 @@ import { showToast } from './toast';
  * Built on `showConfirmDialog` rather than as a dialog of its own: the focus
  * handling, Escape, Tab trap and styling already exist there, and an About box
  * has nothing to add to them.
+ *
+ * It also names the third-party notices file the installer put beside the
+ * application (#475), on the build that has one.
  */
-export async function showAboutDialog(info: BuildInfo = BUILD_INFO): Promise<void> {
+export async function showAboutDialog(
+  info: BuildInfo = BUILD_INFO,
+  notices: string | null = thirdPartyNoticesFile(),
+): Promise<void> {
   const summary = formatBuildInfo(info);
+  const noticesLine = notices ? `\n\nThird-party notices: ${notices} in the install folder.` : '';
   const choice = await showConfirmDialog({
     title: 'About AgentEd',
-    message: `${describeBuildInfo(info)}\n\nWYSIWYG markdown editor — plain files, offline, no account.`,
+    message: `${describeBuildInfo(info)}\n\nWYSIWYG markdown editor — plain files, offline, no account.${noticesLine}`,
     actions: [
       { label: 'Copy', value: 'copy', variant: 'primary' },
       { label: 'Close', value: 'close' },

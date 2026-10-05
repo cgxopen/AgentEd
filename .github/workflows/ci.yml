@@ -280,6 +280,22 @@ jobs:
       - run: cargo test
         timeout-minutes: 20
         working-directory: src-tauri
+      # The third-party notices the installer ships (#475) are generated from
+      # the crate graph and from package-lock.json, and committed. This fails
+      # when a lockfile change, or a licence an update brought, left the file
+      # stale. In this job because only `cargo tree` knows the crate graph, and
+      # the registry cache above already holds the crate sources it reads the
+      # licence files from; Node comes along for the script and the npm half.
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        timeout-minutes: 10
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci --ignore-scripts
+        timeout-minutes: 10
+      - name: Third-party notices are current
+        timeout-minutes: 10
+        run: npm run notices -- --check
 
   build-windows:
     name: Build Windows (primary target)
