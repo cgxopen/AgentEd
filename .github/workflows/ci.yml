@@ -40,7 +40,7 @@ jobs:
       # Runs on pushes too, not only pull requests: on a push to `main` the
       # action compares against `github.event.before`, which is what stops a
       # documentation merge from rebuilding everything (#57).
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d
         id: filter
         timeout-minutes: 5
         # Fail open — see the step below.
