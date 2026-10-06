@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 /**
- * The two repairs `vitest.setup.ts` makes to the test environment (#482),
+ * The repairs `vitest.setup.ts` makes to the test environment (#482, #519),
  * pinned so that a change of Node or happy-dom that undoes one shows here
  * rather than as a few hundred unrelated failures.
  */
@@ -20,5 +20,15 @@ describe('the test environment (#482)', () => {
     // A DocumentFragment is still answered with an empty string: happy-dom
     // has no name for it on any class (happy-dom #2451). Nothing here reads
     // it, so the shim leaves it as it is.
+  });
+
+  it('reads the rules of a style sheet through the alias browsers keep (#519)', () => {
+    const style = document.createElement('style');
+    style.textContent = '.x { font-weight: 700; }';
+    document.head.appendChild(style);
+    const sheet = style.sheet as CSSStyleSheet & { rules: CSSRuleList };
+    expect(sheet.rules.length).toBe(1);
+    expect(sheet.rules).toBe(sheet.cssRules);
+    style.remove();
   });
 });

@@ -911,7 +911,10 @@ describe('a picture that drew at nothing is given the width the runtime reports 
 
     const editor = editorWith('![x](blob:rescue-me)');
     const dom = editor.editor.view.dom as HTMLElement;
-    const img = dom.querySelector('img') as HTMLImageElement;
+    // The picture inside the node view, not the first image in the editor:
+    // since prosemirror-view 1.42.6 a hidden `img.ProseMirror-separator`
+    // stands before an atom that opens a paragraph (#519).
+    const img = dom.querySelector(`.${RESIZE_WRAPPER_CLASS} img`) as HTMLImageElement;
     expect(img).not.toBeNull();
     expect(img.style.width).toBe('');
 
@@ -938,7 +941,9 @@ describe('a picture that drew at nothing is given the width the runtime reports 
     });
 
     const editor = editorWith('![x](blob:repaint-me)');
-    const img = (editor.editor.view.dom as HTMLElement).querySelector('img') as HTMLImageElement;
+    const img = (editor.editor.view.dom as HTMLElement).querySelector(
+      `.${RESIZE_WRAPPER_CLASS} img`,
+    ) as HTMLImageElement;
     Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
     img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
     img.dispatchEvent(new Event('load'));
@@ -961,7 +966,9 @@ describe('a picture that drew at nothing is given the width the runtime reports 
       filename: 'logo.svg',
     });
     const editor = editorWith('![x](blob:late-load)');
-    const img = (editor.editor.view.dom as HTMLElement).querySelector('img') as HTMLImageElement;
+    const img = (editor.editor.view.dom as HTMLElement).querySelector(
+      `.${RESIZE_WRAPPER_CLASS} img`,
+    ) as HTMLImageElement;
     Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
     img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
 
@@ -985,7 +992,9 @@ describe('a picture that drew at nothing is given the width the runtime reports 
     });
 
     const editor = editorWith('![x](blob:leave-me)');
-    const img = (editor.editor.view.dom as HTMLElement).querySelector('img') as HTMLImageElement;
+    const img = (editor.editor.view.dom as HTMLElement).querySelector(
+      `.${RESIZE_WRAPPER_CLASS} img`,
+    ) as HTMLImageElement;
     Object.defineProperty(img, 'naturalWidth', { value: 300, configurable: true });
     img.getBoundingClientRect = () => ({ width: 0, height: 0 }) as DOMRect;
     img.dispatchEvent(new Event('load'));

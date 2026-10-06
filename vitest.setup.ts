@@ -57,3 +57,18 @@ for (const name of ['localStorage', 'sessionStorage'] as const) {
     },
   });
 }
+
+// `CSSStyleSheet.rules`, the alias of `cssRules` every browser keeps (#519).
+// prosemirror-view 1.42 inlines the styles a pasted `<style>` element defines
+// before it parses the paste, reading them through `rules`, which happy-dom
+// does not define; every paste holding a `<style>` then threw inside the
+// editor, where a browser applies the styles and goes on. Remove it when
+// happy-dom defines `rules` itself.
+if (!('rules' in CSSStyleSheet.prototype)) {
+  Object.defineProperty(CSSStyleSheet.prototype, 'rules', {
+    configurable: true,
+    get(this: CSSStyleSheet): CSSRuleList {
+      return this.cssRules;
+    },
+  });
+}

@@ -54,8 +54,5 @@
     "gpt-tokenizer": "^4.0.0",
     "marked": "^15",
     "turndown": "^7.2"
-  },
-  "overrides": {
-    "prosemirror-view": "~1.41.7"
   }
 }

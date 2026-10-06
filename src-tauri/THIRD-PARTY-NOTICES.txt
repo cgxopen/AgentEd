@@ -1472,7 +1472,7 @@ prosemirror-menu 1.3.0
   Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
   Licence text: 36
 
-prosemirror-model 1.25.4
+prosemirror-model 1.25.12
   Licence: MIT
   Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
   Licence text: 36
@@ -1507,7 +1507,7 @@ prosemirror-transform 1.11.0
   Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
   Licence text: 36
 
-prosemirror-view 1.41.7
+prosemirror-view 1.42.6
   Licence: MIT
   Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
   Licence text: 36
