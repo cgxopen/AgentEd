@@ -91,7 +91,7 @@ jobs:
       - run: npm ci
         timeout-minutes: 10
 
-      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         # The action runs the frontend build and the Rust build and then
         # uploads the assets, so this is the compile step and the widest
         # ceiling in the file. 45, as the same build carries in
