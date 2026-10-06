@@ -4,9 +4,9 @@
 # ecosystem, and majors one by one, since they deserve their own review.
 #
 # Every pull request that moves package-lock.json or Cargo.lock meets two
-# checks of CI: the licence check (#476) and the check that
-# src-tauri/THIRD-PARTY-NOTICES.txt is current (#475). The second turns red
-# whenever a version the file lists moves. The pull request is made green by
+# checks of CI: the licence check (#476) and the check that the notices files
+# of src-tauri, one per shipped target, are current (#475, #540). The second
+# turns red whenever a version a file lists moves. The pull request is made green by
 # one commit on its own branch with `npm run notices`, nothing else, as on
 # #490. After such a commit Dependabot no longer rebases that pull request by
 # itself; a rebase is then asked for by hand, or the commit is made again.
