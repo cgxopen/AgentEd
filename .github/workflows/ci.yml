@@ -207,7 +207,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
-      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # stable branch, 2026-07-16
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # stable branch, 2026-10-01
         id: toolchain
         timeout-minutes: 10
         with:
@@ -340,7 +340,7 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
-      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # stable branch, 2026-07-16
+      - uses: dtolnay/rust-toolchain@7e38f4b43b4db5c8dd498af069a4f6196df1d067 # stable branch, 2026-10-01
         id: toolchain
         timeout-minutes: 10
         with:
