@@ -1,0 +1,45 @@
+# Version updates (#19). Alerts and security updates are switched on in the
+# repository settings; this file adds the weekly and monthly version updates,
+# grouped so that minor and patch moves arrive as one pull request per
+# ecosystem, and majors one by one, since they deserve their own review.
+#
+# Every pull request that moves package-lock.json or Cargo.lock meets two
+# checks of CI: the licence check (#476) and the check that
+# src-tauri/THIRD-PARTY-NOTICES.txt is current (#475). The second turns red
+# whenever a version the file lists moves. The pull request is made green by
+# one commit on its own branch with `npm run notices`, nothing else, as on
+# #490. After such a commit Dependabot no longer rebases that pull request by
+# itself; a rebase is then asked for by hand, or the commit is made again.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # TipTap 3 is a migration of the editor engine rather than an update:
+      # its first pull request (#489) moved twelve packages from 2.x to 3.x
+      # and left @tiptap/pm on 2.x, and could not even be installed. It is
+      # taken up on purpose, in an issue of its own, not proposed weekly.
+      - dependency-name: "@tiptap/*"
+        update-types: ["version-update:semver-major"]
+
+  # A manifest of its own, so it needs an entry of its own: a single npm entry
+  # would leave the Rust side unwatched.
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The workflows pin third-party actions to commit SHAs, so they never drift
+  # and never receive a fix either unless something moves them. Dependabot
+  # reads SHA pins and moves them, with the version in the comment beside.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
