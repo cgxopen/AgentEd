@@ -198,3 +198,7 @@ The MIT license covers the code, not the AgentEd name or logo: a fork is welcome
 AgentEd is a project by **CGXC —** [**CGX Consulting SRL**](https://cgxconsulting.com/).
 
 Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
+
+## History
+
+AgentEd began on 29 March 2026. This repository opened a new phase in August 2026.
