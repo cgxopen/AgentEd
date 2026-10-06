@@ -1396,7 +1396,7 @@ escape-string-regexp 4.0.0
   Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
   Licence text: 62
 
-gpt-tokenizer 3.4.0
+gpt-tokenizer 4.0.0
   Licence: MIT
   Copyright (c) 2023-2024 Bazyli Brzoska
   Licence text: 13
