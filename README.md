@@ -153,7 +153,7 @@ The product definition and documented exceptions live in [REQUIREMENTS.md](REQUI
 
 ## Building from source
 
-You need Node.js 20.19 or later in the 20 line, or 22.12 or later, as the `engines` field in `package.json` states (CI runs Node.js 24). You also need the Rust toolchain (via [rustup](https://rustup.rs/)) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+You need Node.js 22.12 or later in the 22 line, 24, or 26 and later, as the `engines` field in `package.json` states (CI runs Node.js 24); the odd-numbered lines are not supported. You also need the Rust toolchain (via [rustup](https://rustup.rs/)) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
 git clone https://github.com/cgxopen/AgentEd.git

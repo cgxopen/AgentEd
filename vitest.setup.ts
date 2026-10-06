@@ -12,7 +12,7 @@ if (!globalThis.crypto) {
 // not install its storage over it, and every test that touches it met
 // `undefined`, 201 of them on 26.10.0. Node's `sessionStorage` works, kept in
 // memory. Where a storage is missing, the one happy-dom provides is put in
-// its place; on Node 20 to 24, and for `sessionStorage` on 26, nothing is
+// its place; on Node 22 and 24, and for `sessionStorage` on 26, nothing is
 // missing and this does nothing.
 for (const name of ['localStorage', 'sessionStorage'] as const) {
   if (typeof globalThis[name] === 'undefined') {

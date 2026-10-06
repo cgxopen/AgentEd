@@ -35,14 +35,6 @@ updates:
       # in dependabot-core, common/lib/dependabot/config/ignore_condition.rb,
       # on 2026-10-06. The same rule stands in the cargo entry below.
       - dependency-name: "@tauri-apps/*"
-      # vitest 5 is a move of its own (#524): it requires Node 22.12 or later,
-      # against an engines field that admits Node 20.19, and @vitest/ui 5
-      # cannot move without it. Its majors are not proposed weekly until
-      # #524 lands; remove these two rules with it.
-      - dependency-name: vitest
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@vitest/*"
-        update-types: ["version-update:semver-major"]
       # marked stays on 15 for now (#523): it parses every file AgentEd opens,
       # and from 16 to 18 it reads task items, emphasis runs and trailing
       # blank lines differently, so that 97 round-trip tests go red and files
