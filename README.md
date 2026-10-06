@@ -21,7 +21,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 <div align="center">
 
-[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.2) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
+[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.3) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
 
 </div>
 
@@ -45,9 +45,9 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 ## Download and get started
 
-The current test build is **v0.2.0-preview.2 for Windows x64**, prepared before the public launch. It is a pre-release and may be replaced.
+The current test build is **v0.2.0-preview.3 for Windows x64**, prepared before the public launch. It is a pre-release and may be replaced.
 
-[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.2/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.2)
+[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.3/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.3)
 
 The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
 
