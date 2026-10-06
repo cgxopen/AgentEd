@@ -23,7 +23,7 @@ tauri-plugin-shell = "2"
 # when the main window cannot be built. Pinned to the version Tauri already pulls, whose Windows
 # build already compiles these features, so no crate or feature is added.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Globalization", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
 
 # #448: the shell open scope is tested with the regex crate the shell plugin
 # itself compiles it with, already in Cargo.lock. Tests only; nothing ships.
