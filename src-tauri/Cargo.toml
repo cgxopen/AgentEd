@@ -25,6 +25,13 @@ tauri-plugin-shell = "2"
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Globalization", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
 
+# #539: every quit on macOS through the unsaved-changes gate, by a method
+# added to the app delegate tao registers. A direct runtime dependency,
+# approved by the owner on 2026-10-06 on #539: the objc2 tao already ships
+# on macOS, at the version in Cargo.lock, so no crate is added.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+
 # #448: the shell open scope is tested with the regex crate the shell plugin
 # itself compiles it with, already in Cargo.lock. Tests only; nothing ships.
 [dev-dependencies]
