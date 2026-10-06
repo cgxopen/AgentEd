@@ -21,7 +21,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 <div align="center">
 
-[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.3) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
+[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.4) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
 
 </div>
 
@@ -45,9 +45,11 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 ## Download and get started
 
-The current test build is **v0.2.0-preview.3 for Windows x64**, prepared before the public launch. It is a pre-release and may be replaced.
+The current test build is **v0.2.0-preview.4, for Windows x64 and for macOS on Apple Silicon**, prepared before the public launch. It is a pre-release and may be replaced.
 
-[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.3/AgentEd_0.2.0_x64-setup.exe) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.3)
+[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.4/AgentEd_0.2.0_x64-setup.exe) · [**Download the macOS preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.4/AgentEd_0.2.0_aarch64.dmg) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.4)
+
+On macOS, the steps for the first launch are in the release notes.
 
 The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
 
@@ -127,7 +129,8 @@ Signing is planned for a future release. [Read the installation help](https://ag
 | `Ctrl+F` / `Ctrl+H` | Find / Replace |
 | `Ctrl+Alt+F` | Footnote (Insert → Footnote does the same) |
 | `Ctrl+Shift+E` | Files panel (open / close) |
-| `F3` | Find next (Find Previous is in the Edit menu) |
+| `F3` | Find next |
+| `Shift+F3` | Find previous |
 | `Shift+Enter` | Line break inside a paragraph |
 | `Tab` / `Shift+Tab` | Indent / dedent in lists; move between table cells |
 
