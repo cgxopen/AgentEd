@@ -38,10 +38,7 @@ jobs:
       #
       # macOS is absent for its own reason, also in section 7: nothing here
       # can test the result, and an unsigned macOS build reaches a user
-      # through Gatekeeper as a file that cannot be opened. There is a known
-      # collision waiting too - the bundle identifier ends with `.app`, which
-      # Tauri warns about because it is the macOS application bundle
-      # extension.
+      # through Gatekeeper as a file that cannot be opened.
       #
       # Each returns when it becomes a shipped target, and section 7 carries
       # what that takes.
