@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "THIRD-PARTY-NOTICES.macos.txt": "THIRD-PARTY-NOTICES.txt"
+    }
+  }
+}

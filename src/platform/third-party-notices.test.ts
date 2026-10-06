@@ -4,9 +4,12 @@ import {
   copyrightFromOverride,
   parseCargoTree,
   splitCopyright,
+  TARGETS,
 } from '../../src-tauri/notices/third-party-notices.mjs';
+import macosNotices from '../../src-tauri/THIRD-PARTY-NOTICES.macos.txt?raw';
 import notices from '../../src-tauri/THIRD-PARTY-NOTICES.txt?raw';
 import tauriConf from '../../src-tauri/tauri.conf.json?raw';
+import tauriMacosConf from '../../src-tauri/tauri.macos.conf.json?raw';
 import { THIRD_PARTY_NOTICES_FILE } from './index';
 
 /**
@@ -25,13 +28,55 @@ interface LockEntry {
   optional?: boolean;
 }
 
-const entryHeads = new Set(notices.split('\n').filter((line) => /^\S+ \S/.test(line)));
+function headsOf(text: string): Set<string> {
+  return new Set(text.split('\n').filter((line) => /^\S+ \S/.test(line)));
+}
 
-describe('the notices file the installer ships', () => {
-  it('is the resource the bundle installs, under the name About shows', () => {
+/** Each generated file, by the target `TARGETS` generates it for. */
+const FILES: Record<string, string> = {
+  'THIRD-PARTY-NOTICES.txt': notices,
+  'THIRD-PARTY-NOTICES.macos.txt': macosNotices,
+};
+
+describe('one notices file per shipped target (#540)', () => {
+  it('is generated for Windows and macOS, the Windows file under the name it had', () => {
+    expect(TARGETS).toEqual([
+      { triple: 'x86_64-pc-windows-msvc', file: THIRD_PARTY_NOTICES_FILE },
+      { triple: 'aarch64-apple-darwin', file: 'THIRD-PARTY-NOTICES.macos.txt' },
+    ]);
+  });
+
+  it('is installed by the Windows bundle under the name About shows', () => {
+    // tauri.conf.json is the base every platform file is merged over; the
+    // Windows file names no resources, so this list is what Windows installs.
     const resources: unknown = JSON.parse(tauriConf).bundle.resources;
     expect(resources).toEqual([THIRD_PARTY_NOTICES_FILE]);
   });
+
+  it('is installed by the macOS bundle under the same name, from its own file', () => {
+    // JSON Merge Patch replaces the base list whole with this map, so the
+    // Windows file does not reach the .app beside it.
+    expect(JSON.parse(tauriMacosConf)).toEqual({
+      bundle: { resources: { 'THIRD-PARTY-NOTICES.macos.txt': THIRD_PARTY_NOTICES_FILE } },
+    });
+  });
+
+  it.each(TARGETS)('names the graph it was generated from: $triple', ({ triple, file }) => {
+    expect(FILES[file]).toContain(`the normal dependency graph for ${triple})`);
+  });
+
+  it('lists the crates of its own target and not those of the other', () => {
+    const windows = headsOf(notices);
+    const macos = headsOf(macosNotices);
+    expect([...windows].some((head) => head.startsWith('webview2-com '))).toBe(true);
+    expect([...macos].some((head) => head.startsWith('webview2-com '))).toBe(false);
+    expect([...macos].some((head) => head.startsWith('objc2 '))).toBe(true);
+    expect([...windows].some((head) => head.startsWith('objc2 '))).toBe(false);
+  });
+});
+
+describe.each(Object.entries(FILES))('the notices file %s', (_file, notices) => {
+  const entryHeads = headsOf(notices);
 
   it('lists every production package of package-lock.json at its version', () => {
     const packages: Record<string, LockEntry> = JSON.parse(packageLock).packages;

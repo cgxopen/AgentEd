@@ -6,6 +6,56 @@
       "texts": ["BSD-3-Clause"],
       "source": "LICENSE of github.com/dropbox/rust-alloc-no-stdlib"
     },
+    "block2": {
+      "copyright": "The objc2 authors: Mads Marquart",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2 at tag block2-0.6.2, which carries no copyright line; authors from Cargo.toml"
+    },
+    "dispatch2": {
+      "copyright": "The dispatch2 authors: Mads Marquart, Mary",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2 at tag dispatch2-0.3.1, which carries no copyright line; authors from Cargo.toml; Zlib OR Apache-2.0 OR MIT, taken under MIT"
+    },
+    "objc2": {
+      "copyright": "The objc2 authors: Mads Marquart",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2 at tag objc2-0.6.4, which carries no copyright line; authors from Cargo.toml"
+    },
+    "objc2-app-kit": {
+      "copyright": "The objc2 project, github.com/madsmtm/objc2",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2, which carries no copyright line; Cargo.toml names no author; Zlib OR Apache-2.0 OR MIT, taken under MIT"
+    },
+    "objc2-core-foundation": {
+      "copyright": "The objc2 project, github.com/madsmtm/objc2",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2, which carries no copyright line; Cargo.toml names no author; Zlib OR Apache-2.0 OR MIT, taken under MIT"
+    },
+    "objc2-encode": {
+      "copyright": "The objc2 authors: Mads Marquart",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2 at tag objc2-encode-4.1.0, which carries no copyright line; authors from Cargo.toml"
+    },
+    "objc2-exception-helper": {
+      "copyright": "The objc2 authors: Mads Marquart",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2 at tag objc2-exception-helper-0.1.1, which carries no copyright line; authors from Cargo.toml; Zlib OR Apache-2.0 OR MIT, taken under MIT"
+    },
+    "objc2-foundation": {
+      "copyright": "The objc2 project, github.com/madsmtm/objc2",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2, which carries no copyright line; Cargo.toml names no author"
+    },
+    "objc2-quartz-core": {
+      "copyright": "The objc2 project, github.com/madsmtm/objc2",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2, which carries no copyright line; Cargo.toml names no author; Zlib OR Apache-2.0 OR MIT, taken under MIT"
+    },
+    "objc2-web-kit": {
+      "copyright": "The objc2 project, github.com/madsmtm/objc2",
+      "texts": ["MIT"],
+      "source": "LICENSE.md of github.com/madsmtm/objc2, which carries no copyright line; Cargo.toml names no author; Zlib OR Apache-2.0 OR MIT, taken under MIT"
+    },
     "phf": {
       "copyright": "Copyright (c) 2014-2016 Steven Fackler",
       "texts": ["MIT"],
@@ -30,6 +80,11 @@
       "copyright": "The Servo Project Developers",
       "texts": ["MPL-2.0"],
       "source": "LICENSE of github.com/servo/servo; authors from Cargo.toml"
+    },
+    "sigchld": {
+      "copyright": "The sigchld authors: Jack O'Connor",
+      "texts": ["MIT"],
+      "source": "github.com/oconnor663/sigchld.rs publishes no licence file; MIT declared in Cargo.toml, authors from Cargo.toml"
     },
     "webview2-com": {
       "copyright": "Copyright (c) 2021 Bill Avery",

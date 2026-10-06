@@ -17,3 +17,6 @@ export function copyrightFromOverride(
   },
   lines: string[],
 ): string[];
+
+/** The shipped targets, each with the notices file generated for it (#540). */
+export const TARGETS: { triple: string; file: string }[];

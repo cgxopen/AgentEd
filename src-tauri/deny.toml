@@ -15,9 +15,12 @@
 # report and decide nothing.
 
 [graph]
-# What the installer ships. Build dependencies stay in, since cargo-deny reads
-# them with the normal graph; dev dependencies do not ship.
-targets = ["x86_64-pc-windows-msvc"]
+# What the bundles ship, one target for each notices file the generator writes
+# (#540). Build dependencies stay in, since cargo-deny reads them with the
+# normal graph; dev dependencies do not ship. Linux waits for the issue that
+# ships it: measured on 2026-10-06, its build graph brings target-lexicon
+# under Apache-2.0 WITH LLVM-exception, which the list below does not name.
+targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
 exclude-dev = true
 
 [licenses]
