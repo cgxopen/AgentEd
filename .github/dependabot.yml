@@ -26,6 +26,15 @@ updates:
       # taken up on purpose, in an issue of its own, not proposed weekly.
       - dependency-name: "@tiptap/*"
         update-types: ["version-update:semver-major"]
+      # prosemirror-view stays below 1.42 until its behaviour change is met
+      # on purpose (#518, removed by #519): 1.42 turns four tests red, two on
+      # image resize (#252) and two on pasted empty elements (#311). The hold
+      # itself is the `overrides` entry in package.json, which every npm
+      # resolution obeys, Dependabot's included, also when a group moves
+      # @tiptap/pm 2.27.3, which asks for 1.42.3 or later. This rule only
+      # stops the pull requests that would propose the version directly.
+      - dependency-name: prosemirror-view
+        versions: [">=1.42.0"]
 
   # A manifest of its own, so it needs an entry of its own: a single npm entry
   # would leave the Rust side unwatched.
