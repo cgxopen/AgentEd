@@ -113,18 +113,20 @@ describe('no option is bold, and the circles are 14 px (#395)', () => {
   // With the bold gone the ring is the only mark of the selected palette, so
   // it is read from the rule that draws it on the selected circle, not from
   // the Mode dot, which happens to share its colour.
-  it.each(
-    paletteNames,
-  )('%s: the ring of the selected palette stands off the popover at 3', (name) => {
-    const tokens = palettes.get(name)!;
-    const popover = document.getElementById('appearance-popover') as HTMLElement;
-    const ground = resolveColour(last(popover, 'background') as string, tokens);
-    const circle = palette().querySelector('.swatch') as HTMLElement;
-    const shadow = last(circle, 'box-shadow');
-    const colour = /^0 0 0 2px (.+)$/.exec(shadow ?? '')?.[1];
-    expect(colour, `the ring rule reads ${shadow}`).toBeDefined();
-    expect(contrast(resolveColour(colour as string, tokens), ground), name).toBeGreaterThanOrEqual(
-      NON_TEXT,
-    );
-  });
+  it.each(paletteNames)(
+    '%s: the ring of the selected palette stands off the popover at 3',
+    (name) => {
+      const tokens = palettes.get(name)!;
+      const popover = document.getElementById('appearance-popover') as HTMLElement;
+      const ground = resolveColour(last(popover, 'background') as string, tokens);
+      const circle = palette().querySelector('.swatch') as HTMLElement;
+      const shadow = last(circle, 'box-shadow');
+      const colour = /^0 0 0 2px (.+)$/.exec(shadow ?? '')?.[1];
+      expect(colour, `the ring rule reads ${shadow}`).toBeDefined();
+      expect(
+        contrast(resolveColour(colour as string, tokens), ground),
+        name,
+      ).toBeGreaterThanOrEqual(NON_TEXT);
+    },
+  );
 });

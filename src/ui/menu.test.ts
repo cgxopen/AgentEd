@@ -253,30 +253,31 @@ describe('every entry runs its own command, reached the way a person reaches it 
     expect([...fromEntries, ...fromRecentCard].sort()).toEqual(Object.keys(callbacks()).sort());
   });
 
-  it.each(
-    ENTRIES,
-  )('%s holds %s, and choosing it runs its handler and no other', (panel, label, id, handler) => {
-    const handlers = callbacks();
-    setupMenu(handlers, bothAvailable, everyEntryOffered, () => ['/doc/a.md']);
+  it.each(ENTRIES)(
+    '%s holds %s, and choosing it runs its handler and no other',
+    (panel, label, id, handler) => {
+      const handlers = callbacks();
+      setupMenu(handlers, bothAvailable, everyEntryOffered, () => ['/doc/a.md']);
 
-    openSection(panel);
-    const entry = element(id);
-    expect(element(panel).contains(entry)).toBe(true);
-    expect(labelOf(entry)).toBe(label);
-    expect(isShown(entry)).toBe(true);
+      openSection(panel);
+      const entry = element(id);
+      expect(element(panel).contains(entry)).toBe(true);
+      expect(labelOf(entry)).toBe(label);
+      expect(isShown(entry)).toBe(true);
 
-    entry.click();
+      entry.click();
 
-    for (const [name, spy] of Object.entries(handlers)) {
-      expect(spy, name).toHaveBeenCalledTimes(name === handler ? 1 : 0);
-    }
-    // Every entry closes the menu before its command, except spell check, which
-    // leaves it open so its new state is seen (#360, owner decision), and Open
-    // Recent, which opens its card beside it (#381).
-    expect(isShown(element('menu-dropdown'))).toBe(
-      id === 'menu-spellcheck' || id === 'menu-open-recent',
-    );
-  });
+      for (const [name, spy] of Object.entries(handlers)) {
+        expect(spy, name).toHaveBeenCalledTimes(name === handler ? 1 : 0);
+      }
+      // Every entry closes the menu before its command, except spell check, which
+      // leaves it open so its new state is seen (#360, owner decision), and Open
+      // Recent, which opens its card beside it (#381).
+      expect(isShown(element('menu-dropdown'))).toBe(
+        id === 'menu-spellcheck' || id === 'menu-open-recent',
+      );
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

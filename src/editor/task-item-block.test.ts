@@ -60,16 +60,17 @@ const FIRST_CHILD_IS_A_BLOCK: ReadonlyArray<readonly [string, string]> = [
 ];
 
 describe('the checkbox of an item whose first child is a block (#157)', () => {
-  it.each(
-    FIRST_CHILD_IS_A_BLOCK,
-  )('is still rendered when the first child is %s', (_l, markdown) => {
-    const editor = editorWith(markdown);
-    const item = checkboxOf(editor).closest('li');
-    // Before the content, not inside it: the label is the item's first child,
-    // which is what keeps the checkbox at the left of whatever the block is.
-    expect(item?.firstElementChild?.nodeName).toBe('LABEL');
-    expect(item?.children.length).toBe(2);
-  });
+  it.each(FIRST_CHILD_IS_A_BLOCK)(
+    'is still rendered when the first child is %s',
+    (_l, markdown) => {
+      const editor = editorWith(markdown);
+      const item = checkboxOf(editor).closest('li');
+      // Before the content, not inside it: the label is the item's first child,
+      // which is what keeps the checkbox at the left of whatever the block is.
+      expect(item?.firstElementChild?.nodeName).toBe('LABEL');
+      expect(item?.children.length).toBe(2);
+    },
+  );
 
   it.each(FIRST_CHILD_IS_A_BLOCK)('is the first child rather than a paragraph — %s', (_l, md) => {
     const first = editorWith(md).editor.getJSON().content?.[0]?.content?.[0]?.content?.[0];
@@ -128,16 +129,17 @@ describe('the checkbox of an item whose first child is a block (#157)', () => {
     expect(editorWith('- [ ] a\n  b').getMarkdown()).toBe('- [ ] a b');
   });
 
-  it.each(
-    FIRST_CHILD_IS_A_BLOCK,
-  )('carries the tick through the round trip — %s', (_l, markdown) => {
-    // Both states, because the attribute is written from the item and read
-    // back from the file: an item that always saved unticked would pass a test
-    // that only opened `- [ ]`.
-    const ticked = markdown.replace('- [ ]', '- [x]');
-    expect(editorWith(ticked).getMarkdown()).toBe(ticked);
-    instance?.destroy();
-    instance = null;
-    expect(editorWith(markdown).getMarkdown()).toBe(markdown);
-  });
+  it.each(FIRST_CHILD_IS_A_BLOCK)(
+    'carries the tick through the round trip — %s',
+    (_l, markdown) => {
+      // Both states, because the attribute is written from the item and read
+      // back from the file: an item that always saved unticked would pass a test
+      // that only opened `- [ ]`.
+      const ticked = markdown.replace('- [ ]', '- [x]');
+      expect(editorWith(ticked).getMarkdown()).toBe(ticked);
+      instance?.destroy();
+      instance = null;
+      expect(editorWith(markdown).getMarkdown()).toBe(markdown);
+    },
+  );
 });

@@ -145,17 +145,15 @@ describe('a language outside a-z makes a block with that exact language (#237)',
 
 describe('what already worked goes on working (#237)', () => {
   for (const ender of ENDERS) {
-    it.each([
-      'python',
-      'yaml',
-      'ts',
-      'js',
-    ])(`a lowercase language still makes a block: %s, finished with ${ender}`, (language) => {
-      const block = fenceFrom(`\`\`\`${language}`, ender);
+    it.each(['python', 'yaml', 'ts', 'js'])(
+      `a lowercase language still makes a block: %s, finished with ${ender}`,
+      (language) => {
+        const block = fenceFrom(`\`\`\`${language}`, ender);
 
-      expect(block.kind).toBe('codeBlock');
-      expect(block.language).toBe(language);
-    });
+        expect(block.kind).toBe('codeBlock');
+        expect(block.language).toBe(language);
+      },
+    );
 
     it(`three backticks alone still make a block with no language, finished with ${ender}`, () => {
       const block = fenceFrom('```', ender);

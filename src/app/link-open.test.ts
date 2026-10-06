@@ -115,13 +115,13 @@ describe('Ctrl/Cmd+click follows a link', () => {
  * nothing for seven of these.
  */
 describe('the shell is handed the address the URL parser read', () => {
-  it.each(LINKS.map((link) => [JSON.stringify(link.spelling), link]))('%s', (_label, {
-    spelling,
-    handed,
-  }) => {
-    click(anchor(spelling), { ctrlKey: true });
-    expect(openExternal).toHaveBeenCalledWith(handed);
-  });
+  it.each(LINKS.map((link) => [JSON.stringify(link.spelling), link]))(
+    '%s',
+    (_label, { spelling, handed }) => {
+      click(anchor(spelling), { ctrlKey: true });
+      expect(openExternal).toHaveBeenCalledWith(handed);
+    },
+  );
 });
 
 describe('the modifier click never reaches the editor', () => {

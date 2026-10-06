@@ -20,13 +20,12 @@ describe('normalizeLinkUrl — what the dialog accepts', () => {
   // the most ordinary link a markdown editor writes. An address with no scheme
   // is now stored exactly as typed; whoever means the web types `https://`
   // (#42).
-  it.each([
-    'example.com',
-    'sub.example.co.uk/docs',
-    'README.md',
-  ])('adds no scheme to %s', (input) => {
-    expect(normalizeLinkUrl(input)).toBe(input);
-  });
+  it.each(['example.com', 'sub.example.co.uk/docs', 'README.md'])(
+    'adds no scheme to %s',
+    (input) => {
+      expect(normalizeLinkUrl(input)).toBe(input);
+    },
+  );
 
   // Also inverted: `notahost` and `/local/file.md` were refused when the only
   // scheme-less address worth having was a host. They are relative paths, and
@@ -82,13 +81,12 @@ describe('normalizeLinkUrl — what the dialog accepts', () => {
 });
 
 describe('isSingleUrl — what turns a selection into a link', () => {
-  it.each([
-    'https://example.com',
-    'http://example.com/a/b',
-    'mailto:hi@example.com',
-  ])('accepts the lone URL %s', (input) => {
-    expect(isSingleUrl(input)).toBe(true);
-  });
+  it.each(['https://example.com', 'http://example.com/a/b', 'mailto:hi@example.com'])(
+    'accepts the lone URL %s',
+    (input) => {
+      expect(isSingleUrl(input)).toBe(true);
+    },
+  );
 
   it('accepts a URL padded with whitespace, as a clipboard often is', () => {
     expect(isSingleUrl('\n https://example.com \n')).toBe(true);

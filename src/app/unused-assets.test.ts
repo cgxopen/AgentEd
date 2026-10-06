@@ -174,21 +174,22 @@ const SHAPES: ReadonlyArray<
 ];
 
 describe('one answer, read by the popover and the panel (#380)', () => {
-  it.each(
-    SHAPES,
-  )('%s: the popover and the panel give the one answer', async (_shape, markdown, file, used) => {
-    const doc = file === 'g.png' ? 'C:/doc/note.md' : DOC;
-    const dir = doc.replace('note.md', 'assets');
-    instance.setMarkdown(markdown);
-    const unused = unusedAssetFiles(instance.editor, doc);
-    expect(unused(`${dir}/${file}`)).toBe(!used);
+  it.each(SHAPES)(
+    '%s: the popover and the panel give the one answer',
+    async (_shape, markdown, file, used) => {
+      const doc = file === 'g.png' ? 'C:/doc/note.md' : DOC;
+      const dir = doc.replace('note.md', 'assets');
+      instance.setMarkdown(markdown);
+      const unused = unusedAssetFiles(instance.editor, doc);
+      expect(unused(`${dir}/${file}`)).toBe(!used);
 
-    const popover = await summariseAssets(instance.editor, doc, {
-      entryPresence: async () => 'present',
-      listDir: async () => [{ name: file, path: `${dir}/${file}`, isDirectory: false }],
-    } as unknown as PlatformIO);
-    expect(popover.folder).toEqual({ kind: 'counted', otherFiles: used ? 0 : 1 });
-  });
+      const popover = await summariseAssets(instance.editor, doc, {
+        entryPresence: async () => 'present',
+        listDir: async () => [{ name: file, path: `${dir}/${file}`, isDirectory: false }],
+      } as unknown as PlatformIO);
+      expect(popover.folder).toEqual({ kind: 'counted', otherFiles: used ? 0 : 1 });
+    },
+  );
 
   it('the popover counts exactly the files the panel greys', async () => {
     await drawAndMark();
@@ -238,16 +239,19 @@ describe('the grey, as the sheet draws it (#380)', () => {
     expect(contrast(resolveColour(ink, tokens), card), name).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each([
-    ...palettes.keys(),
-  ])('%s: the note of an empty answer reads at 4.5, in --muted', (name) => {
-    // The `.sidebar-note` debt of #358, paid here: it named `--text-muted`,
-    // which no palette defines.
-    const tokens = palettes.get(name) as Map<string, string>;
-    const note = atEveryWidth.find((rule) => rule.selector === '.sidebar-note');
-    expect(note?.declarations.get('color')).toBe('var(--muted)');
-    expect(note?.declarations.has('opacity')).toBe(false);
-    const card = resolveColour('var(--bg)', tokens);
-    expect(contrast(resolveColour('var(--muted)', tokens), card), name).toBeGreaterThanOrEqual(4.5);
-  });
+  it.each([...palettes.keys()])(
+    '%s: the note of an empty answer reads at 4.5, in --muted',
+    (name) => {
+      // The `.sidebar-note` debt of #358, paid here: it named `--text-muted`,
+      // which no palette defines.
+      const tokens = palettes.get(name) as Map<string, string>;
+      const note = atEveryWidth.find((rule) => rule.selector === '.sidebar-note');
+      expect(note?.declarations.get('color')).toBe('var(--muted)');
+      expect(note?.declarations.has('opacity')).toBe(false);
+      const card = resolveColour('var(--bg)', tokens);
+      expect(contrast(resolveColour('var(--muted)', tokens), card), name).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    },
+  );
 });

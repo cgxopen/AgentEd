@@ -207,18 +207,21 @@ describe('the node holding a comment', () => {
     ['Backspace after it', 'one <!-- note --> two', 'Backspace', 1, 'one two'],
     ['Delete before it', 'one <!-- note --> two', 'Delete', 0, 'one two'],
     ['Backspace on its own line', 'one\n\n<!-- note -->\n\ntwo', 'Backspace', 1, 'one\n\ntwo'],
-  ])('%s removes it, and undo brings the bytes back', (_label, markdown, key, offset, afterDelete) => {
-    // One keystroke, the same a character gets, and written rather than left
-    // to whatever the browser does with a `contenteditable="false"` element
-    // — which is exactly the part no test here could otherwise reach.
-    const editor = open(markdown);
-    editor.editor.commands.setTextSelection(positionOf(editor, 'markdownComment') + offset);
-    expect(editor.editor.commands.keyboardShortcut(key)).toBe(true);
-    expect(editor.getMarkdown().trim()).toBe(afterDelete);
+  ])(
+    '%s removes it, and undo brings the bytes back',
+    (_label, markdown, key, offset, afterDelete) => {
+      // One keystroke, the same a character gets, and written rather than left
+      // to whatever the browser does with a `contenteditable="false"` element
+      // — which is exactly the part no test here could otherwise reach.
+      const editor = open(markdown);
+      editor.editor.commands.setTextSelection(positionOf(editor, 'markdownComment') + offset);
+      expect(editor.editor.commands.keyboardShortcut(key)).toBe(true);
+      expect(editor.getMarkdown().trim()).toBe(afterDelete);
 
-    editor.editor.commands.undo();
-    expect(editor.getMarkdown().trim()).toBe(markdown);
-  });
+      editor.editor.commands.undo();
+      expect(editor.getMarkdown().trim()).toBe(markdown);
+    },
+  );
 
   it('and those keys leave ordinary text to whatever handles it', () => {
     // The other side: the handler declines everywhere else, so it cannot be

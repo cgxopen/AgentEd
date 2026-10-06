@@ -163,15 +163,16 @@ describe('every label on the floating toolbar is readable in every palette (#319
     expect(contrast(hovered.under, rest.under)).toBeGreaterThan(1);
   });
 
-  it.each(
-    paletteNames,
-  )('%s: the active button, at rest and under the pointer, apart from the bar', (name) => {
-    const { bar, active } = renderedToolbar();
-    const tokens = palettes.get(name)!;
-    const rest = paint(tokens, bar, active, false);
-    const hovered = paint(tokens, bar, active, true);
-    expect(contrast(rest.label, rest.under)).toBeGreaterThanOrEqual(AA);
-    expect(contrast(hovered.label, hovered.under)).toBeGreaterThanOrEqual(AA);
-    expect(contrast(rest.under, rest.bar)).toBeGreaterThan(1);
-  });
+  it.each(paletteNames)(
+    '%s: the active button, at rest and under the pointer, apart from the bar',
+    (name) => {
+      const { bar, active } = renderedToolbar();
+      const tokens = palettes.get(name)!;
+      const rest = paint(tokens, bar, active, false);
+      const hovered = paint(tokens, bar, active, true);
+      expect(contrast(rest.label, rest.under)).toBeGreaterThanOrEqual(AA);
+      expect(contrast(hovered.label, hovered.under)).toBeGreaterThanOrEqual(AA);
+      expect(contrast(rest.under, rest.bar)).toBeGreaterThan(1);
+    },
+  );
 });
