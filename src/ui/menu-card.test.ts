@@ -115,29 +115,36 @@ describe('the section arrow is on the left, drawn, and points right until it ope
     expect(entryStart).toBeGreaterThan(nameStart);
   });
 
-  it.each([
-    ...palettes.keys(),
-  ])('%s: the arrow stands off its row at 3 to 1, at rest and under the pointer', (name) => {
-    // A non-text mark, so 1.4.11: 3 to 1. The ground is the menu card, `--bg`,
-    // and under the pointer the shade the rule reaching a header gives it.
-    const tokens = palettes.get(name) as Map<string, string>;
-    const header = headers()[0];
-    const colour = resolveColour(last(arrowOf(header), 'color') as string, tokens);
-    const card = resolveColour(
-      last(document.getElementById('menu-dropdown') as Element, 'background') as string,
-      tokens,
-    );
-    const shadeRule = atEveryWidth.find(
-      (rule) =>
-        rule.selector.includes(':hover') &&
-        reaches(rule.selector.replaceAll(':hover', '').replaceAll(':not(:disabled)', ''), header) &&
-        rule.declarations.has('background-color'),
-    );
-    const shade = resolveColour(shadeRule?.declarations.get('background-color') as string, tokens);
+  it.each([...palettes.keys()])(
+    '%s: the arrow stands off its row at 3 to 1, at rest and under the pointer',
+    (name) => {
+      // A non-text mark, so 1.4.11: 3 to 1. The ground is the menu card, `--bg`,
+      // and under the pointer the shade the rule reaching a header gives it.
+      const tokens = palettes.get(name) as Map<string, string>;
+      const header = headers()[0];
+      const colour = resolveColour(last(arrowOf(header), 'color') as string, tokens);
+      const card = resolveColour(
+        last(document.getElementById('menu-dropdown') as Element, 'background') as string,
+        tokens,
+      );
+      const shadeRule = atEveryWidth.find(
+        (rule) =>
+          rule.selector.includes(':hover') &&
+          reaches(
+            rule.selector.replaceAll(':hover', '').replaceAll(':not(:disabled)', ''),
+            header,
+          ) &&
+          rule.declarations.has('background-color'),
+      );
+      const shade = resolveColour(
+        shadeRule?.declarations.get('background-color') as string,
+        tokens,
+      );
 
-    expect(contrast(colour, card)).toBeGreaterThanOrEqual(3);
-    expect(contrast(colour, over(shade, card))).toBeGreaterThanOrEqual(3);
-  });
+      expect(contrast(colour, card)).toBeGreaterThanOrEqual(3);
+      expect(contrast(colour, over(shade, card))).toBeGreaterThanOrEqual(3);
+    },
+  );
 
   it('turns with the slide for everyone, and not at all for someone who asked for less motion', () => {
     const arrow = arrowOf(headers()[0]);

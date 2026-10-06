@@ -61,20 +61,21 @@ describe('the header is the document colour with no line under it (#351)', () =>
     expect(last(panel, 'background')).toBe(last(shippedElement('body'), 'background'));
   });
 
-  it.each([
-    ...palettes.keys(),
-  ])('%s: a search toggle under the pointer still fills against the panel', (name) => {
-    // The hover used to fill with `--bg`, which on a panel of `--bg` is no fill.
-    const tokens = palettes.get(name) as Map<string, string>;
-    const panel = shippedElement('#search-panel');
-    panel.removeAttribute('hidden');
-    const hovered = rules.find((rule) => rule.selector === '.search-toggle:hover');
-    const fill = hovered?.declarations.get('background');
-    const ground = last(panel, 'background');
-    if (fill === undefined || ground === undefined) throw new Error('no fill or no panel ground');
+  it.each([...palettes.keys()])(
+    '%s: a search toggle under the pointer still fills against the panel',
+    (name) => {
+      // The hover used to fill with `--bg`, which on a panel of `--bg` is no fill.
+      const tokens = palettes.get(name) as Map<string, string>;
+      const panel = shippedElement('#search-panel');
+      panel.removeAttribute('hidden');
+      const hovered = rules.find((rule) => rule.selector === '.search-toggle:hover');
+      const fill = hovered?.declarations.get('background');
+      const ground = last(panel, 'background');
+      if (fill === undefined || ground === undefined) throw new Error('no fill or no panel ground');
 
-    expect(resolveColour(fill, tokens)).not.toEqual(resolveColour(ground, tokens));
-  });
+      expect(resolveColour(fill, tokens)).not.toEqual(resolveColour(ground, tokens));
+    },
+  );
 });
 
 describe('the files panel card is the document colour, and its border draws it (#358)', () => {
@@ -85,22 +86,23 @@ describe('the files panel card is the document colour, and its border draws it (
     expect(last(card, 'background')).toBe(last(shippedElement('body'), 'background'));
   });
 
-  it.each([
-    ...palettes.keys(),
-  ])('%s: the border stands off the card and the page at 3 to 1', (name) => {
-    // With the fill on the page colour the border is the only edge the card
-    // has, so its colour is read out of the sheet and held against the ground
-    // it is drawn on. Measured on the built page: 3.19 to 3.54.
-    const tokens = palettes.get(name) as Map<string, string>;
-    const card = shippedElement('#sidebar');
-    const border = last(card, 'border')?.match(/var\(--[\w-]+\)/)?.[0];
-    const ground = last(card, 'background');
-    if (border === undefined || ground === undefined) throw new Error('no border or no fill');
+  it.each([...palettes.keys()])(
+    '%s: the border stands off the card and the page at 3 to 1',
+    (name) => {
+      // With the fill on the page colour the border is the only edge the card
+      // has, so its colour is read out of the sheet and held against the ground
+      // it is drawn on. Measured on the built page: 3.19 to 3.54.
+      const tokens = palettes.get(name) as Map<string, string>;
+      const card = shippedElement('#sidebar');
+      const border = last(card, 'border')?.match(/var\(--[\w-]+\)/)?.[0];
+      const ground = last(card, 'background');
+      if (border === undefined || ground === undefined) throw new Error('no border or no fill');
 
-    expect(
-      contrast(resolveColour(border, tokens), resolveColour(ground, tokens)),
-    ).toBeGreaterThanOrEqual(3);
-  });
+      expect(
+        contrast(resolveColour(border, tokens), resolveColour(ground, tokens)),
+      ).toBeGreaterThanOrEqual(3);
+    },
+  );
 });
 
 /**

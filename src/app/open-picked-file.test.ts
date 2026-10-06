@@ -199,52 +199,52 @@ beforeEach(() => {
   dialogs = [];
 });
 
-describe.each([
-  'subfolder',
-  'outside',
-] as const)('#141 — File → Open on a file the grant root also has a name for (%s)', (where) => {
-  it('opens the picked file, not its same-named neighbour', async () => {
-    const { state, actions } = scenario(where);
+describe.each(['subfolder', 'outside'] as const)(
+  '#141 — File → Open on a file the grant root also has a name for (%s)',
+  (where) => {
+    it('opens the picked file, not its same-named neighbour', async () => {
+      const { state, actions } = scenario(where);
 
-    await actions.handleOpen();
+      await actions.handleOpen();
 
-    expect(dialogs).toEqual([]);
-    expect(shown).toEqual([PICKED]);
-    // The R-C14 baseline is the picked file's text, so the next save
-    // compares against the file it is about to write.
-    expect(state.knownDiskText).toBe(PICKED);
-  });
+      expect(dialogs).toEqual([]);
+      expect(shown).toEqual([PICKED]);
+      // The R-C14 baseline is the picked file's text, so the next save
+      // compares against the file it is about to write.
+      expect(state.knownDiskText).toBe(PICKED);
+    });
 
-  it('and a save afterwards writes to the file that was opened', async () => {
-    const { state, actions, picked, neighbour } = scenario(where);
+    it('and a save afterwards writes to the file that was opened', async () => {
+      const { state, actions, picked, neighbour } = scenario(where);
 
-    await actions.handleOpen();
-    state.setModified(true);
-    await actions.handleSave();
+      await actions.handleOpen();
+      state.setModified(true);
+      await actions.handleSave();
 
-    expect(picked.current()).toBe(EDITED);
-    expect(neighbour.current()).toBe(NEIGHBOUR);
-    expect(state.modified).toBe(false);
-  });
+      expect(picked.current()).toBe(EDITED);
+      expect(neighbour.current()).toBe(NEIGHBOUR);
+      expect(state.modified).toBe(false);
+    });
 
-  it('with no conflict dialog about a document the user never opened', async () => {
-    // Measured before the change, in the `outside` state: the baseline
-    // was the neighbour's text and the save resolved to the neighbour,
-    // so R-C14 answered `none` — silence over the wrong file. With the
-    // baseline taken from the picked file and the lookup still wrong,
-    // it answers `changed` and asks about a file the user never chose.
-    // Both are gone; the correct answer here is silence over the right
-    // file.
-    const { showConfirmDialog } = await import('../ui/confirm-dialog');
-    const { state, actions } = scenario(where);
+    it('with no conflict dialog about a document the user never opened', async () => {
+      // Measured before the change, in the `outside` state: the baseline
+      // was the neighbour's text and the save resolved to the neighbour,
+      // so R-C14 answered `none` — silence over the wrong file. With the
+      // baseline taken from the picked file and the lookup still wrong,
+      // it answers `changed` and asks about a file the user never chose.
+      // Both are gone; the correct answer here is silence over the right
+      // file.
+      const { showConfirmDialog } = await import('../ui/confirm-dialog');
+      const { state, actions } = scenario(where);
 
-    await actions.handleOpen();
-    state.setModified(true);
-    await actions.handleSave();
+      await actions.handleOpen();
+      state.setModified(true);
+      await actions.handleSave();
 
-    expect(showConfirmDialog).not.toHaveBeenCalled();
-  });
-});
+      expect(showConfirmDialog).not.toHaveBeenCalled();
+    });
+  },
+);
 
 describe('#141 — the open no longer reads the file a second time', () => {
   it('nothing calls readText on this route', async () => {

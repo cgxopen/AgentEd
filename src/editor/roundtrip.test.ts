@@ -1486,25 +1486,27 @@ describe('a fence alone in a list item, at the editor level (#104)', () => {
     expect(fencedBlocks(openAndSave(empty))).toEqual(fencedBlocks(empty));
   });
 
-  it.each(
-    ALONE_IN_A_LIST_ITEM,
-  )('keeps a fence that has content alone in %s', (_label, _e, full) => {
-    expect(fencedBlocks(openAndSave(full))).toEqual(fencedBlocks(full));
-  });
+  it.each(ALONE_IN_A_LIST_ITEM)(
+    'keeps a fence that has content alone in %s',
+    (_label, _e, full) => {
+      expect(fencedBlocks(openAndSave(full))).toEqual(fencedBlocks(full));
+    },
+  );
 
-  it.each(
-    ALONE_IN_A_LIST_ITEM,
-  )('keeps the bullet of %s whether the fence is empty or not (#110)', (_label, empty, full) => {
-    // This row asserted the opposite until #110 — that no list survived —
-    // and it said so as "no `<li>` in the output" rather than as bytes,
-    // deliberately, so that a schema decision restoring the bullet would
-    // move it without enshrining the spelling it restored. That decision is
-    // `listItem` taking `block+`, and this is the move it was written for:
-    // the shapes are now pinned as the bytes they were opened from, which is
-    // the stronger statement and the one R-C2 actually promises.
-    expect(openAndSave(empty)).toBe(empty);
-    expect(openAndSave(full)).toBe(full);
-  });
+  it.each(ALONE_IN_A_LIST_ITEM)(
+    'keeps the bullet of %s whether the fence is empty or not (#110)',
+    (_label, empty, full) => {
+      // This row asserted the opposite until #110 — that no list survived —
+      // and it said so as "no `<li>` in the output" rather than as bytes,
+      // deliberately, so that a schema decision restoring the bullet would
+      // move it without enshrining the spelling it restored. That decision is
+      // `listItem` taking `block+`, and this is the move it was written for:
+      // the shapes are now pinned as the bytes they were opened from, which is
+      // the stronger statement and the one R-C2 actually promises.
+      expect(openAndSave(empty)).toBe(empty);
+      expect(openAndSave(full)).toBe(full);
+    },
+  );
 
   it.each(ALONE_IN_A_LIST_ITEM)('%s — and the second save moves nothing', (_label, empty, full) => {
     for (const markdown of [empty, full]) {

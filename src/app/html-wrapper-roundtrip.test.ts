@@ -170,14 +170,15 @@ describe('an HTML block wrapping an image or text keeps its wrapper (#468)', () 
     expect(await openAndSaveUnedited(once)).toBe(once);
   });
 
-  it.each(
-    Object.entries(NOT_REACHED),
-  )('%s keeps the loss it had, recorded, and holds still', async (label, written) => {
-    const file = BREADTH.find(([name]) => name === label)?.[1] ?? '';
-    const once = await openAndSaveUnedited(file);
-    expect(once).toBe(written);
-    expect(await openAndSaveUnedited(once)).toBe(once);
-  });
+  it.each(Object.entries(NOT_REACHED))(
+    '%s keeps the loss it had, recorded, and holds still',
+    async (label, written) => {
+      const file = BREADTH.find(([name]) => name === label)?.[1] ?? '';
+      const once = await openAndSaveUnedited(file);
+      expect(once).toBe(written);
+      expect(await openAndSaveUnedited(once)).toBe(once);
+    },
+  );
 
   it.each([
     ['in a blockquote', `x\n\n> <div align="center">${IMG}</div>\n\ny\n`],

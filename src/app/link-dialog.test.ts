@@ -275,17 +275,16 @@ describe('link dialog — a refusal says why', () => {
 
   // The wording changed with the rule (#42): it named three schemes, which now
   // reads as "relative paths are unsupported" — the thing this issue fixed.
-  it.each([
-    'not a url',
-    'javascript:alert(1)',
-    'file:///etc/passwd',
-  ])('names what is supported when %s is rejected', (bad) => {
-    refuse(bad);
-    expect(error().classList.contains('hidden')).toBe(false);
-    expect(error().textContent).toBe(
-      'Use a web address (https://…), an email address (mailto:…), or a relative path (./notes.md).',
-    );
-  });
+  it.each(['not a url', 'javascript:alert(1)', 'file:///etc/passwd'])(
+    'names what is supported when %s is rejected',
+    (bad) => {
+      refuse(bad);
+      expect(error().classList.contains('hidden')).toBe(false);
+      expect(error().textContent).toBe(
+        'Use a web address (https://…), an email address (mailto:…), or a relative path (./notes.md).',
+      );
+    },
+  );
 
   it('asks for an address instead of talking about schemes when the field is empty', () => {
     refuse('   ');

@@ -184,28 +184,27 @@ describe('what the person sees and types (#461)', () => {
     done();
   });
 
-  it.each([
-    'Use <title> as a placeholder',
-    'Close it with </style> later',
-    'A <textarea> here',
-  ])('typed text holding a tag reopens as the same text: %s', (typed) => {
-    const { editor, done } = editorWith('Before.\n\nX\n\nAfter.');
-    let at = -1;
-    editor.editor.state.doc.descendants((node, pos) => {
-      if (node.isText && node.text === 'X') at = pos;
-    });
-    editor.editor
-      .chain()
-      .setTextSelection({ from: at, to: at + 1 })
-      .insertContent({ type: 'text', text: typed })
-      .run();
-    const saved = editor.getMarkdown();
-    editor.setMarkdown(saved);
-    expect(editor.editor.state.doc.textBetween(0, editor.editor.state.doc.content.size, '|')).toBe(
-      `Before.|${typed}|After.`,
-    );
-    done();
-  });
+  it.each(['Use <title> as a placeholder', 'Close it with </style> later', 'A <textarea> here'])(
+    'typed text holding a tag reopens as the same text: %s',
+    (typed) => {
+      const { editor, done } = editorWith('Before.\n\nX\n\nAfter.');
+      let at = -1;
+      editor.editor.state.doc.descendants((node, pos) => {
+        if (node.isText && node.text === 'X') at = pos;
+      });
+      editor.editor
+        .chain()
+        .setTextSelection({ from: at, to: at + 1 })
+        .insertContent({ type: 'text', text: typed })
+        .run();
+      const saved = editor.getMarkdown();
+      editor.setMarkdown(saved);
+      expect(
+        editor.editor.state.doc.textBetween(0, editor.editor.state.doc.content.size, '|'),
+      ).toBe(`Before.|${typed}|After.`);
+      done();
+    },
+  );
 
   it('an edit to a block folds it into a paragraph of its text, which then holds still', () => {
     const { editor, done } = editorWith('Before.\n\n<style>\np {}\n</style>\n\nAfter.');

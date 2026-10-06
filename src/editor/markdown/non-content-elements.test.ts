@@ -228,22 +228,23 @@ describe('the address this was put at costs a file nothing (#311)', () => {
       (block: string) => `| h |\n| --- |\n| before ${block} after |`,
       '| h |\n| --- |\n| before after |',
     ],
-  ] as Array<
-    [string, (block: string) => string, string]
-  >)('inline inside %s, noscript is removed and the words close up, and the three of the tag filter stay as text', (_host, wrap, expected) => {
-    const noscript = editorWith(wrap('<noscript>fallback</noscript>'));
-    const out = saved(noscript);
-    expect(out).toBe(expected);
-    expect(out).not.toContain('fallback');
-    // Text since #461, written back as the file wrote it.
-    for (const block of [
-      '<style>.x{color:red}</style>',
-      '<script>alert(1)</script>',
-      '<title>Book One</title>',
-    ]) {
-      expect(saved(editorWith(wrap(block))), block).toBe(wrap(block));
-    }
-  });
+  ] as Array<[string, (block: string) => string, string]>)(
+    'inline inside %s, noscript is removed and the words close up, and the three of the tag filter stay as text',
+    (_host, wrap, expected) => {
+      const noscript = editorWith(wrap('<noscript>fallback</noscript>'));
+      const out = saved(noscript);
+      expect(out).toBe(expected);
+      expect(out).not.toContain('fallback');
+      // Text since #461, written back as the file wrote it.
+      for (const block of [
+        '<style>.x{color:red}</style>',
+        '<script>alert(1)</script>',
+        '<title>Book One</title>',
+      ]) {
+        expect(saved(editorWith(wrap(block))), block).toBe(wrap(block));
+      }
+    },
+  );
 
   /**
    * The one place REQUIREMENTS says a `<script>` is deliberately carried: the

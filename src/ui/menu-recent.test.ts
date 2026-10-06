@@ -109,18 +109,19 @@ describe('the card lists the files, newest first (#381)', () => {
     expect(cardEntries().at(-1)?.textContent).toBe('Clear recent files');
   });
 
-  it.each(
-    LIST.map((path, i) => [i, path] as const),
-  )('entry %i opens its own file, closes the menu, and runs nothing else', (i, path) => {
-    openCard();
-    cardEntries()[i].click();
+  it.each(LIST.map((path, i) => [i, path] as const))(
+    'entry %i opens its own file, closes the menu, and runs nothing else',
+    (i, path) => {
+      openCard();
+      cardEntries()[i].click();
 
-    expect(handlers.onOpenRecentFile).toHaveBeenCalledTimes(1);
-    expect(handlers.onOpenRecentFile).toHaveBeenCalledWith(path);
-    expect(handlers.onClearRecentFiles).not.toHaveBeenCalled();
-    expect(byId('menu-dropdown').classList.contains('hidden')).toBe(true);
-    expect(card()).toBeNull();
-  });
+      expect(handlers.onOpenRecentFile).toHaveBeenCalledTimes(1);
+      expect(handlers.onOpenRecentFile).toHaveBeenCalledWith(path);
+      expect(handlers.onClearRecentFiles).not.toHaveBeenCalled();
+      expect(byId('menu-dropdown').classList.contains('hidden')).toBe(true);
+      expect(card()).toBeNull();
+    },
+  );
 
   it('clears the list from its last entry and closes the menu', () => {
     openCard();

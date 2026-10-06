@@ -238,30 +238,31 @@ describe('the lit state is an accepted exception below 3 to 1 (#368)', () => {
     return { lit, pressed };
   }
 
-  it.each(
-    paletteNames,
-  )('%s: lit stands off the bar and off pressed by what was accepted', (name) => {
-    mountShippedHeader();
-    const tokens = palettes.get(name)!;
-    const bar = declared(element('menubar'), 'background');
-    if (bar === null) throw new Error('no rule gives the menubar a background');
-    for (const id of MENUBAR_FAMILY) {
-      const { lit, pressed } = shades(id);
-      const ground = paint(tokens, ['var(--bg)', bar]);
-      const litOnBar = paint(tokens, ['var(--bg)', bar, lit]);
-      const pressedOnBar = paint(tokens, ['var(--bg)', bar, pressed]);
-      const againstBar = contrast(litOnBar, ground);
-      const againstPressed = contrast(litOnBar, pressedOnBar);
-      expect(againstBar, `#${id} lit against the bar in ${name}`).toBeGreaterThanOrEqual(
-        LIT_AGAINST_BAR,
-      );
-      expect(againstPressed, `#${id} lit against pressed in ${name}`).toBeGreaterThanOrEqual(
-        LIT_AGAINST_PRESSED,
-      );
-      // Stated rather than implied: this is the exception, not a pass.
-      expect(againstBar, `#${id} in ${name}`).toBeLessThan(NON_TEXT);
-    }
-  });
+  it.each(paletteNames)(
+    '%s: lit stands off the bar and off pressed by what was accepted',
+    (name) => {
+      mountShippedHeader();
+      const tokens = palettes.get(name)!;
+      const bar = declared(element('menubar'), 'background');
+      if (bar === null) throw new Error('no rule gives the menubar a background');
+      for (const id of MENUBAR_FAMILY) {
+        const { lit, pressed } = shades(id);
+        const ground = paint(tokens, ['var(--bg)', bar]);
+        const litOnBar = paint(tokens, ['var(--bg)', bar, lit]);
+        const pressedOnBar = paint(tokens, ['var(--bg)', bar, pressed]);
+        const againstBar = contrast(litOnBar, ground);
+        const againstPressed = contrast(litOnBar, pressedOnBar);
+        expect(againstBar, `#${id} lit against the bar in ${name}`).toBeGreaterThanOrEqual(
+          LIT_AGAINST_BAR,
+        );
+        expect(againstPressed, `#${id} lit against pressed in ${name}`).toBeGreaterThanOrEqual(
+          LIT_AGAINST_PRESSED,
+        );
+        // Stated rather than implied: this is the exception, not a pass.
+        expect(againstBar, `#${id} in ${name}`).toBeLessThan(NON_TEXT);
+      }
+    },
+  );
 });
 
 /** What one dialog button is dressed with, read out of the sheet. */

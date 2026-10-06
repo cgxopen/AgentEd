@@ -525,46 +525,48 @@ describe('every workflow that builds the application names its commit (#41)', ()
     },
   ];
 
-  it.each(
-    BUILDERS.map((b) => [b.file, b] as const),
-  )('%s: every step that builds carries the line', (_file, builder) => {
-    const buildSteps = steps(builder.source).filter((step) => builder.isBuild.test(step));
-    // The guard on the guard, the shape this file already uses for the
-    // round-trip documents: a rename that defeated the pattern would make
-    // the loop below pass over an empty list, which is the same silent green
-    // the whole file exists to prevent.
-    expect(buildSteps, `no build step matched in ${builder.file}`).toHaveLength(builder.count);
-    for (const step of buildSteps) {
-      expect(step, `a build step in ${builder.file} carries no AGENTED_BUILD_COMMIT`).toMatch(
-        /^ {10}AGENTED_BUILD_COMMIT: \$\{\{ .+? \}\}$/m,
-      );
-    }
-  });
+  it.each(BUILDERS.map((b) => [b.file, b] as const))(
+    '%s: every step that builds carries the line',
+    (_file, builder) => {
+      const buildSteps = steps(builder.source).filter((step) => builder.isBuild.test(step));
+      // The guard on the guard, the shape this file already uses for the
+      // round-trip documents: a rename that defeated the pattern would make
+      // the loop below pass over an empty list, which is the same silent green
+      // the whole file exists to prevent.
+      expect(buildSteps, `no build step matched in ${builder.file}`).toHaveLength(builder.count);
+      for (const step of buildSteps) {
+        expect(step, `a build step in ${builder.file} carries no AGENTED_BUILD_COMMIT`).toMatch(
+          /^ {10}AGENTED_BUILD_COMMIT: \$\{\{ .+? \}\}$/m,
+        );
+      }
+    },
+  );
 
-  it.each(
-    BUILDERS.map((b) => [b.file, b] as const),
-  )('%s: every line present reads the right expression', (_file, builder) => {
-    const found = [
-      ...builder.source.matchAll(/^\s*AGENTED_BUILD_COMMIT: \$\{\{(.+?)\}\}\s*$/gm),
-    ].map((match) => match[1].trim());
-    // Deliberately **not** a count. Counting here would make this half fail
-    // for a missing line as well, and the two halves are only worth having
-    // separately if they fail for opposite reasons: a line that is gone is
-    // "complete" above, a line that names the wrong value is this one. The
-    // lower bound is the guard on the guard — a pattern that matched nothing
-    // would otherwise pass over an empty list.
-    //
-    // Measured: with `ci.yml`'s two lines, deleting one leaves this half
-    // green and only "complete" red, which is the separation. With the one
-    // line `nightly.yml` and `release.yml` each carry, deleting it trips
-    // this lower bound as well — *no line* and *the pattern found nothing*
-    // are the same observation when there is only one, and the guard on the
-    // guard is worth more than the separation in that case.
-    expect(found.length, `no AGENTED_BUILD_COMMIT in ${builder.file}`).toBeGreaterThan(0);
-    for (const expression of found) {
-      expect(expression).toBe(builder.expression);
-    }
-  });
+  it.each(BUILDERS.map((b) => [b.file, b] as const))(
+    '%s: every line present reads the right expression',
+    (_file, builder) => {
+      const found = [
+        ...builder.source.matchAll(/^\s*AGENTED_BUILD_COMMIT: \$\{\{(.+?)\}\}\s*$/gm),
+      ].map((match) => match[1].trim());
+      // Deliberately **not** a count. Counting here would make this half fail
+      // for a missing line as well, and the two halves are only worth having
+      // separately if they fail for opposite reasons: a line that is gone is
+      // "complete" above, a line that names the wrong value is this one. The
+      // lower bound is the guard on the guard — a pattern that matched nothing
+      // would otherwise pass over an empty list.
+      //
+      // Measured: with `ci.yml`'s two lines, deleting one leaves this half
+      // green and only "complete" red, which is the separation. With the one
+      // line `nightly.yml` and `release.yml` each carry, deleting it trips
+      // this lower bound as well — *no line* and *the pattern found nothing*
+      // are the same observation when there is only one, and the guard on the
+      // guard is worth more than the separation in that case.
+      expect(found.length, `no AGENTED_BUILD_COMMIT in ${builder.file}`).toBeGreaterThan(0);
+      for (const expression of found) {
+        expect(expression).toBe(builder.expression);
+      }
+    },
+  );
 
   it('does not let ci.yml drift onto github.sha', () => {
     // The narrow half, and the one a tidy pass unifying the three files would

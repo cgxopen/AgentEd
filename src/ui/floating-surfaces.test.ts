@@ -265,19 +265,23 @@ describe('the emoji that has keyboard focus wears an accent ring (#375)', () => 
     expect(inState(cell(), ':focus-visible', 'background')).toEqual([]);
   });
 
-  it.each(
-    paletteNames,
-  )('%s: the ring stands off the palette at 3, and off a cell under the pointer', (name) => {
-    // 3.41 to 7.49 on the palette and 3.16 to 6.73 on a hovered cell, measured
-    // on the owner decision of 2026-09-19.
-    const tokens = palettes.get(name) as Map<string, string>;
-    const colour = resolveColour(/var\(--[\w-]+\)/.exec(ring())?.[0] ?? 'none', tokens);
-    const ground = resolveColour(last(surface('emoji palette'), 'background') as string, tokens);
-    const hovered = over(resolveColour(inState(cell(), ':hover', 'background')[0], tokens), ground);
+  it.each(paletteNames)(
+    '%s: the ring stands off the palette at 3, and off a cell under the pointer',
+    (name) => {
+      // 3.41 to 7.49 on the palette and 3.16 to 6.73 on a hovered cell, measured
+      // on the owner decision of 2026-09-19.
+      const tokens = palettes.get(name) as Map<string, string>;
+      const colour = resolveColour(/var\(--[\w-]+\)/.exec(ring())?.[0] ?? 'none', tokens);
+      const ground = resolveColour(last(surface('emoji palette'), 'background') as string, tokens);
+      const hovered = over(
+        resolveColour(inState(cell(), ':hover', 'background')[0], tokens),
+        ground,
+      );
 
-    expect(contrast(colour, ground), name).toBeGreaterThanOrEqual(NON_TEXT);
-    expect(contrast(colour, hovered), name).toBeGreaterThanOrEqual(NON_TEXT);
-  });
+      expect(contrast(colour, ground), name).toBeGreaterThanOrEqual(NON_TEXT);
+      expect(contrast(colour, hovered), name).toBeGreaterThanOrEqual(NON_TEXT);
+    },
+  );
 });
 
 describe('one corner radius (#375)', () => {

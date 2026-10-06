@@ -59,21 +59,26 @@ describe('the notices file the installer ships', () => {
       'npm packages',
       (name: string, version: string) => `https://www.npmjs.com/package/${name}/v/${version}`,
     ],
-  ])('names the source of every one of its %s under the Mozilla Public License', (title, source) => {
-    // MPL-2.0, section 3.2 (a): a recipient of the executable form is told
-    // how to obtain the source code form.
-    const start = notices.indexOf(`\n${title} (`);
-    const section = notices.slice(
-      start,
-      notices.indexOf('\n=====', notices.indexOf('\n', start + 80)),
-    );
-    const blocks = section.split('\n\n').filter((block) => /\n {2}Licence: .*MPL-2\.0/.test(block));
-    expect(blocks.length).toBeGreaterThan(0);
-    for (const block of blocks) {
-      const [name, version] = block.split('\n')[0].split(' ');
-      expect(block).toContain(`Source code: ${source(name, version)}`);
-    }
-  });
+  ])(
+    'names the source of every one of its %s under the Mozilla Public License',
+    (title, source) => {
+      // MPL-2.0, section 3.2 (a): a recipient of the executable form is told
+      // how to obtain the source code form.
+      const start = notices.indexOf(`\n${title} (`);
+      const section = notices.slice(
+        start,
+        notices.indexOf('\n=====', notices.indexOf('\n', start + 80)),
+      );
+      const blocks = section
+        .split('\n\n')
+        .filter((block) => /\n {2}Licence: .*MPL-2\.0/.test(block));
+      expect(blocks.length).toBeGreaterThan(0);
+      for (const block of blocks) {
+        const [name, version] = block.split('\n')[0].split(' ');
+        expect(block).toContain(`Source code: ${source(name, version)}`);
+      }
+    },
+  );
 
   it('refers only to licence texts it holds', () => {
     const count = Number(/^Licence texts \((\d+)\)$/m.exec(notices)?.[1]);

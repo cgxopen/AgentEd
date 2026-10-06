@@ -123,12 +123,10 @@ describe('setupStatusbar — R-C12 counts', () => {
 // on a fabricated DOM cannot catch an element missing from the real page, so
 // this asserts the shipped markup directly.
 describe('index.html header markup', () => {
-  it.each([
-    'token-number',
-    'token-unit',
-    'word-count',
-    'char-count',
-  ])('ships the "%s" indicator in the header', (id) => {
-    expect(shippedPage).toContain(`id="${id}"`);
-  });
+  it.each(['token-number', 'token-unit', 'word-count', 'char-count'])(
+    'ships the "%s" indicator in the header',
+    (id) => {
+      expect(shippedPage).toContain(`id="${id}"`);
+    },
+  );
 });

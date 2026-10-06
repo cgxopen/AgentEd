@@ -235,25 +235,24 @@ describe('a document that opens with a rule is read back as that document (#304,
     expectSettled(cycles);
   });
 
-  it.each([
-    '***',
-    '___',
-    '* * *',
-  ])('a file whose rules are spelled %j is not turned into a metadata block', async (rule) => {
-    // On `e566993` an unedited save wrote both rules `---` and the next open
-    // took the words out of the document.
-    const cycles = await threeCycles(`${rule}\n\nWords\n\n${rule}\n\nAfter\n`);
-    const [first] = cycles;
-    expect(first.nodes).toEqual([
-      'horizontalRule',
-      'paragraph:Words',
-      'horizontalRule',
-      'paragraph:After',
-    ]);
-    expect(first.written).toBe('***\n\nWords\n\n---\n\nAfter\n');
-    expect(cycles[1].metadata).toBeNull();
-    expectSettled(cycles);
-  });
+  it.each(['***', '___', '* * *'])(
+    'a file whose rules are spelled %j is not turned into a metadata block',
+    async (rule) => {
+      // On `e566993` an unedited save wrote both rules `---` and the next open
+      // took the words out of the document.
+      const cycles = await threeCycles(`${rule}\n\nWords\n\n${rule}\n\nAfter\n`);
+      const [first] = cycles;
+      expect(first.nodes).toEqual([
+        'horizontalRule',
+        'paragraph:Words',
+        'horizontalRule',
+        'paragraph:After',
+      ]);
+      expect(first.written).toBe('***\n\nWords\n\n---\n\nAfter\n');
+      expect(cycles[1].metadata).toBeNull();
+      expectSettled(cycles);
+    },
+  );
 
   it('blank lines above the first rule do not make the document a metadata block on save', async () => {
     const cycles = await threeCycles('\n\n---\n\nWords\n\n---\n\nAfter\n');
@@ -396,22 +395,16 @@ describe('what #304 does not reach, pinned so that a change to it is announced',
 });
 
 describe('R-C2 exception: a horizontal rule is written with three hyphens', () => {
-  it.each([
-    '***',
-    '___',
-    '* * *',
-    '- - -',
-    '_ _ _',
-    '-----',
-    '*****',
-    '   ***',
-  ])('a rule spelled %j is written back as ---, and then holds still', async (rule) => {
-    const cycles = await threeCycles(`Before\n\n${rule}\n\nAfter\n`);
-    const [first] = cycles;
-    expect(first.nodes).toEqual(['paragraph:Before', 'horizontalRule', 'paragraph:After']);
-    expect(first.written).toBe('Before\n\n---\n\nAfter\n');
-    expectSettled(cycles);
-  });
+  it.each(['***', '___', '* * *', '- - -', '_ _ _', '-----', '*****', '   ***'])(
+    'a rule spelled %j is written back as ---, and then holds still',
+    async (rule) => {
+      const cycles = await threeCycles(`Before\n\n${rule}\n\nAfter\n`);
+      const [first] = cycles;
+      expect(first.nodes).toEqual(['paragraph:Before', 'horizontalRule', 'paragraph:After']);
+      expect(first.written).toBe('Before\n\n---\n\nAfter\n');
+      expectSettled(cycles);
+    },
+  );
 
   it('is recorded in REQUIREMENTS', () => {
     expect(requirementsMd).toContain(
@@ -504,20 +497,25 @@ describe('a real metadata block is read, shown and written back (#304, the regre
   it.each([
     ['LF', blankFrontmatterMd],
     ['CRLF', crlf(blankFrontmatterMd)],
-  ])('the Blank + metadata template, which AgentEd writes, keeps its block (%s)', async (_name, source) => {
-    // Its body wraps a line, so the whole file also meets the soft-break
-    // exception; the block is asserted to the byte, the rest to settling.
-    const metadata = 'title: Untitled\ndescription:\nauthor:\ndate:\ntags: []';
-    const cycles = await threeCycles(source);
-    const [first] = cycles;
-    expect(first.metadata).toBe(metadata);
-    expect(first.panel).toBe(true);
-    const eol = source.includes('\r\n') ? '\r\n' : '\n';
-    expect(
-      first.written.startsWith(`---${eol}${metadata.replace(/\n/g, eol)}${eol}---${eol}# Untitled`),
-    ).toBe(true);
-    expectSettled(cycles);
-  });
+  ])(
+    'the Blank + metadata template, which AgentEd writes, keeps its block (%s)',
+    async (_name, source) => {
+      // Its body wraps a line, so the whole file also meets the soft-break
+      // exception; the block is asserted to the byte, the rest to settling.
+      const metadata = 'title: Untitled\ndescription:\nauthor:\ndate:\ntags: []';
+      const cycles = await threeCycles(source);
+      const [first] = cycles;
+      expect(first.metadata).toBe(metadata);
+      expect(first.panel).toBe(true);
+      const eol = source.includes('\r\n') ? '\r\n' : '\n';
+      expect(
+        first.written.startsWith(
+          `---${eol}${metadata.replace(/\n/g, eol)}${eol}---${eol}# Untitled`,
+        ),
+      ).toBe(true);
+      expectSettled(cycles);
+    },
+  );
 
   // The three seeds left the gallery at #403; their shapes are kept so this
   // guard runs over the same documents it ran over before.
