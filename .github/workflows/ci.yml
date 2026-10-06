@@ -379,11 +379,12 @@ jobs:
         shell: bash
         run: |
           if npm run tauri build; then exit 0; fi
-          echo "::warning::npm run tauri build failed; running it once more, since its downloads of the bundler tools can fail on an outage upstream (#501). A second failure is the result."; unset TAURI_BUNDLER_TOOLS_GITHUB_MIRROR
+          echo "::warning::npm run tauri build failed; running it once more, since its downloads of the bundler tools can fail on an outage upstream (#501). A second failure is the result."
           npm run tauri build
         env:
           # Throwaway, for the pull request of #501: the first attempt
-          # downloads the bundler tools from an address that refuses.
+          # downloads the bundler tools from an address that refuses, and so
+          # does the second: a build that fails twice must stay red.
           TAURI_BUNDLER_TOOLS_GITHUB_MIRROR: http://127.0.0.1:9
           # The build says who it is from the inside, and the artifact below
           # says who it is from the outside. Both read
