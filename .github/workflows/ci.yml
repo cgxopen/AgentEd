@@ -247,7 +247,7 @@ jobs:
       # became useless and stayed: a reported cache hit, 654 MB restored, and
       # 299 crates recompiled anyway, on every run.
       - name: Cargo registry cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 15
         with:
           path: |
@@ -257,7 +257,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
       - name: Cargo build cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 15
         with:
           path: src-tauri/target
@@ -347,7 +347,7 @@ jobs:
           toolchain: stable
       # Same two caches, same reasoning; see the Rust job.
       - name: Cargo registry cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 15
         with:
           path: |
@@ -357,7 +357,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
       - name: Cargo build cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 15
         with:
           path: src-tauri/target
