@@ -149,8 +149,16 @@ jobs:
 
       - run: npm ci
         timeout-minutes: 10
-      - run: npm run tauri build -- ${{ matrix.args }}
+      # Once more if the first attempt fails, as in ci.yml (#501): the
+      # bundler tools are downloaded on every run and a download can fail on
+      # an outage upstream. A build that fails twice is red.
+      - name: Build the bundles
         timeout-minutes: 45
+        shell: bash
+        run: |
+          if npm run tauri build -- ${{ matrix.args }}; then exit 0; fi
+          echo "::warning::npm run tauri build failed; running it once more, since its downloads of the bundler tools can fail on an outage upstream (#501). A second failure is the result."
+          npm run tauri build -- ${{ matrix.args }}
         env:
           # The commit this build is of, passed explicitly (#41). It used to
           # be left to `vite.config.ts`, which fell back to `GITHUB_SHA` when
