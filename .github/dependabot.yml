@@ -35,6 +35,15 @@ updates:
       # stops the pull requests that would propose the version directly.
       - dependency-name: prosemirror-view
         versions: [">=1.42.0"]
+      # Tauri is updated by hand, as one pull request that moves both of its
+      # halves together, the crates and these packages (#520): proposed
+      # apart, each half is red at the version match of the Tauri CLI, as
+      # #491 was. A rule that names the dependency and no versions stops its
+      # version updates and leaves its security updates on: for a security
+      # update Dependabot keeps only the versions an ignore rule lists, read
+      # in dependabot-core, common/lib/dependabot/config/ignore_condition.rb,
+      # on 2026-10-06. The same rule stands in the cargo entry below.
+      - dependency-name: "@tauri-apps/*"
 
   # A manifest of its own, so it needs an entry of its own: a single npm entry
   # would leave the Rust side unwatched.
@@ -45,6 +54,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # By hand with its npm half, as one pull request (#520); the comment
+      # beside the npm rule says why, and why security updates still arrive.
+      - dependency-name: "tauri*"
 
   # The workflows pin third-party actions to commit SHAs, so they never drift
   # and never receive a fix either unless something moves them. Dependabot
