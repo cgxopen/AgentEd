@@ -58,7 +58,7 @@ The Windows installer is in the **~3 MB class**. This refers to the installer do
 
 [Read the full quick start](https://agentedapp.com/quick-start.html).
 
-**Platforms:** Windows is the primary preview platform. The current release contains a Windows installer; it does not contain Linux or macOS packages. Experimental Linux availability and tested distributions will be documented when a build is released.
+**Platforms:** Windows is the primary preview platform. Releases contain a Windows installer and, from v0.2.0-preview.4, a macOS preview for Apple Silicon as a `.dmg`; they do not contain Linux packages. Experimental Linux availability and tested distributions will be documented when a build is released.
 
 ## Features
 

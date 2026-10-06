@@ -288,11 +288,14 @@ describe('the build matrix says which targets exist at all (#8)', () => {
    * no failure. Putting it back behind an input would restore exactly that
    * quiet.
    *
-   * macOS is the mirror image: re-adding it to the release matrix produces
-   * an artifact rather than an error, and the artifact is one nobody here
-   * can test — an unsigned build reaches a user through Gatekeeper as a file
-   * that cannot be opened. Its absence is a decision (2026-09-06), so it is
-   * pinned as one.
+   * macOS is in the release since #538, and its line fails the same quiet
+   * way in the other direction. It is Apple Silicon alone and ad-hoc signed
+   * over the whole bundle, by owner decision of 2026-10-06, because the
+   * Macs it is tested on are Apple Silicon and an unsealed bundle is not
+   * what was chosen to ship. A `--target` added to the line, or the signing
+   * field dropped from it, would still produce a `.dmg` and nothing would go
+   * red: an Intel or universal build nobody tested, or a bundle signed by
+   * the linker alone. So the line is pinned as decided.
    *
    * Linux is absent from the release for a different reason and fails the
    * same quiet way. It builds, and the packages it produces install — what
@@ -307,9 +310,19 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     expect(NIGHTLY).not.toContain('inputs.include_linux');
   });
 
-  it('leaves macOS out of the release matrix until it can be tested', () => {
+  it('builds macOS in the release for Apple Silicon alone, ad-hoc signed (#538)', () => {
     const matrixBlock = RELEASE.slice(RELEASE.indexOf('matrix:'), RELEASE.indexOf('runs-on:'));
-    expect(matrixBlock).not.toMatch(/^ +- platform: macos/m);
+    expect(matrixBlock.match(/^ +- platform: macos/gm)).toHaveLength(1);
+    // The line itself, up to the next line or the end of the block.
+    const macos = matrixBlock.match(/^ {10}- platform: macos-latest\n(?: {12}.*\n)*/m)?.[0];
+    expect(macos, 'no macos-latest line in the release matrix').toBeDefined();
+    // No --target: macos-latest builds aarch64 natively, and only that.
+    expect(macos).toContain("            args: ''\n");
+    expect(macos).toContain("            target: ''\n");
+    expect(macos).toContain("            signing: '-'\n");
+    // The field reaches the build: read off the step, not off a comment.
+    const build = steps(RELEASE).find((step) => /^uses: tauri-apps\/tauri-action@/m.test(step));
+    expect(build).toMatch(/^ {10}APPLE_SIGNING_IDENTITY: \$\{\{ matrix\.signing \}\}$/m);
   });
 
   it('leaves Linux out of the release matrix until it is user-facing', () => {
