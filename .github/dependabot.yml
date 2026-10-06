@@ -43,6 +43,13 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitest/*"
         update-types: ["version-update:semver-major"]
+      # marked stays on 15 for now (#523): it parses every file AgentEd opens,
+      # and from 16 to 18 it reads task items, emphasis runs and trailing
+      # blank lines differently, so that 97 round-trip tests go red and files
+      # would be altered on save. Its majors are not proposed weekly until
+      # #523 is taken up; remove this rule with it.
+      - dependency-name: marked
+        update-types: ["version-update:semver-major"]
 
   # A manifest of its own, so it needs an entry of its own: a single npm entry
   # would leave the Rust side unwatched.
