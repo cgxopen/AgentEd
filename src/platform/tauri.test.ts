@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 // operation over the document path and touches no plugin. The mocks exist
 // because `tauri.ts` imports these at module scope.
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({}) }));
+vi.mock('@tauri-apps/api/path', () => ({ resolveResource: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn(), save: vi.fn() }));
 vi.mock('@tauri-apps/plugin-shell', () => ({ open: vi.fn() }));
 vi.mock('@tauri-apps/plugin-fs', () => ({
@@ -17,7 +18,10 @@ vi.mock('@tauri-apps/plugin-fs', () => ({
   writeTextFile: vi.fn(),
 }));
 
-import { TauriIO } from './tauri';
+import { resolveResource } from '@tauri-apps/api/path';
+import { exists } from '@tauri-apps/plugin-fs';
+import { open as shellOpen } from '@tauri-apps/plugin-shell';
+import { openResourceWithSystem, TauriIO } from './tauri';
 
 /**
  * Issue #201 - what the desktop predicate actually answers, held here so it
@@ -104,5 +108,26 @@ describe('TauriIO.openWithSystem - the spelling the shell is handed (#448)', () 
     vi.mocked(open).mockClear();
     await new TauriIO().openWithSystem(held);
     expect(open).toHaveBeenCalledWith(handed);
+  });
+});
+
+describe('openResourceWithSystem - a file the bundle installed (#549)', () => {
+  it('opens the resolved path with the system', async () => {
+    vi.mocked(resolveResource).mockResolvedValue('/usr/lib/AgentEd/THIRD-PARTY-NOTICES.txt');
+    vi.mocked(exists).mockResolvedValue(true);
+    vi.mocked(shellOpen).mockClear();
+
+    expect(await openResourceWithSystem('THIRD-PARTY-NOTICES.txt')).toBe('opened');
+    expect(resolveResource).toHaveBeenCalledWith('THIRD-PARTY-NOTICES.txt');
+    expect(shellOpen).toHaveBeenCalledWith('/usr/lib/AgentEd/THIRD-PARTY-NOTICES.txt');
+  });
+
+  it('answers missing, and asks the shell nothing, when the file is not there', async () => {
+    vi.mocked(resolveResource).mockResolvedValue('C:\\AgentEd\\THIRD-PARTY-NOTICES.txt');
+    vi.mocked(exists).mockResolvedValue(false);
+    vi.mocked(shellOpen).mockClear();
+
+    expect(await openResourceWithSystem('THIRD-PARTY-NOTICES.txt')).toBe('missing');
+    expect(shellOpen).not.toHaveBeenCalled();
   });
 });

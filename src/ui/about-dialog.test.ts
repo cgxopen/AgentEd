@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readBuildInfo } from '../app/build-info';
-import { showAboutDialog } from './about-dialog';
+import {
+  NOTICES_FAILED_MESSAGE,
+  NOTICES_LABEL,
+  NOTICES_MISSING_MESSAGE,
+  showAboutDialog,
+} from './about-dialog';
 import { copyText } from './clipboard';
 import { showToast } from './toast';
 
@@ -81,20 +86,52 @@ describe('showAboutDialog', () => {
     expect(kind).toBe('warn');
   });
 
-  it('names the notices file the installer placed beside the application (#475)', async () => {
+  it('offers the notices on a build that installs them, and says nothing of a folder (#549)', async () => {
     const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt');
-    expect(dialog().textContent).toContain(
-      'Third-party notices: THIRD-PARTY-NOTICES.txt in the install folder.',
-    );
+    expect(button(NOTICES_LABEL)).toBeTruthy();
+    expect(dialog().textContent).toContain('includes software by others');
+    expect(dialog().textContent).not.toContain('install folder');
     button('Close').click();
     await pending;
   });
 
-  it('names no notices file on a build that has none, such as the web build', async () => {
+  it('offers no notices on a build that has none, such as the web build', async () => {
     const pending = showAboutDialog(CI_BUILD, null);
-    expect(dialog().textContent).not.toContain('Third-party notices');
+    expect(() => button(NOTICES_LABEL)).toThrow();
+    expect(dialog().textContent).not.toContain('includes software by others');
     button('Close').click();
     await pending;
+  });
+
+  it('opens the notices through the platform, and says nothing when they open', async () => {
+    const open = vi.fn().mockResolvedValue('opened');
+    const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt', open);
+    button(NOTICES_LABEL).click();
+    await pending;
+
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(showToastMock).not.toHaveBeenCalled();
+    expect(copyTextMock).not.toHaveBeenCalled();
+  });
+
+  it('says so when the notices file is not where the build installed it', async () => {
+    const open = vi.fn().mockResolvedValue('missing');
+    const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt', open);
+    button(NOTICES_LABEL).click();
+    await pending;
+
+    expect(showToastMock).toHaveBeenCalledWith(NOTICES_MISSING_MESSAGE, 'warn');
+  });
+
+  it('says so when the system does not open the file', async () => {
+    const open = vi.fn().mockRejectedValue(new Error('shell refused'));
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt', open);
+    button(NOTICES_LABEL).click();
+    await pending;
+
+    expect(showToastMock).toHaveBeenCalledWith(NOTICES_FAILED_MESSAGE, 'warn');
+    quiet.mockRestore();
   });
 
   it('closes on Escape without copying', async () => {

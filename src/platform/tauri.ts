@@ -1,3 +1,4 @@
+import { resolveResource } from '@tauri-apps/api/path';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import {
@@ -195,6 +196,26 @@ export class TauriIO implements PlatformIO {
     // The shell reads a share only with backslashes (#448).
     await shellOpen(shellPath(path));
   }
+}
+
+/**
+ * Open a file the bundle installed among its resources with the default
+ * application of the system (#549), the way `openWithSystem` opens a file
+ * beside a document.
+ *
+ * `resolveResource` answers where this bundle keeps its resources: beside the
+ * executable on Windows, `Contents/Resources` of the `.app` on macOS,
+ * `/usr/lib/AgentEd` for the Linux packages. Each of those paths is a case the
+ * shell open scope is tested against (`noticesPaths` in
+ * `src-tauri/shell-open-cases.json`). A file that is not there is answered
+ * `missing` before the shell is asked, so the user is told it is gone rather
+ * than shown whatever the shell does with a path to nothing.
+ */
+export async function openResourceWithSystem(name: string): Promise<'opened' | 'missing'> {
+  const path = await resolveResource(name);
+  if (!(await fsExists(path))) return 'missing';
+  await shellOpen(shellPath(path));
+  return 'opened';
 }
 
 /**

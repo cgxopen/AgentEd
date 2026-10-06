@@ -101,3 +101,17 @@ export const THIRD_PARTY_NOTICES_FILE = 'THIRD-PARTY-NOTICES.txt';
 export function thirdPartyNoticesFile(): string | null {
   return isTauri ? THIRD_PARTY_NOTICES_FILE : null;
 }
+
+/**
+ * Open the third-party notices this build installed, with the default
+ * application of the system (#549). `none` where nothing installed one, the
+ * web build, which is the answer `thirdPartyNoticesFile` gives there too;
+ * `missing` where the build should hold the file and does not. A failure of
+ * the system to open it is thrown.
+ */
+export async function openThirdPartyNotices(): Promise<'opened' | 'missing' | 'none'> {
+  const name = thirdPartyNoticesFile();
+  if (name === null) return 'none';
+  const { openResourceWithSystem } = await import('./tauri');
+  return await openResourceWithSystem(name);
+}

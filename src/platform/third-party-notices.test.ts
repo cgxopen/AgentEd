@@ -10,7 +10,7 @@ import macosNotices from '../../src-tauri/THIRD-PARTY-NOTICES.macos.txt?raw';
 import notices from '../../src-tauri/THIRD-PARTY-NOTICES.txt?raw';
 import tauriConf from '../../src-tauri/tauri.conf.json?raw';
 import tauriMacosConf from '../../src-tauri/tauri.macos.conf.json?raw';
-import { THIRD_PARTY_NOTICES_FILE } from './index';
+import { openThirdPartyNotices, THIRD_PARTY_NOTICES_FILE } from './index';
 
 /**
  * #475: the licence notices ship with the installer, as a file beside the
@@ -222,5 +222,11 @@ describe('a copyright line an override gives a package whose licence carries non
 
   it('leaves a package without an override as it was', () => {
     expect(copyrightFromOverride({ name: 'marked', version: '15.0.12' }, ['x'])).toEqual(['x']);
+  });
+});
+
+describe('opening the notices on a build that ships none (#549)', () => {
+  it('answers none on the web build, which this suite runs as', async () => {
+    expect(await openThirdPartyNotices()).toBe('none');
   });
 });

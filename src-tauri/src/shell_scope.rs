@@ -70,3 +70,15 @@ fn the_scope_refuses_every_other_scheme_extension_and_shape() {
         .collect();
     assert!(admitted.is_empty(), "admitted: {admitted:#?}");
 }
+
+/// #549: About opens the notices file each bundle installs, through this
+/// scope, so its path on every platform has to be admitted.
+#[test]
+fn the_scope_admits_the_notices_file_of_every_bundle() {
+    let scope = scope();
+    let refused: Vec<String> = strings(&cases()["noticesPaths"])
+        .into_iter()
+        .filter(|path| !scope.is_match(path))
+        .collect();
+    assert!(refused.is_empty(), "refused: {refused:#?}");
+}

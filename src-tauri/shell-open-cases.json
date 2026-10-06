@@ -1,5 +1,5 @@
 {
-  "_about": "Cases for the shell open scope (#448), read by src-tauri/src/shell_scope.rs, which matches them against the scope as tauri-plugin-shell compiles it, and by src/app/link-open.test.ts, which asserts what a Ctrl+click hands to the shell. The links are F1 and the paths F5 of the readings on #20. The refused drive and share paths holding a double quote, a less-than, a greater-than, a pipe, a question mark or an asterisk are the characters Windows forbids in a name (#20).",
+  "_about": "Cases for the shell open scope (#448), read by src-tauri/src/shell_scope.rs, which matches them against the scope as tauri-plugin-shell compiles it, and by src/app/link-open.test.ts, which asserts what a Ctrl+click hands to the shell. The links are F1 and the paths F5 of the readings on #20. The refused drive and share paths holding a double quote, a less-than, a greater-than, a pipe, a question mark or an asterisk are the characters Windows forbids in a name (#20). noticesPaths are where each bundle installs THIRD-PARTY-NOTICES.txt, which About opens through the scope (#549): Windows beside the executable, per user under AppData\\Local and machine-wide under Program Files; macOS in Contents/Resources of the .app wherever it is put; Linux in /usr/lib/AgentEd, read from the deb and the rpm.",
   "links": [
     {
       "spelling": "https://example.com/a",
@@ -104,5 +104,13 @@
     "\\\\ser>ver\\share\\notes\\assets\\diagram.png",
     "\\\\ser|ver\\share\\notes\\assets\\diagram.png",
     "//server/share/notes/assets/x\" y.png"
+  ],
+  "noticesPaths": [
+    "C:\\Users\\vasil\\AppData\\Local\\AgentEd\\THIRD-PARTY-NOTICES.txt",
+    "C:\\Users\\Ana Maria\\AppData\\Local\\AgentEd\\THIRD-PARTY-NOTICES.txt",
+    "C:\\Program Files\\AgentEd\\THIRD-PARTY-NOTICES.txt",
+    "/Applications/AgentEd.app/Contents/Resources/THIRD-PARTY-NOTICES.txt",
+    "/Users/vasil/Downloads/AgentEd.app/Contents/Resources/THIRD-PARTY-NOTICES.txt",
+    "/usr/lib/AgentEd/THIRD-PARTY-NOTICES.txt"
   ]
 }
