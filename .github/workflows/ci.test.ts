@@ -516,9 +516,10 @@ describe('every workflow that builds the application names its commit (#41)', ()
       file: 'release.yml',
       source: RELEASE,
       // The action runs the frontend build internally, so the value has to
-      // reach it through this step's `env:`. That it does is a **reading**:
-      // third-party code, and no tag has ever been built here. This assertion
-      // is what stands in for the run.
+      // reach it through this step's `env:`. That it does was measured on
+      // v0.2.0-preview.3 (run 37479884948): About read the tagged commit.
+      // Only a tag runs release.yml, so this assertion guards the wiring
+      // between releases.
       isBuild: /^uses: tauri-apps\/tauri-action@/m,
       expression: 'github.sha',
       count: 1,

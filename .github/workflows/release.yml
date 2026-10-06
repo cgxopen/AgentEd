@@ -5,11 +5,20 @@ name: Release
 # `timeout-minutes`, every job a backstop above a fully cold healthy run, and
 # queue time is covered by none of them.
 #
-# The numbers here are **transcribed rather than measured**: this workflow has
-# never run, no tag having been built. They come from the jobs of the same
-# shape - `nightly.yml` builds Windows with no cargo cache, exactly as this
-# does, and its Windows job took 708 seconds on run 34037705792. The first tag
-# is what measures them.
+# The numbers were first transcribed from a job of the same shape -
+# `nightly.yml` builds Windows with no cargo cache, exactly as this does, and
+# its Windows job took 708 seconds on run 34037705792. Three tags have since
+# been built here, and measured against them:
+#
+#   tag               run          build-and-draft  tauri-action step  curate-assets
+#   v0.2.0-preview.1  36012215008  482 s            436 s              17 s
+#   v0.2.0-preview.2  36692366477  662 s            603 s              20 s
+#   v0.2.0-preview.3  37479884948  589 s            510 s              22 s
+#
+# The widest, 662 s for the job and 603 s for the step, is under a quarter of
+# the 60 and the 45 minutes below. The ceilings stay as they are: a release is
+# built cold every time, and a timeout costs a whole rerun of it, so the
+# margin is what they are for.
 
 on:
   push:
@@ -107,10 +116,12 @@ jobs:
           # tag push `github.sha` is the tagged commit, which is the commit
           # anyone means.
           #
-          # **That this `env:` reaches the build the action starts is a
-          # reading, not a measurement.** It is third-party code and no tag
-          # has ever been built here, so what covers it is the contract
-          # assertion in ci.test.ts rather than a run.
+          # **That this `env:` reaches the build the action starts was
+          # measured on v0.2.0-preview.3** (run 37479884948, the first tag
+          # built through tauri-action 1.0.0): its installer, checked by the
+          # owner on Windows on 2026-10-06, reads Build eb0527e under About.
+          # Only a tag runs this file, so the contract assertion in
+          # ci.test.ts guards the wiring between releases.
           AGENTED_BUILD_COMMIT: ${{ github.sha }}
         with:
           tagName: ${{ github.ref_name }}
@@ -129,7 +140,7 @@ jobs:
 
             | Platform | Installer |
             |---|---|
-            | Windows | `AgentEd_${{ github.ref_name }}_x64-setup.exe` |
+            | Windows | the `_x64-setup.exe` file in the assets below |
 
             First time? Most users want the installer for their OS above.
 
