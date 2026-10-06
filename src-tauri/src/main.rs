@@ -1,10 +1,9 @@
 // Prevents additional console window on Windows in release
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Emitter, Manager};
-
 #[cfg(any(windows, test))]
 mod browser_args;
+mod file_open;
 #[cfg(target_os = "macos")]
 mod macos_quit;
 #[cfg(windows)]
@@ -12,36 +11,10 @@ mod main_window;
 #[cfg(test)]
 mod shell_scope;
 
-/// Extract a file path from CLI arguments (skip the executable name)
-fn extract_file_arg(args: &[String]) -> Option<String> {
-    args.iter()
-        .skip(1) // skip executable path
-        .find(|arg| !arg.starts_with('-')) // skip flags
-        .filter(|path| path.ends_with(".md"))
-        .cloned()
-}
-
-/// Emit file-open event to the main window
-fn emit_file_open(app: &tauri::AppHandle, path: &str) {
-    if let Err(e) = app.emit("file-open", path.to_string()) {
-        eprintln!("Failed to emit file-open event: {e}");
-    }
-    // Bring window to foreground. Both calls are best-effort — the window
-    // may already be gone if the user closed it between event arrival and
-    // here. Each failure is logged to stderr, which a Windows release build
-    // has no console for (the attribute at the top of this file).
-    if let Some(window) = app.get_webview_window("main") {
-        if let Err(e) = window.set_focus() {
-            eprintln!("Failed to focus main window: {e}");
-        }
-        if let Err(e) = window.unminimize() {
-            eprintln!("Failed to unminimize main window: {e}");
-        }
-    }
-}
-
 fn main() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        .manage(file_open::PendingOpen::default())
+        .invoke_handler(tauri::generate_handler![file_open::take_pending_file_open])
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
@@ -57,21 +30,28 @@ fn main() {
             #[cfg(target_os = "macos")]
             macos_quit::install(app);
 
-            // Cold start: check if launched with a file argument
+            // Cold start: a file named on the command line waits for the
+            // page to ask for it (#541).
             let args: Vec<String> = std::env::args().collect();
-            if let Some(path) = extract_file_arg(&args) {
-                let handle = app.handle().clone();
-                // Delay so frontend has time to initialize
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(500));
-                    emit_file_open(&handle, &path);
-                });
+            if let Some(path) = file_open::extract_file_arg(&args) {
+                file_open::deliver(app.handle(), path);
             }
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|_handle, _event| {
+        // macOS hands a file opened from Finder or Open With to the app as
+        // an Apple event, at start-up and while it runs (#541).
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Opened { urls } = _event {
+            if let Some(path) = file_open::markdown_path_from_urls(&urls) {
+                file_open::deliver(_handle, path);
+            }
+        }
+    });
 }
 
 #[cfg(test)]
