@@ -5,6 +5,8 @@ use tauri::{Emitter, Manager};
 
 #[cfg(any(windows, test))]
 mod browser_args;
+#[cfg(target_os = "macos")]
+mod macos_quit;
 #[cfg(windows)]
 mod main_window;
 #[cfg(test)]
@@ -50,6 +52,10 @@ fn main() {
             if let Err(error) = main_window::create(app) {
                 main_window::report_and_exit(error.as_ref());
             }
+
+            // Every quit on macOS through the unsaved-changes gate (#539).
+            #[cfg(target_os = "macos")]
+            macos_quit::install(app);
 
             // Cold start: check if launched with a file argument
             let args: Vec<String> = std::env::args().collect();
@@ -189,6 +195,37 @@ mod tests {
             "`svg` must stay out of the shell open scope: a sidebar click on one \
              hands it to the browser associated with svg, which executes the \
              script it carries (#249): {scope}"
+        );
+    }
+
+    /// Issue #539 - the quit gate on macOS asks the window labelled in
+    /// `macos_quit.rs` to close. That module compiles on macOS alone, which
+    /// no CI job builds, so its label is read here as text and held against
+    /// the window Tauri builds there: one declared in `tauri.conf.json` with
+    /// no `create: false`. A label that named no window would leave every
+    /// quit cancelled with nothing asked, and the app could not be quit.
+    #[test]
+    fn the_macos_quit_gate_names_the_window_tauri_builds_on_macos() {
+        let source = include_str!("macos_quit.rs");
+        let declaration = "const MAIN_WINDOW: &str = \"";
+        let start = source
+            .find(declaration)
+            .expect("macos_quit.rs should declare MAIN_WINDOW")
+            + declaration.len();
+        let label = &source[start..start + source[start..].find('"').expect("a closing quote")];
+
+        let config: tauri::utils::config::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json"))
+                .expect("tauri.conf.json should parse as a Tauri config");
+        let window = config
+            .app
+            .windows
+            .iter()
+            .find(|window| window.label == label)
+            .unwrap_or_else(|| panic!("no window labelled `{label}` in tauri.conf.json"));
+        assert!(
+            window.create,
+            "Tauri must build the `{label}` window on macOS, where nothing else does"
         );
     }
 }
