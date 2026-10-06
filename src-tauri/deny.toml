@@ -27,6 +27,12 @@ allow = [
   "Unicode-3.0",
   "BSD-3-Clause",
   "MPL-2.0",
+  # Zlib, reviewed and allowed by owner decision of 2026-10-06 (#520): the
+  # licence of foldhash 0.2.0, which Tauri 2.12 brings in through dom_query
+  # and tauri-utils. Permissive, approved by OSI and the FSF, of the same
+  # family as MIT; it asks that its notice stay with the source, which the
+  # notices file of #475 carries.
+  "Zlib",
   # The two below are here for the npm half and are met in no crate today:
   # Python-2.0 is the licence of argparse, BSD-2-Clause that of entities and
   # @mixmark-io/domino. They are not surplus; removing them turns the npm
