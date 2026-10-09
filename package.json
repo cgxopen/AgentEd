@@ -27,6 +27,7 @@
     "@tauri-apps/cli": "^2.12.1",
     "@types/dompurify": "^3.2.0",
     "@vitest/ui": "^5.0.3",
+    "commonmark-spec": "0.31.2",
     "happy-dom": "^20.14.5",
     "typescript": "~7.0.2",
     "vite": "^8.3.2",
