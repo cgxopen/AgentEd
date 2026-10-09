@@ -1,3 +1,4 @@
+import { chordLabel } from '../ui/chord-label';
 import { showToast } from '../ui/toast';
 import type { AppState } from './state';
 
@@ -11,8 +12,7 @@ import type { AppState } from './state';
  * document". "the document and its images" is deliberate: both are still
  * only in memory, and the image is what the user was working on.
  */
-export const DESTINATION_CUE =
-  'Destination set — press Ctrl+S to save the document and its images.';
+export const DESTINATION_CUE = `Destination set — press ${chordLabel('Ctrl+S')} to save the document and its images.`;
 
 /**
  * Build the "an image just landed" notifier for the image-insert flow (#48).

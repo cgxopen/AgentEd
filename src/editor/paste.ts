@@ -69,6 +69,15 @@ export interface PredictablePasteStorage {
 }
 
 /**
+ * Ask that the next paste, within the same window of time as the chord, be
+ * read as plain text: what Paste and Match Style from the macOS Edit menu does
+ * when it is chosen with the pointer (#558).
+ */
+export function requestPlainPaste(storage: PredictablePasteStorage): void {
+  storage.plainPasteRequestedAt = Date.now();
+}
+
+/**
  * True for the keystroke that requests a forced plain paste: Ctrl+Shift+V, or
  * Cmd+Shift+V on macOS.
  *

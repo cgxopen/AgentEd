@@ -5,6 +5,7 @@ import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
 import { canInsertFootnote, FOOTNOTE_SHORTCUT, insertFootnote } from '../editor/insert-footnote';
 import { hasNodeSelection } from '../editor/node-selection';
+import { chordLabel } from './chord-label';
 import { editorRoom, withinRoom } from './editor-room';
 import {
   activeHeadingLevels,
@@ -226,7 +227,7 @@ function linkSymbol(): SVGSVGElement {
 const buttons: ToolbarEntry[] = [
   {
     label: 'B',
-    title: 'Bold (Ctrl+B)',
+    title: chordLabel('Bold (Ctrl+B)'),
     action: (e) => {
       e.chain().focus().toggleBold().run();
     },
@@ -234,7 +235,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: 'I',
-    title: 'Italic (Ctrl+I)',
+    title: chordLabel('Italic (Ctrl+I)'),
     action: (e) => {
       e.chain().focus().toggleItalic().run();
     },
@@ -242,7 +243,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: 'U',
-    title: 'Underline (Ctrl+U)',
+    title: chordLabel('Underline (Ctrl+U)'),
     action: (e) => {
       e.chain().focus().toggleUnderline().run();
     },
@@ -259,7 +260,7 @@ const buttons: ToolbarEntry[] = [
   {
     // Links are made here or with Ctrl+K — the editor never invents one (#37).
     label: '',
-    title: 'Link (Ctrl+K)',
+    title: chordLabel('Link (Ctrl+K)'),
     icon: linkSymbol,
     action: (_e, handlers) => {
       handlers.onLink();
@@ -277,7 +278,7 @@ const buttons: ToolbarEntry[] = [
     // wrong turn — the owner went looking for a code block, found the button
     // labelled for code, and got an inline span.
     label: '<>',
-    title: 'Inline code (Ctrl+E)',
+    title: chordLabel('Inline code (Ctrl+E)'),
     action: (e) => {
       e.chain().focus().toggleCode().run();
     },
@@ -298,7 +299,7 @@ const buttons: ToolbarEntry[] = [
     // caret the user starts a new block with — that route is the Edit menu and
     // the shortcut, and without them this issue would still be open.
     label: '```',
-    title: 'Code block (Ctrl+Shift+K)',
+    title: chordLabel('Code block (Ctrl+Shift+K)'),
     // The button toggles, and says so by lighting up inside a fence (#279).
     action: toggleCodeBlock,
     isActive: (e) => e.isActive('codeBlock'),
@@ -378,7 +379,7 @@ const buttons: ToolbarEntry[] = [
     // this cannot act in is answered the way #291 answered it, by not
     // drawing the control at all.
     label: '',
-    title: `Footnote (${FOOTNOTE_SHORTCUT.chord})`,
+    title: `Footnote (${chordLabel(FOOTNOTE_SHORTCUT.chord)})`,
     icon: footnoteSymbol,
     appliesTo: (e) => canInsertFootnote(e),
     action: (e) => {

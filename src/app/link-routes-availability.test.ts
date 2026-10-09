@@ -36,7 +36,6 @@ let dialog: LinkDialog | null = null;
 beforeAll(() => {
   setupKeyboard({
     onSave: vi.fn(),
-    onSaveAs: vi.fn(),
     onOpen: vi.fn(),
     onLink: () => dialog?.open(),
     onCodeBlock: vi.fn(),

@@ -12,7 +12,6 @@ function press(init: KeyboardEventInit): KeyboardEvent {
 beforeEach(() => {
   handlers = {
     onSave: vi.fn(),
-    onSaveAs: vi.fn(),
     onOpen: vi.fn(),
     onLink: vi.fn(),
     onCodeBlock: vi.fn(),
@@ -121,7 +120,6 @@ describe('Ctrl+Shift+E opens the files panel, or closes it (#347)', () => {
     press({ key: 'E', code: 'KeyE', ctrlKey: true, shiftKey: true });
 
     expect(handlers.onSave).not.toHaveBeenCalled();
-    expect(handlers.onSaveAs).not.toHaveBeenCalled();
     expect(handlers.onOpen).not.toHaveBeenCalled();
     expect(handlers.onLink).not.toHaveBeenCalled();
     expect(handlers.onCodeBlock).not.toHaveBeenCalled();
@@ -135,13 +133,39 @@ describe('the shortcuts that were already there', () => {
     expect(handlers.onLink).not.toHaveBeenCalled();
   });
 
-  it('still saves as on Ctrl+Shift+S', () => {
-    press({ key: 's', ctrlKey: true, shiftKey: true });
-    expect(handlers.onSaveAs).toHaveBeenCalledTimes(1);
+  // Save As has no chord (owner decision of 2026-09-18), and Shift with the
+  // save chord is the editor's strikethrough (#558). Both spellings are
+  // pressed: Windows sends the uppercase key with Shift, and macOS sends
+  // Command+Shift+S lowercase, measured on a runner, which is the one that
+  // used to open Save As.
+  it.each([
+    ['Ctrl+Shift+S as Windows sends it', { key: 'S', ctrlKey: true, shiftKey: true }],
+    ['Command+Shift+S as macOS sends it', { key: 's', metaKey: true, shiftKey: true }],
+  ])('%s does not save and is left to the editor', (_name, init) => {
+    const event = press(init);
+    expect(handlers.onSave).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('saves on Command+S', () => {
+    press({ key: 's', metaKey: true });
+    expect(handlers.onSave).toHaveBeenCalledTimes(1);
   });
 
   it('still opens on Ctrl+O', () => {
     press({ key: 'o', ctrlKey: true });
     expect(handlers.onOpen).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a chord with Alt is not the link chord (#558)', () => {
+  it.each([
+    ['Ctrl+Alt+K', { key: 'k', code: 'KeyK', ctrlKey: true, altKey: true }],
+    ['Command+Option+K as macOS sends it', { key: '˚', code: 'KeyK', metaKey: true, altKey: true }],
+  ])('%s opens no link dialog', (_name, init) => {
+    const event = press(init);
+    expect(handlers.onLink).not.toHaveBeenCalled();
+    expect(handlers.onCodeBlock).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

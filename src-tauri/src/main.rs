@@ -7,6 +7,8 @@ mod browser_args;
 mod document_windows;
 mod file_open;
 #[cfg(target_os = "macos")]
+mod macos_paste;
+#[cfg(target_os = "macos")]
 mod macos_quit;
 #[cfg(target_os = "macos")]
 mod macos_windows;

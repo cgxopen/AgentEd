@@ -56,18 +56,21 @@ fn registry(app: &AppHandle) -> MutexGuard<'_, Registry> {
 /// `main.rs`, since the document of a cold start can reach it before this.
 pub fn install(app: &App) {
     registry(app.handle()).add(MAIN_WINDOW);
-    if let Err(e) = add_new_window_item(app) {
-        eprintln!("macos_windows: File, New Window was not added: {e}");
+    if let Err(e) = extend_default_menu(app) {
+        eprintln!("macos_windows: the menu items of AgentEd were not added: {e}");
     }
     app.on_menu_event(|app, event| {
         if event.id() == NEW_WINDOW_ITEM {
             new_window(app);
+        } else if event.id() == crate::macos_paste::PASTE_PLAIN_ITEM {
+            crate::macos_paste::paste_as_plain_text(app);
         }
     });
 }
 
-/// The default macOS menu, with New Window at the top of File.
-fn add_new_window_item(app: &App) -> tauri::Result<()> {
+/// The default macOS menu, with New Window at the top of File and Paste and
+/// Match Style below Paste in Edit (#558).
+fn extend_default_menu(app: &App) -> tauri::Result<()> {
     let menu = Menu::default(app.handle())?;
     let item = MenuItem::with_id(
         app,
@@ -76,17 +79,28 @@ fn add_new_window_item(app: &App) -> tauri::Result<()> {
         true,
         Some("CmdOrCtrl+Shift+N"),
     )?;
-    let mut added = false;
+    let mut file = false;
+    let mut edit = false;
     for entry in menu.items()? {
         if let MenuItemKind::Submenu(submenu) = entry {
-            if submenu.text()? == "File" {
-                submenu.insert(&item, 0)?;
-                added = true;
+            match submenu.text()?.as_str() {
+                "File" => {
+                    submenu.insert(&item, 0)?;
+                    file = true;
+                }
+                "Edit" => {
+                    crate::macos_paste::add_to(app, &submenu)?;
+                    edit = true;
+                }
+                _ => {}
             }
         }
     }
-    if !added {
+    if !file {
         eprintln!("macos_windows: the default menu has no File submenu; New Window is not offered");
+    }
+    if !edit {
+        eprintln!("macos_windows: the default menu has no Edit submenu; Paste and Match Style is not offered");
     }
     app.set_menu(menu)?;
     Ok(())
