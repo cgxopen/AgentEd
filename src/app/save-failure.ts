@@ -1,3 +1,4 @@
+import { chordLabel } from '../ui/chord-label';
 /**
  * What the user reads when a document could not be written to disk
  * (#171).
@@ -89,6 +90,6 @@ export function saveFailedMessage(path: string, cause: string | null): string {
   const state =
     `AgentEd could not write ${path} to disk. ` +
     'Your work is still here in the editor, and none of it has been lost.';
-  const remedy = 'Press Ctrl+S to try again, or use Save As to write the document somewhere else.';
+  const remedy = `Press ${chordLabel('Ctrl+S')} to try again, or use Save As to write the document somewhere else.`;
   return cause === null ? `${state}\n\n${remedy}` : `${state}\n\n${cause}\n\n${remedy}`;
 }

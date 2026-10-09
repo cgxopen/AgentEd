@@ -27,14 +27,18 @@ import { imageDescriptionAvailability } from './editor/image-description';
 import { insertMenuCallbacks } from './editor/insert-blocks';
 import { codeBlockAvailability, codeBlockRoutes } from './editor/insert-code-block';
 import { footnoteAvailability, footnoteMenuCallbacks } from './editor/insert-footnote';
+import { type PredictablePasteStorage, requestPlainPaste } from './editor/paste';
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
+import { isTauri } from './platform/detect';
 import { getPlatformIO, ownWindowFrame, requestFolderAccess } from './platform/index';
+import { listenForPlainPasteRequest } from './platform/plain-paste';
 import { clearRecentFiles, loadRecentFiles, purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupAssetsPopover } from './ui/assets-popover';
+import { applyChordLabels } from './ui/chord-label';
 import { documentReferencesImage, setupDocumentBadges } from './ui/document-badges';
 import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
@@ -49,6 +53,8 @@ import { drawWindowFrame } from './ui/window-frame';
 // Sweep deprecated localStorage keys before any preference read runs.
 // One-shot per launch; subsequent runs are no-ops.
 purgeLegacyPreferences();
+// Every chord the page names, spelled for the key this keymap binds (#558).
+applyChordLabels(document);
 
 // Phase 1 — core state that nothing else depends on.
 const state = new AppState();
@@ -403,9 +409,6 @@ setupKeyboard({
   onSave: () => {
     void docActions.handleSave().catch(console.error);
   },
-  onSaveAs: () => {
-    void docActions.handleSaveAs().catch(console.error);
-  },
   onOpen: () => {
     void docActions.handleOpen().catch(console.error);
   },
@@ -427,6 +430,14 @@ setupWindowReports(ctx.state, header.onFilenameChange, (e) => {
   );
 });
 setupFileAssociation(docActions.openFilePath);
+// Paste and Match Style chosen from the macOS Edit menu (#558). Asked of the
+// platform name because the question is whether a desktop menu bar exists to
+// send it; the web build has none, as `file-association.ts` asks for its event.
+if (isTauri) {
+  listenForPlainPasteRequest(() => {
+    requestPlainPaste(editor.storage.predictablePaste as PredictablePasteStorage);
+  }).catch(console.error);
+}
 
 // The window's own close button, Alt+F4 and app quit are destructive paths
 // too, so they route through the same unsaved-changes gate (R-C3). Awaited

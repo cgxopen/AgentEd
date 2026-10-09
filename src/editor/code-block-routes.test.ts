@@ -277,7 +277,6 @@ describe('Ctrl+Shift+K reaches the code block', () => {
   function handlers(): KeyboardHandlers {
     return {
       onSave: vi.fn(),
-      onSaveAs: vi.fn(),
       onOpen: vi.fn(),
       onLink: vi.fn(),
       onCodeBlock: vi.fn(),

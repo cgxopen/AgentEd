@@ -16,9 +16,11 @@
 //! answers depends on them (`macos_windows.rs`):
 //!
 //! - **Nothing unsaved in any window: Now.** macOS ends the app. Until #559
-//!   the answer was always Cancel, which stopped a logout even with nothing
-//!   unsaved, measured on #546 and again on the step zero of #559: the quit
-//!   Apple event carrying the logout reason was answered User canceled.
+//!   the answer was always Cancel: measured on #546 and again on the step
+//!   zero of #559, the quit Apple event carrying the logout reason was
+//!   answered User canceled. Whether that stopped a real logout is another
+//!   matter, which a runner cannot try; the owner logged out of a Mac with
+//!   nothing unsaved at preview.4 and the logout went on (#558).
 //! - **Otherwise: Cancel**, and the windows holding unsaved changes are
 //!   asked to close one at a time, the one in front first. Each close
 //!   request reaches `installCloseGuard` in `src/platform/tauri.ts`, which
@@ -30,10 +32,10 @@
 //!   `terminate:` again. The first Cancel stops the quit, and every window
 //!   still open stays.
 //!
-//! A logout with unsaved changes is still stopped by the Cancel: the user
-//! answers each window and logs out again. `NSTerminateLater` could let an
-//! approved quit continue it, but it waits in a modal run loop the gate
-//! dialog was not measured in.
+//! A logout with unsaved changes is answered Cancel too, and the windows ask
+//! one at a time; whether macOS then stops the logout is not measured here.
+//! `NSTerminateLater` could let an approved quit continue it, but it waits in
+//! a modal run loop the gate dialog was not measured in.
 
 use std::sync::OnceLock;
 
@@ -50,7 +52,7 @@ const TAO_APP_DELEGATE: &std::ffi::CStr = c"TaoAppDelegateParent";
 /// type encoding below.
 const NS_TERMINATE_CANCEL: usize = 0;
 
-/// `NSTerminateNow`: macOS ends the app, and a logout goes on.
+/// `NSTerminateNow`: macOS ends the app.
 const NS_TERMINATE_NOW: usize = 1;
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
@@ -98,8 +100,8 @@ pub fn install(app: &App) {
 /// AppKit's question before a quit (#539, #559).
 ///
 /// With nothing unsaved in any window the answer is Now, and macOS ends the
-/// app: a logout is not stopped. Otherwise it is Cancel, and the windows
-/// holding unsaved changes are asked one at a time instead, the one in front
+/// app, with no Cancel that could stop a logout. Otherwise it is Cancel, and
+/// the windows holding unsaved changes are asked one at a time instead, the one in front
 /// first; a quit the user approves in every one ends the app when its last
 /// window is gone, and the first Cancel stops it (`macos_windows.rs`).
 ///

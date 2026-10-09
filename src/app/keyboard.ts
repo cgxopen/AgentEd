@@ -1,6 +1,5 @@
 export interface KeyboardHandlers {
   onSave: () => void;
-  onSaveAs: () => void;
   onOpen: () => void;
   onLink: () => void;
   /** Make a fenced block at the caret (#204). */
@@ -13,24 +12,29 @@ export interface KeyboardHandlers {
  * Global Ctrl/Cmd shortcuts: S (save), O (open), K (link), Shift+K (code
  * block), Shift+E (the files panel).
  *
- * **Shift+S is not one of them, and the list above no longer says it is.** The
- * handler below tests `e.key === 's'`, and with Shift held the key is the
- * uppercase `S`, so that branch has never run: measured on `e4e1f07` by
- * pressing the combination, which gives strikethrough from the editor keymap
- * instead. `onSaveAs` is therefore reachable from the File menu alone. The
- * defect is left where it is and recorded on its own issue rather than
- * repaired inside #347; what is repaired here is the sentence, which claimed a
- * property this code does not have.
+ * **Save As has no chord** (owner decision of 2026-09-18). The save branch
+ * used to hand a Shift held with it to Save As, testing the lowercase `s`. On
+ * Windows that half never ran, since a key held with Shift arrives uppercase;
+ * on macOS it ran, since Command+Shift+S arrives as a lowercase `s` with Shift
+ * held, measured on a runner on the step zero of #558 - and the editor made the
+ * text struck through at the same time, which is what that chord is for. So a
+ * save takes no Shift, and Ctrl+Shift+S and Command+Shift+S are left to the
+ * editor alone.
+ *
+ * **The K branch takes no Alt** (#558). It took Alt too, so
+ * Ctrl+Alt+K and Command+Option+K opened the link dialog, a chord nobody
+ * named; measured on both keys on the same runner. The other branches are
+ * left as they were: this repairs the chord the debt names, and changes no
+ * other chord on Windows.
  */
 export function setupKeyboard(handlers: KeyboardHandlers): void {
   document.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey;
     if (!mod) return;
 
-    if (e.key === 's') {
+    if (e.key === 's' && !e.shiftKey) {
       e.preventDefault();
-      if (e.shiftKey) handlers.onSaveAs();
-      else handlers.onSave();
+      handlers.onSave();
       return;
     }
     if (e.key === 'o') {
@@ -52,7 +56,7 @@ export function setupKeyboard(handlers: KeyboardHandlers): void {
       handlers.onToggleSidebar();
       return;
     }
-    if (e.key === 'k' || e.key === 'K' || e.code === 'KeyK') {
+    if (!e.altKey && (e.key === 'k' || e.key === 'K' || e.code === 'KeyK')) {
       e.preventDefault();
       // Ctrl+Shift+K is the code block. This used to `return` here instead,
       // with that sentence written beside it as the reason — and nothing bound

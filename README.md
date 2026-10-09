@@ -121,32 +121,32 @@ The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized 
 
 The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
 
-In v0.2.0-preview.4 on macOS, a document opened from Finder replaces the document in the open window, after asking about unsaved changes, instead of opening a second window; the next build opens it in a window of its own, and **File**, **New Window** (Cmd+Shift+N) opens an empty one. The shortcut hints in the menus are written for Windows, with Ctrl where a Mac uses Command.
+In v0.2.0-preview.4 on macOS, a document opened from Finder replaces the document in the open window, after asking about unsaved changes, instead of opening a second window, and the shortcut hints in the menus are written for Windows, with Ctrl where a Mac uses Command. The next build opens such a document in a window of its own, **File**, **New Window** (Cmd+Shift+N) opens an empty one, and the hints name Command, as the table below does.
 
 ## Keyboard shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | Bold / Italic / Underline |
-| `Ctrl+K` | Insert link (or edit / remove the link at the caret) |
-| `Ctrl`/`Cmd` + click | Open a link in the system browser |
-| `Ctrl+E` | Inline code |
-| `Ctrl+Shift+K` | Code block |
-| `Ctrl+Alt+1` … `Ctrl+Alt+6` | Heading level 1–6 |
-| `Ctrl+Alt+0` | Body text |
-| `Ctrl+Shift+S` | Strikethrough |
-| `Ctrl+Z` / `Ctrl+Y` | Undo / Redo |
-| `Ctrl+A` | Select all |
-| `Ctrl+S` | Save (Save As is in the File menu) |
-| `Ctrl+O` | Open |
-| `Ctrl+V` / `Ctrl+Shift+V` | Paste (reads markdown) / Paste as plain text |
-| `Ctrl+F` / `Ctrl+H` | Find / Replace |
-| `Ctrl+Alt+F` | Footnote (Insert → Footnote does the same) |
-| `Ctrl+Shift+E` | Files panel (open / close) |
-| `F3` | Find next |
-| `Shift+F3` | Find previous |
-| `Shift+Enter` | Line break inside a paragraph |
-| `Tab` / `Shift+Tab` | Indent / dedent in lists; move between table cells |
+| Windows | macOS | Action |
+|---------|-------|--------|
+| `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | `Cmd+B` / `Cmd+I` / `Cmd+U` | Bold / Italic / Underline |
+| `Ctrl+K` | `Cmd+K` | Insert link (or edit / remove the link at the caret) |
+| `Ctrl` + click | `Cmd` + click | Open a link in the system browser |
+| `Ctrl+E` | `Cmd+E` | Inline code |
+| `Ctrl+Shift+K` | `Cmd+Shift+K` | Code block |
+| `Ctrl+Alt+1` … `Ctrl+Alt+6` | `Cmd+Option+1` … `Cmd+Option+6` | Heading level 1–6 |
+| `Ctrl+Alt+0` | `Cmd+Option+0` | Body text |
+| `Ctrl+Shift+S` | `Cmd+Shift+S` | Strikethrough |
+| `Ctrl+Z` / `Ctrl+Y` | `Cmd+Z` / `Cmd+Shift+Z` or `Cmd+Y` | Undo / Redo |
+| `Ctrl+A` | `Cmd+A` | Select all |
+| `Ctrl+S` | `Cmd+S` | Save (Save As is in the File menu) |
+| `Ctrl+O` | `Cmd+O` | Open |
+| `Ctrl+V` / `Ctrl+Shift+V` | `Cmd+V` / `Cmd+Shift+V` | Paste (reads markdown) / Paste as plain text |
+| `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+H` | Find / Replace |
+| `Ctrl+Alt+F` | `Cmd+Option+F` | Footnote (Insert → Footnote does the same) |
+| `Ctrl+Shift+E` | `Cmd+Shift+E` | Files panel (open / close) |
+| `F3` | `Fn+F3` | Find next |
+| `Shift+F3` | `Fn+Shift+F3` | Find previous |
+| `Shift+Enter` | `Shift+Enter` | Line break inside a paragraph |
+| `Tab` / `Shift+Tab` | `Tab` / `Shift+Tab` | Indent / dedent in lists; move between table cells |
 
 ---
 
