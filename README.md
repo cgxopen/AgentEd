@@ -49,7 +49,7 @@ The current test build is **v0.2.0-preview.4, for Windows x64 and for macOS on A
 
 [**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.4/AgentEd_0.2.0_x64-setup.exe) · [**Download the macOS preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.4/AgentEd_0.2.0_aarch64.dmg) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.4)
 
-On macOS, the steps for the first launch are in the release notes.
+On macOS, the first launch takes a few extra steps; see [macOS installation](#macos-installation) below.
 
 The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
 
@@ -108,6 +108,20 @@ If you have verified the source and choose to continue, select **More info**, th
 Do not disable antivirus protection or SmartScreen. If your antivirus reports a specific threat, stop and report the exact message and release version.
 
 Signing is planned for a future release. [Read the installation help](https://agentedapp.com/installation-help.html).
+
+## macOS installation
+
+The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with v0.2.0-preview.4 on macOS 26.6:
+
+1. Open the `.dmg` and drag **AgentEd** onto **Applications**, then start it from **Applications** rather than from the disk image.
+2. macOS shows **“AgentEd” Not Opened**. Click **Done**.
+3. Open **System Settings**, then **Privacy & Security**, and scroll to **Security**. Next to the line **“AgentEd” was blocked to protect your Mac**, click **Open Anyway**.
+4. In the dialog that follows, click **Open Anyway**. The highlighted button in that dialog is **Move to Trash** (**Move to Bin** in British English), which deletes the application.
+5. Enter your password. AgentEd opens, and from then on it opens without asking.
+
+The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
+
+In this preview on macOS, a document opened from Finder replaces the document in the open window, after asking about unsaved changes, instead of opening a second window; and the shortcut hints in the menus are written for Windows, with Ctrl where a Mac uses Command.
 
 ## Keyboard shortcuts
 
