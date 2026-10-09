@@ -17,6 +17,12 @@ mod shell_scope;
 
 fn main() {
     let builder = tauri::Builder::default().manage(file_open::PendingOpen::default());
+    // Managed here rather than in `setup`: on macOS the document of a cold
+    // start arrives as `RunEvent::Opened` before `setup` runs, measured on
+    // a macOS runner on #559 - opened at 0 ms, setup done at 81 ms - and a
+    // registry managed in `setup` was not there for it.
+    #[cfg(target_os = "macos")]
+    let builder = builder.manage(macos_windows::DocumentWindows::default());
     #[cfg(not(target_os = "macos"))]
     let builder =
         builder.invoke_handler(tauri::generate_handler![file_open::take_pending_file_open]);

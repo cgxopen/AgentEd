@@ -52,9 +52,9 @@ fn registry(app: &AppHandle) -> MutexGuard<'_, Registry> {
 }
 
 /// Register `main`, which Tauri has built, and add File, New Window.
-/// Called from `setup`, before any event can reach a window.
+/// Called from `setup`. The registry itself is managed by the builder in
+/// `main.rs`, since the document of a cold start can reach it before this.
 pub fn install(app: &App) {
-    app.manage(DocumentWindows::default());
     registry(app.handle()).add(MAIN_WINDOW);
     if let Err(e) = add_new_window_item(app) {
         eprintln!("macos_windows: File, New Window was not added: {e}");

@@ -102,9 +102,10 @@ pub struct Registry {
 }
 
 impl Registry {
-    /// A window now exists under `label`.
+    /// A window now exists under `label`. A window already known keeps what
+    /// it reported.
     pub fn add(&mut self, label: &str) {
-        self.windows.insert(label.to_string(), UNREPORTED);
+        self.windows.entry(label.to_string()).or_insert(UNREPORTED);
     }
 
     /// The window `label` is gone: forget it, and if a quit was waiting on
