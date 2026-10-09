@@ -23,6 +23,7 @@ import type {
   PlatformIO,
   WindowControls,
 } from './types';
+import { reportCloseCancelled } from './window-coordination';
 
 export class TauriIO implements PlatformIO {
   readonly pathsOutliveSession = true;
@@ -131,9 +132,13 @@ export class TauriIO implements PlatformIO {
         // discard their work either: keep the window open. The failure is
         // logged to the console only, which a release build does not show.
         console.error('[close-guard] gate failed, keeping the window open:', e);
+        reportKeptOpen();
         return;
       }
-      if (!mayClose) return;
+      if (!mayClose) {
+        reportKeptOpen();
+        return;
+      }
       try {
         // destroy() closes without re-emitting this event; close() would
         // come straight back here and ask the user a second time.
@@ -239,4 +244,16 @@ export async function ownWindowFrame(): Promise<WindowControls | null> {
     toggleMaximize: () => appWindow.toggleMaximize(),
     close: () => appWindow.close(),
   };
+}
+
+/**
+ * A window kept open by its gate stops a quit asking one window at a time,
+ * on macOS (#559); elsewhere this does nothing. A failure to say so is
+ * logged rather than shown: the window is open with its document, and the
+ * next quit asks it again.
+ */
+function reportKeptOpen(): void {
+  reportCloseCancelled().catch((e) => {
+    console.error('[close-guard] the quit was not told this window stayed open:', e);
+  });
 }

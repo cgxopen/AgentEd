@@ -8,6 +8,8 @@ import type { AppState } from './state';
 export interface HeaderControls {
   setFilename(name: string | null, fullPath?: string | null): void;
   updateCloseEnabled(): void;
+  /** Called after every `setFilename`, with the name shown. */
+  onFilenameChange(cb: (name: string) => void): void;
 }
 
 /**
@@ -20,9 +22,16 @@ export function setupHeader(state: AppState): HeaderControls {
   const filenameEl = document.getElementById('filename')!;
   const modifiedEl = document.getElementById('modified-indicator')!;
 
+  const filenameListeners: Array<(name: string) => void> = [];
+
   function setFilename(name: string | null, fullPath?: string | null): void {
     filenameEl.textContent = name ?? 'Untitled';
     filenameEl.title = fullPath ?? name ?? 'Untitled';
+    for (const cb of filenameListeners) cb(name ?? 'Untitled');
+  }
+
+  function onFilenameChange(cb: (name: string) => void): void {
+    filenameListeners.push(cb);
   }
 
   function updateCloseEnabled(): void {
@@ -44,7 +53,7 @@ export function setupHeader(state: AppState): HeaderControls {
 
   setupOverflowPopover();
 
-  return { setFilename, updateCloseEnabled };
+  return { setFilename, updateCloseEnabled, onFilenameChange };
 }
 
 /** Second-phase wiring — indicator click handlers that need the full context. */

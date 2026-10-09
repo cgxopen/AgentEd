@@ -21,7 +21,11 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
+// The command reads the held path through `State` everywhere but macOS,
+// where it asks `macos_windows` (#559).
+#[cfg(not(target_os = "macos"))]
+use tauri::State;
 
 /// Only a markdown document is opened, on either route. A name that does
 /// not end in `.md` is ignored, as the command line always did.
@@ -38,20 +42,22 @@ pub fn extract_file_arg(args: &[String]) -> Option<String> {
         .cloned()
 }
 
-/// The first markdown file among the URLs of an Apple event, as a path.
+/// The markdown files among the URLs of an Apple event, as paths, in the
+/// order of the event.
 ///
 /// The URL carries the path percent-encoded, a space as `%20`, and Finder
 /// spells a letter such as ș decomposed, measured on #541. `to_file_path`
 /// reads the escapes back into the path the file system names; the
 /// decomposed spelling is kept, since it is the name macOS handed over.
-/// Several files opened at once bring one document, the first: a window
-/// holds one (R-C8).
+/// Several files opened at once bring a window each (#559); a window holds
+/// one document (R-C8).
 #[cfg(any(target_os = "macos", test))]
-pub fn markdown_path_from_urls(urls: &[tauri::Url]) -> Option<String> {
+pub fn markdown_paths_from_urls(urls: &[tauri::Url]) -> Vec<String> {
     urls.iter()
         .filter_map(|url| url.to_file_path().ok())
         .filter_map(|path| path.to_str().map(str::to_string))
-        .find(|path| is_markdown(path))
+        .filter(|path| is_markdown(path))
+        .collect()
 }
 
 /// What the page has asked for and what waits for it.
@@ -88,9 +94,24 @@ impl PendingOpen {
 
 /// Called once by the page, after its `file-open` listener is installed.
 /// The answer is the path a launch was asked to open, if one is waiting.
+#[cfg(not(target_os = "macos"))]
 #[tauri::command]
 pub fn take_pending_file_open(pending: State<'_, PendingOpen>) -> Option<String> {
     pending.take()
+}
+
+/// The same question on macOS, where it comes from one of several windows
+/// (#559): each takes what was held for it, and `main` what a launch held.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+pub fn take_pending_file_open(app: AppHandle, window: tauri::WebviewWindow) -> Option<String> {
+    crate::macos_windows::take_pending(&app, &window)
+}
+
+/// What a launch held for `main`, which now listens.
+#[cfg(target_os = "macos")]
+pub fn take_for_main(app: &AppHandle) -> Option<String> {
+    app.state::<PendingOpen>().take()
 }
 
 /// Send a path to the page now, or hold it until the page asks.
@@ -173,30 +194,27 @@ mod tests {
     #[test]
     fn an_apple_event_url_is_read_back_into_its_path() {
         assert_eq!(
-            markdown_path_from_urls(&urls(&["file:///Users/runner/docs/a.md"])),
-            Some("/Users/runner/docs/a.md".to_string())
+            markdown_paths_from_urls(&urls(&["file:///Users/runner/docs/a.md"])),
+            ["/Users/runner/docs/a.md"]
         );
         assert_eq!(
-            markdown_path_from_urls(&urls(&["file:///Users/runner/My%20Notes/s%CC%A6.md"])),
-            Some("/Users/runner/My Notes/s\u{326}.md".to_string())
+            markdown_paths_from_urls(&urls(&["file:///Users/runner/My%20Notes/s%CC%A6.md"])),
+            ["/Users/runner/My Notes/s\u{326}.md"]
         );
     }
 
     #[cfg(unix)]
     #[test]
-    fn an_apple_event_opens_its_first_markdown_file_and_nothing_else() {
-        assert_eq!(markdown_path_from_urls(&urls(&["file:///d/e.txt"])), None);
+    fn an_apple_event_opens_every_markdown_file_in_order_and_nothing_else() {
+        assert!(markdown_paths_from_urls(&urls(&["file:///d/e.txt"])).is_empty());
+        assert!(markdown_paths_from_urls(&urls(&["https://example.com/a.md"])).is_empty());
         assert_eq!(
-            markdown_path_from_urls(&urls(&["https://example.com/a.md"])),
-            None
-        );
-        assert_eq!(
-            markdown_path_from_urls(&urls(&[
+            markdown_paths_from_urls(&urls(&[
                 "file:///d/e.txt",
                 "file:///d/b.md",
                 "file:///d/c.md"
             ])),
-            Some("/d/b.md".to_string())
+            ["/d/b.md", "/d/c.md"]
         );
     }
 }

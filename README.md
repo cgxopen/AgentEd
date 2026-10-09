@@ -121,7 +121,7 @@ The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized 
 
 The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
 
-In this preview on macOS, a document opened from Finder replaces the document in the open window, after asking about unsaved changes, instead of opening a second window; and the shortcut hints in the menus are written for Windows, with Ctrl where a Mac uses Command.
+In v0.2.0-preview.4 on macOS, a document opened from Finder replaces the document in the open window, after asking about unsaved changes, instead of opening a second window; the next build opens it in a window of its own, and **File**, **New Window** (Cmd+Shift+N) opens an empty one. The shortcut hints in the menus are written for Windows, with Ctrl where a Mac uses Command.
 
 ## Keyboard shortcuts
 

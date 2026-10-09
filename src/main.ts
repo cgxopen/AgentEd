@@ -20,6 +20,7 @@ import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
+import { setupWindowReports } from './app/window-reports';
 import { isReplacingDocument } from './editor/document-load';
 import { historyAvailability, historyMenuCallbacks } from './editor/history-routes';
 import { imageDescriptionAvailability } from './editor/image-description';
@@ -415,6 +416,16 @@ setupKeyboard({
   ...codeBlock,
 });
 
+// Before the file association asks for its document, since that ask is what
+// tells a macOS window it is one of several (#559).
+setupWindowReports(ctx.state, header.onFilenameChange, (e) => {
+  void ctx.reporter.dialog(
+    'AgentEd could not tell macOS whether this window has unsaved changes.\n\n' +
+      'Please save your work before quitting.',
+    e,
+    'Unsaved changes not reported',
+  );
+});
 setupFileAssociation(docActions.openFilePath);
 
 // The window's own close button, Alt+F4 and app quit are destructive paths
