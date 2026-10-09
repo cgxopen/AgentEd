@@ -3,18 +3,31 @@
 
 #[cfg(any(windows, test))]
 mod browser_args;
+#[cfg(any(target_os = "macos", test))]
+mod document_windows;
 mod file_open;
 #[cfg(target_os = "macos")]
 mod macos_quit;
+#[cfg(target_os = "macos")]
+mod macos_windows;
 #[cfg(windows)]
 mod main_window;
 #[cfg(test)]
 mod shell_scope;
 
 fn main() {
-    let app = tauri::Builder::default()
-        .manage(file_open::PendingOpen::default())
-        .invoke_handler(tauri::generate_handler![file_open::take_pending_file_open])
+    let builder = tauri::Builder::default().manage(file_open::PendingOpen::default());
+    #[cfg(not(target_os = "macos"))]
+    let builder =
+        builder.invoke_handler(tauri::generate_handler![file_open::take_pending_file_open]);
+    // Several document windows report to the process on macOS (#559).
+    #[cfg(target_os = "macos")]
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        file_open::take_pending_file_open,
+        macos_windows::report_window_state,
+        macos_windows::window_close_cancelled
+    ]);
+    let app = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
@@ -26,9 +39,13 @@ fn main() {
                 main_window::report_and_exit(error.as_ref());
             }
 
-            // Every quit on macOS through the unsaved-changes gate (#539).
+            // The document windows of macOS, and File, New Window (#559);
+            // then every quit there through the unsaved-changes gate (#539).
             #[cfg(target_os = "macos")]
-            macos_quit::install(app);
+            {
+                macos_windows::install(app);
+                macos_quit::install(app);
+            }
 
             // Cold start: a file named on the command line waits for the
             // page to ask for it (#541).
@@ -43,13 +60,22 @@ fn main() {
         .expect("error while building tauri application");
 
     app.run(|_handle, _event| {
-        // macOS hands a file opened from Finder or Open With to the app as
-        // an Apple event, at start-up and while it runs (#541).
         #[cfg(target_os = "macos")]
-        if let tauri::RunEvent::Opened { urls } = _event {
-            if let Some(path) = file_open::markdown_path_from_urls(&urls) {
-                file_open::deliver(_handle, path);
+        match _event {
+            // macOS hands a file opened from Finder or Open With to the app
+            // as an Apple event, at start-up and while it runs (#541); each
+            // document goes to a window of its own or to an untouched one
+            // (#559).
+            tauri::RunEvent::Opened { urls } => {
+                macos_windows::open_documents(_handle, file_open::markdown_paths_from_urls(&urls));
             }
+            // A quit asking one window at a time goes on when it is gone.
+            tauri::RunEvent::WindowEvent {
+                label,
+                event: tauri::WindowEvent::Destroyed,
+                ..
+            } => macos_windows::window_destroyed(_handle, &label),
+            _ => {}
         }
     });
 }
@@ -178,22 +204,15 @@ mod tests {
         );
     }
 
-    /// Issue #539 - the quit gate on macOS asks the window labelled in
-    /// `macos_quit.rs` to close. That module compiles on macOS alone, which
-    /// no CI job builds, so its label is read here as text and held against
-    /// the window Tauri builds there: one declared in `tauri.conf.json` with
-    /// no `create: false`. A label that named no window would leave every
-    /// quit cancelled with nothing asked, and the app could not be quit.
+    /// Issues #539 and #559 - on macOS the window Tauri builds is the one
+    /// `document_windows.rs` calls `main`: a quit asks the windows it has
+    /// registered, and a window it did not know would be skipped. That code
+    /// compiles on macOS alone, which no CI job builds, so the label is held
+    /// here against `tauri.conf.json`: a window Tauri builds, with no
+    /// `create: false`.
     #[test]
-    fn the_macos_quit_gate_names_the_window_tauri_builds_on_macos() {
-        let source = include_str!("macos_quit.rs");
-        let declaration = "const MAIN_WINDOW: &str = \"";
-        let start = source
-            .find(declaration)
-            .expect("macos_quit.rs should declare MAIN_WINDOW")
-            + declaration.len();
-        let label = &source[start..start + source[start..].find('"').expect("a closing quote")];
-
+    fn the_registry_names_the_window_tauri_builds_on_macos() {
+        let label = crate::document_windows::MAIN_WINDOW;
         let config: tauri::utils::config::Config =
             serde_json::from_str(include_str!("../tauri.conf.json"))
                 .expect("tauri.conf.json should parse as a Tauri config");
@@ -207,5 +226,33 @@ mod tests {
             window.create,
             "Tauri must build the `{label}` window on macOS, where nothing else does"
         );
+    }
+
+    /// Issue #559 - every window after `main` is under the capability made
+    /// for them, on macOS alone, with exactly the permissions of `main`.
+    ///
+    /// A window no capability names has no unsaved-changes gate: measured on
+    /// a macOS runner on the step zero of #559, the page said Close
+    /// protection unavailable and Cmd+W closed it with typed text and no
+    /// question. So the label prefix and the capability glob are held
+    /// together here, and so are the two permission lists, since a
+    /// permission added to one and not the other would leave a window able
+    /// to do less than `main` or more.
+    #[test]
+    fn every_document_window_has_the_permissions_of_main_on_macos_alone() {
+        let main: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/default.json"))
+                .expect("default.json should parse");
+        let documents: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/document-windows.json"))
+                .expect("document-windows.json should parse");
+
+        assert_eq!(main["windows"], serde_json::json!(["main"]));
+        assert!(main.get("platforms").is_none(), "main keeps every platform");
+
+        let glob = format!("{}*", crate::document_windows::DOCUMENT_WINDOW_PREFIX);
+        assert_eq!(documents["windows"], serde_json::json!([glob]));
+        assert_eq!(documents["platforms"], serde_json::json!(["macOS"]));
+        assert_eq!(documents["permissions"], main["permissions"]);
     }
 }

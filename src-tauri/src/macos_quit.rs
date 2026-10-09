@@ -12,27 +12,34 @@
 //! as shipped, all three quits delivered `Exit` with no close request.
 //!
 //! So `applicationShouldTerminate:` is added here to the app delegate class
-//! tao registers. It answers Cancel and asks the main window to close. The
-//! close request reaches `installCloseGuard` in `src/platform/tauri.ts`,
-//! which asks when there are unsaved changes, exactly as the red window
-//! button does. Approved, the guard destroys the window; the last window
-//! gone raises `ExitRequested` with code `None`, which nothing prevents, and
-//! tao ends the event loop with `-[NSApplication stop:]`, which does not
-//! send `terminate:` again. Cancelled, the window and the app stay.
+//! tao registers. Since #559 there can be several windows, and what it
+//! answers depends on them (`macos_windows.rs`):
 //!
-//! Answering Cancel to a logout makes macOS stop the logout, even when
-//! nothing is unsaved and the app then quits by itself: the user logs out
-//! again. `NSTerminateLater` could let an approved quit continue it, but it
-//! waits in a modal run loop the gate dialog was not measured in.
+//! - **Nothing unsaved in any window: Now.** macOS ends the app. Until #559
+//!   the answer was always Cancel, which stopped a logout even with nothing
+//!   unsaved, measured on #546 and again on the step zero of #559: the quit
+//!   Apple event carrying the logout reason was answered User canceled.
+//! - **Otherwise: Cancel**, and the windows holding unsaved changes are
+//!   asked to close one at a time, the one in front first. Each close
+//!   request reaches `installCloseGuard` in `src/platform/tauri.ts`, which
+//!   asks exactly as the red window button does. Approved, the guard
+//!   destroys the window and the next is asked; once every one has an
+//!   answer the clean windows close too, and the last window gone raises
+//!   `ExitRequested` with code `None`, which nothing prevents, and tao ends
+//!   the event loop with `-[NSApplication stop:]`, which does not send
+//!   `terminate:` again. The first Cancel stops the quit, and every window
+//!   still open stays.
+//!
+//! A logout with unsaved changes is still stopped by the Cancel: the user
+//! answers each window and logs out again. `NSTerminateLater` could let an
+//! approved quit continue it, but it waits in a modal run loop the gate
+//! dialog was not measured in.
 
 use std::sync::OnceLock;
 
 use objc2::runtime::{AnyClass, AnyObject, Imp, Sel};
 use objc2::sel;
-use tauri::{App, AppHandle, Manager};
-
-/// The window `tauri.conf.json` declares, which Tauri builds on macOS.
-const MAIN_WINDOW: &str = "main";
+use tauri::{App, AppHandle};
 
 /// The app delegate class tao 0.37.1 registers (`app_delegate.rs`). A tao
 /// that renames it, or declares the method itself, makes `install` fail and
@@ -42,6 +49,9 @@ const TAO_APP_DELEGATE: &std::ffi::CStr = c"TaoAppDelegateParent";
 /// `NSApplicationTerminateReply`: an `NSUInteger`, so `Q` in the method's
 /// type encoding below.
 const NS_TERMINATE_CANCEL: usize = 0;
+
+/// `NSTerminateNow`: macOS ends the app, and a logout goes on.
+const NS_TERMINATE_NOW: usize = 1;
 
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
@@ -85,27 +95,27 @@ pub fn install(app: &App) {
     }
 }
 
-/// AppKit's question before a quit. Always Cancel: the quit, if the user
-/// approves it, happens through the window close instead.
+/// AppKit's question before a quit (#539, #559).
 ///
-/// When the window cannot be asked, the answer is still Cancel. The app
-/// stays open with the document in it, as `installCloseGuard` keeps the
-/// window open when its gate fails, and the failure goes to stderr.
+/// With nothing unsaved in any window the answer is Now, and macOS ends the
+/// app: a logout is not stopped. Otherwise it is Cancel, and the windows
+/// holding unsaved changes are asked one at a time instead, the one in front
+/// first; a quit the user approves in every one ends the app when its last
+/// window is gone, and the first Cancel stops it (`macos_windows.rs`).
+///
+/// When the app cannot be reached the answer is Cancel: the app stays open
+/// with every document in it, and the failure goes to stderr.
 extern "C-unwind" fn should_terminate(
     _this: *mut AnyObject,
     _cmd: Sel,
     _sender: *mut AnyObject,
 ) -> usize {
-    match APP
-        .get()
-        .and_then(|app| app.get_webview_window(MAIN_WINDOW))
-    {
-        Some(window) => {
-            if let Err(e) = window.close() {
-                eprintln!("macos_quit: asking the window to close failed, staying open: {e}");
-            }
+    match APP.get() {
+        Some(app) if crate::macos_windows::should_terminate(app) => NS_TERMINATE_NOW,
+        Some(_) => NS_TERMINATE_CANCEL,
+        None => {
+            eprintln!("macos_quit: no app to ask, staying open");
+            NS_TERMINATE_CANCEL
         }
-        None => eprintln!("macos_quit: no main window to ask, staying open"),
     }
-    NS_TERMINATE_CANCEL
 }
