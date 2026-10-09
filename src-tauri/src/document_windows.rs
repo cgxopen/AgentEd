@@ -231,6 +231,7 @@ impl Registry {
     }
 
     /// Whether a quit is asking.
+    #[cfg(test)]
     pub fn quitting(&self) -> bool {
         self.quit.is_some()
     }

@@ -21,7 +21,11 @@
 
 use std::sync::Mutex;
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
+// The command reads the held path through `State` everywhere but macOS,
+// where it asks `macos_windows` (#559).
+#[cfg(not(target_os = "macos"))]
+use tauri::State;
 
 /// Only a markdown document is opened, on either route. A name that does
 /// not end in `.md` is ignored, as the command line always did.
