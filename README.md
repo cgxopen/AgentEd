@@ -21,7 +21,7 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 <div align="center">
 
-[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.4) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
+[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.5) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
 
 </div>
 
@@ -45,9 +45,9 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 ## Download and get started
 
-The current test build is **v0.2.0-preview.4, for Windows x64 and for macOS on Apple Silicon**, prepared before the public launch. It is a pre-release and may be replaced.
+The current test build is **v0.2.0-preview.5, for Windows x64 and for macOS on Apple Silicon**, prepared before the public launch. It is a pre-release and may be replaced.
 
-[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.4/AgentEd_0.2.0_x64-setup.exe) · [**Download the macOS preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.4/AgentEd_0.2.0_aarch64.dmg) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.4)
+[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.5/AgentEd_0.2.0_x64-setup.exe) · [**Download the macOS preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.5/AgentEd_0.2.0_aarch64.dmg) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.5)
 
 On macOS, the first launch takes a few extra steps; see [macOS installation](#macos-installation) below.
 
@@ -121,7 +121,7 @@ The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized 
 
 The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
 
-In v0.2.0-preview.4 on macOS, a document opened from Finder replaces the document in the open window, after asking about unsaved changes, instead of opening a second window, and the shortcut hints in the menus are written for Windows, with Ctrl where a Mac uses Command. The next build opens such a document in a window of its own, **File**, **New Window** (Cmd+Shift+N) opens an empty one, and the hints name Command, as the table below does.
+On macOS, a document opened from Finder opens in a window of its own, and **File**, **New Window** (Cmd+Shift+N) opens an empty one. The shortcut hints in the menus name Command, as the table below does.
 
 ## Keyboard shortcuts
 
