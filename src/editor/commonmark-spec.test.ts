@@ -69,6 +69,7 @@ const CAUSES: Readonly<Record<string, Cause>> = {
       'an escape the file did not have, added because the serializer sees one text node at a time',
   },
   'soft-break': { recorded: 'soft line breaks become spaces' },
+  'lazy-line': { recorded: 'a lazy continuation line is written with the marker of its container' },
   'rule-hyphens': { recorded: 'a horizontal rule is written with three hyphens' },
   'backslash-break': { recorded: 'backslash hard breaks' },
   'span-width': {

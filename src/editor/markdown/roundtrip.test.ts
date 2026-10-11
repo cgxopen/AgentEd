@@ -144,17 +144,16 @@ describe('markdown roundtrip', () => {
   // unrecognised element keeps the text and drops the element — so every
   // shape below came back with the strike gone, measured on `a9aab02`. It is
   // the one R-C2 exception that lost something the reader can see.
-  describe('a soft line break is a space at the pair level too (#89)', () => {
+  describe('a soft line break is the newline the file had, at the pair level too (#89, #571)', () => {
     // The editor-level pins live in `src/editor/soft-break.test.ts`. This is
-    // the other half of R-C2's "measured at both levels": the parser and the
-    // serializer collapse a wrap on their own, with no editor in the picture,
-    // so preserving one would take more than the parse change #89 made.
-    it('collapses a wrapped paragraph into one line', () => {
-      expect(roundtrip('first line\nsecond line')).toBe('first line second line');
+    // the other half: the parser renders the break as its element and the
+    // serializer writes it back, with no editor in the picture.
+    it('keeps a wrapped paragraph on its two lines', () => {
+      expect(roundtrip('first line\nsecond line')).toBe('first line\nsecond line');
     });
 
-    it('keeps a space between two inline elements that spanned two lines', () => {
-      expect(roundtrip('**a**\n**b**')).toBe('**a** **b**');
+    it('keeps two inline elements that spanned two lines on them', () => {
+      expect(roundtrip('**a**\n**b**')).toBe('**a**\n**b**');
     });
   });
 

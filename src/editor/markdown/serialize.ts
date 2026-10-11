@@ -28,6 +28,7 @@ import {
 import { addKeptRawHtmlRules } from './kept-raw-html';
 import { LIST_MARKER_ATTRIBUTE, markerFor } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
+import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
   type ColumnStyle,
@@ -941,6 +942,11 @@ turndown.addRule('hardBreakInACell', {
     cellDepth > 0 ? '<br>' : builtinLineBreak.replacement(content, node, options),
 });
 
+// A line break inside a paragraph, written as the newline the file had (#571).
+// After the rule above, which takes every `br`: turndown consults the rule
+// added last first, and this one takes only the soft break's.
+addSoftBreakRules(turndown, () => cellDepth > 0);
+
 /** A table inside a cell, as one line of inline HTML. */
 function inlineTable(table: HTMLTableElement): string {
   const rows = ownRows(table).map((row) => {
@@ -1310,7 +1316,7 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   const carriesTheMark = html.includes(DEFINITION_POSITION);
   setDocumentCarriesTheMark(carriesTheMark);
   try {
-    const written = turndown.turndown(html);
+    const written = turndown.turndown(softBreaksAsVoid(html));
     const markdown = carriesTheMark ? written : resolveDefinitionPositions(written);
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {

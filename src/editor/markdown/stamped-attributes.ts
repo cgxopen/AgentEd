@@ -52,6 +52,11 @@ import {
 import { KEPT_RAW_HTML_ATTRIBUTE } from './kept-raw-html';
 import { LIST_MARKER_ATTRIBUTE } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
+import {
+  SOFT_BREAK_ATTRIBUTE,
+  SOFT_BREAK_INDENT_ATTRIBUTE,
+  SOFT_BREAK_SPACE_ATTRIBUTE,
+} from './soft-break';
 import { TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './table-style';
 import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
@@ -70,6 +75,9 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
+  SOFT_BREAK_ATTRIBUTE,
+  SOFT_BREAK_SPACE_ATTRIBUTE,
+  SOFT_BREAK_INDENT_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */
