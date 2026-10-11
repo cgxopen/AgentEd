@@ -345,7 +345,10 @@ function insertMarkdown(view: EditorView, event: ClipboardEvent, text: string): 
   // A markdown table reaches the document through the same two answers a rich
   // HTML one does: the table path when the caret is in a table, and a closed
   // end when it is not.
-  const slice = parseSlice(view, markdownToHtml(body, { breaks: true }));
+  // Read as markdown, and keeping no raw HTML as bytes: what is kept is not
+  // drawn, so text that spelled a tag would reach the file as live markup with
+  // nothing on screen to show it (owner decision of 2026-10-11 on #563).
+  const slice = parseSlice(view, markdownToHtml(body, { breaks: true, keepRawHtml: false }));
   if (placedAsCells(view, event, slice)) return;
   // The spaces a single line carried are set aside above; over a selection of
   // cells there is no sentence to put them back into, so the cell takes the

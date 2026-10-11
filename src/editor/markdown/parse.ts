@@ -347,8 +347,9 @@ export interface ParseOptions {
   readonly breaks?: boolean;
   /**
    * Keep the raw HTML the editor cannot hold as its bytes (#563). On for a
-   * file; off for a rich paste, which `cleanPastedHtml` reads through this
-   * function after writing the page as markdown. There the page text is
+   * file; off for every paste. A rich paste is read through this function by
+   * `cleanPastedHtml` after the page is written as markdown, and a plain-text
+   * one as the markdown it is (owner decision of 2026-10-11 on #563). There the page text is
    * written unescaped, so text that spelled a tag would come back as that tag,
    * kept and written into the file live: measured on the review of #578, a
    * paragraph showing `<span onclick=...></span>` as text was saved as that

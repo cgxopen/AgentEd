@@ -266,3 +266,35 @@ describe('#563: a rich paste whose page text spells a tag', () => {
     expect(again).toBe(saved);
   });
 });
+
+/**
+ * #563, owner decision of 2026-10-11: a plain-text paste keeps no raw HTML as
+ * bytes either. It is read as markdown, so text that spelled a tag was kept
+ * and reached the file live, with nothing drawn; measured on `451a887`.
+ */
+describe('#563: a plain-text paste that spells a tag', () => {
+  function pastePlain(instance: EditorInstance, text: string): void {
+    const event = {
+      clipboardData: {
+        types: ['text/plain'],
+        getData: (t: string) => (t === 'text/plain' ? text : ''),
+        files: [],
+      },
+      preventDefault: () => undefined,
+    } as unknown as ClipboardEvent;
+    const { view } = instance.editor;
+    view.someProp('handlePaste', (handler) => handler(view, event, view.state.selection.content()));
+  }
+
+  it.each([
+    ['a span with an event handler', '<span onclick=alert(1)></span> word'],
+    ['an svg with an onload', '<svg onload=alert(1)></svg> word'],
+  ])('%s writes nothing live in the saved file', (_label, text) => {
+    const instance = editorWith('');
+    pastePlain(instance, text);
+    const { saved, again } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+    expect(saved).toBe('word');
+    expect(again).toBe(saved);
+  });
+});
