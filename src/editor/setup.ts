@@ -48,6 +48,7 @@ import {
   BARE_BLANK_MARKER,
   BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
 } from './markdown/blockquote-spacing';
+import { brSpellingNodeAttribute } from './markdown/br-spelling';
 import {
   COMMENT_TAG,
   decodeComment,
@@ -534,6 +535,14 @@ function starterKitWithLocalSchemaRules() {
         if (extension.name === 'paragraph') return paragraphKeepingBlockSource(extension);
         if (extension.name === 'heading') return headingKeepingBlockSource(extension);
         // The delimiter the file wrote, `_` or none (#566).
+        // The tag a line break was written with, or none (#577).
+        if (extension.name === 'hardBreak') {
+          return extension.extend({
+            addAttributes() {
+              return { ...this.parent?.(), ...brSpellingNodeAttribute() };
+            },
+          });
+        }
         if (extension.name === 'bold' || extension.name === 'italic') {
           return extension.extend({
             addAttributes() {

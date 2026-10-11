@@ -38,6 +38,7 @@
 
 import { AUTOLINK_ATTRIBUTE } from './angle-autolink';
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
+import { BR_SPELLING_ATTRIBUTE } from './br-spelling';
 import { MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { EMPHASIS_DELIMITER_ATTRIBUTE } from './emphasis-delimiter';
 import {
@@ -83,6 +84,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   EMPHASIS_DELIMITER_ATTRIBUTE,
   AUTOLINK_ATTRIBUTE,
   LIST_NUMBERING_ATTRIBUTE,
+  BR_SPELLING_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */
