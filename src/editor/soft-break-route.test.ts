@@ -203,9 +203,10 @@ describe('a soft break in a block that holds one line is written as a space (#57
     });
     // Built in this editor's schema: each editor has a schema of its own.
     const { schema } = editor.editor;
+    // The break carries an indentation, which a cell must not write.
     const content = [
       schema.text('one two'),
-      schema.nodes.softBreak.create(),
+      schema.nodes.softBreak.create({ indent: '  ' }),
       schema.text('three four'),
     ];
     editor.editor.view.dispatch(editor.editor.state.tr.replaceWith(cell, cell + 1, content));
@@ -348,6 +349,16 @@ describe('the clipboard (#571)', () => {
     });
     expect(breaks).toBe(0);
     expect(editor.getMarkdown()).not.toContain('\n');
+  });
+
+  it('a page that spells the element of a soft break pastes a space, not a break (#447)', () => {
+    const editor = editorWith('start');
+    editor.editor.commands.setTextSelection(1);
+    paste(editor, {
+      html: '<p>one<span data-soft-break="" data-soft-break-indent="ssss"> </span>two</p>',
+      text: 'one two',
+    });
+    expect(editor.getMarkdown()).toBe('one twostart');
   });
 
   it('a plain-text paste still reads a single newline as a hard break (R-C13)', () => {
