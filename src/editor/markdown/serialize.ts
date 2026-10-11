@@ -945,7 +945,7 @@ turndown.addRule('hardBreakInACell', {
 // A line break inside a paragraph, written as the newline the file had (#571).
 // After the rule above, which takes every `br`: turndown consults the rule
 // added last first, and this one takes only the soft break's.
-addSoftBreakRules(turndown);
+addSoftBreakRules(turndown, () => cellDepth > 0);
 
 /** A table inside a cell, as one line of inline HTML. */
 function inlineTable(table: HTMLTableElement): string {

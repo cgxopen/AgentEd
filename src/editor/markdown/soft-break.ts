@@ -88,18 +88,41 @@ export function withoutEdgeBreaks(inline: string): string {
   return inline.replace(EDGE_BREAKS, '');
 }
 
+/** A soft break as `softBreaksAsVoid` writes it. */
+const VOID_BREAK = '<br data-soft-break=""[^>]*>';
+
+/** The elements of the marks, as the editor renders them, with no attribute. */
+const MARK_TAG = '(?:em|strong|s|u|code|sup|sub|kbd)';
+
 /**
- * The editor HTML with each soft break as a void element.
+ * The editor HTML with each soft break as a void element, placed where the
+ * serializer can write it.
  *
  * The element the editor renders holds a single space, and turndown treats an
  * element holding only whitespace as blank: it hands it to the blank rule
  * before any rule of ours, and writes its space beside whatever that returns.
  * A `br` is void, so it is never blank, and its rule below is consulted. The
  * attributes go with it unchanged.
+ *
+ * Two placements are made here, each measured on the corpus of the step zero
+ * as a file that moved again on the second save:
+ * - **a break at the edge of a mark goes outside it.** Emphasis that ends on
+ *   the break was written `*use`, newline, `*`, and a delimiter at the start of
+ *   a line closes nothing, so the second save escaped both. Outside, it is
+ *   written `*use*`, newline, as the space at the edge of a mark always was;
+ * - **a break beside a hard break is not written.** `text`, a newline, `<br>`,
+ *   a newline, `text` held a break on either side of the hard break, and the
+ *   hard break written as two spaces then stood alone on a line, which is a
+ *   blank line, so the paragraph split in two. The hard break ends the line
+ *   already.
  */
 export function softBreaksAsVoid(html: string): string {
   if (!html.includes(SOFT_BREAK_ATTRIBUTE)) return html;
-  return html.replace(/<span (data-soft-break=""[^>]*)> <\/span>/g, '<br $1>');
+  return html
+    .replace(/<span (data-soft-break=""[^>]*)> <\/span>/g, '<br $1>')
+    .replace(new RegExp(`(${VOID_BREAK})((?:</${MARK_TAG}>)+)`, 'g'), '$2$1')
+    .replace(new RegExp(`((?:<${MARK_TAG}>)+)(${VOID_BREAK})`, 'g'), '$2$1')
+    .replace(new RegExp(`${VOID_BREAK}(?=<br>)|(?<=<br>)${VOID_BREAK}`, 'g'), '');
 }
 
 /**
@@ -109,18 +132,39 @@ export function softBreaksAsVoid(html: string): string {
  */
 const ONE_LINE = `h1, h2, h3, h4, h5, h6, td, th, [${FOOTNOTE_DEFINITION_ATTRIBUTE}]`;
 
-function softBreakReplacement(node: HTMLElement): string {
-  if (node.closest(ONE_LINE) !== null) return ' ';
-  const space = decodeWhitespace(node.getAttribute(SOFT_BREAK_SPACE_ATTRIBUTE));
-  const indent = decodeWhitespace(node.getAttribute(SOFT_BREAK_INDENT_ATTRIBUTE));
-  return `${space}\n${indent}`;
+/**
+ * Four spaces `marked` takes from a continuation line of a list item, measured
+ * on `marked` 15.0.12: past the item's own indentation, a line indented by four
+ * or more is reported with four fewer, once, where a top-level paragraph or a
+ * quote reports every space. So an indentation of four or more read inside an
+ * item had four more in the file, and is written with them, or each save
+ * would take four again; one of zero to three may have had four more or none,
+ * and is written as read, which holds still.
+ */
+const ITEM_INDENT_TAKEN = '    ';
+
+function indentToWrite(node: HTMLElement, indent: string): string {
+  const inItem = node.closest('li, blockquote')?.nodeName === 'LI';
+  return inItem && indent.length >= ITEM_INDENT_TAKEN.length ? ITEM_INDENT_TAKEN + indent : indent;
 }
 
-/** Registered by `serialize.ts`, which is over the module size guideline. */
-export function addSoftBreakRules(turndown: TurndownService): void {
+function softBreakReplacement(node: HTMLElement, inCell: boolean): string {
+  if (inCell || node.closest(ONE_LINE) !== null) return ' ';
+  const space = decodeWhitespace(node.getAttribute(SOFT_BREAK_SPACE_ATTRIBUTE));
+  const indent = decodeWhitespace(node.getAttribute(SOFT_BREAK_INDENT_ATTRIBUTE));
+  return `${space}\n${indentToWrite(node, indent)}`;
+}
+
+/**
+ * Registered by `serialize.ts`, which is over the module size guideline.
+ * `inCell` answers whether a table cell is being written: the serializer
+ * writes a cell from its inner HTML alone, where the cell is no ancestor to
+ * find, so it says so itself.
+ */
+export function addSoftBreakRules(turndown: TurndownService, inCell: () => boolean): void {
   turndown.addRule('softBreak', {
     filter: (node) =>
       node.nodeName === 'BR' && (node as HTMLElement).hasAttribute(SOFT_BREAK_ATTRIBUTE),
-    replacement: (_content, node) => softBreakReplacement(node as HTMLElement),
+    replacement: (_content, node) => softBreakReplacement(node as HTMLElement, inCell()),
   });
 }

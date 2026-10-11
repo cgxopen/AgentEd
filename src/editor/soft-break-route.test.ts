@@ -130,6 +130,8 @@ describe('an unedited save keeps every wrap the file wrote (#571)', () => {
     ['a nested quote', '> > one two\n> > three four\n'],
     ['an item in a quote', '> - one two\n>   three four\n'],
     ['a continuation indented by three', 'one two\n   three four\n'],
+    // `marked` reports four fewer past four in an item; the four are written back.
+    ['an item continued eight past its marker', '- one two\n          three four\n'],
     ['a space before the break', 'one two \nthree four\n'],
     ['a link across the break', 'one [two\nthree](https://e.com) four\n'],
     ['emphasis across the break', 'one *two\nthree* four\n'],
@@ -164,6 +166,21 @@ describe('what an unedited save still writes another way, recorded under R-C2 (#
     // Known exception — an escape the file did not have: a wrapped line is a text node start.
     ['a wrapped line opening with a number', 'see\n2. three four\n', 'see\n2\\. three four\n'],
     ['a wrapped line opening with a hyphen', 'one\n-x four\n', 'one\n\\-x four\n'],
+    // The same exception as the lazy line: an item continued four to seven past
+    // its marker is read with the four taken, which cannot be told from none.
+    [
+      'an item continued four past its marker',
+      '- one two\n      three four\n',
+      '- one two\n  three four\n',
+    ],
+    // A mark ending on the break is closed before it, as at a space.
+    [
+      'emphasis ending on the break',
+      'one *two\n[three](https://e.com)*\n',
+      'one *two*\n[*three*](https://e.com)\n',
+    ],
+    // A break beside a hard break is not written: the hard break ends the line.
+    ['a raw br on a line of its own', 'one\n<br>\ntwo\n', 'one  \ntwo\n'],
   ])('%s', async (_label, file, written) => {
     const saved = await openAndSaveUnedited(file);
     expect(saved).toBe(written);
