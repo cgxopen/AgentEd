@@ -106,6 +106,15 @@ describe('an autolink that is no longer what the brackets say is an inline link 
   });
 });
 
+describe('an autolink inside a mark is an inline link (#567)', () => {
+  it('inside an emphasis, so the emphasis is kept', () => {
+    // The link mark is outermost, so the link holds the emphasis, not text.
+    expect(editorWith('*see <https://example.com>*').getMarkdown()).toBe(
+      '*see* [*https://example.com*](https://example.com)',
+    );
+  });
+});
+
 describe('a link that did not come from the file has no brackets (#567)', () => {
   it('a new link made in the editor is an inline link', () => {
     const editor = editorWith('See https://example.com now.');
