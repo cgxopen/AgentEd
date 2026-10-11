@@ -2,6 +2,7 @@ import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { addAutolinkRules } from './angle-autolink';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
+import { addBrSpellingRules } from './br-spelling';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
@@ -959,6 +960,9 @@ turndown.addRule('hardBreakInACell', {
 // After the rule above, which takes every `br`: turndown consults the rule
 // added last first, and this one takes only the soft break's.
 addSoftBreakRules(turndown, () => cellDepth > 0);
+// A `br` the file wrote in a line, written back as that tag (#577); a cell is
+// left to the rule above.
+addBrSpellingRules(turndown, () => cellDepth > 0);
 
 /** A table inside a cell, as one line of inline HTML. */
 function inlineTable(table: HTMLTableElement): string {

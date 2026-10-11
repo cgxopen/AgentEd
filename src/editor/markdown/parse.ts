@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked, Renderer, type Token } from 'marked';
 import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
+import { brElement, brSpelling } from './br-spelling';
 import { commentCarrier } from './comment-spelling';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
 import {
@@ -125,6 +126,10 @@ marked.use({
       // Raw HTML the editor cannot hold, with no text, kept as its bytes
       // (#563), after every route above has declined it.
       const kept = (token as { keptRawHtml?: boolean }).keptRawHtml === true;
+      // A `br` in a line keeps the spelling the file wrote (#577). In a cell
+      // the cell rule of #300 writes `<br>` whatever it carries, so none is read.
+      const spelling = token.block || renderingCells ? null : brSpelling(token.raw);
+      if (spelling !== null) return brElement(spelling);
       if (!token.block) return kept ? keptRawHtmlCarrier(token.raw, false) : own;
       // A wrapper around an image or text keeps its bytes the same way (#468).
       return (
@@ -192,6 +197,9 @@ marked.use({
     },
   },
 });
+
+/** Whether the cells of a GFM table are being rendered, where a `br` keeps no spelling (#577). */
+let renderingCells = false;
 
 // A wrapper spelled across three blocks, a start tag, a paragraph and an end
 // tag, is joined into one token before rendering (#468, shape 5), and drawn as
@@ -288,12 +296,18 @@ marked.use({
   renderer: {
     table(token) {
       let header = '';
-      for (const cell of token.header) header += this.tablecell(cell);
       let body = '';
-      for (const row of token.rows) {
-        let cells = '';
-        for (const cell of row) cells += this.tablecell(cell);
-        body += this.tablerow({ text: cells });
+      const outerCells = renderingCells;
+      renderingCells = true;
+      try {
+        for (const cell of token.header) header += this.tablecell(cell);
+        for (const row of token.rows) {
+          let cells = '';
+          for (const cell of row) cells += this.tablecell(cell);
+          body += this.tablerow({ text: cells });
+        }
+      } finally {
+        renderingCells = outerCells;
       }
       const rows = body ? `<tbody>${body}</tbody>` : '';
       const style = tableStyleAttribute(typeof token.raw === 'string' ? token.raw : '');

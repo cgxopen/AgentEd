@@ -139,6 +139,8 @@ describe('an unedited save keeps every wrap the file wrote (#571)', () => {
     ['a wrapped footnote definition', 'Text[^1].\n\n[^1]: one two\n    three four\n'],
     ['a CRLF paragraph', 'one two\r\nthree four\r\n'],
     ['a CRLF list item', '- one two\r\n  three four\r\n'],
+    // Since #577 the br keeps its tag, which ends no line, so both breaks stay.
+    ['a raw br on a line of its own', 'one\n<br>\ntwo\n'],
   ])('%s', async (_label, file) => {
     const saved = await openAndSaveUnedited(file);
     expect(saved).toBe(file);
@@ -179,8 +181,6 @@ describe('what an unedited save still writes another way, recorded under R-C2 (#
       'one *two\n[three](https://e.com)*\n',
       'one *two*\n[*three*](https://e.com)\n',
     ],
-    // A break beside a hard break is not written: the hard break ends the line.
-    ['a raw br on a line of its own', 'one\n<br>\ntwo\n', 'one  \ntwo\n'],
   ])('%s', async (_label, file, written) => {
     const saved = await openAndSaveUnedited(file);
     expect(saved).toBe(written);
@@ -211,6 +211,28 @@ describe('a soft break in a block that holds one line is written as a space (#57
     ];
     editor.editor.view.dispatch(editor.editor.state.tr.replaceWith(cell, cell + 1, content));
     expect(editor.getMarkdown()).toBe('| a | b |\n| --- | --- |\n| one two three four | y |');
+  });
+});
+
+describe('a break beside a hard break of two spaces is not written (#571)', () => {
+  it('a hard break between two breaks writes one line end, not a blank line', () => {
+    // A break on either side of a hard break with no tag: written, the two
+    // spaces would stand alone on a line, a blank line splitting the paragraph.
+    const editor = editorWith('one');
+    const { schema } = editor.editor;
+    const content = [
+      schema.text('one'),
+      schema.nodes.softBreak.create(),
+      schema.nodes.hardBreak.create(),
+      schema.nodes.softBreak.create(),
+      schema.text('two'),
+    ];
+    const paragraph = editor.editor.state.doc.firstChild;
+    if (!paragraph) throw new Error('no paragraph');
+    editor.editor.view.dispatch(
+      editor.editor.state.tr.replaceWith(1, 1 + paragraph.content.size, content),
+    );
+    expect(editor.getMarkdown()).toBe('one  \ntwo');
   });
 });
 
