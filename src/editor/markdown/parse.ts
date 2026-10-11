@@ -1,5 +1,5 @@
 import DOMPurify from 'dompurify';
-import { marked, type Token } from 'marked';
+import { marked, Renderer, type Token } from 'marked';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { commentCarrier } from './comment-spelling';
 import {
@@ -24,6 +24,7 @@ import {
 import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
 import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
+import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { stampedFromTheFile } from './stamped-attributes';
 import { isWholeHtmlTable, stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
@@ -140,8 +141,27 @@ marked.use({
 marked.use({
   renderer: {
     paragraph(token) {
-      const inline = this.parser.parseInline(token.tokens);
+      // A newline the text renderer turned into a soft break (#571) is a wrap
+      // only between two lines.
+      const inline = withoutEdgeBreaks(this.parser.parseInline(token.tokens));
       return inlineWrapperParagraph(token.raw, inline) ?? `<p>${inline}</p>\n`;
+    },
+  },
+});
+
+// A newline the file wrote inside a paragraph is a soft break the editor holds
+// (#571), drawn as a space and written back as the newline. A token `marked`
+// builds itself, the text it joins with a newline or the checkbox it puts in
+// front of a task item, carries `escaped`, and its newlines are left alone. The
+// rest is `marked`'s own text renderer, called rather than restated. With
+// `breaks`, the paste of plain text (R-C13), `marked` reads every such newline
+// as a `br` before this renderer sees it.
+marked.use({
+  renderer: {
+    text(token) {
+      const html = Renderer.prototype.text.call(this, token);
+      const built = ('tokens' in token && token.tokens) || ('escaped' in token && token.escaped);
+      return built ? html : withSoftBreaks(html);
     },
   },
 });

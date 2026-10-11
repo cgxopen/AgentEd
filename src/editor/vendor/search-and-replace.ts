@@ -144,15 +144,21 @@ function processSearches(
 	}
 
 	doc?.descendants((node, pos) => {
-		if (node.isText) {
+		// AGENTED-VENDOR-PATCH (#571): an inline leaf whose text is exactly one
+		// character per position, the soft break drawn as a space, joins the
+		// run around it as that text, so a phrase across it is found and the
+		// offsets in the run stay the document positions.
+		const leafText = node.isInline && node.isLeaf ? node.type.spec.leafText?.(node) : undefined;
+		if (node.isText || (leafText !== undefined && leafText.length === node.nodeSize)) {
+			const text = node.isText ? (node.text as string) : (leafText as string);
 			if (textNodesWithPosition[index]) {
 				textNodesWithPosition[index] = {
-					text: textNodesWithPosition[index].text + node.text,
+					text: textNodesWithPosition[index].text + text,
 					pos: textNodesWithPosition[index].pos,
 				};
 			} else {
 				textNodesWithPosition[index] = {
-					text: `${node.text}`,
+					text,
 					pos,
 				};
 			}

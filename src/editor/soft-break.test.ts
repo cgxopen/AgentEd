@@ -3,7 +3,8 @@ import readme from '../../README.md?raw';
 import { createEditor, type EditorInstance } from './setup';
 
 /**
- * #89 — a soft line break inside a paragraph is a **space**, never nothing.
+ * #89 — a soft line break inside a paragraph is never nothing. It was a
+ * **space** from #89 to #571, and is the newline the file had since #571.
  *
  * On `230b4d7` a soft break was handled two different ways depending on what
  * stood on either side of it. Between two text characters it collapsed to a
@@ -52,45 +53,48 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('a soft line break between two inline elements stays a space (#89)', () => {
+describe('a soft line break between two inline elements keeps them apart (#89, #571)', () => {
+  // #89 made the break a space where it had been nothing. Since #571 it is the
+  // newline the file had, so these come back byte for byte; the words still
+  // stand apart, which is what #89 was about.
   it.each([
-    ['two links', '[A](https://a)\n[B](https://b)', '[A](https://a) [B](https://b)'],
+    ['two links', '[A](https://a)\n[B](https://b)'],
     [
       'two badges — a link wrapping an image, the README case',
       '[![A](a.png)](https://a)\n[![B](b.png)](https://b)',
-      '[![A](a.png)](https://a) [![B](b.png)](https://b)',
     ],
-    ['two bold words', '**a**\n**b**', '**a** **b**'],
-    ['two code spans', '`a`\n`b`', '`a` `b`'],
-    ['text then an element', 'see\n[B](https://b)', 'see [B](https://b)'],
-    ['an element then text', '[A](https://a)\nsee', '[A](https://a) see'],
-    ['bold then italics', '**a**\n*b*', '**a** *b*'],
-  ])('keeps %s apart on open → save', (_label, markdown, expected) => {
+    ['two bold words', '**a**\n**b**'],
+    ['two code spans', '`a`\n`b`'],
+    ['text then an element', 'see\n[B](https://b)'],
+    ['an element then text', '[A](https://a)\nsee'],
+    ['bold then italics', '**a**\n*b*'],
+  ])('keeps %s apart on open → save, on their two lines', (_label, markdown) => {
     const editor = editorWith(markdown);
-    expect(editor.getMarkdown().trim()).toBe(expected);
+    expect(editor.getMarkdown().trim()).toBe(markdown);
   });
 
-  it('holds two separate marks, not one merged word, after open', () => {
+  it('holds two separate marks with the break between them, not one merged word', () => {
     // The byte-level assertion above would also pass if the two words were
     // merged and the serializer re-split them; this says the document model
     // itself kept them apart, which is what the reader sees on screen.
     const editor = editorWith('**a**\n**b**');
-    expect(editor.editor.getHTML()).toBe('<p><strong>a</strong> <strong>b</strong></p>');
+    expect(editor.editor.getHTML()).toBe(
+      '<p><strong>a</strong><span data-soft-break=""> </span><strong>b</strong></p>',
+    );
+    expect(editor.editor.getText()).toBe('a b');
   });
 });
 
-describe('KNOWN EXCEPTION — a soft line break is written as a space (R-C2)', () => {
-  it('collapses a wrapped paragraph into one line', () => {
-    // Recorded in REQUIREMENTS under R-C2. CommonMark reads a soft break as a
-    // space, so nothing changes when the file is rendered — but the bytes do,
-    // and the editor has no soft-break node that could carry the wrap back.
+describe('a soft line break is written as the newline the file had (#571)', () => {
+  // Until #571 a known R-C2 exception: the line was joined to the one above.
+  it('keeps a wrapped paragraph on its two lines', () => {
     const editor = editorWith('first line\nsecond line');
-    expect(editor.getMarkdown().trim()).toBe('first line second line');
+    expect(editor.getMarkdown().trim()).toBe('first line\nsecond line');
   });
 
-  it('collapses a three-line hard-wrapped paragraph the same way', () => {
+  it('keeps a three-line hard-wrapped paragraph on its three lines', () => {
     const editor = editorWith('one two\nthree four\nfive six');
-    expect(editor.getMarkdown().trim()).toBe('one two three four five six');
+    expect(editor.getMarkdown().trim()).toBe('one two\nthree four\nfive six');
   });
 });
 

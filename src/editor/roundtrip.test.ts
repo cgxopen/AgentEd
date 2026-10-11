@@ -127,7 +127,6 @@ afterEach(() => {
 type Expectation = 'identical' | { readonly writes: string; readonly because: string };
 
 /** A recorded R-C2 exception, named the way REQUIREMENTS names it. */
-const SOFT_BREAKS = 'R-C2: a soft line break becomes a space';
 const BACKTICK_RUNS = 'R-C2: backtick runs are escaped even when nothing can close them';
 const REDUNDANT_ESCAPE = 'R-C2: a redundant escape the file already had is not preserved';
 const INLINE_ELEMENT_NUMBER =
@@ -513,17 +512,9 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ],
   ['a task item whose whole body is a horizontal rule', '- [ ] ---', 'identical'],
 
-  // ── Soft line breaks (#89) ──
-  [
-    'a wrapped paragraph',
-    'first line\nsecond line',
-    { writes: 'first line second line', because: SOFT_BREAKS },
-  ],
-  [
-    'two inline elements that spanned two lines',
-    '**a**\n**b**',
-    { writes: '**a** **b**', because: SOFT_BREAKS },
-  ],
+  // ── Soft line breaks (#89, #571): the newline the file had ──
+  ['a wrapped paragraph', 'first line\nsecond line', 'identical'],
+  ['two inline elements that spanned two lines', '**a**\n**b**', 'identical'],
 
   // ── Escaping (#90, #96) ──
   ['an identifier with one underscore', 'The tokenizer is cl100k_base here.', 'identical'],

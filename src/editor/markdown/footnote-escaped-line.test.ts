@@ -129,8 +129,11 @@ describe('what the narrowing of start must not cost (#418)', () => {
     // where GitHub does let a footnote definition interrupt one. So the two
     // constructs differ in this position by intent rather than by accident,
     // and the row is here because the asymmetry is easy to read as a defect.
+    // Since #571 the second line stays a line of its own, its brackets
+    // escaped as they are anywhere in running text, so it is still no
+    // definition when the file is read again.
     expect(atTheEditor('See [docs].\n[docs]: https://example.com/d')).toBe(
-      'See \\[docs\\]. \\[docs\\]: https://example.com/d',
+      'See \\[docs\\].\n\\[docs\\]: https://example.com/d',
     );
   });
 });

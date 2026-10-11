@@ -75,6 +75,7 @@ import { isNodeSelected } from './node-selection';
 import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
+import { SoftBreak } from './soft-break-node';
 
 // ── The node that holds an HTML comment (#245) ──
 //
@@ -812,6 +813,8 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     HistoryStaysWithFocus,
     MarkdownComment,
     KeptRawHtml,
+    // A line break inside a paragraph, drawn as a space (#571).
+    SoftBreak,
     Superscript,
     Subscript,
     Keyboard,

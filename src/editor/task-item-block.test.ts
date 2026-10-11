@@ -122,11 +122,14 @@ describe('the checkbox of an item whose first child is a block (#157)', () => {
       '{"type":"paragraph","attrs":{"htmlBlockSource":null,"keptHtmlBlockSource":null},"content":[{"type":"text","text":"b"}]}',
     );
     expect(editor.getMarkdown()).toBe('- [ ] a\n  b');
-    // What the file says when it is opened again: one paragraph, the checkbox
-    // intact. The text is all there; the break between the paragraphs is not.
+    // What the file says when it is opened again: one paragraph wrapped over
+    // two lines, the checkbox intact. The text is all there and so is the
+    // line, written back as it is since #571; the paragraph break is not.
     instance?.destroy();
     instance = null;
-    expect(editorWith('- [ ] a\n  b').getMarkdown()).toBe('- [ ] a b');
+    const reopened = editorWith('- [ ] a\n  b');
+    expect(reopened.editor.state.doc.firstChild?.firstChild?.childCount).toBe(1);
+    expect(reopened.getMarkdown()).toBe('- [ ] a\n  b');
   });
 
   it.each(FIRST_CHILD_IS_A_BLOCK)(
