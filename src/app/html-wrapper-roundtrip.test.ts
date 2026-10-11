@@ -133,10 +133,12 @@ const BREADTH = WRAPPERS.flatMap(([wrapper, open, close]) =>
 );
 
 /**
- * The eight the route does not reach, recorded in REQUIREMENTS: a `picture` or
- * a `details` with blank lines inside, whose start tag shares its line with a
- * second tag, so the wrapper is not one start tag alone and nothing joins it.
- * Each keeps the loss it had, written back as below, and holds still.
+ * The four the route does not reach, recorded in REQUIREMENTS: a `picture`
+ * with blank lines inside, whose start tag shares its line with a second tag,
+ * so the wrapper is not one start tag alone and nothing joins it. Each keeps
+ * the loss it had, written back as below, and holds still. A `details` in the
+ * same layout was among them until #563, which keeps it as a region of several
+ * blocks; those four are byte for byte in the breadth rows above.
  */
 const NOT_REACHED: Readonly<Record<string, string>> = {
   'picture around an HTML image, blank lines inside': around(IMG),
@@ -146,14 +148,6 @@ const NOT_REACHED: Readonly<Record<string, string>> = {
   'picture around text, blank lines inside': around('Some text'),
   'picture around markdown text, blank lines inside': around(
     'Some **bold** and [link](https://example.com)',
-  ),
-  'details around an HTML image, blank lines inside': around(`More ${IMG}`),
-  'details around a markdown image, blank lines inside': around(
-    'More\n\n![pic](https://example.com/a.png)',
-  ),
-  'details around text, blank lines inside': around('More\n\nSome text'),
-  'details around markdown text, blank lines inside': around(
-    'More\n\nSome **bold** and [link](https://example.com)',
   ),
 };
 

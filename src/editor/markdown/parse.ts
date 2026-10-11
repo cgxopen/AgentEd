@@ -11,13 +11,17 @@ import {
   splitDefinition,
 } from './footnote';
 import {
+  detailsRegionBlock,
+  type HtmlRegionToken,
   type HtmlWrapperToken,
   headingBlock,
   inlineWrapperParagraph,
+  joinDetailsRegions,
   joinedWrapperBlock,
   joinWrappers,
   wrapperBlock,
 } from './html-wrapper';
+import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
 import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { stampedFromTheFile } from './stamped-attributes';
@@ -115,13 +119,16 @@ marked.use({
       // own bytes (#447). A table is stamped from `token.raw`, the bytes the
       // file wrote, so what it held is kept as it was.
       const own = stampedFromTheFile(text);
-      if (!token.block) return own;
+      // Raw HTML the editor cannot hold, with no text, kept as its bytes
+      // (#563), after every route above has declined it.
+      const kept = (token as { keptRawHtml?: boolean }).keptRawHtml === true;
+      if (!token.block) return kept ? keptRawHtmlCarrier(token.raw, false) : own;
       // A wrapper around an image or text keeps its bytes the same way (#468).
       return (
         stampTableSource(own, token.raw) ??
         headingBlock(own, token.raw) ??
         wrapperBlock(own, token.raw) ??
-        own
+        (kept ? keptRawHtmlCarrier(token.raw, true) : keepingRawHtml ? keepInsideBlock(own) : own)
       );
     },
   },
@@ -143,7 +150,14 @@ marked.use({
 // tag, is joined into one token before rendering (#468, shape 5), and drawn as
 // the paragraph it holds, carrying the bytes of all three.
 marked.use({
-  hooks: { processAllTokens: (tokens) => joinWrappers(tokens as Token[]) },
+  // Then the raw HTML #563 keeps is marked, once the wrappers have taken theirs.
+  hooks: {
+    processAllTokens: (tokens) => {
+      const joined = joinWrappers(tokens as Token[]);
+      // Kept bytes come from a file: a paste keeps none (#563 review).
+      return keepingRawHtml ? markKeptRawHtml(joinDetailsRegions(joined)) : joined;
+    },
+  },
   extensions: [
     {
       name: 'htmlWrapper',
@@ -157,6 +171,15 @@ marked.use({
         const startTag =
           wrapper.inlineStartTag === null ? null : stampedFromTheFile(wrapper.inlineStartTag);
         return joinedWrapperBlock(wrapper, content, startTag);
+      },
+    },
+    {
+      // A `details` holding several blocks (#563), drawn as its blocks.
+      name: 'htmlRegion',
+      level: 'block',
+      renderer(token) {
+        const region = token as unknown as HtmlRegionToken;
+        return detailsRegionBlock(region, this.parser.parse(region.inner));
       },
     },
   ],
@@ -322,7 +345,22 @@ export interface ParseOptions {
    * reflowing them into one line would lose it.
    */
   readonly breaks?: boolean;
+  /**
+   * Keep the raw HTML the editor cannot hold as its bytes (#563). On for a
+   * file; off for every paste. A rich paste is read through this function by
+   * `cleanPastedHtml` after the page is written as markdown, and a plain-text
+   * one as the markdown it is (owner decision of 2026-10-11 on #563). There the page text is
+   * written unescaped, so text that spelled a tag would come back as that tag,
+   * kept and written into the file live: measured on the review of #578, a
+   * paragraph showing `<span onclick=...></span>` as text was saved as that
+   * span. A paste drops such HTML, as it did before #563; the marks `sup`,
+   * `sub` and `kbd` are not bytes and still arrive.
+   */
+  readonly keepRawHtml?: boolean;
 }
+
+/** Whether the parse under way keeps raw HTML as bytes; see `keepRawHtml`. */
+let keepingRawHtml = true;
 
 // ── Footnote definitions, taken before `marked` can read them as links (#408) ──
 //
@@ -388,7 +426,14 @@ export function lexMarkdown(markdown: string): ReturnType<typeof marked.lexer> {
 }
 
 export function markdownToHtml(markdown: string, options: ParseOptions = {}): string {
-  const html = marked.parse(markdown, { async: false, breaks: options.breaks ?? false }) as string;
+  const outerKeeping = keepingRawHtml;
+  keepingRawHtml = options.keepRawHtml ?? true;
+  let html: string;
+  try {
+    html = marked.parse(markdown, { async: false, breaks: options.breaks ?? false }) as string;
+  } finally {
+    keepingRawHtml = outerKeeping;
+  }
 
   // A table's spelling and a list's spacing are already on the elements that
   // carry them: both are written by the renderers above, from the token

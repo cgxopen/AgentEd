@@ -138,9 +138,10 @@ describe('the nine names are read as text and written back as the file wrote the
   });
 
   it('a name that only begins like one is not touched', async () => {
-    // `<titlex>` is not one of the nine, so it is the raw HTML it always was.
+    // `<titlex>` is not one of the nine, so it is the raw HTML it always was:
+    // an unknown element, whose tags are kept as their bytes since #563.
     const file = 'Words <titlex>a</titlex> end.\n';
-    expect(await openAndSaveUnedited(file)).toBe('Words a end.\n');
+    expect(await openAndSaveUnedited(file)).toBe(file);
   });
 });
 

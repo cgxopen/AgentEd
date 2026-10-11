@@ -52,7 +52,10 @@ export function decodeComment(value: string | null): string | null {
   if (value === null || value === '') return null;
   try {
     const decoded = decodeURIComponent(value);
-    return isSingleComment(decoded) ? decoded : null;
+    // The indentation of a block comment travels with it (#563).
+    return /^[ \t]{0,3}(?=<)/.test(decoded) && isSingleComment(decoded.trimStart())
+      ? decoded
+      : null;
   } catch {
     return null;
   }
@@ -95,7 +98,11 @@ export const COMMENT_TAG = 'wbr';
  */
 export function commentCarrier(text: string, block: boolean): string | null {
   const trimmed = block ? text.replace(/\s+$/, '') : text;
-  if (!isSingleComment(trimmed)) return null;
+  // A block comment may be indented by up to three spaces and still be a block
+  // (#563): the indentation is kept in the bytes and left out of the test, which
+  // until #563 refused it, so DOMPurify removed it. Measured on the step zero of
+  // #563: 25 such comments in 12 files of 8706.
+  if (!isSingleComment(block ? trimmed.trimStart() : trimmed)) return null;
   // `wbr` is void, so it is written without a closing tag.
   const carrier = `<${COMMENT_TAG} ${MARKDOWN_COMMENT_ATTRIBUTE}="${encodeComment(trimmed)}">`;
   return block ? `<p>${carrier}</p>` : carrier;

@@ -205,3 +205,96 @@ describe.each([
     expect(again).toBe(saved);
   });
 });
+
+/**
+ * #563: the marks `sup`, `sub` and `kbd` draw their element with no attribute
+ * at all, so an event handler the file put on one is not written back, and
+ * nothing a file holds becomes live through them. The raw HTML #563 keeps as
+ * bytes is written back as the file had it, so it is live in the saved file
+ * exactly where it was live in the file, and nowhere else; and a carrier a file
+ * spells by hand is not believed (#447).
+ */
+describe('#563: the new marks and the kept bytes', () => {
+  it.each([
+    ['sup', 'The value is 2<sup onclick="alert(1)">n</sup>.\n'],
+    ['sub', 'Water is H<sub onmouseover="alert(1)">2</sub>O.\n'],
+    ['kbd', 'Press <kbd onfocus="alert(1)">S</kbd>.\n'],
+  ])('a %s with an event handler is written with none, and holds still', (_tag, file) => {
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(liveIn(saved)).toEqual([]);
+    expect(saved).toMatch(/<(sup|sub|kbd)>/);
+    expect(again).toBe(saved);
+  });
+
+  it('kept bytes are live in the saved file only where the file had them live', () => {
+    const file = 'Text <span onclick="alert(1)">red</span> here.\n';
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(liveIn(saved)).toEqual(liveIn(file));
+    expect(again).toBe(saved);
+  });
+
+  it('a wbr carrying data-raw-html, spelled by the file, writes no markup', () => {
+    const file = `a <wbr data-raw-html="${E(LIVE)}"> b\n`;
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+  });
+
+  it('an a with an href and text is drawn as a link, never kept as bytes', () => {
+    const instance = editorWith('See <a href="javascript&amp;colon;alert(1)">t</a> here.\n');
+    const { saved } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+  });
+});
+
+/**
+ * #563 review: a rich paste keeps no raw HTML as bytes. The page text is written
+ * unescaped on its way through the serializer and read again, so text that
+ * spelled a tag would come back as that tag; kept as bytes, it reached the file
+ * live, measured on `a7a164c`. Elements with no text, an event handler on each.
+ */
+describe('#563: a rich paste whose page text spells a tag', () => {
+  it.each([
+    ['a span with an event handler', '<p>&lt;span onclick=alert(1)&gt;&lt;/span&gt; word</p>'],
+    ['an svg with an onload', '<p>&lt;svg onload=alert(1)&gt;&lt;/svg&gt; word</p>'],
+    ['an unknown element', '<p>&lt;x-thing onmouseover=alert(1)&gt;&lt;/x-thing&gt; word</p>'],
+  ])('%s writes nothing live in the saved file', (_label, html) => {
+    const instance = editorWith('');
+    pasteHtml(instance, html);
+    const { saved, again } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+  });
+});
+
+/**
+ * #563, owner decision of 2026-10-11: a plain-text paste keeps no raw HTML as
+ * bytes either. It is read as markdown, so text that spelled a tag was kept
+ * and reached the file live, with nothing drawn; measured on `451a887`.
+ */
+describe('#563: a plain-text paste that spells a tag', () => {
+  function pastePlain(instance: EditorInstance, text: string): void {
+    const event = {
+      clipboardData: {
+        types: ['text/plain'],
+        getData: (t: string) => (t === 'text/plain' ? text : ''),
+        files: [],
+      },
+      preventDefault: () => undefined,
+    } as unknown as ClipboardEvent;
+    const { view } = instance.editor;
+    view.someProp('handlePaste', (handler) => handler(view, event, view.state.selection.content()));
+  }
+
+  it.each([
+    ['a span with an event handler', '<span onclick=alert(1)></span> word'],
+    ['an svg with an onload', '<svg onload=alert(1)></svg> word'],
+  ])('%s writes nothing live in the saved file', (_label, text) => {
+    const instance = editorWith('');
+    pastePlain(instance, text);
+    const { saved, again } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+    expect(saved).toBe('word');
+    expect(again).toBe(saved);
+  });
+});

@@ -83,6 +83,20 @@ export function htmlForSave(editor: Editor): string {
     tr.setNodeAttribute(pos, KEPT_HTML_BLOCK_SOURCE, node.attrs[HTML_BLOCK_SOURCE]);
     kept += 1;
   });
+  // A `details` holding several blocks (#563): where the bytes read again
+  // give the blocks the editor holds, they stand in for them. Replaced from
+  // the last back, through the mapping, so each range is where it was.
+  const regions = uneditedRegions(state.doc, schema);
+  for (const region of regions.reverse()) {
+    // Some text, which the rule writing the bytes never writes: turndown takes
+    // an empty paragraph as blank before any rule can see it.
+    const paragraph = schema.nodes.paragraph.create(
+      { [KEPT_HTML_BLOCK_SOURCE]: region.source },
+      schema.text('details'),
+    );
+    tr.replaceWith(tr.mapping.map(region.from), tr.mapping.map(region.to), paragraph);
+    kept += 1;
+  }
   return getHTMLFromFragment(kept > 0 ? tr.doc.content : state.doc.content, schema);
 }
 
@@ -149,4 +163,36 @@ export function isUneditedHtmlBlock(node: ProseMirrorNode, schema: Schema): bool
     block.attrs.level === node.attrs.level &&
     block.content.eq(node.content)
   );
+}
+
+/**
+ * The unedited `details` regions of `doc` (#563): a block carrying bytes that
+ * read again as more than one block, each equal to the block at the same place
+ * after it. A region whose blocks moved, or one of them edited, is not one.
+ */
+export function uneditedRegions(
+  doc: ProseMirrorNode,
+  schema: Schema,
+): { from: number; to: number; source: string }[] {
+  const found: { from: number; to: number; source: string }[] = [];
+  doc.descendants((node, pos, parent, index) => {
+    const source = node.attrs[HTML_BLOCK_SOURCE];
+    // A `details` alone, by the owner decision: any other wrapper whose content
+    // is several blocks keeps the loss #468 records.
+    if (typeof source !== 'string' || parent === null || !/^<details(?=[\s>])/i.test(source.trim()))
+      return;
+    const reread = parseDocument(schema, source);
+    if (reread.childCount < 2) return;
+    let size = 0;
+    for (let i = 0; i < reread.childCount; i++) {
+      const block = parent.maybeChild(index + i);
+      const want = reread.child(i);
+      if (!block || block.type !== want.type || !block.content.eq(want.content)) return;
+      if (block.attrs.level !== want.attrs.level) return;
+      size += block.nodeSize;
+    }
+    found.push({ from: pos, to: pos + size, source });
+    return false;
+  });
+  return found;
 }
