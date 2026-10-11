@@ -53,6 +53,7 @@ import {
   withoutTagAttribute,
 } from './image-spelling';
 import { KEPT_RAW_HTML_ATTRIBUTE } from './kept-raw-html';
+import { LINK_TITLE_DELIMITER_ATTRIBUTE } from './link-title';
 import { LIST_MARKER_ATTRIBUTE, LIST_NUMBERING_ATTRIBUTE } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import {
@@ -85,6 +86,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   AUTOLINK_ATTRIBUTE,
   LIST_NUMBERING_ATTRIBUTE,
   BR_SPELLING_ATTRIBUTE,
+  LINK_TITLE_DELIMITER_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */

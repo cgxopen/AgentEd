@@ -212,9 +212,10 @@ describe('what this change must not move (#408)', () => {
       'See [docs].\n\n[docs]: https://example.com/d',
       'See [docs](https://example.com/d).',
     ],
+    // Since #562 its title is written with it; the definition is still inlined.
     'a reference-style link with a title': [
       'See [docs].\n\n[docs]: https://example.com/d "The docs"',
-      'See [docs](https://example.com/d).',
+      'See [docs](https://example.com/d "The docs").',
     ],
     'a reference definition nobody uses': ['Plain.\n\n[docs]: https://example.com/d', 'Plain.'],
   };

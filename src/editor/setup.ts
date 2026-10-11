@@ -68,6 +68,7 @@ import {
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   pixelValue,
 } from './markdown/image-spelling';
+import { linkTitleMarkAttributes } from './markdown/link-title';
 import {
   LIST_MARKER_ATTRIBUTE,
   LIST_NUMBERING_ATTRIBUTE,
@@ -851,10 +852,11 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     Keyboard,
     FootnoteDefinition,
     Underline,
-    // A link the file wrote in angle brackets says so (#567).
+    // A link the file wrote in angle brackets says so (#567), and a link keeps
+    // its title and the delimiter of it (#562).
     Link.extend({
       addAttributes() {
-        return { ...this.parent?.(), ...autolinkMarkAttribute() };
+        return { ...this.parent?.(), ...autolinkMarkAttribute(), ...linkTitleMarkAttributes() };
       },
     }).configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link
