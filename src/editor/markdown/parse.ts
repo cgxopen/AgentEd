@@ -11,13 +11,17 @@ import {
   splitDefinition,
 } from './footnote';
 import {
+  detailsRegionBlock,
+  type HtmlRegionToken,
   type HtmlWrapperToken,
   headingBlock,
   inlineWrapperParagraph,
+  joinDetailsRegions,
   joinedWrapperBlock,
   joinWrappers,
   wrapperBlock,
 } from './html-wrapper';
+import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
 import { listMarkerAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { stampedFromTheFile } from './stamped-attributes';
@@ -115,13 +119,16 @@ marked.use({
       // own bytes (#447). A table is stamped from `token.raw`, the bytes the
       // file wrote, so what it held is kept as it was.
       const own = stampedFromTheFile(text);
-      if (!token.block) return own;
+      // Raw HTML the editor cannot hold, with no text, kept as its bytes
+      // (#563), after every route above has declined it.
+      const kept = (token as { keptRawHtml?: boolean }).keptRawHtml === true;
+      if (!token.block) return kept ? keptRawHtmlCarrier(token.raw, false) : own;
       // A wrapper around an image or text keeps its bytes the same way (#468).
       return (
         stampTableSource(own, token.raw) ??
         headingBlock(own, token.raw) ??
         wrapperBlock(own, token.raw) ??
-        own
+        (kept ? keptRawHtmlCarrier(token.raw, true) : keepInsideBlock(own))
       );
     },
   },
@@ -143,7 +150,11 @@ marked.use({
 // tag, is joined into one token before rendering (#468, shape 5), and drawn as
 // the paragraph it holds, carrying the bytes of all three.
 marked.use({
-  hooks: { processAllTokens: (tokens) => joinWrappers(tokens as Token[]) },
+  // Then the raw HTML #563 keeps is marked, once the wrappers have taken theirs.
+  hooks: {
+    processAllTokens: (tokens) =>
+      markKeptRawHtml(joinDetailsRegions(joinWrappers(tokens as Token[]))),
+  },
   extensions: [
     {
       name: 'htmlWrapper',
@@ -157,6 +168,15 @@ marked.use({
         const startTag =
           wrapper.inlineStartTag === null ? null : stampedFromTheFile(wrapper.inlineStartTag);
         return joinedWrapperBlock(wrapper, content, startTag);
+      },
+    },
+    {
+      // A `details` holding several blocks (#563), drawn as its blocks.
+      name: 'htmlRegion',
+      level: 'block',
+      renderer(token) {
+        const region = token as unknown as HtmlRegionToken;
+        return detailsRegionBlock(region, this.parser.parse(region.inner));
       },
     },
   ],

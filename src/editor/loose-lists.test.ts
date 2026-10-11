@@ -275,9 +275,11 @@ describe('a raw HTML list no longer costs the rest of the document its spacing',
 
   it('a details block holding a list costs the loose list nothing', () => {
     // The shape a README carries, and the reason this was reachable at all.
+    // Since #563 the `details` itself is kept as its bytes, a region of
+    // several blocks, where it used to be written as `more` and a list.
     const md =
       '- a\n\n- b\n\n<details>\n<summary>more</summary>\n<ul>\n<li>one</li>\n</ul>\n</details>';
-    expect(openAndSave(md)).toBe('- a\n\n- b\n\nmore\n\n- one');
+    expect(openAndSave(md)).toBe(md);
   });
 
   it('the hand-written list itself is written tight, which is what it was', () => {

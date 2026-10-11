@@ -25,6 +25,7 @@ import {
   imageMarkup,
   pixelValue,
 } from './image-spelling';
+import { addKeptRawHtmlRules } from './kept-raw-html';
 import { LIST_MARKER_ATTRIBUTE, markerFor } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
@@ -718,6 +719,9 @@ turndown.addRule('strikethrough', {
 // pipeline, since `parse.ts` encodes what it stamps, so what it answers for is
 // a `data-comment` a user document wrote by hand — and these bytes go into the
 // file verbatim.
+// Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
+addKeptRawHtmlRules(turndown);
+
 turndown.addRule('markdownComment', {
   filter: (node) =>
     node.nodeName === COMMENT_TAG.toUpperCase() &&
@@ -1020,8 +1024,8 @@ function cellInline(block: Element): string {
 //
 // AgentEd used to pad every cell of every table out to a uniform width,
 // whatever the file had: 628 of the 630 bytes by which an untouched save grew
-// `README.md`, and 488 of the 487 by which it grew `WORKFLOW.md`, since moved
-// out of this repository (#474) — the
+// `README.md`, and the 488 bytes it added to `WORKFLOW.md`, as REQUIREMENTS
+// records for #93, since moved out of this repository (#474) — the
 // largest single term in "an untouched save rewrites the user's file" (R-C2).
 // Minimal cells everywhere would have removed those bytes and moved the same
 // exception onto every file whose author aligned a table by hand, so what is
@@ -1281,6 +1285,9 @@ export interface SerializeOptions {
 }
 
 export function htmlToMarkdown(html: string, options: SerializeOptions = {}): string {
+  // Restored rather than cleared when this call ends, so a call made while
+  // another is writing does not switch the kept tables off under it (#288).
+  const outerWritingKeptTables = writingKeptTables;
   writingKeptTables = options.keepHtmlTables ?? false;
   // ── The one question that has to be asked of the whole document (#425) ──
   //
@@ -1308,6 +1315,6 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
     setDocumentCarriesTheMark(false);
-    writingKeptTables = false;
+    writingKeptTables = outerWritingKeptTables;
   }
 }

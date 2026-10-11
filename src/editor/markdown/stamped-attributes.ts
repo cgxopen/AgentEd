@@ -49,6 +49,7 @@ import {
   tagEnd,
   withoutTagAttribute,
 } from './image-spelling';
+import { KEPT_RAW_HTML_ATTRIBUTE } from './kept-raw-html';
 import { LIST_MARKER_ATTRIBUTE } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
@@ -65,6 +66,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   LIST_MARKER_ATTRIBUTE,
   BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
   MARKDOWN_COMMENT_ATTRIBUTE,
+  KEPT_RAW_HTML_ATTRIBUTE,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,

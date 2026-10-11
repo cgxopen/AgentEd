@@ -41,7 +41,10 @@ function encode(raw: string): string {
 /** The wrapper `raw` is, by its element name, or `null` where it is not one of them. */
 function wrapperName(raw: string): string | null {
   const match = ONE_ELEMENT.exec(raw.trim());
-  if (!match) return null;
+  // A wrapper of nothing wraps nothing: its bytes are kept whole by #563
+  // instead, where this route drew an empty paragraph that was written as
+  // nothing (examples 153 and 154).
+  if (!match || match[2].trim() === '') return null;
   const name = match[1].toLowerCase();
   return BLOCK_WRAPPERS.has(name) || INLINE_WRAPPERS.has(name) ? name : null;
 }
@@ -190,7 +193,9 @@ export function decodeKeptBlockSource(value: string | null): string | null {
   if (value === null || value === '') return null;
   try {
     const decoded = decodeURIComponent(value);
-    return holdsFilteredTag(decoded) || isHtmlWrapper(decoded) ? decoded : null;
+    return holdsFilteredTag(decoded) || isHtmlWrapper(decoded) || isDetailsRegion(decoded)
+      ? decoded
+      : null;
   } catch {
     return null;
   }
@@ -208,4 +213,106 @@ export function inlineWrapperParagraph(raw: string, inline: string): string | nu
   const name = wrapperName(raw);
   if (name === null || !INLINE_WRAPPERS.has(name)) return null;
   return `<div ${HTML_BLOCK_SOURCE_ATTRIBUTE}="${encode(raw)}">${inline}</div>\n`;
+}
+
+/**
+ * A `details` holding several blocks, kept as its bytes while it is untouched
+ * (#563, owner decision on #563, candidate a of the step zero).
+ *
+ * The usual spelling is the start tag and its `summary` as one HTML block, the
+ * body as markdown blocks after a blank line, and the end tag alone, so the
+ * join of shape 5 above, which takes one block between the tags, does not
+ * reach it: measured on the step zero of #563, 121 of 127 files holding a
+ * `details` lost it on an unedited save, keeping the summary and the body as
+ * paragraphs.
+ *
+ * The blocks are joined into one token holding all their bytes and drawn as
+ * they were drawn before, the summary as a paragraph first; that paragraph
+ * carries the bytes. At save `kept-html-table.ts` reads the bytes again, and
+ * where they give the blocks the editor holds, writes the bytes in their place.
+ * An edit to any of them lets the `details` go, as option i of #468 lets a
+ * wrapper go, and an undo brings the bytes back.
+ */
+export interface HtmlRegionToken {
+  readonly type: 'htmlRegion';
+  readonly raw: string;
+  /** The start tag and what shares its block, the summary as a rule. */
+  readonly opening: string;
+  /** The blocks between the opening and the end tag. */
+  readonly inner: Token[];
+}
+
+const DETAILS_OPEN = /^<details(?=[\s>])[^>]*>/i;
+
+/** Whether `raw` is one `details` region: its start tag first, its end tag last, no other inside. */
+export function isDetailsRegion(raw: string): boolean {
+  const text = raw.trim();
+  return (
+    DETAILS_OPEN.test(text) &&
+    /<\/details\s*>$/i.test(text) &&
+    (text.match(/<details(?=[\s>])/gi) ?? []).length === 1
+  );
+}
+
+/** Join each `details` spread over several blocks into one region token. */
+export function joinDetailsRegions(tokens: Token[]): Token[] {
+  const out: Token[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.type === 'blockquote' && token.tokens)
+      token.tokens = joinDetailsRegions(token.tokens);
+    if (token.type === 'list')
+      for (const item of token.items) item.tokens = joinDetailsRegions(item.tokens);
+    const opens =
+      token.type === 'html' &&
+      DETAILS_OPEN.test(token.raw.trim()) &&
+      !/<\/details\s*>/i.test(token.raw);
+    const end = opens ? closingDetails(tokens, i) : -1;
+    if (end > i + 1) {
+      const raw = tokens
+        .slice(i, end + 1)
+        .map((t) => t.raw)
+        .join('');
+      const region: HtmlRegionToken = {
+        type: 'htmlRegion',
+        raw,
+        opening: token.raw,
+        inner: tokens.slice(i + 1, end),
+      };
+      out.push(region as unknown as Token);
+      i = end;
+      continue;
+    }
+    out.push(token);
+  }
+  return out;
+}
+
+/** The index of the end tag alone that closes the `details` opened at `i`, or -1. */
+function closingDetails(tokens: Token[], i: number): number {
+  for (let j = i + 1; j < tokens.length; j++) {
+    const raw = tokens[j].raw;
+    if (tokens[j].type === 'html' && /^<\/details\s*>$/i.test(raw.trim())) return j;
+    if (/<\/?details(?=[\s>])/i.test(raw)) return -1;
+  }
+  return -1;
+}
+
+/**
+ * The region as the editor reads it: the text of its opening as a paragraph
+ * carrying the bytes, then its blocks as they render. An opening with no text
+ * stamps the first block when that is a paragraph or a heading; otherwise the
+ * blocks are drawn with nothing kept, the loss there was before.
+ */
+export function detailsRegionBlock(token: HtmlRegionToken, inner: string): string {
+  const template = document.createElement('template');
+  template.innerHTML = token.opening;
+  const text = (template.content.textContent ?? '').trim();
+  const stamp = `${HTML_BLOCK_SOURCE_ATTRIBUTE}="${encode(token.raw)}"`;
+  if (text !== '') {
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<p ${stamp}>${escaped}</p>\n${inner}`;
+  }
+  const first = /^(\s*<(?:p|h[1-6]))(?=[\s>])/i;
+  return first.test(inner) ? inner.replace(first, `$1 ${stamp}`) : inner;
 }

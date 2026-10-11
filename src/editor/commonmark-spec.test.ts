@@ -86,6 +86,8 @@ const CAUSES: Readonly<Record<string, Cause>> = {
     recorded:
       'a run of blank lines is written back as one, and a blank line at either end of the document is not kept',
   },
+  'div-text': { recorded: 'a raw `div` holding text is written as that text' },
+  'link-empty': { recorded: 'a raw `a` with an `href` and no text, or no end tag, is lost' },
   // Recorded for another case of the same mechanism.
   'marks-split': { recorded: 'two overlapping marks have exactly one nesting', caseNotNamed: true },
   'html-as-markdown': {

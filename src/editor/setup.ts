@@ -33,6 +33,7 @@ import {
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { createImageNodeView } from './image-resize';
+import { KeptRawHtml, Keyboard, Subscript, Superscript } from './inline-html';
 import { FootnoteShortcut } from './insert-footnote';
 import {
   HTML_BLOCK_SOURCE,
@@ -810,6 +811,10 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     // place in this list does not matter: it listens on the document.
     HistoryStaysWithFocus,
     MarkdownComment,
+    KeptRawHtml,
+    Superscript,
+    Subscript,
+    Keyboard,
     FootnoteDefinition,
     Underline,
     Link.configure({

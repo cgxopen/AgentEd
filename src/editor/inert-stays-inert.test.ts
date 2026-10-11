@@ -205,3 +205,44 @@ describe.each([
     expect(again).toBe(saved);
   });
 });
+
+/**
+ * #563: the marks `sup`, `sub` and `kbd` draw their element with no attribute
+ * at all, so an event handler the file put on one is not written back, and
+ * nothing a file holds becomes live through them. The raw HTML #563 keeps as
+ * bytes is written back as the file had it, so it is live in the saved file
+ * exactly where it was live in the file, and nowhere else; and a carrier a file
+ * spells by hand is not believed (#447).
+ */
+describe('#563: the new marks and the kept bytes', () => {
+  it.each([
+    ['sup', 'The value is 2<sup onclick="alert(1)">n</sup>.\n'],
+    ['sub', 'Water is H<sub onmouseover="alert(1)">2</sub>O.\n'],
+    ['kbd', 'Press <kbd onfocus="alert(1)">S</kbd>.\n'],
+  ])('a %s with an event handler is written with none, and holds still', (_tag, file) => {
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(liveIn(saved)).toEqual([]);
+    expect(saved).toMatch(/<(sup|sub|kbd)>/);
+    expect(again).toBe(saved);
+  });
+
+  it('kept bytes are live in the saved file only where the file had them live', () => {
+    const file = 'Text <span onclick="alert(1)">red</span> here.\n';
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(liveIn(saved)).toEqual(liveIn(file));
+    expect(again).toBe(saved);
+  });
+
+  it('a wbr carrying data-raw-html, spelled by the file, writes no markup', () => {
+    const file = `a <wbr data-raw-html="${E(LIVE)}"> b\n`;
+    const { saved, again } = twoSaves(editorWith(file));
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+  });
+
+  it('an a with an href and text is drawn as a link, never kept as bytes', () => {
+    const instance = editorWith('See <a href="javascript&amp;colon;alert(1)">t</a> here.\n');
+    const { saved } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+  });
+});
