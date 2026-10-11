@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked, Renderer, type Token } from 'marked';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { commentCarrier } from './comment-spelling';
+import { emphasisDelimiterAttribute } from './emphasis-delimiter';
 import {
   encodeIndents,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -162,6 +163,20 @@ marked.use({
       const html = Renderer.prototype.text.call(this, token);
       const built = ('tokens' in token && token.tokens) || ('escaped' in token && token.escaped);
       return built ? html : withSoftBreaks(html);
+    },
+  },
+});
+
+// The delimiter an emphasis or a strong emphasis was written with (#566), on
+// the element, so an underscore is written back as an underscore. The rest is
+// `marked`'s own `em` and `strong`, restated: the tag around the inline content.
+marked.use({
+  renderer: {
+    em(token) {
+      return `<em${emphasisDelimiterAttribute(token.raw)}>${this.parser.parseInline(token.tokens)}</em>`;
+    },
+    strong(token) {
+      return `<strong${emphasisDelimiterAttribute(token.raw)}>${this.parser.parseInline(token.tokens)}</strong>`;
     },
   },
 });

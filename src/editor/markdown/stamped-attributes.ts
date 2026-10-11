@@ -38,6 +38,7 @@
 
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
+import { EMPHASIS_DELIMITER_ATTRIBUTE } from './emphasis-delimiter';
 import {
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
@@ -78,6 +79,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   SOFT_BREAK_ATTRIBUTE,
   SOFT_BREAK_SPACE_ATTRIBUTE,
   SOFT_BREAK_INDENT_ATTRIBUTE,
+  EMPHASIS_DELIMITER_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */
