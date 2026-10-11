@@ -53,6 +53,7 @@ import {
   encodeComment,
   MARKDOWN_COMMENT_ATTRIBUTE,
 } from './markdown/comment-spelling';
+import { emphasisDelimiterMarkAttribute } from './markdown/emphasis-delimiter';
 import {
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
@@ -519,6 +520,14 @@ function starterKitWithLocalSchemaRules() {
       return registered.map((extension) => {
         if (extension.name === 'paragraph') return paragraphKeepingBlockSource(extension);
         if (extension.name === 'heading') return headingKeepingBlockSource(extension);
+        // The delimiter the file wrote, `_` or none (#566).
+        if (extension.name === 'bold' || extension.name === 'italic') {
+          return extension.extend({
+            addAttributes() {
+              return { ...this.parent?.(), ...emphasisDelimiterMarkAttribute() };
+            },
+          });
+        }
         if (extension.name === 'code') {
           return extension.extend({
             excludes: '',

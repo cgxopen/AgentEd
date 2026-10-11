@@ -4,6 +4,7 @@ import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquo
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
+import { addEmphasisDelimiterRules } from './emphasis-delimiter';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import {
   createNarrowedEscape,
@@ -722,6 +723,8 @@ turndown.addRule('strikethrough', {
 // file verbatim.
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
+// Emphasis the file wrote with underscores, written with them (#566).
+addEmphasisDelimiterRules(turndown);
 
 turndown.addRule('markdownComment', {
   filter: (node) =>

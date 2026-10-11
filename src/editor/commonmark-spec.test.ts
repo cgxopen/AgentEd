@@ -101,7 +101,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'indented-fenced': { breaks: 'R-C2 file', what: 'an indented code block is written fenced' },
   'blank-between': { breaks: 'R-C2 file', what: 'two adjacent blocks are written a line apart' },
   'fence-respelled': { breaks: 'R-C2 file', what: 'a fence is written with other delimiters' },
-  'underscore-em': { breaks: 'R-C2 file', what: 'underscore emphasis is written with asterisks' },
   'setext-atx': { breaks: 'R-C2 file', what: 'an underlined heading is written with hashes' },
   'list-item': { breaks: 'R-C2 file', what: 'a list item is written with other spacing' },
   'autolink-link': { breaks: 'R-C2 file', what: 'an autolink is written as an inline link' },
