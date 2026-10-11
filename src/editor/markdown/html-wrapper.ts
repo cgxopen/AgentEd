@@ -273,11 +273,22 @@ export function joinDetailsRegions(tokens: Token[]): Token[] {
         .slice(i, end + 1)
         .map((t) => t.raw)
         .join('');
+      // A summary written as a block of its own, after a blank line below the
+      // start tag, is part of the opening: drawn as its text, it carries the
+      // bytes as a summary on the start tag's line does.
+      const s = nextContent(tokens, i);
+      const summary =
+        s < end && tokens[s].type === 'html' && /^<summary(?=[\s>])/i.test(tokens[s].raw.trim())
+          ? s
+          : i;
       const region: HtmlRegionToken = {
         type: 'htmlRegion',
         raw,
-        opening: token.raw,
-        inner: tokens.slice(i + 1, end),
+        opening: tokens
+          .slice(i, summary + 1)
+          .map((t) => t.raw)
+          .join(''),
+        inner: tokens.slice(summary + 1, end),
       };
       out.push(region as unknown as Token);
       i = end;

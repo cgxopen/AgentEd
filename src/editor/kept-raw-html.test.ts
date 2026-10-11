@@ -131,6 +131,14 @@ describe('kept as bytes: an unedited save writes the file back and holds still (
       'Before.\n\n<details>\n<summary>More</summary>\n\nFirst.\n\n- a\n- b\n\n</details>\n\nAfter.\n',
     ],
     ['a details whose start tag stands alone', '<details>\n\nFirst.\n\nSecond.\n\n</details>\n'],
+    [
+      'a details whose summary follows a blank line',
+      '<details>\n\n<summary>Members</summary>\n\n#### Members\n\n* one\n\n</details>\n',
+    ],
+    [
+      'an anchor inside a details',
+      '<details>\n<summary>Steps</summary>\n\n* <a name="metadata"></a>Change it.\n\n</details>\n',
+    ],
   ])('%s', async (_label, file) => {
     const once = await openAndSaveUnedited(file);
     expect(once).toBe(file);

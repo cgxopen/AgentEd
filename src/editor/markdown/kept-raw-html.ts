@@ -206,7 +206,8 @@ export function markKeptRawHtml(tokens: Token[]): Token[] {
         open = verdict.kept ? verdict.after : followLinks(raw, open);
       }
       const node = token as unknown as Record<string, unknown>;
-      for (const key of ['tokens', 'items', 'header']) {
+      // `inner` holds the blocks of a `details` region (#563).
+      for (const key of ['tokens', 'items', 'header', 'inner']) {
         const child = node[key];
         if (Array.isArray(child)) walk(child as Token[]);
       }
