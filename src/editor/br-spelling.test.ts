@@ -83,8 +83,8 @@ describe('what stays as it was (#577)', () => {
     expect(editorWith('one  \ntwo').getMarkdown()).toBe('one  \ntwo');
   });
 
-  it('a backslash is written as two spaces, its own recorded exception', () => {
-    expect(editorWith('one\\\ntwo').getMarkdown()).toBe('one  \ntwo');
+  it('a backslash stays a backslash (#584)', () => {
+    expect(editorWith('one\\\ntwo').getMarkdown()).toBe('one\\\ntwo');
   });
 
   it('a br in a table cell is written as the cell rule of #300 writes it', () => {
@@ -126,5 +126,62 @@ describe('an edit beside a kept br (#577)', () => {
     const editor = editorWith('one<br>\ntwo');
     editor.editor.chain().setTextSelection(endOf(editor, 'two')).insertContent(' more').run();
     expect(editor.getMarkdown()).toBe('one<br>\ntwo more');
+  });
+});
+
+describe('a block of br tags alone is kept, and drawn as before (#584)', () => {
+  it.each([
+    ['one br between two paragraphs', 'one\n\n<br>\n\ntwo'],
+    ['one br with a slash', 'one\n\n<br />\n\ntwo'],
+    ['several lines of them', 'one\n\n<br>\n<br>\n<br>\n\ntwo'],
+    ['several lines, the later ones indented', 'one\n\n<br>\n  <br>\n\ntwo'],
+    ['next to a heading and a list', '# Head\n\n<br>\n\n- item'],
+  ])('%s', (_label, markdown) => {
+    const editor = editorWith(markdown);
+    expect(editor.getMarkdown()).toBe(markdown);
+    expect(editorWith(editor.getMarkdown()).getMarkdown()).toBe(markdown);
+  });
+
+  it('is drawn as a paragraph of hard breaks, as before', () => {
+    const editor = editorWith('one\n\n<br>\n\ntwo');
+    const types: string[] = [];
+    editor.editor.state.doc.child(1).forEach((node) => {
+      types.push(node.type.name);
+    });
+    expect(types).toEqual(['hardBreak']);
+  });
+
+  it('loses the indentation of its first line, recorded under R-C2', () => {
+    expect(editorWith('one\n\n  <br>\n  <br>\n\ntwo').getMarkdown()).toBe(
+      'one\n\n<br>\n  <br>\n\ntwo',
+    );
+  });
+
+  it('typing in the paragraph after it keeps it', () => {
+    const editor = editorWith('one\n\n<br>\n\ntwo');
+    editor.editor.chain().setTextSelection(endOf(editor, 'two')).insertContent(' more').run();
+    expect(editor.getMarkdown()).toBe('one\n\n<br>\n\ntwo more');
+  });
+});
+
+describe('a trailing backslash keeps its spelling (#584)', () => {
+  it.each([
+    ['in a paragraph', 'one\\\ntwo'],
+    ['in a list item', '- one\\\n  two'],
+    ['in a quote', '> one\\\n> two'],
+  ])('%s', (_label, markdown) => {
+    expect(editorWith(markdown).getMarkdown()).toBe(markdown);
+  });
+
+  it('a backslash ending a paragraph is no break, and keeps the escape it had on main', () => {
+    // Known exception: an escape the file did not have; unchanged by #584.
+    expect(editorWith('end\\').getMarkdown()).toBe('end\\\\');
+  });
+
+  it('a page that spells a backslash on the attribute pastes two spaces (#447)', () => {
+    const editor = editorWith('start');
+    editor.editor.commands.setTextSelection(1);
+    paste(editor, '<p>one<br data-br-spelling="\\">two</p>', 'one\ntwo');
+    expect(editor.getMarkdown()).toBe('one  \ntwostart');
   });
 });

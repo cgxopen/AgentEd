@@ -1,4 +1,5 @@
 import type TurndownService from 'turndown';
+import { softBreakElement } from './soft-break';
 
 /**
  * A line break the file wrote as a `br` tag, written back as that tag (#577,
@@ -22,8 +23,10 @@ import type TurndownService from 'turndown';
  * and a bracket has no place in one.
  *
  * **A hard break with no attribute is written as before**: two spaces from
- * Shift+Enter or a file that spelled them, a backslash as two spaces as its
- * own exception records, and `<br>` in a table cell by #300.
+ * Shift+Enter, a paste or a file that spelled them, and `<br>` in a table cell
+ * by #300. Since #584 a trailing backslash carries the same attribute, and a
+ * block of `br` tags alone is read as the paragraph of hard breaks it is drawn
+ * as; both are below.
  *
  * ── The newline after it ──
  *
@@ -40,11 +43,53 @@ export const BR_SPELLING_ATTRIBUTE = 'data-br-spelling';
 /** The tags carried: `br` in any case, an optional slash, no attribute. */
 const PLAIN_BR = /^br ?\/?$/i;
 
+/**
+ * A hard break the file wrote as a trailing backslash (#584, owner decision on
+ * #584): the same attribute, holding the backslash itself. Measured on #583:
+ * 311 in 62 files of the corpus, written as two spaces until #584.
+ */
+const BACKSLASH = '\\';
+
+/** Whether an attribute value is one this module wrote. */
+function isSpelling(value: string): boolean {
+  return value === BACKSLASH || PLAIN_BR.test(value);
+}
+
 /** The spelling a raw inline HTML token holds, or `null` where it is not one plain `br`. */
 export function brSpelling(raw: string): string | null {
   const match = /^<([^<>]*)>$/.exec(raw.trim());
   const inner = match?.[1] ?? '';
   return PLAIN_BR.test(inner) ? inner : null;
+}
+
+/** The element for a `br` token of `marked`, a backslash before a newline kept as such. */
+export function hardBreakElement(raw: string): string {
+  return raw.startsWith(BACKSLASH) ? brElement(BACKSLASH) : '<br>';
+}
+
+/**
+ * A block of `br` tags alone, a line of its own between blank lines, as the
+ * paragraph of hard breaks the editor already drew it as (#584, route b of
+ * the step zero, owner decision on #584), each keeping its tag and each line
+ * after the first its newline and indentation. `null` for any other block.
+ *
+ * It used to be drawn so and written as a line of two spaces, which is a blank
+ * line, so the next open dropped it: 566 tags in 93 files of the corpus. The
+ * one thing not kept is the indentation of the first line, which a paragraph
+ * cannot carry: 12 blocks in 12 files, recorded under R-C2.
+ */
+export function brBlockParagraph(raw: string): string | null {
+  const body = raw.replace(/\s+$/, '');
+  const lines = body.split('\n');
+  if (!lines.every((line) => /^[ \t]*(?:<br ?\/?>)+$/i.test(line))) return null;
+  const inner = lines
+    .map((line, i) => {
+      const indent = /^[ \t]*/.exec(line)?.[0] ?? '';
+      const tags = Array.from(line.matchAll(/<(br ?\/?)>/gi), (m) => brElement(m[1] ?? 'br'));
+      return (i === 0 ? '' : softBreakElement('', indent)) + tags.join('');
+    })
+    .join('');
+  return `<p>${inner}</p>\n`;
 }
 
 /** The element for a plain `br` token, carrying its spelling. */
@@ -59,10 +104,10 @@ export function brSpellingNodeAttribute() {
       default: null as string | null,
       parseHTML: (element: HTMLElement) => {
         const value = element.getAttribute(BR_SPELLING_ATTRIBUTE) ?? '';
-        return PLAIN_BR.test(value) ? value : null;
+        return isSpelling(value) ? value : null;
       },
       renderHTML: (attributes: Record<string, unknown>) =>
-        typeof attributes.spelling === 'string' && PLAIN_BR.test(attributes.spelling)
+        typeof attributes.spelling === 'string' && isSpelling(attributes.spelling)
           ? { [BR_SPELLING_ATTRIBUTE]: attributes.spelling }
           : {},
     },
@@ -79,9 +124,12 @@ export function addBrSpellingRules(turndown: TurndownService, inCell: () => bool
   turndown.addRule('brSpelling', {
     filter: (node) => {
       if (node.nodeName !== 'BR' || inCell()) return false;
-      return PLAIN_BR.test((node as HTMLElement).getAttribute(BR_SPELLING_ATTRIBUTE) ?? '');
+      return isSpelling((node as HTMLElement).getAttribute(BR_SPELLING_ATTRIBUTE) ?? '');
     },
-    replacement: (_content, node) =>
-      `<${(node as HTMLElement).getAttribute(BR_SPELLING_ATTRIBUTE)}>`,
+    replacement: (_content, node) => {
+      const spelling = (node as HTMLElement).getAttribute(BR_SPELLING_ATTRIBUTE);
+      // A backslash ends its line itself, as two spaces do; a tag does not.
+      return spelling === BACKSLASH ? `${BACKSLASH}\n` : `<${spelling}>`;
+    },
   });
 }

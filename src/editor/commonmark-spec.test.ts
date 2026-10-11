@@ -71,7 +71,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'soft-break': { recorded: 'soft line breaks become spaces' },
   'lazy-line': { recorded: 'a lazy continuation line is written with the marker of its container' },
   'rule-hyphens': { recorded: 'a horizontal rule is written with three hyphens' },
-  'backslash-break': { recorded: 'backslash hard breaks' },
   'span-width': {
     recorded: "a code span's delimiter run is written at the shortest width that still closes it",
   },

@@ -394,8 +394,8 @@ describe('the clipboard (#571)', () => {
 describe('what the break must not change (#571, the regression half)', () => {
   it.each([
     ['two spaces', 'one two  \nthree four', 'one two  \nthree four'],
-    // Known exception — backslash hard breaks: unchanged by #571.
-    ['a backslash', 'one two\\\nthree four', 'one two  \nthree four'],
+    // Written as the file had it since #584.
+    ['a backslash', 'one two\\\nthree four', 'one two\\\nthree four'],
   ])('a hard break spelled with %s stays a hard break', (_l, file, written) => {
     const editor = editorWith(file);
     expect(firstParagraph(editor)).toEqual(['text:one two', 'hardBreak', 'text:three four']);
