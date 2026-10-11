@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked, Renderer, type Token } from 'marked';
+import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { commentCarrier } from './comment-spelling';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
@@ -177,6 +178,17 @@ marked.use({
     },
     strong(token) {
       return `<strong${emphasisDelimiterAttribute(token.raw)}>${this.parser.parseInline(token.tokens)}</strong>`;
+    },
+  },
+});
+
+// A link the file wrote in angle brackets is marked as one (#567), so it can
+// be written back that way while it is untouched. The rest is `marked`'s own
+// link renderer, called rather than restated.
+marked.use({
+  renderer: {
+    link(token) {
+      return withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw);
     },
   },
 });
