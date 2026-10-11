@@ -1,5 +1,6 @@
 import TurndownService, { type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
+import { addAutolinkRules } from './angle-autolink';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
@@ -725,6 +726,8 @@ turndown.addRule('strikethrough', {
 addKeptRawHtmlRules(turndown);
 // Emphasis the file wrote with underscores, written with them (#566).
 addEmphasisDelimiterRules(turndown);
+// A link the file wrote in angle brackets, written back so while untouched (#567).
+addAutolinkRules(turndown);
 
 turndown.addRule('markdownComment', {
   filter: (node) =>

@@ -43,6 +43,7 @@ import {
   KEPT_HTML_SOURCE,
 } from './kept-html-table';
 import { isRelativeLinkAddress } from './link-url';
+import { autolinkMarkAttribute } from './markdown/angle-autolink';
 import {
   BARE_BLANK_MARKER,
   BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE,
@@ -829,7 +830,12 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     Keyboard,
     FootnoteDefinition,
     Underline,
-    Link.configure({
+    // A link the file wrote in angle brackets says so (#567).
+    Link.extend({
+      addAttributes() {
+        return { ...this.parent?.(), ...autolinkMarkAttribute() };
+      },
+    }).configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link
       // through the platform layer (wired in main.ts).
       openOnClick: false,
