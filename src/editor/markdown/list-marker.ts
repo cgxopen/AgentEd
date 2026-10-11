@@ -98,3 +98,44 @@ export function markerFor(value: string | null, ordered: boolean): string {
   if (value !== null && (admitted as readonly string[]).includes(value)) return value;
   return ordered ? DEFAULT_ORDERED : DEFAULT_BULLET;
 }
+
+/**
+ * An ordered list numbered with one number throughout, `1.`, `1.`, `1.` (#569,
+ * owner decision of 2026-10-09: repaired before 1.0.0).
+ *
+ * Every ordered list used to be written with its items counted up from its
+ * start, so such a list came back `1.`, `2.`, `3.`: the same rendering, other
+ * bytes, in 83 of 1985 public files measured by AMP on #569. Measured on 8706
+ * files of this machine: 3803 ordered lists, 3136 counted up, 422 of a single
+ * item, 233 with one number throughout, every one of them `1.`, and 12
+ * numbered some other way, which keep being counted up.
+ *
+ * The style is read from the item raws `marked` hands the list renderer, as the
+ * marker above is, and carried on the list beside it. A list of one item has
+ * no style to read, and a list the editor makes carries none, so both are
+ * counted up as before. What is shown is not touched: the editor draws an
+ * ordered list from its start, so the reader sees 1, 2, 3 either way, and a
+ * list continued after a paragraph keeps continuing on screen (R-C1, D1).
+ */
+export const LIST_NUMBERING_ATTRIBUTE = 'data-list-numbering';
+
+/** The value for a list whose items all carry the same number. */
+export const ONE_NUMBER = 'one';
+
+/** The number at the head of an item's raw, or `null` where there is none. */
+function numberOf(raw: string): number | null {
+  const match = /^[ \t]*(\d{1,9})[.)]/.exec(raw);
+  return match === null ? null : Number(match[1]);
+}
+
+/** The attribute to write on an ordered list whose items share one number. */
+export function listNumberingAttribute(
+  items: readonly { raw: string }[],
+  ordered: boolean,
+): string {
+  if (!ordered || items.length < 2) return '';
+  const first = numberOf(items[0]?.raw ?? '');
+  if (first === null) return '';
+  const same = items.every((item) => numberOf(item.raw) === first);
+  return same ? ` ${LIST_NUMBERING_ATTRIBUTE}="${ONE_NUMBER}"` : '';
+}
