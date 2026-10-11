@@ -42,7 +42,7 @@ export const KEPT_RAW_HTML_TAG = 'wbr';
  * exceptions; `details`, `summary`, `p`, `center` and the headings are wrappers
  * of #468 and #470; the cell markup is #300; a table is #283.
  */
-const HELD = new Set([
+export const HELD = new Set([
   'a',
   'img',
   'br',
@@ -99,7 +99,7 @@ const HELD = new Set([
  * loses nothing even where its tags are `div` or `p`: an empty `div` with
  * attributes, examples 153 and 154 (#563).
  */
-const DRAWS = new Set([
+export const DRAWS = new Set([
   'img',
   'br',
   'hr',
@@ -120,7 +120,7 @@ const DRAWS = new Set([
 ]);
 
 /** One piece of markup: a construct, or a start or end tag. */
-const PIECE =
+export const PIECE =
   /<!--(?:-?>|[\s\S]*?-->)|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<![A-Za-z][^>]*>|<(\/?)([A-Za-z][A-Za-z0-9-]*)((?:\s(?:[^>"']|"[^"]*"|'[^']*')*)?)\/?>/g;
 
 /** Whether a start tag carries an `href`, which makes an `a` a link. */
@@ -154,11 +154,15 @@ export function keptPiece(
   let { kept, links } = before;
   const refused = { kept: false, after: before };
   if (holdsFilteredTag(text)) return refused;
-  let rest = text;
+  // One pass: the text between two pieces is read once, where it lies, so the
+  // cost is linear in the token (#563 review: rebuilding the rest with one
+  // replacement per piece made a 640 KB svg take seconds).
+  let end = 0;
   let pieces = 0;
   for (const match of text.matchAll(PIECE)) {
+    if (text.slice(end, match.index).trim() !== '') return refused;
+    end = match.index + match[0].length;
     pieces++;
-    rest = rest.replace(match[0], '');
     const name = match[2]?.toLowerCase();
     if (name === undefined) continue; // a comment, an instruction, a declaration, CDATA
     if (name === 'a') {
@@ -174,7 +178,7 @@ export function keptPiece(
     }
     if (refusedTags.has(name)) return refused;
   }
-  if (pieces === 0 || rest.trim() !== '') return refused;
+  if (pieces === 0 || text.slice(end).trim() !== '') return refused;
   return { kept: true, after: { kept, links } };
 }
 
@@ -190,13 +194,20 @@ function followLinks(text: string, before: AnchorsOpen): AnchorsOpen {
   return { kept, links };
 }
 
+/** How deep `markKeptRawHtml` walks the token tree. */
+const MAX_DEPTH = 200;
+
 /**
  * Mark the `html` tokens this route takes, before anything is rendered. A walk
  * over the whole token list because an `a` without an `href` and its `</a>`
  * are two inline tokens with text between them, and only the pair decides.
  */
 export function markKeptRawHtml(tokens: Token[]): Token[] {
-  const walk = (list: Token[]): void => {
+  const walk = (list: Token[], depth: number): void => {
+    // Past this nesting nothing more is marked, and its raw HTML is dropped as
+    // it was before #563: a bound on a recursion that had none, recorded on the
+    // review of #578.
+    if (depth > MAX_DEPTH) return;
     let open = NONE_OPEN;
     for (const token of list) {
       if (token.type === 'html') {
@@ -209,13 +220,40 @@ export function markKeptRawHtml(tokens: Token[]): Token[] {
       // `inner` holds the blocks of a `details` region (#563).
       for (const key of ['tokens', 'items', 'header', 'inner']) {
         const child = node[key];
-        if (Array.isArray(child)) walk(child as Token[]);
+        if (Array.isArray(child)) walk(child as Token[], depth + 1);
       }
-      if (Array.isArray(node.rows)) for (const row of node.rows as Token[][]) walk(row);
+      if (Array.isArray(node.rows)) for (const row of node.rows as Token[][]) walk(row, depth + 1);
     }
+    coalesce(list);
   };
-  walk(tokens);
+  walk(tokens, 0);
   return tokens;
+}
+
+/**
+ * Inline tokens this route takes that stand next to each other become one, so
+ * a run of tags is one carrier rather than one per tag (#563 review). Measured:
+ * an inline `svg` of 32000 `path` elements was 32000 carriers, and the save
+ * took 7.6 s against 17 ms for the same bytes as one carrier, since turndown
+ * joins its output once per sibling and each join reads the output so far.
+ * Merged in place, in one pass over the list.
+ */
+function coalesce(list: Token[]): void {
+  let write = 0;
+  for (let read = 0; read < list.length; read++) {
+    const token = list[read] as Token & { keptRawHtml?: boolean; block?: boolean };
+    const previous = write > 0 ? (list[write - 1] as typeof token) : null;
+    const inlineKept = (t: typeof token | null) =>
+      t !== null && t.type === 'html' && t.keptRawHtml === true && t.block !== true;
+    if (inlineKept(token) && inlineKept(previous) && previous !== null) {
+      const merged = previous as unknown as { raw: string; text: string };
+      merged.raw += token.raw;
+      merged.text += (token as unknown as { text: string }).text;
+      continue;
+    }
+    list[write++] = token;
+  }
+  list.length = write;
 }
 
 /** The carrier for a taken token: inline, or a paragraph holding it for a block. */
@@ -259,7 +297,7 @@ export function decodeKeptRawHtml(value: string | null): string | null {
  * follows it on its line, so it needs no such guard.
  */
 export function keepInsideBlock(html: string): string {
-  const visible = (part: string) => part.replace(PIECE, '').trim() !== '';
+  const text = visibleText(html);
   return html.replace(
     PIECE,
     (piece, close: string | undefined, name: string | undefined, _a, at: number) => {
@@ -270,11 +308,37 @@ export function keepInsideBlock(html: string): string {
           : keptRawHtmlCarrier(piece, false);
       }
       void close;
-      const before = visible(html.slice(0, at));
-      const after = visible(html.slice(at + piece.length));
+      const before = text.first >= 0 && text.first < at;
+      const after = text.last > at + piece.length;
       return !before && after ? piece : keptRawHtmlCarrier(piece, false);
     },
   );
+}
+
+/**
+ * Where the text of `html` begins and ends, outside every piece of markup:
+ * the offset of its first visible character and the end of its last, or -1
+ * for both when it has none. Read in one pass, so that asking it of every
+ * construct of a block costs one scan of the block and not one per construct
+ * (#563 review).
+ */
+function visibleText(html: string): { first: number; last: number } {
+  let first = -1;
+  let last = -1;
+  let end = 0;
+  const gap = (from: number, to: number) => {
+    const part = html.slice(from, to);
+    const at = part.search(/\S/);
+    if (at < 0) return;
+    if (first < 0) first = from + at;
+    last = to;
+  };
+  for (const match of html.matchAll(PIECE)) {
+    gap(end, match.index);
+    end = match.index + match[0].length;
+  }
+  gap(end, html.length);
+  return { first, last };
 }
 
 /** The marks for `sup`, `sub` and `kbd`, written back as the tag, plain (#563). */

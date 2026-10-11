@@ -108,7 +108,9 @@ export function isPlainPasteShortcut(event: KeyboardEvent): boolean {
  * handler or a heading into a file through one paste.
  */
 export function cleanPastedHtml(html: string): string {
-  return markdownToHtml(htmlToMarkdown(withoutStampedAttributes(html)));
+  // A paste keeps no raw HTML as bytes: what the page showed as text is not
+  // markup (#563 review).
+  return markdownToHtml(htmlToMarkdown(withoutStampedAttributes(html)), { keepRawHtml: false });
 }
 
 /**

@@ -305,3 +305,18 @@ describe('a paste (#563, R-C13)', () => {
     expect(await save(instance)).toBe(`${TEXT}\n`);
   });
 });
+
+describe('the walk that marks kept bytes is bounded (#578 review)', () => {
+  it('marks an anchor nested within the bound and none past it', () => {
+    const nested = (depth: number) => `${'> '.repeat(depth)}<a name="x"></a>\n`;
+    const kinds = (markdown: string) => {
+      const found: string[] = [];
+      editorWith(markdown).editor.state.doc.descendants((node) => {
+        if (node.type.name === 'keptRawHtml') found.push(node.type.name);
+      });
+      return found;
+    };
+    expect(kinds(nested(10))).toEqual(['keptRawHtml']);
+    expect(kinds(nested(260))).toEqual([]);
+  });
+});

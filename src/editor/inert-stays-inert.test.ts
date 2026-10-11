@@ -246,3 +246,23 @@ describe('#563: the new marks and the kept bytes', () => {
     expect(liveIn(saved)).toEqual([]);
   });
 });
+
+/**
+ * #563 review: a rich paste keeps no raw HTML as bytes. The page text is written
+ * unescaped on its way through the serializer and read again, so text that
+ * spelled a tag would come back as that tag; kept as bytes, it reached the file
+ * live, measured on `a7a164c`. Elements with no text, an event handler on each.
+ */
+describe('#563: a rich paste whose page text spells a tag', () => {
+  it.each([
+    ['a span with an event handler', '<p>&lt;span onclick=alert(1)&gt;&lt;/span&gt; word</p>'],
+    ['an svg with an onload', '<p>&lt;svg onload=alert(1)&gt;&lt;/svg&gt; word</p>'],
+    ['an unknown element', '<p>&lt;x-thing onmouseover=alert(1)&gt;&lt;/x-thing&gt; word</p>'],
+  ])('%s writes nothing live in the saved file', (_label, html) => {
+    const instance = editorWith('');
+    pasteHtml(instance, html);
+    const { saved, again } = twoSaves(instance);
+    expect(liveIn(saved)).toEqual([]);
+    expect(again).toBe(saved);
+  });
+});
