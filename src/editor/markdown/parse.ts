@@ -2,7 +2,7 @@ import DOMPurify from 'dompurify';
 import { marked, Renderer, type Token } from 'marked';
 import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
-import { brElement, brSpelling } from './br-spelling';
+import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
 import { commentCarrier } from './comment-spelling';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
 import {
@@ -126,6 +126,10 @@ marked.use({
       // Raw HTML the editor cannot hold, with no text, kept as its bytes
       // (#563), after every route above has declined it.
       const kept = (token as { keptRawHtml?: boolean }).keptRawHtml === true;
+      // A block of `br` tags alone is the paragraph of hard breaks it is drawn
+      // as, each keeping its tag (#584).
+      const brBlock = token.block ? brBlockParagraph(token.raw) : null;
+      if (brBlock !== null) return brBlock;
       // A `br` in a line keeps the spelling the file wrote (#577). In a cell
       // the cell rule of #300 writes `<br>` whatever it carries, so none is read.
       const spelling = token.block || renderingCells ? null : brSpelling(token.raw);
@@ -200,6 +204,16 @@ marked.use({
 
 /** Whether the cells of a GFM table are being rendered, where a `br` keeps no spelling (#577). */
 let renderingCells = false;
+
+// A hard break the file wrote with a trailing backslash keeps it (#584). The
+// rest is `marked`'s own `br`, restated: two spaces are a plain `br`.
+marked.use({
+  renderer: {
+    br(token) {
+      return hardBreakElement(token.raw);
+    },
+  },
+});
 
 // A wrapper spelled across three blocks, a start tag, a paragraph and an end
 // tag, is joined into one token before rendering (#468, shape 5), and drawn as

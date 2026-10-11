@@ -104,14 +104,13 @@ describe('what this change does not touch', () => {
     expect(editor.getMarkdown().trim()).toBe('a  \nb');
   });
 
-  it('parses a backslash hard break as a break', () => {
-    // `\`⏎ and two-spaces⏎ are the same hard break; the mark carries no memory
-    // of which spelling the file used, so the backslash form is written back
-    // with two spaces. Pre-existing on `230b4d7`, measured there, unchanged by
-    // this PR — reported rather than fixed, since it is not this issue.
+  it('parses a backslash hard break as a break, and keeps its spelling', () => {
+    // `\`⏎ and two-spaces⏎ are the same hard break. Until #584 the backslash
+    // form was written back with two spaces; the hard break now carries the
+    // spelling the file used, as it does for a `br` tag since #577.
     const editor = editorWith('a\\\nb');
-    expect(editor.editor.getHTML()).toBe('<p>a<br>b</p>');
-    expect(editor.getMarkdown().trim()).toBe('a  \nb');
+    expect(editor.editor.getHTML()).toBe('<p>a<br data-br-spelling="\\">b</p>');
+    expect(editor.getMarkdown().trim()).toBe('a\\\nb');
   });
 
   it.each([
