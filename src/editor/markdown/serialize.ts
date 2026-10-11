@@ -28,7 +28,12 @@ import {
   pixelValue,
 } from './image-spelling';
 import { addKeptRawHtmlRules } from './kept-raw-html';
-import { LIST_MARKER_ATTRIBUTE, markerFor } from './list-marker';
+import {
+  LIST_MARKER_ATTRIBUTE,
+  LIST_NUMBERING_ATTRIBUTE,
+  markerFor,
+  ONE_NUMBER,
+} from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
@@ -470,7 +475,9 @@ function listItemPrefix(li: HTMLElement, bulletMarker: string): string {
   }
   const declared = Number.parseInt(parent.getAttribute('start') || '1', 10);
   const start = Number.isFinite(declared) ? declared : 1;
-  const index = Array.prototype.indexOf.call(parent.children, li);
+  // A list the file numbered with one number throughout keeps it (#569).
+  const oneNumber = parent.getAttribute(LIST_NUMBERING_ATTRIBUTE) === ONE_NUMBER;
+  const index = oneNumber ? 0 : Array.prototype.indexOf.call(parent.children, li);
   return `${start + index}${markerFor(carried, true)} `;
 }
 

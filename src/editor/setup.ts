@@ -67,7 +67,11 @@ import {
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   pixelValue,
 } from './markdown/image-spelling';
-import { LIST_MARKER_ATTRIBUTE } from './markdown/list-marker';
+import {
+  LIST_MARKER_ATTRIBUTE,
+  LIST_NUMBERING_ATTRIBUTE,
+  ONE_NUMBER,
+} from './markdown/list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
@@ -405,6 +409,14 @@ function looseAttribute() {
         typeof attributes.marker === 'string' && attributes.marker !== ''
           ? { [LIST_MARKER_ATTRIBUTE]: attributes.marker }
           : {},
+    },
+    // One number throughout an ordered list (#569), read and carried the same way.
+    numbering: {
+      default: null as string | null,
+      parseHTML: (element: HTMLElement) =>
+        element.getAttribute(LIST_NUMBERING_ATTRIBUTE) === ONE_NUMBER ? ONE_NUMBER : null,
+      renderHTML: (attributes: Record<string, unknown>) =>
+        attributes.numbering === ONE_NUMBER ? { [LIST_NUMBERING_ATTRIBUTE]: ONE_NUMBER } : {},
     },
   };
 }
