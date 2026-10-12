@@ -94,6 +94,76 @@ describe('an unedited save keeps reference links and their definitions (#570)', 
   });
 });
 
+describe('a label that wraps a line is written once (review of #589)', () => {
+  it.each([
+    ['a shortcut', 'See [the long\nlabel] here.\n\n[the long label]: /x\n'],
+    ['a collapsed reference', 'See [the long\nlabel][] here.\n\n[the long label]: /x\n'],
+    ['a shortcut wrapped with indentation', 'See [a\n  b] c.\n\n[a b]: /y\n'],
+  ])('keeps %s byte for byte', (_label, markdown) => {
+    const once = saved(markdown);
+    expect(once).toBe(markdown);
+    expect(saved(once)).toBe(once);
+  });
+});
+
+describe('a short reference inside an emphasis keeps the emphasis (review of #589)', () => {
+  // On `185b798` its text was compared as plain text, so the emphasis was
+  // dropped; it is written in full instead, the emphasis inside the brackets,
+  // as a live link inside an emphasis is written.
+  it.each([
+    [
+      'a shortcut in emphasis',
+      'See *[docs]* here.\n\n[docs]: /x\n',
+      'See [*docs*][docs] here.\n\n[docs]: /x\n',
+    ],
+    [
+      'a collapsed link in emphasis',
+      'See *[docs][]* here.\n\n[docs]: /x\n',
+      'See [*docs*][docs] here.\n\n[docs]: /x\n',
+    ],
+    [
+      'a shortcut in strong',
+      'See **[docs]** here.\n\n[docs]: /x\n',
+      'See [**docs**][docs] here.\n\n[docs]: /x\n',
+    ],
+    [
+      'a label holding emphasis',
+      'See [*docs*] here.\n\n[*docs*]: /x\n',
+      'See [*docs*] here.\n\n[*docs*]: /x\n',
+    ],
+  ])('%s', (_label, markdown, written) => {
+    const once = saved(markdown);
+    expect(once).toBe(written);
+    expect(saved(once)).toBe(once);
+  });
+});
+
+describe('a definition of an unsafe destination (review of #589, R-C2)', () => {
+  // The definition is kept as the line the file wrote, drawn as text and never
+  // live; the link reads as its text alone, as the R-C2 exception says.
+  it.each([
+    ['javascript', '[x][r]\n\n[r]: javascript:alert(1)\n', 'x\n\n[r]: javascript:alert(1)\n'],
+    ['vbscript', '[x][r]\n\n[r]: vbscript:msgbox\n', 'x\n\n[r]: vbscript:msgbox\n'],
+    ['file', '[x][r]\n\n[r]: file:///etc/passwd\n', 'x\n\n[r]: file:///etc/passwd\n'],
+    ['blob', '[x][r]\n\n[r]: blob:https://e.com/1\n', 'x\n\n[r]: blob:https://e.com/1\n'],
+    // An image of such a definition is lost as an inline one is on `1793896`.
+    [
+      'data, for an image',
+      'a ![x][r] b\n\n[r]: data:image/png;base64,AAAA\n',
+      'a b\n\n[r]: data:image/png;base64,AAAA\n',
+    ],
+  ])(
+    '%s: the link is its text, the definition a line, nothing live',
+    (_label, markdown, written) => {
+      const html = editorWith(markdown).editor.getHTML();
+      expect(html).not.toMatch(/(?:href|src)="(?:javascript|vbscript|file|blob|data):/);
+      const once = saved(markdown);
+      expect(once).toBe(written);
+      expect(saved(once)).toBe(once);
+    },
+  );
+});
+
 describe('what an edit writes (#570, E1 to E5)', () => {
   it('E1: the text of a shortcut or a collapsed link edited is written as a full reference', () => {
     for (const source of [`See [docs].${DEFINITION}`, `See [docs][].${DEFINITION}`]) {

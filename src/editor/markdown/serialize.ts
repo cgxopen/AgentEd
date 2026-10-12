@@ -1,3 +1,4 @@
+import { marked } from 'marked';
 import TurndownService, { type BlankReplacement, type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { addAutolinkRules } from './angle-autolink';
@@ -280,7 +281,7 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
     const element = node as HTMLElement;
     const href = literalAmpersands(element.getAttribute('href') ?? '').replace(/([()])/g, '\\$1');
     // A link the file wrote as a reference, while its label resolves (#570).
-    const reference = referenceSpelling(element, content, readsAs(element.textContent), false);
+    const reference = referenceSpelling(element, content, writesAsLabel(content), false);
     if (reference !== null) return `${linkStart()}${reference}`;
     return `${linkStart()}[${content}](${href}${linkTitle(element)})`;
   },
@@ -782,7 +783,7 @@ turndown.addRule('strikethrough', {
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
 // A link the editor does not make live, kept as the file wrote it (#564).
-addKeptLinkRules(turndown, readsAs);
+addKeptLinkRules(turndown, (content) => writesAsLabel(content));
 // Emphasis the file wrote with underscores, written with them (#566).
 addEmphasisDelimiterRules(turndown);
 // A link the file wrote in angle brackets, written back so while untouched (#567).
@@ -822,6 +823,21 @@ function inACell(element: Element): boolean {
   // depth of the cell being written answers where `closest` cannot.
   const inside = cellDepth > 0 || element.closest('td, th') !== null;
   return element.hasAttribute(REFERENCE_DEFINITION_ATTRIBUTE) && inside;
+}
+
+/**
+ * Whether the text of a link is written as its label would be, its marks
+ * included: a collapsed or shortcut link inside an emphasis holds that
+ * emphasis in its text, which its label does not, so it is written in full
+ * rather than losing it (review of #589). Whitespace is folded, so a label
+ * that wraps a line still reads as itself.
+ */
+function writesAsLabel(content: string): (label: string) => boolean {
+  const flat = (value: string) => value.replace(/\s+/g, ' ').trim();
+  return (label) => {
+    const html = marked.parseInline(label, { async: false }) as string;
+    return flat(content) === flat(turndown.turndown(softBreaksAsVoid(`<p>${html}</p>`)));
+  };
 }
 
 function isFootnoteDefinition(node: Node | null): boolean {

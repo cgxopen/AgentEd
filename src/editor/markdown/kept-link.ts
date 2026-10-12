@@ -244,7 +244,7 @@ const MAX_MARKS_AROUND = 16;
  */
 export function addKeptLinkRules(
   turndown: TurndownService,
-  readsAs: (text: string | null) => (label: string) => boolean,
+  writesAsLabel: (content: string) => (label: string) => boolean,
 ): void {
   const write = (html: string): string => turndown.turndown(softBreaksAsVoid(`<p>${html}</p>`));
 
@@ -278,9 +278,7 @@ export function addKeptLinkRules(
       const drawn = write(kept.inner);
       // A reference whose label resolves is written as its reference (#570).
       const reference =
-        content === drawn
-          ? referenceSpelling(span, content, readsAs(span.textContent), false)
-          : null;
+        content === drawn ? referenceSpelling(span, content, writesAsLabel(content), false) : null;
       if (reference !== null) return startingALink(reference);
       if (content === drawn) return startingALink(kept.raw);
       const around = inMarks(span.cloneNode(true) as HTMLElement, drawn, kept.raw);
