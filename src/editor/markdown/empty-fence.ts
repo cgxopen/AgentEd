@@ -150,18 +150,28 @@ function fenceFor(node: Node, options: Options): string {
  * recursion: `LI`, then `UL`, then `BLOCKQUOTE`, each handed the level below.
  *
  * **`content.trim()` is the test, not `content !== ''`.** turndown's own
- * blank rule writes `'\n\n'` for a blank *block*, so a genuinely empty list
- * — `<ul><li></li></ul>` — arrives here with `'\n\n'` as its content and is
- * dropped exactly as it is today.
+ * blank rule writes `'\n\n'` for a blank *block*, so an item holding an
+ * empty paragraph arrives here with `'\n\n'` as its content.
+ *
+ * ── A container with nothing in it (#564) ──
+ *
+ * A blank node whose content wrote nothing is handed to `emptyBlock` before
+ * the default: an empty heading, quote or list item is a construct of its
+ * own, and `empty-block.ts` writes it as its marker. What that answers `null`
+ * for, an empty paragraph above all, is the default's as before.
  */
 export function createBlankReplacement(
   blankOtherwise: BlankReplacement,
   containers: ContainerReplacements,
+  emptyBlock: (node: Node, options: Options) => string | null,
 ): BlankReplacement {
   return (content, node, options) => {
     if (isFencedBlock(node, options)) return fenceFor(node, options);
-    const container = containers[node.nodeName];
-    if (container && content.trim() !== '') return container(content, node, options);
-    return blankOtherwise(content, node, options);
+    if (content.trim() !== '') {
+      const container = containers[node.nodeName];
+      if (container) return container(content, node, options);
+      return blankOtherwise(content, node, options);
+    }
+    return emptyBlock(node, options) ?? blankOtherwise(content, node, options);
   };
 }
