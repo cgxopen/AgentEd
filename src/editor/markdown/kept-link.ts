@@ -2,6 +2,7 @@ import { isAllowedUri } from '@tiptap/extension-link';
 import { marked, type Tokens } from 'marked';
 import type TurndownService from 'turndown';
 import { isRelativeLinkAddress } from '../link-url';
+import { softBreaksAsVoid } from './soft-break';
 
 /**
  * A link the editor does not make live, kept as the file wrote it (#564,
@@ -43,6 +44,17 @@ export const KEPT_LINK_ATTRIBUTE = 'data-kept-link';
 
 /** Set beside it, holding the HTML its text was drawn from, to tell an edit. Stamped (#447). */
 export const KEPT_LINK_TEXT_ATTRIBUTE = 'data-kept-link-text';
+
+/**
+ * Set beside them, the place of the link among those of its document, so two
+ * kept links side by side with the same bytes stay two marks: the editor
+ * joins neighbouring marks whose attributes are equal, and `[a](irc://x)`
+ * twice came back as `aa` (review of #587). Stamped (#447).
+ */
+export const KEPT_LINK_PLACE_ATTRIBUTE = 'data-kept-link-at';
+
+/** The place the next kept link takes; only told apart from its neighbours. */
+let nextPlace = 0;
 
 /** The schemes R-C2 records as never carried, read as a URL parser reads them. */
 const UNSAFE_SCHEME = /^(?:javascript|vbscript|file|data|blob):/i;
@@ -95,7 +107,9 @@ export function keptLink(
   if (!isInlineSpelling(token.raw) || isUnsafe(token.href)) return null;
   if (token.text === '') return carrier(token.raw);
   if (isLive(token.href, sanitizerAllows)) return null;
-  return `<span ${KEPT_LINK_ATTRIBUTE}="${encode(token.raw)}" ${KEPT_LINK_TEXT_ATTRIBUTE}="${encode(inner)}">${inner}</span>`;
+  nextPlace = (nextPlace + 1) % Number.MAX_SAFE_INTEGER;
+  const place = `${KEPT_LINK_PLACE_ATTRIBUTE}="${nextPlace}"`;
+  return `<span ${KEPT_LINK_ATTRIBUTE}="${encode(token.raw)}" ${KEPT_LINK_TEXT_ATTRIBUTE}="${encode(inner)}" ${place}>${inner}</span>`;
 }
 
 /**
@@ -129,30 +143,69 @@ function keptBytes(span: HTMLElement): { raw: string; inner: string } | null {
  * editor holds both values as they are encoded.
  */
 export function keptLinkMarkAttributes() {
-  const attribute = (name: string) => ({
+  const attribute = (key: string, name: string) => ({
     default: null as string | null,
     parseHTML: (element: HTMLElement) => element.getAttribute(name),
     renderHTML: (attributes: Record<string, unknown>) => {
-      const value = attributes[name === KEPT_LINK_ATTRIBUTE ? 'raw' : 'inner'];
+      const value = attributes[key];
       return typeof value === 'string' ? { [name]: value } : {};
     },
   });
-  return { raw: attribute(KEPT_LINK_ATTRIBUTE), inner: attribute(KEPT_LINK_TEXT_ATTRIBUTE) };
+  return {
+    raw: attribute('raw', KEPT_LINK_ATTRIBUTE),
+    inner: attribute('inner', KEPT_LINK_TEXT_ATTRIBUTE),
+    at: attribute('at', KEPT_LINK_PLACE_ATTRIBUTE),
+  };
 }
+
+/** Letters alone, which no escape of turndown touches, standing for the bytes. */
+const SENTINEL = 'KeptLinkBytesGoHere';
+
+/** How many marks around the text are looked through; a bound on the walk. */
+const MAX_MARKS_AROUND = 16;
 
 /**
  * Registered by `serialize.ts`: the text of a kept link is written as the
  * bytes while it writes what the text the file drew writes, so whatever the
  * serializer respells, it respells both alike; otherwise the text alone.
+ *
+ * Both are written through the soft break pass the save makes, or a text that
+ * wraps a line never matched (review of #587). And the mark has the rank of a
+ * link, so an emphasis the file put around the link is drawn inside it: where
+ * the text is wrapped whole by such marks, the marks are written around the
+ * bytes, `**[a](irc://x)**` as it was. An emphasis that covers the link and
+ * more is split at its edge, as for a live link: the exception of R-C2 for
+ * two overlapping marks.
  */
 export function addKeptLinkRules(turndown: TurndownService): void {
+  const write = (html: string): string => turndown.turndown(softBreaksAsVoid(`<p>${html}</p>`));
+
+  /** The marks around the whole text written around the bytes, or `null`. */
+  const inMarks = (span: HTMLElement, drawn: string, raw: string): string | null => {
+    let element: Element = span;
+    for (let depth = 0; depth < MAX_MARKS_AROUND; depth++) {
+      const only = element.firstChild;
+      if (element.childNodes.length !== 1 || only?.nodeType !== 1) return null;
+      element = only as Element;
+      if (write(element.innerHTML) !== drawn) continue;
+      element.replaceChildren(SENTINEL);
+      const written = write(span.innerHTML);
+      return written.split(SENTINEL).length === 2 ? written.replace(SENTINEL, raw) : null;
+    }
+    return null;
+  };
+
   turndown.addRule('keptLink', {
     filter: (node) =>
       node.nodeName === 'SPAN' && (node as HTMLElement).hasAttribute(KEPT_LINK_ATTRIBUTE),
     replacement: (content, node) => {
       const kept = keptBytes(node as HTMLElement);
       if (kept === null) return content;
-      return content === turndown.turndown(`<p>${kept.inner}</p>`) ? kept.raw : content;
+      const drawn = write(kept.inner);
+      if (content === drawn) return kept.raw;
+      return (
+        inMarks((node as HTMLElement).cloneNode(true) as HTMLElement, drawn, kept.raw) ?? content
+      );
     },
   });
 }

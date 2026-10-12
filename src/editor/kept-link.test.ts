@@ -92,6 +92,39 @@ describe('a link the editor does not make live is written back as the file wrote
   });
 });
 
+describe('a kept link in the shapes the review of #587 measured (#564)', () => {
+  // Measured on `97ec43f`: each lost its destination on an unedited save.
+  it.each([
+    ['inside strong', '**[a](irc://x)**\n'],
+    ['inside strikethrough', '~~[a](irc://x)~~\n'],
+    ['with no destination inside strong', '**[text]()**\n'],
+    ['an autolink inside emphasis', '*<irc://foo.bar>*\n'],
+    ['inside two marks', '***[a](irc://x)***\n'],
+    ['inside an underscore emphasis', '_[a](irc://x)_\n'],
+    ['holding emphasis, inside strong', '**[*a* b](irc://x)**\n'],
+    ['inside a superscript', '<sup>[a](irc://x)</sup>\n'],
+    ['whose text wraps a line', '[a\nb](irc://x)\n'],
+    ['whose text wraps a line, inside strong', '**[a\nb](irc://x)**\n'],
+    ['twice, touching, with the same bytes', '[a](irc://x)[a](irc://x)\n'],
+    ['twice, a space apart', '[a](irc://x) [a](irc://x)\n'],
+    ['with no text, inside strong', 'x **[](./t.md)** y\n'],
+  ])('keeps it %s byte for byte', (_label, markdown) => {
+    const once = saved(markdown);
+    expect(once).toBe(markdown);
+    expect(saved(once)).toBe(once);
+    expect(htmlToMarkdown(markdownToHtml(markdown))).toBe(markdown.trimEnd());
+  });
+
+  it('splits an emphasis that covers the link and more, as for a live link', () => {
+    // The exception of R-C2 for two overlapping marks: the destination is
+    // kept, the emphasis is written on each side of the link edge.
+    expect(saved('*[chat](irc://foo.bar/baz) more*\n')).toBe(
+      '*[chat](irc://foo.bar/baz)* *more*\n',
+    );
+    expect(saved('*[chat](https://x) more*\n')).toBe('[*chat*](https://x) *more*\n');
+  });
+});
+
 describe('what is not kept (#564)', () => {
   it.each([
     // The R-C2 exception for unsafe destinations stands: never carried.
