@@ -31,6 +31,7 @@ import {
 } from './image-spelling';
 import { addKeptLinkRules } from './kept-link';
 import { addKeptRawHtmlRules } from './kept-raw-html';
+import { answerLinkStarts, LINK_START, linkStart, setMarkingLinkStarts } from './link-start';
 import { linkTitle } from './link-title';
 import {
   LIST_MARKER_ATTRIBUTE,
@@ -39,6 +40,7 @@ import {
   ONE_NUMBER,
 } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
+import { markupOpenings } from './markup-openers';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
@@ -154,7 +156,10 @@ const turndown = new TurndownService({
 // original method stays the authority on everything else — including every
 // backtick; see `escape.ts` for why `*` and `` ` `` are deliberately not
 // treated the same way.
-turndown.escape = createNarrowedEscape(TurndownService.prototype.escape.bind(turndown));
+turndown.escape = createNarrowedEscape(
+  TurndownService.prototype.escape.bind(turndown),
+  markupOpenings,
+);
 
 // ── A number that begins a heading or a table cell (#97) ──
 //
@@ -272,14 +277,23 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
   replacement: (content, node) => {
     const element = node as HTMLElement;
     const href = literalAmpersands(element.getAttribute('href') ?? '').replace(/([()])/g, '\\$1');
-    return `[${content}](${href}${linkTitle(element)})`;
+    return `${linkStart()}[${content}](${href}${linkTitle(element)})`;
   },
 });
+
+// A run of hashes that ends the heading text after a space is its closing
+// sequence to the next reader, so the text loses it (#565, owner decision D2):
+// it gets a backslash, where the context is known, as #97 did for a number.
+const CLOSING_HASHES = /(^|[ \t])(#+)([ \t]*)$/;
 
 turndown.addRule('heading', {
   filter: builtinHeading.filter,
   replacement: (content, node, options) =>
-    builtinHeading.replacement(withoutLeadingListEscape(content), node, options),
+    builtinHeading.replacement(
+      withoutLeadingListEscape(content).replace(CLOSING_HASHES, '$1\\$2$3'),
+      node,
+      options,
+    ),
 });
 
 // ── Task list serialization (#157) ──
@@ -1059,7 +1073,8 @@ function cellContent(cell: HTMLElement): string {
     const inner = needsCellBlockSpelling(cell)
       ? cellBlocks(cell, { inline: cellInline, table: inlineTable })
       : turndown.turndown(cell.innerHTML);
-    const flattened = spaceAroundInlineHtml(inner.replace(/\n/g, ' ')).trim();
+    // A link start answered here, before the width of the cell is counted (#565).
+    const flattened = spaceAroundInlineHtml(answerLinkStarts(inner).replace(/\n/g, ' ')).trim();
     // Pipes are escaped once, by the outermost cell. A table inside the cell is
     // written with its own cells unescaped and this pass reaches them inside
     // the HTML; escaping at every level would write `\\|` there (#278).
@@ -1365,11 +1380,16 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   const carriesTheMark = html.includes(DEFINITION_POSITION);
   // Restored rather than cleared, as the kept tables are above (#288).
   const outerCarriesTheMark = setDocumentCarriesTheMark(carriesTheMark);
+  // The start of a link is marked unless the document holds the mark (#565).
+  const carriesLinkStart = html.includes(LINK_START);
+  const outerMarking = setMarkingLinkStarts(!carriesLinkStart);
   try {
     const written = turndown.turndown(softBreaksAsVoid(html));
-    const markdown = carriesTheMark ? written : resolveDefinitionPositions(written);
+    const resolved = carriesTheMark ? written : resolveDefinitionPositions(written);
+    const markdown = carriesLinkStart ? resolved : answerLinkStarts(resolved);
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
+    setMarkingLinkStarts(outerMarking);
     setDocumentCarriesTheMark(outerCarriesTheMark);
     writingKeptTables = outerWritingKeptTables;
   }

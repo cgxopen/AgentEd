@@ -180,6 +180,27 @@ describe('link dialog — on an existing link', () => {
     expect(editor.getMarkdown()).toBe('[docs](https://new.example)');
   });
 
+  it('changes one of two links side by side with the same address, and not the other (#565)', () => {
+    // Two such links stay two since #565 (D5), so the dialog is asked for the
+    // link under the caret and not the run of both.
+    const editor = editorWith('[aa](https://example.com)[bb](https://example.com)');
+    caretIn(editor, 'bb');
+    dialog.open();
+    type('https://example.org');
+    confirm().click();
+
+    expect(editor.getMarkdown()).toBe('[aa](https://example.com)[bb](https://example.org)');
+  });
+
+  it('removes one of two links side by side with the same address, and not the other (#565)', () => {
+    const editor = editorWith('[aa](https://example.com)[bb](https://example.com)');
+    caretIn(editor, 'aa');
+    dialog.open();
+    remove().click();
+
+    expect(editor.getMarkdown()).toBe('aa[bb](https://example.com)');
+  });
+
   it('unmakes the link from the Remove button, keeping the text', () => {
     const editor = editorWith('[docs](https://example.com)');
     caretIn(editor, 'docs');

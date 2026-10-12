@@ -235,13 +235,14 @@ describe('the address this was put at costs a file nothing (#311)', () => {
       const out = saved(noscript);
       expect(out).toBe(expected);
       expect(out).not.toContain('fallback');
-      // Text since #461, written back as the file wrote it.
+      // Text since #461, written back with each `<` escaped since #565 (D1),
+      // so a renderer with no tag filter reads the text too.
       for (const block of [
         '<style>.x{color:red}</style>',
         '<script>alert(1)</script>',
         '<title>Book One</title>',
       ]) {
-        expect(saved(editorWith(wrap(block))), block).toBe(wrap(block));
+        expect(saved(editorWith(wrap(block))), block).toBe(wrap(block.replace(/</g, '\\<')));
       }
     },
   );

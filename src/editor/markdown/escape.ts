@@ -51,6 +51,15 @@ import { FOOTNOTE_REFERENCE } from './footnote';
  */
 const KEPT_UNDERSCORE = '\uE000';
 
+/**
+ * Stands before a `<` or a `&` that would open markup on the next read, and is
+ * written as a backslash once turndown has escaped the rest (#565).
+ */
+const OPENS_MARKUP = '\uE014';
+
+/** Every `<` and `&` escaped, for a node that already holds the stand-in: the safe direction. */
+const EVERY_OPENER = /[<&]/g;
+
 /** The two halves of a footnote reference, held out of turndown's escape (#408). */
 const KEPT_BRACKET_OPEN = '\uE010';
 const KEPT_BRACKET_CLOSE = '\uE011';
@@ -164,7 +173,28 @@ function mayOpenADefinition(text: string, offset: number, length: number): boole
  */
 export function createNarrowedEscape(
   escapeAll: (text: string) => string,
+  markupOpenings: (text: string) => readonly number[] = () => [],
 ): (text: string) => string {
+  const narrowed = narrowedEscape(escapeAll);
+  return (text: string): string => {
+    // A `<` or a `&` that would open markup on the next read gets a backslash
+    // (#565): marked those first, on the text the reader will see, and turned
+    // into the backslash last, so nothing in between counts it. A node that
+    // already holds the stand-in has every `<` and `&` escaped instead.
+    if (text.includes(OPENS_MARKUP)) return narrowed(text).replace(EVERY_OPENER, '\\$&');
+    const openings = markupOpenings(text);
+    if (openings.length === 0) return narrowed(text);
+    let marked = '';
+    let from = 0;
+    for (const at of openings) {
+      marked += `${text.slice(from, at)}${OPENS_MARKUP}`;
+      from = at;
+    }
+    return narrowed(marked + text.slice(from)).replaceAll(OPENS_MARKUP, '\\');
+  };
+}
+
+function narrowedEscape(escapeAll: (text: string) => string): (text: string) => string {
   return (text: string): string => {
     // A document that already contains the sentinel would have it silently
     // rewritten on the way back. Vanishingly unlikely — it is a Private Use

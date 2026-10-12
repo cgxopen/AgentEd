@@ -125,16 +125,29 @@ const MATRIX = NAMES.flatMap((name) =>
   ),
 );
 
+/**
+ * A tag of the nine inside a paragraph, with its `<` escaped: the spelling an
+ * unedited save writes since #565 (owner decision D1), so that a renderer with
+ * no tag filter reads it as the text AgentEd and GitHub read it.
+ */
+const INLINE_NINE = new RegExp(`<(/?(?:${NAMES.join('|')}))`, 'gi');
+const escapedInline = (line: string): string => line.replace(INLINE_NINE, '\\<$1');
+
 describe('the nine names are read as text and written back as the file wrote them (#461)', () => {
-  it.each(MATRIX)('%s', async (_label, file) => {
+  it.each(MATRIX)('%s', async (label, file) => {
+    // A block keeps its bytes (#461); inside a paragraph the `<` gains a
+    // backslash once (#565, D1), and the file then holds still.
+    const inline = label.includes('inside a paragraph');
     const once = await openAndSaveUnedited(file);
-    expect(once).toBe(file);
+    expect(once).toBe(inline ? escapedInline(file) : file);
     expect(await openAndSaveUnedited(once)).toBe(once);
   });
 
   it('in any case, and an end tag alone', async () => {
     const file = 'Words <TITLE>x and </Style> end.\n\nAfter.\n';
-    expect(await openAndSaveUnedited(file)).toBe(file);
+    const once = await openAndSaveUnedited(file);
+    expect(once).toBe(escapedInline(file));
+    expect(await openAndSaveUnedited(once)).toBe(once);
   });
 
   it('a name that only begins like one is not touched', async () => {
@@ -158,8 +171,11 @@ const PLACEHOLDER =
   'The end of the document.\n';
 
 describe('a placeholder written as a tag in prose (#460 step zero)', () => {
-  it('opens whole and is written back byte for byte', async () => {
-    expect(await openAndSaveUnedited(PLACEHOLDER)).toBe(PLACEHOLDER);
+  it('opens whole and is written back with the placeholder escaped, then holds still', async () => {
+    // The `<` of the placeholder gains a backslash once (#565, D1).
+    const once = await openAndSaveUnedited(PLACEHOLDER);
+    expect(once).toBe(escapedInline(PLACEHOLDER));
+    expect(await openAndSaveUnedited(once)).toBe(once);
   });
 });
 
@@ -215,7 +231,7 @@ describe('what the person sees and types (#461)', () => {
     });
     editor.editor.chain().setTextSelection(end).insertContent('!').run();
     const saved = editor.getMarkdown();
-    expect(saved).toBe('Before.\n\n<style> p {} </style>!\n\nAfter.');
+    expect(saved).toBe(escapedInline('Before.\n\n<style> p {} </style>!\n\nAfter.'));
     editor.setMarkdown(saved);
     expect(editor.getMarkdown()).toBe(saved);
     done();
@@ -258,7 +274,9 @@ describe('a block mixing one of the nine with other markup', () => {
   it.each([
     ['the link address goes', MIXED, 'link and emph <style>p { color: red }</style>!\n\nAfter.'],
     ['the image goes', IMAGE, '<style>p {}</style>!\n\nAfter.'],
-  ])('an edit folds it into its text: %s', (_label, file, written) => {
+  ])('an edit folds it into its text: %s', (_label, file, folded) => {
+    // The tags of the nine in the folded text are escaped since #565 (D1).
+    const written = escapedInline(folded);
     const { editor, done } = editorWith(file);
     const first = editor.editor.state.doc.firstChild;
     editor.editor

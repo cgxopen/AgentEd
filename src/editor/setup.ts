@@ -68,6 +68,7 @@ import {
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   pixelValue,
 } from './markdown/image-spelling';
+import { linkPlaceMarkAttribute } from './markdown/link-place';
 import { linkTitleMarkAttributes } from './markdown/link-title';
 import {
   LIST_MARKER_ATTRIBUTE,
@@ -857,7 +858,13 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     // its title and the delimiter of it (#562).
     Link.extend({
       addAttributes() {
-        return { ...this.parent?.(), ...autolinkMarkAttribute(), ...linkTitleMarkAttributes() };
+        return {
+          ...this.parent?.(),
+          ...autolinkMarkAttribute(),
+          ...linkTitleMarkAttributes(),
+          // Two links side by side with one destination stay two (#565).
+          ...linkPlaceMarkAttribute(),
+        };
       },
     }).configure({
       // A plain click places the caret; Ctrl/Cmd+click follows the link
