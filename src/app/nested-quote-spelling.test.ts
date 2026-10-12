@@ -84,12 +84,13 @@ async function openAndSaveUnedited(text: string): Promise<string> {
 const ROWS: ReadonlyArray<readonly [string, string, string]> = [
   ['two markers written together, 5 bytes to 6', '>> x\n', '> > x\n'],
   ['three markers written together, 9 bytes to 11', '>>> deep\n', '> > > deep\n'],
+  // Directly under its parent line, it stays there (#568).
   [
-    'a nested quote under its parent line, 18 bytes to 22',
+    'a nested quote under its parent line, 18 bytes to 19',
     '> quote\n>> nested\n',
-    '> quote\n> \n> > nested\n',
+    '> quote\n> > nested\n',
   ],
-  ['the same with the markers already spaced, 10 bytes to 13', '> a\n> > b\n', '> a\n> \n> > b\n'],
+  ['the same with the markers already spaced, unchanged', '> a\n> > b\n', '> a\n> > b\n'],
   [
     'a bare blank quote line already there keeps its spelling, 20 bytes to 21',
     '> quote\n>\n>> nested\n',

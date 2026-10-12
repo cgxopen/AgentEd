@@ -6,7 +6,8 @@
  *
  * The parser carries what a file spelled on attributes of the elements it
  * builds: the bytes of an HTML image or table, how a list was spaced and
- * marked, the blank lines of a quote, a comment, the lines of a footnote. The
+ * marked, the blank lines of a quote, a comment, the lines of a footnote, a
+ * block written directly under another. The
  * serializer then trusts those attributes, which is right for every one the
  * parser wrote. But DOMPurify keeps every `data-*` attribute, so raw HTML in a
  * file could spell the same names, and pasted HTML could too, and both were
@@ -36,6 +37,7 @@
  * comment text it is and is never rewritten.
  */
 
+import { ADJACENT_ATTRIBUTE } from './adjacency';
 import { AUTOLINK_ATTRIBUTE } from './angle-autolink';
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { BR_SPELLING_ATTRIBUTE } from './br-spelling';
@@ -74,6 +76,7 @@ import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
 
 /** Every attribute the pipeline stamps for itself and the serializer trusts. */
 export const STAMPED_ATTRIBUTES: readonly string[] = [
+  ADJACENT_ATTRIBUTE,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   TABLE_HTML_SOURCE_ATTRIBUTE,
   HTML_BLOCK_SOURCE_ATTRIBUTE,

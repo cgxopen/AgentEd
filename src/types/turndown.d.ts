@@ -59,6 +59,12 @@ declare module 'turndown' {
      * turndown's internals.
      */
     escape(text: string): string;
+    /**
+     * The table turndown looks a rule up in, one node at a time. Neither
+     * documented nor typed upstream, like `options.rules`; declared so the
+     * lookup can be wrapped (#568), and optional so the caller checks it.
+     */
+    readonly rules?: { forNode?: (node: Node) => Rule };
     addRule(key: string, rule: Rule): this;
     use(
       plugins: Array<(service: TurndownService) => void> | ((service: TurndownService) => void),

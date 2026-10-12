@@ -72,6 +72,10 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'soft-break': { recorded: 'soft line breaks become spaces' },
   'lazy-line': { recorded: 'a lazy continuation line is written with the marker of its container' },
   'rule-hyphens': { recorded: 'a horizontal rule is written with three hyphens' },
+  'rule-under-text': {
+    recorded:
+      'a paragraph directly over a rule spelled with stars, underscores or spaced hyphens is written a blank line apart',
+  },
   'span-width': {
     recorded: "a code span's delimiter run is written at the shortest width that still closes it",
   },
@@ -102,7 +106,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'fence-blank-end': { recorded: 'a blank line at the end of a fenced block', caseNotNamed: true },
   // Respelled, rendering alike: named nowhere in R-C2.
   'indented-fenced': { breaks: 'R-C2 file', what: 'an indented code block is written fenced' },
-  'blank-between': { breaks: 'R-C2 file', what: 'two adjacent blocks are written a line apart' },
   'fence-respelled': { breaks: 'R-C2 file', what: 'a fence is written with other delimiters' },
   'setext-atx': { breaks: 'R-C2 file', what: 'an underlined heading is written with hashes' },
   'list-item': { breaks: 'R-C2 file', what: 'a list item is written with other spacing' },

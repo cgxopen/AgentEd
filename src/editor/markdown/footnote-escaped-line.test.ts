@@ -102,10 +102,10 @@ describe('the four sources of point d (#418)', () => {
 describe('what the narrowing of start must not cost (#418)', () => {
   it('a definition on the line directly under a paragraph is still a definition', () => {
     // The shape dropping `start` would have turned into prose, measured
-    // through `gh api markdown` in gfm mode as a footnote GitHub renders. The
-    // blank line it gains is the behaviour of `297874c` and is not moved here.
+    // through `gh api markdown` in gfm mode as a footnote GitHub renders. It
+    // stays on the line under the paragraph since #568.
     const saved = atTheEditor('Text.[^a]\n[^a]: the note');
-    expect(saved).toBe('Text.[^a]\n\n[^a]: the note');
+    expect(saved).toBe('Text.[^a]\n[^a]: the note');
     // Still a definition rather than a line of prose: saving the result again
     // moves nothing, which a paragraph holding `[^a]: the note` would not do.
     expect(atTheEditor(saved)).toBe(saved);

@@ -256,8 +256,9 @@ describe('the node holding a comment', () => {
     expect(json.content).toHaveLength(1);
     expect(json.content?.[0]).toEqual({
       type: 'paragraph',
-      // Every paragraph carries the two attributes of #461, unset here.
-      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null },
+      // Every paragraph carries the two attributes of #461 and the flag of
+      // #568, unset here.
+      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null, adjacent: false },
       content: [
         { type: 'markdownComment', attrs: { comment: '<!--\n## heading\n\n- a\n- b\n-->' } },
       ],
@@ -287,8 +288,9 @@ describe('a comment on its own line has room for a caret beside it', () => {
     const json = editor.editor.getJSON();
     expect(json.content?.[1]).toEqual({
       type: 'paragraph',
-      // Every paragraph carries the two attributes of #461, unset here.
-      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null },
+      // Every paragraph carries the two attributes of #461 and the flag of
+      // #568, unset here.
+      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null, adjacent: false },
       content: [{ type: 'markdownComment', attrs: { comment: '<!-- a note -->' } }],
     });
   });

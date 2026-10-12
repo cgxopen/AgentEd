@@ -18,6 +18,7 @@ import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
 import type { Schema } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
+import { AdjacentBlocks } from './adjacent-blocks';
 import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
@@ -926,6 +927,8 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
       isAllowedUri: (url, ctx) => isRelativeLinkAddress(url) || ctx.defaultValidate(url),
     }),
     Placeholder.configure({ placeholder: 'Start writing…' }),
+    // A block the file wrote directly under another (#568).
+    AdjacentBlocks,
     TaskListWithSpacing,
     TaskItemHoldingABlock,
     ImageWithSpelling.configure({ inline: true, allowBase64: false }),
