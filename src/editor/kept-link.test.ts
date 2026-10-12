@@ -115,13 +115,28 @@ describe('a kept link in the shapes the review of #587 measured (#564)', () => {
     expect(htmlToMarkdown(markdownToHtml(markdown))).toBe(markdown.trimEnd());
   });
 
-  it('splits an emphasis that covers the link and more, as for a live link', () => {
-    // The exception of R-C2 for two overlapping marks: the destination is
-    // kept, the emphasis is written on each side of the link edge.
+  it('writes an emphasis that goes on past the link inside its brackets, as for a live link', () => {
+    // The exception of R-C2 for two overlapping marks, and the review of #587:
+    // written around the bytes there, the delimiters met those of the same
+    // emphasis after the link, `*[a](irc://x)**b*`, and the second save
+    // escaped them. An autolink holds no mark, so it is written inline (#567).
     expect(saved('*[chat](irc://foo.bar/baz) more*\n')).toBe(
-      '*[chat](irc://foo.bar/baz)* *more*\n',
+      '[*chat*](irc://foo.bar/baz) *more*\n',
     );
     expect(saved('*[chat](https://x) more*\n')).toBe('[*chat*](https://x) *more*\n');
+    expect(saved('*[a](irc://x)b*\n')).toBe('[*a*](irc://x)*b*\n');
+    expect(saved('*[a](irc://x)[a](irc://x)*\n')).toBe('[*a*](irc://x)[*a*](irc://x)\n');
+    expect(saved('*<irc://x>b*\n')).toBe('[*irc://x*](irc://x)*b*\n');
+  });
+
+  it('places the bytes as they are, with no replacement pattern read in them', () => {
+    for (const markdown of [
+      '**[a$$b](irc://x)**\n',
+      '**[a](irc://x?q=$&)**\n',
+      "**[a](irc://x?q=$')**\n",
+    ]) {
+      expect(saved(markdown)).toBe(markdown);
+    }
   });
 });
 

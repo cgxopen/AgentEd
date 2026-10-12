@@ -2,6 +2,7 @@ import { isAllowedUri } from '@tiptap/extension-link';
 import { marked, type Tokens } from 'marked';
 import type TurndownService from 'turndown';
 import { isRelativeLinkAddress } from '../link-url';
+import { literalAmpersands } from './destination';
 import { softBreaksAsVoid } from './soft-break';
 
 /**
@@ -158,6 +159,44 @@ export function keptLinkMarkAttributes() {
   };
 }
 
+/** A character that ends a delimiter run where it stands beside one: a space or a punctuation mark. */
+const APART = /[\s\p{P}\p{S}]/u;
+
+/**
+ * Whether the marks around a kept link can be written around its bytes: what
+ * stands on each side of it is nothing, a soft break, or text that opens or
+ * ends with a space or a punctuation mark. Anything else, a letter or another
+ * element, the same emphasis going on past the link above all, would meet
+ * the delimiters written there, `*[a](irc://x)**b*` (review of #587).
+ */
+function standsApart(span: HTMLElement): boolean {
+  const apart = (node: ChildNode | null, edge: 'first' | 'last'): boolean => {
+    if (node === null || node.nodeName === 'BR') return true;
+    if (node.nodeType !== 3) return false;
+    const text = node.textContent ?? '';
+    const character = edge === 'first' ? text.slice(0, 1) : text.slice(-1);
+    return character === '' || APART.test(character);
+  };
+  return apart(span.previousSibling, 'last') && apart(span.nextSibling, 'first');
+}
+
+/**
+ * The link written with its marks inside the brackets, as a live link in the
+ * same place is written, under the exception of R-C2 for two overlapping
+ * marks: the file text replaced by `content`, the rest of the bytes kept. An
+ * autolink cannot hold a mark, so it is written as an inline link, as #567
+ * writes one inside a mark. `null` where the bytes do not split as read.
+ */
+function insideBrackets(raw: string, content: string): string | null {
+  const link = marked.Lexer.lexInline(raw)[0] as Tokens.Link | undefined;
+  if (link?.type !== 'link') return null;
+  if (raw.startsWith('<')) {
+    return `[${content}](${literalAmpersands(link.href).replace(/([()])/g, '\\$1')})`;
+  }
+  const close = 1 + link.text.length;
+  return raw[close] === ']' ? `[${content}]${raw.slice(close + 1)}` : null;
+}
+
 /** Letters alone, which no escape of turndown touches, standing for the bytes. */
 const SENTINEL = 'KeptLinkBytesGoHere';
 
@@ -180,7 +219,12 @@ const MAX_MARKS_AROUND = 16;
 export function addKeptLinkRules(turndown: TurndownService): void {
   const write = (html: string): string => turndown.turndown(softBreaksAsVoid(`<p>${html}</p>`));
 
-  /** The marks around the whole text written around the bytes, or `null`. */
+  /**
+   * The marks around the whole text written around the bytes, or `null` where
+   * the text is not wrapped whole by marks around what the file drew. The bytes
+   * are put in by a split, never by a replacement, which would read `$&` and
+   * the other dollar patterns in them (review of #587).
+   */
   const inMarks = (span: HTMLElement, drawn: string, raw: string): string | null => {
     let element: Element = span;
     for (let depth = 0; depth < MAX_MARKS_AROUND; depth++) {
@@ -189,8 +233,8 @@ export function addKeptLinkRules(turndown: TurndownService): void {
       element = only as Element;
       if (write(element.innerHTML) !== drawn) continue;
       element.replaceChildren(SENTINEL);
-      const written = write(span.innerHTML);
-      return written.split(SENTINEL).length === 2 ? written.replace(SENTINEL, raw) : null;
+      const parts = write(span.innerHTML).split(SENTINEL);
+      return parts.length === 2 ? parts[0] + raw + parts[1] : null;
     }
     return null;
   };
@@ -199,13 +243,14 @@ export function addKeptLinkRules(turndown: TurndownService): void {
     filter: (node) =>
       node.nodeName === 'SPAN' && (node as HTMLElement).hasAttribute(KEPT_LINK_ATTRIBUTE),
     replacement: (content, node) => {
-      const kept = keptBytes(node as HTMLElement);
+      const span = node as HTMLElement;
+      const kept = keptBytes(span);
       if (kept === null) return content;
       const drawn = write(kept.inner);
       if (content === drawn) return kept.raw;
-      return (
-        inMarks((node as HTMLElement).cloneNode(true) as HTMLElement, drawn, kept.raw) ?? content
-      );
+      const around = inMarks(span.cloneNode(true) as HTMLElement, drawn, kept.raw);
+      if (around === null) return content;
+      return standsApart(span) ? around : (insideBrackets(kept.raw, content) ?? content);
     },
   });
 }
