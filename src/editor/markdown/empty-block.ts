@@ -71,7 +71,9 @@ function isEmptyItem(li: Element): boolean {
 /** Whether `list` is a list whose first item is written as its marker alone. */
 export function opensWithAnEmptyItem(list: Element | null): boolean {
   const first = list?.firstElementChild;
-  return (list?.nodeName === 'UL' || list?.nodeName === 'OL') && first != null && isEmptyItem(first);
+  return (
+    (list?.nodeName === 'UL' || list?.nodeName === 'OL') && first != null && isEmptyItem(first)
+  );
 }
 
 /** A lone `-` opening a block, which is what an empty first item writes. */

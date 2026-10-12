@@ -1,10 +1,10 @@
 import { Mark, Node } from '@tiptap/core';
+import { KEPT_LINK_ATTRIBUTE, keptLinkMarkAttributes } from './markdown/kept-link';
 import {
   decodeKeptRawHtml,
   KEPT_RAW_HTML_ATTRIBUTE,
   KEPT_RAW_HTML_TAG,
 } from './markdown/kept-raw-html';
-import { KEPT_LINK_ATTRIBUTE, keptLinkMarkAttributes } from './markdown/kept-link';
 
 /**
  * Raw HTML the editor cannot hold, held as its bytes (#563): an anchor with a

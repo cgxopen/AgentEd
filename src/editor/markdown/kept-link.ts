@@ -47,11 +47,22 @@ export const KEPT_LINK_TEXT_ATTRIBUTE = 'data-kept-link-text';
 /** The schemes R-C2 records as never carried, read as a URL parser reads them. */
 const UNSAFE_SCHEME = /^(?:javascript|vbscript|file|data|blob):/i;
 
-/** What a URL parser drops from an address before it reads the scheme. */
-const IGNORED_BY_A_URL_PARSER = /[\u0000- \u007f]/g;
+/**
+ * The address without a space, a C0 control character or DEL, which a URL
+ * parser drops or ignores before it reads the scheme (#447), so `java`, a tab,
+ * `script:` is still read as unsafe.
+ */
+function withoutIgnored(href: string): string {
+  let kept = '';
+  for (const character of href) {
+    const code = character.charCodeAt(0);
+    if (code > 0x20 && code !== 0x7f) kept += character;
+  }
+  return kept;
+}
 
 function isUnsafe(href: string): boolean {
-  return UNSAFE_SCHEME.test(href.replace(IGNORED_BY_A_URL_PARSER, ''));
+  return UNSAFE_SCHEME.test(withoutIgnored(href));
 }
 
 /**
