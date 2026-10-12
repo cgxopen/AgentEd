@@ -121,9 +121,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'rule-in-item': { breaks: 'R-C2 document', what: 'a rule in a list item leaves the item' },
   // Content lost.
   'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped' },
-  'empty-block': { breaks: 'Q4', what: 'an empty heading, item or quote is dropped' },
-  'empty-link': { breaks: 'Q4', what: 'a link with no text or no destination is dropped' },
-  'autolink-scheme': { breaks: 'Q4', what: 'an autolink of an unknown scheme is not a link' },
 };
 
 interface Change {

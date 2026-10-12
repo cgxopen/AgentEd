@@ -70,16 +70,17 @@ describe('an empty fenced block survives the save (#94)', () => {
  * Each assertion here is the value turndown's own blank rule produces, and
  * every one of them passes on `cdac091` as well: that is what makes them
  * evidence this change moved nothing but the fence.
+ *
+ * **Four rows left this table with #564**: an empty list item, an empty
+ * list, an empty blockquote and an empty heading were dropped here as
+ * turndown drops them, and are now written as their markers. They are pinned
+ * in `empty-block.test.ts`.
  */
 describe('every other blank node behaves as it did (#94)', () => {
   it.each([
     ['an empty paragraph between two others', '<p>a</p><p></p><p>b</p>', 'a\n\nb'],
     ['an empty inline element', '<p>c <em></em> d</p>', 'c d'],
     ['an empty strong', '<p>c <strong></strong> d</p>', 'c d'],
-    ['an empty list item', '<ul><li></li><li>x</li></ul>', '- x'],
-    ['an empty list', '<p>a</p><ul><li></li></ul><p>b</p>', 'a\n\nb'],
-    ['an empty blockquote', '<p>a</p><blockquote></blockquote><p>b</p>', 'a\n\nb'],
-    ['an empty heading', '<p>a</p><h2></h2><p>b</p>', 'a\n\nb'],
     ['a pre with no code child', '<p>a</p><pre></pre><p>b</p>', 'a\n\nb'],
   ])('leaves %s exactly as it was', (_label, html, expected) => {
     expect(htmlToMarkdown(html).trim()).toBe(expected);
@@ -174,19 +175,21 @@ describe('a fence alone in its container survives with it (#104)', () => {
     expect(roundtrip(markdown)).toBe(markdown);
   });
 
-  it('drops a container that really is empty, exactly as before', () => {
-    // The condition the fix turns on is the *content*, not the fence, so this
-    // is the half of it that must not move: a container whose children wrote
-    // nothing is still blank, and turndown's own blank rule still has it.
+  it('writes a container that really is empty as its marker (#564)', () => {
+    // The condition the fix turns on is the *content*, not the fence, so a
+    // container whose children wrote nothing does not reach the container
+    // table. Until #564 turndown's own blank rule had it and it was dropped;
+    // it is now written as its marker by `empty-block.ts`, and a `pre` with
+    // no `code`, which is no construct of the file, is dropped as before.
     for (const [html, expected] of [
-      ['<p>a</p><blockquote></blockquote><p>b</p>', 'a\n\nb'],
-      ['<p>a</p><blockquote><p></p></blockquote><p>b</p>', 'a\n\nb'],
-      ['<p>a</p><ul><li></li></ul><p>b</p>', 'a\n\nb'],
-      ['<p>a</p><ol><li></li></ol><p>b</p>', 'a\n\nb'],
-      ['<p>a</p><ul><li><p></p></li></ul><p>b</p>', 'a\n\nb'],
-      ['<p>a</p><blockquote><ul><li></li></ul></blockquote><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><blockquote></blockquote><p>b</p>', 'a\n\n> \n\nb'],
+      ['<p>a</p><blockquote><p></p></blockquote><p>b</p>', 'a\n\n> \n\nb'],
+      ['<p>a</p><ul><li></li></ul><p>b</p>', 'a\n\n-\n\nb'],
+      ['<p>a</p><ol><li></li></ol><p>b</p>', 'a\n\n1.\n\nb'],
+      ['<p>a</p><ul><li><p></p></li></ul><p>b</p>', 'a\n\n-\n\nb'],
+      ['<p>a</p><blockquote><ul><li></li></ul></blockquote><p>b</p>', 'a\n\n> -\n\nb'],
       ['<p>a</p><pre></pre><p>b</p>', 'a\n\nb'],
-      ['<p>a</p><blockquote><pre></pre></blockquote><p>b</p>', 'a\n\nb'],
+      ['<p>a</p><blockquote><pre></pre></blockquote><p>b</p>', 'a\n\n> \n\nb'],
     ] as const) {
       expect(htmlToMarkdown(html).trim()).toBe(expected);
     }
@@ -299,14 +302,16 @@ describe('a fence alone in its container survives with it (#104)', () => {
   it('writes what turndown itself writes for every container but the one holding a fence', () => {
     // The same "narrow" test the fence half makes, one level up: a document
     // through a service that has never heard of this fix differs in exactly
-    // the two places the fence used to be dropped from.
+    // the two places the fence used to be dropped from. A container holding
+    // an empty paragraph is written as its marker since #564, so the row
+    // holds a paragraph, which turndown and this fix alike leave alone.
     const html =
       '<p>a</p><blockquote><pre><code></code></pre></blockquote>' +
-      '<blockquote><p></p></blockquote><ul><li></li></ul><p>b</p>';
+      '<p></p><ul><li><pre><code></code></pre></li></ul><p>b</p>';
     const untouched = new TurndownService({ codeBlockStyle: 'fenced', fence: '```' }).turndown(
       html,
     );
     expect(untouched).toBe('a\n\nb');
-    expect(htmlToMarkdown(html)).toBe('a\n\n> ```\n> ```\n\nb');
+    expect(htmlToMarkdown(html)).toBe('a\n\n> ```\n> ```\n\n- ```\n  ```\n\nb');
   });
 });

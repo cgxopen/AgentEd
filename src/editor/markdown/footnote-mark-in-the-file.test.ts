@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createEditor, type EditorInstance } from '../setup';
-import { DEFINITION_POSITION } from './escape';
+import { DEFINITION_POSITION, setDocumentCarriesTheMark } from './escape';
 import { markdownToHtml } from './parse';
 import { htmlToMarkdown } from './serialize';
 
@@ -124,5 +124,17 @@ describe('the mark character, where the file itself holds it (#409)', () => {
 
     expect(once).not.toContain(MARK);
     expect(once.trim()).toBe('Text.[^1] more.\n\n[^1]: the note');
+  });
+});
+
+describe('the flag a save sets is given back as it found it (#288, paid on #564)', () => {
+  it('restores the value it held rather than clearing it', () => {
+    // A call made while another is writing must not switch the flag off under
+    // it, the reason `writingKeptTables` is restored beside it.
+    setDocumentCarriesTheMark(true);
+    htmlToMarkdown('<p>x</p>');
+    expect(setDocumentCarriesTheMark(false)).toBe(true);
+    htmlToMarkdown('<p>x</p>');
+    expect(setDocumentCarriesTheMark(false)).toBe(false);
   });
 });

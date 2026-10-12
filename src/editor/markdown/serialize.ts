@@ -1,4 +1,4 @@
-import TurndownService, { type Options } from 'turndown';
+import TurndownService, { type BlankReplacement, type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
 import { addAutolinkRules } from './angle-autolink';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
@@ -7,6 +7,7 @@ import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
 import { addEmphasisDelimiterRules } from './emphasis-delimiter';
+import { emptyBlock, opensWithAnEmptyItem, withoutAnUnderline } from './empty-block';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import {
   createNarrowedEscape,
@@ -28,6 +29,7 @@ import {
   imageMarkup,
   pixelValue,
 } from './image-spelling';
+import { addKeptLinkRules } from './kept-link';
 import { addKeptRawHtmlRules } from './kept-raw-html';
 import { linkTitle } from './link-title';
 import {
@@ -104,17 +106,33 @@ if (!builtinBlockquote || !builtinList) {
   );
 }
 
+// The same split the two `LI` rules make between them, and it has to be made
+// here as well: rule *precedence* is what keeps those two filters apart, and a
+// blank node never reaches the rule array to be ordered by it.
+const listItemOfEitherKind: BlankReplacement = (content, node, options) =>
+  isTaskListItem(node)
+    ? taskListItemReplacement(node)
+    : listItemReplacement(content, node, options);
+
+// Read here, where the guard above has narrowed it, for the quote rule below.
+const builtinBlockquoteReplacement: BlankReplacement = builtinBlockquote.replacement;
+
 const CONTAINERS: ContainerReplacements = {
-  BLOCKQUOTE: builtinBlockquote.replacement,
+  BLOCKQUOTE: builtinBlockquoteReplacement,
   UL: builtinList.replacement,
   OL: builtinList.replacement,
-  // The same split the two `LI` rules make between them, and it has to be
-  // made here as well: rule *precedence* is what keeps those two filters
-  // apart, and a blank node never reaches the rule array to be ordered by it.
-  LI: (content, node, options) =>
-    isTaskListItem(node)
-      ? taskListItemReplacement(node)
-      : listItemReplacement(content, node, options),
+  LI: listItemOfEitherKind,
+};
+
+// ── An empty heading, quote or list item (#564) ──
+//
+// The same hook, for a blank node whose content wrote nothing: see
+// `empty-block.ts`. A quote and an item are written by the rules that write
+// them holding text, so an empty one takes the spelling its file gave it; a
+// checklist item is not asked for (`empty-block.ts` says why).
+const EMPTY_BLOCK_WRITERS = {
+  blockquote: blockquoteKeepingItsBlankLineSpelling,
+  listItem: listItemReplacement,
 };
 
 const turndown = new TurndownService({
@@ -125,7 +143,9 @@ const turndown = new TurndownService({
   fence: '```',
   emDelimiter: '*',
   strongDelimiter: '**',
-  blankReplacement: createBlankReplacement(defaultBlankReplacement, CONTAINERS),
+  blankReplacement: createBlankReplacement(defaultBlankReplacement, CONTAINERS, (node, options) =>
+    emptyBlock(node, options, EMPTY_BLOCK_WRITERS),
+  ),
 });
 
 // #90: turndown escapes every `_` in a text node, because from one text node
@@ -436,7 +456,11 @@ function taskListItemReplacement(node: Node): string {
   // indentation. Pinned by two rows in `src/editor/roundtrip.test.ts`.
   const holdsATable = blocks.some((block) => block.nodeName.toUpperCase() === 'TABLE');
   const body = blocks
-    .map((block) => trimBlock(turndown.turndown(block.outerHTML)))
+    .map((block, i) => {
+      const written = trimBlock(turndown.turndown(block.outerHTML));
+      // An empty first item under the paragraph would underline it (#564).
+      return blocks[i - 1]?.nodeName === 'P' ? withoutAnUnderline(written) : written;
+    })
     .filter((block) => block.length > 0)
     .join(holdsATable ? '\n\n' : '\n');
   const separator = li.nextSibling !== null && isLooseList(li) ? '\n\n' : '\n';
@@ -537,7 +561,10 @@ turndown.addRule('listItemParagraph', {
   replacement: (content, node) => {
     const next = (node as HTMLElement).nextElementSibling;
     const nestedListFollows = next?.nodeName === 'UL' || next?.nodeName === 'OL';
-    return `\n\n${content}${next && !nestedListFollows ? '\n\n' : '\n'}`;
+    // An empty first item is written a line apart, or it would be read as a
+    // heading underline or as text continuing the paragraph (#564, D3).
+    const tight = nestedListFollows && !opensWithAnEmptyItem(next);
+    return `\n\n${content}${next && !tight ? '\n\n' : '\n'}`;
   },
 });
 
@@ -653,14 +680,17 @@ turndown.addRule('adjacentListsOfDifferentKinds', {
 // rather than composing per level.
 const BLANK_QUOTE_LINE_WITH_SPACE = /^((?:[ \t]*>)+) $/gm;
 
+// Named, since an empty quote is written by it too (#564).
+function blockquoteKeepingItsBlankLineSpelling(content: string, node: Node, options: Options) {
+  const written = builtinBlockquoteReplacement(content, node, options);
+  const bare =
+    (node as HTMLElement).getAttribute(BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE) === BARE_BLANK_MARKER;
+  return bare ? written.replace(BLANK_QUOTE_LINE_WITH_SPACE, '$1') : written;
+}
+
 turndown.addRule('blockquoteKeepingItsBlankLineSpelling', {
   filter: 'blockquote',
-  replacement: (content, node, options) => {
-    const written = builtinBlockquote.replacement(content, node, options);
-    const bare =
-      (node as HTMLElement).getAttribute(BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE) === BARE_BLANK_MARKER;
-    return bare ? written.replace(BLANK_QUOTE_LINE_WITH_SPACE, '$1') : written;
-  },
+  replacement: blockquoteKeepingItsBlankLineSpelling,
 });
 
 turndown.addRule('underline', {
@@ -732,6 +762,8 @@ turndown.addRule('strikethrough', {
 // file verbatim.
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
+// A link the editor does not make live, kept as the file wrote it (#564).
+addKeptLinkRules(turndown);
 // Emphasis the file wrote with underscores, written with them (#566).
 addEmphasisDelimiterRules(turndown);
 // A link the file wrote in angle brackets, written back so while untouched (#567).
@@ -1331,13 +1363,14 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   // every character the model holds; a mark cannot yet exist in it, since the
   // only thing that writes one is the escape, below this line.
   const carriesTheMark = html.includes(DEFINITION_POSITION);
-  setDocumentCarriesTheMark(carriesTheMark);
+  // Restored rather than cleared, as the kept tables are above (#288).
+  const outerCarriesTheMark = setDocumentCarriesTheMark(carriesTheMark);
   try {
     const written = turndown.turndown(softBreaksAsVoid(html));
     const markdown = carriesTheMark ? written : resolveDefinitionPositions(written);
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
-    setDocumentCarriesTheMark(false);
+    setDocumentCarriesTheMark(outerCarriesTheMark);
     writingKeptTables = outerWritingKeptTables;
   }
 }

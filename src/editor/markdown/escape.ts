@@ -99,8 +99,11 @@ export const DEFINITION_POSITION = '\uE012';
  */
 let documentCarriesTheMark = false;
 
-export function setDocumentCarriesTheMark(value: boolean): void {
+/** Set the flag, and return the value it held, for the caller to restore. */
+export function setDocumentCarriesTheMark(value: boolean): boolean {
+  const previous = documentCarriesTheMark;
   documentCarriesTheMark = value;
+  return previous;
 }
 
 /**

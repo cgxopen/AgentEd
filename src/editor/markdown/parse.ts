@@ -24,6 +24,7 @@ import {
   joinWrappers,
   wrapperBlock,
 } from './html-wrapper';
+import { keptLink } from './kept-link';
 import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
 import { linkTitleDelimiterAttribute } from './link-title';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
@@ -194,10 +195,19 @@ marked.use({
 
 // A link the file wrote in angle brackets is marked as one (#567), so it can
 // be written back that way while it is untouched. The rest is `marked`'s own
-// link renderer, called rather than restated.
+// link renderer, called rather than restated. A link the editor would not
+// make live is kept as the file wrote it, from a file and never a paste
+// (#564, `kept-link.ts`).
 marked.use({
   renderer: {
     link(token) {
+      if (keepingRawHtml) {
+        const inner = this.parser.parseInline(token.tokens);
+        const kept = keptLink(token, inner, SANITIZER_URI, (bytes) =>
+          keptRawHtmlCarrier(bytes, false),
+        );
+        if (kept !== null) return kept;
+      }
       const html = withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw);
       // The delimiter of its title, where not `"` (#562).
       const delimiter = linkTitleDelimiterAttribute(token.raw, token.title);
@@ -440,6 +450,10 @@ export interface ParseOptions {
   readonly keepRawHtml?: boolean;
 }
 
+/** The addresses DOMPurify keeps in an href; a link it would strip is kept by `kept-link.ts` (#564). */
+const SANITIZER_URI =
+  /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
+
 /** Whether the parse under way keeps raw HTML as bytes; see `keepRawHtml`. */
 let keepingRawHtml = true;
 
@@ -563,10 +577,7 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // kept, as the inert text it was. `data-type` and `data-checked` are not on
   // the list, by owner decision on #447: TipTap writes them too, and what a
   // document can say with them is a checkbox.
-  return DOMPurify.sanitize(withTaskLists, {
-    ALLOWED_URI_REGEXP:
-      /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data|blob):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
-  });
+  return DOMPurify.sanitize(withTaskLists, { ALLOWED_URI_REGEXP: SANITIZER_URI });
 }
 
 // ── The two lists a task marker can appear in, and the two spellings (#160) ──

@@ -52,6 +52,11 @@ import {
   tagEnd,
   withoutTagAttribute,
 } from './image-spelling';
+import {
+  KEPT_LINK_ATTRIBUTE,
+  KEPT_LINK_PLACE_ATTRIBUTE,
+  KEPT_LINK_TEXT_ATTRIBUTE,
+} from './kept-link';
 import { KEPT_RAW_HTML_ATTRIBUTE } from './kept-raw-html';
 import { LINK_TITLE_DELIMITER_ATTRIBUTE } from './link-title';
 import { LIST_MARKER_ATTRIBUTE, LIST_NUMBERING_ATTRIBUTE } from './list-marker';
@@ -87,6 +92,9 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   LIST_NUMBERING_ATTRIBUTE,
   BR_SPELLING_ATTRIBUTE,
   LINK_TITLE_DELIMITER_ATTRIBUTE,
+  KEPT_LINK_ATTRIBUTE,
+  KEPT_LINK_TEXT_ATTRIBUTE,
+  KEPT_LINK_PLACE_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */
