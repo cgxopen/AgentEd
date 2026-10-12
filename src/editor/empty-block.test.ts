@@ -115,25 +115,49 @@ describe('what an empty construct made in the editor is written as (#564, Q4)', 
   });
 });
 
-describe('the empty item that would underline the line above it is left as before (#564)', () => {
-  // A lone `-` on the line directly under a line of text is a setext
-  // underline: `- foo` over `  -` reads back as a heading inside the item, in
-  // `marked` and on GitHub alike. The serializer writes a nested list on the
-  // line under the paragraph of its item, so the empty first item of a nested
-  // `-` list is dropped as it was on `0ccf572`, and the owner decides on #564
-  // what it becomes. Each expected value is what `0ccf572` writes.
+describe('an empty first item under the paragraph of its item (#564, owner decision D3)', () => {
+  // Written on the line under the paragraph, a lone `-` is a setext underline
+  // and reads back as a heading, and GitHub reads a lone `*`, `+` or `1.` there
+  // as text continuing the paragraph. So the nested list is written a blank
+  // line under the paragraph, which `marked` and GitHub both read as the item,
+  // and the editor still reads the list around it as tight.
   it.each([
-    ['in a bullet item', '- foo\n\n  -\n', '- foo\n'],
-    ['in a checklist item', '- [ ] foo\n\n  -\n', '- [ ] foo\n'],
-    ['in a quote', '> - foo\n>\n>   -\n', '> - foo\n'],
-    ['with an item after it', '- [ ] foo\n\n  -\n  - x\n', '- [ ] foo\n  - x\n'],
-  ])('%s', (_label, markdown, expected) => {
-    expect(saved(markdown)).toBe(expected);
+    ['in a bullet item', '- foo\n\n  -\n'],
+    ['with an item after it', '- foo\n\n  -\n  - x\n'],
+    ['with an item after the outer one', '- foo\n\n  -\n- bar\n'],
+    ['in an ordered item', '1. foo\n\n   1.\n2. bar\n'],
+    ['in a quote', '> - foo\n>\n>   -\n'],
+  ])('keeps it %s byte for byte', (_label, markdown) => {
+    const once = saved(markdown);
+    expect(once).toBe(markdown);
+    expect(saved(once)).toBe(once);
   });
 
-  it('writes the empty item where nothing can underline', () => {
-    // A `*` cannot underline, and an ordered marker is no underline at all.
-    expect(saved('- foo\n  *\n')).toBe('- foo\n  *\n');
-    expect(saved('1. foo\n   1.\n')).toBe('1. foo\n   1.\n');
+  it('reads the list around it back as tight', () => {
+    expect(editorWith('- foo\n\n  -\n- bar\n').editor.getHTML()).toBe(
+      '<ul><li><p>foo</p><ul><li><p></p></li></ul></li><li><p>bar</p></li></ul>',
+    );
+  });
+
+  it('writes the spelling GitHub reads as text with the blank line', () => {
+    // `marked` reads both as an empty item and GitHub as the paragraph text.
+    expect(saved('- foo\n  *\n')).toBe('- foo\n\n  *\n');
+    expect(saved('1. foo\n   1.\n')).toBe('1. foo\n\n   1.\n');
+  });
+
+  it('writes one made by Tab under an item', () => {
+    const editor = editorWith('- foo\n-\n');
+    editor.editor.commands.setTextSelection(editor.editor.state.doc.content.size - 3);
+    expect(editor.editor.commands.sinkListItem('listItem')).toBe(true);
+    expect(editor.getMarkdown()).toBe('- foo\n\n  -');
+  });
+
+  it.each([
+    // The recorded exception: a blank line there would cost the checkbox on
+    // GitHub, so the item is dropped as it was on `0ccf572`.
+    ['alone', '- [ ] foo\n\n  -\n', '- [ ] foo\n'],
+    ['with an item after it', '- [ ] foo\n\n  -\n  - x\n', '- [ ] foo\n  - x\n'],
+  ])('drops it in a checklist item, %s', (_label, markdown, expected) => {
+    expect(saved(markdown)).toBe(expected);
   });
 });

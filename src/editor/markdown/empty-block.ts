@@ -35,17 +35,18 @@ import type { BlankReplacement, Options } from 'turndown';
  * a loose checklist can hand over since #160: a checkbox with nothing after it
  * is a question of its own, and #564 does not take it.
  *
- * ── The one empty item that is not written ──
+ * ── An empty first item under a paragraph (#564, owner decision D3) ──
  *
- * A bullet item written `-` on the line directly under a line of text is a
- * setext underline, not an item: `- foo` over `  -` reads back as a heading
- * `foo` inside the item. The serializer writes a nested list on the line
- * directly under the paragraph of its item, so an empty first item of a nested
- * `-` list lands exactly there, and writing it would turn the paragraph above
- * into a heading. That item is left to the default, which drops it as before
- * #564, and the owner decides on #564 what it becomes. A checklist item writes
- * its blocks one at a time, so the list cannot see the paragraph above it
- * there, and `withoutAnUnderline` answers the same question for that writer.
+ * A nested list is written on the line under the paragraph of its item, and
+ * there an empty first item is not an item: a lone `-` is a setext underline,
+ * so `- foo` over `  -` reads back as a heading, and GitHub reads a lone `*`,
+ * `+` or `1.` as text continuing the paragraph, since an empty item cannot
+ * interrupt one. So the `listItemParagraph` rule writes such a list a blank
+ * line under the paragraph, asking `opensWithAnEmptyItem`, the one spelling
+ * `marked` and GitHub both read as the item. A checklist item writes its
+ * blocks one at a time, where a blank line would cost the checkbox on GitHub,
+ * so there the empty first item of a `-` list is left out as before #564, the
+ * exception R-C2 records, and `withoutAnUnderline` does that.
  */
 
 /** The rules that write a quote and a list item holding text, from `serialize.ts`. */
@@ -56,26 +57,21 @@ export interface EmptyBlockWriters {
 
 const HEADING = /^H([1-6])$/;
 
-/** The bullet a setext underline is spelled with, where the other two are not. */
-const UNDERLINE_MARKER = '-';
-
 /** The space after a marker, where the marker is the whole of the line. */
 const SPACE_AFTER_THE_MARKER = / (\n*)$/;
 
-/**
- * Whether `li` is the first item of a nested list written directly under the
- * paragraph of its item, as the first line under a paragraph, where a lone `-`
- * is read as an underline.
- */
-function underlinesTheParagraphAbove(li: Element, marker: string): boolean {
-  const list = li.parentElement;
+/** Whether `li` holds nothing but empty paragraphs, so it is written as its marker alone. */
+function isEmptyItem(li: Element): boolean {
   return (
-    marker === UNDERLINE_MARKER &&
-    list !== null &&
-    list.firstElementChild === li &&
-    list.previousElementSibling?.nodeName === 'P' &&
-    list.parentElement?.nodeName === 'LI'
+    li.textContent === '' &&
+    Array.from(li.children).every((child) => child.nodeName === 'P' && child.children.length === 0)
   );
+}
+
+/** Whether `list` is a list whose first item is written as its marker alone. */
+export function opensWithAnEmptyItem(list: Element | null): boolean {
+  const first = list?.firstElementChild;
+  return (list?.nodeName === 'UL' || list?.nodeName === 'OL') && first != null && isEmptyItem(first);
 }
 
 /** A lone `-` opening a block, which is what an empty first item writes. */
@@ -93,9 +89,7 @@ export function withoutAnUnderline(written: string): string {
 
 function emptyListItem(node: Node, options: Options, writers: EmptyBlockWriters): string | null {
   if ((node as Element).parentElement?.getAttribute('data-type') === 'taskList') return null;
-  const written = writers.listItem('', node, options).replace(SPACE_AFTER_THE_MARKER, '$1');
-  const marker = written.trimEnd();
-  return underlinesTheParagraphAbove(node as Element, marker) ? null : written;
+  return writers.listItem('', node, options).replace(SPACE_AFTER_THE_MARKER, '$1');
 }
 
 /**

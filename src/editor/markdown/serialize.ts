@@ -7,7 +7,7 @@ import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
 import { addEmphasisDelimiterRules } from './emphasis-delimiter';
-import { emptyBlock, withoutAnUnderline } from './empty-block';
+import { emptyBlock, opensWithAnEmptyItem, withoutAnUnderline } from './empty-block';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
 import {
   createNarrowedEscape,
@@ -560,7 +560,10 @@ turndown.addRule('listItemParagraph', {
   replacement: (content, node) => {
     const next = (node as HTMLElement).nextElementSibling;
     const nestedListFollows = next?.nodeName === 'UL' || next?.nodeName === 'OL';
-    return `\n\n${content}${next && !nestedListFollows ? '\n\n' : '\n'}`;
+    // An empty first item is written a line apart, or it would be read as a
+    // heading underline or as text continuing the paragraph (#564, D3).
+    const tight = nestedListFollows && !opensWithAnEmptyItem(next);
+    return `\n\n${content}${next && !tight ? '\n\n' : '\n'}`;
   },
 });
 
