@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { marked, Renderer, type Token, type Tokens } from 'marked';
+import { adjacentMarkExtension, markAdjacentBlocks, moveAdjacencyMarks } from './adjacency';
 import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
@@ -247,10 +248,16 @@ marked.use({
       // Each link takes the parity of its place in its block (#565, D5).
       const joined = placeLinks(joinWrappers(tokens as Token[]));
       // Kept bytes come from a file: a paste keeps none (#563 review).
-      return keepingRawHtml ? markKeptRawHtml(joinDetailsRegions(joined)) : joined;
+      // The kept bytes and the adjacency come from a file: a paste has neither
+      // (#563 review, #568).
+      return keepingRawHtml
+        ? markAdjacentBlocks(markKeptRawHtml(joinDetailsRegions(joined)))
+        : joined;
     },
   },
   extensions: [
+    // The mark before a block written under another (#568).
+    adjacentMarkExtension,
     {
       name: 'htmlWrapper',
       level: 'block',
@@ -592,8 +599,9 @@ export function markdownToHtml(markdown: string, options: ParseOptions = {}): st
   // `marked` hands them, rather than by a pass over this string (#200).
 
   // The checkbox `marked` writes for a GFM task item, rewritten for whichever
-  // list holds it (#160).
-  const processed = rewriteCheckboxes(html);
+  // list holds it (#160), after each adjacency mark is moved onto its block
+  // (#568).
+  const processed = rewriteCheckboxes(moveAdjacencyMarks(html));
 
   // Which of those lists is a task list, in the spelling TipTap reads (#110).
   // It has to happen after the rewrite above and before sanitization, because

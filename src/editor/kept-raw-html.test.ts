@@ -153,11 +153,9 @@ describe('kept as bytes: an unedited save writes the file back and holds still (
     expect(await openAndSaveUnedited(once)).toBe(once);
   });
 
-  it('an anchor directly above a heading gains the blank line of #568, and holds still', async () => {
+  it('an anchor directly above a heading stays directly above it (#568)', async () => {
     const file = '<a name="intro"></a>\n## Intro\n';
-    const once = await openAndSaveUnedited(file);
-    expect(once).toBe('<a name="intro"></a>\n\n## Intro\n');
-    expect(await openAndSaveUnedited(once)).toBe(once);
+    expect(await openAndSaveUnedited(file)).toBe(file);
   });
 });
 

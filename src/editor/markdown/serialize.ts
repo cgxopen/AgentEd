@@ -1,6 +1,12 @@
 import { marked } from 'marked';
 import TurndownService, { type BlankReplacement, type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
+import {
+  addAdjacencyMarks,
+  answerAdjacency,
+  beginAdjacency,
+  withoutAdjacencyMarks,
+} from './adjacency-save';
 import { addAutolinkRules } from './angle-autolink';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { addBrSpellingRules } from './br-spelling';
@@ -1111,8 +1117,10 @@ function cellContent(cell: HTMLElement): string {
     const inner = needsCellBlockSpelling(cell)
       ? cellBlocks(cell, { inline: cellInline, table: inlineTable })
       : turndown.turndown(cell.innerHTML);
-    // A link start answered here, before the width of the cell is counted (#565).
-    const flattened = spaceAroundInlineHtml(answerLinkStarts(inner).replace(/\n/g, ' ')).trim();
+    // A link start answered here, before the width of the cell is counted
+    // (#565), and the marks of #568 taken out.
+    const answered = answerLinkStarts(withoutAdjacencyMarks(inner));
+    const flattened = spaceAroundInlineHtml(answered.replace(/\n/g, ' ')).trim();
     // Pipes are escaped once, by the outermost cell. A table inside the cell is
     // written with its own cells unescaped and this pass reaches them inside
     // the HTML; escaping at every level would write `\\|` there (#278).
@@ -1381,6 +1389,10 @@ turndown.addRule('tableSection', {
 // because `marked` never read the nested item as a task item at all. That is a
 // parse-level shape, measured identical before and after this change, and it
 // belongs to whoever picks up member 3a.
+// Two blocks the file wrote adjacent are marked whichever rule writes them,
+// and written adjacent again where they still read the same (#568).
+addAdjacencyMarks(turndown);
+
 const EMPTY_TASK_ITEM_AT_THE_END = /(?:^|\n)[>\s]*- \[[ x]\]$/;
 
 export interface SerializeOptions {
@@ -1423,12 +1435,19 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   const outerMarking = setMarkingLinkStarts(!carriesLinkStart);
   // The labels the definitions define as they stand, read by `marked` (#570).
   const outerDefined = setDefinedLabels(definedLabels(html, inACell));
+  // Unless the document carries one of their characters (#568).
+  const endAdjacency = beginAdjacency(html);
   try {
     const written = turndown.turndown(softBreaksAsVoid(html));
-    const resolved = carriesTheMark ? written : resolveDefinitionPositions(written);
-    const markdown = carriesLinkStart ? resolved : answerLinkStarts(resolved);
+    const finish = (text: string) => {
+      const resolved = carriesTheMark ? text : resolveDefinitionPositions(text);
+      return carriesLinkStart ? resolved : answerLinkStarts(resolved);
+    };
+    // Adjacent pairs are answered first, each read as the finished text (#568).
+    const markdown = answerAdjacency(written, finish);
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
+    endAdjacency();
     setMarkingLinkStarts(outerMarking);
     setDefinedLabels(outerDefined);
     setDocumentCarriesTheMark(outerCarriesTheMark);
