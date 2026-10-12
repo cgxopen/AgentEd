@@ -166,6 +166,40 @@ describe('a pair written adjacent only where it reads back (#568)', () => {
     },
   );
 
+  // GitHub reads `---` directly under a definition as text, so the pair is
+  // refused whatever the rule's spelling (AMP review of #592).
+  it.each([
+    ['`***`', '[a]: https://example.com\n***\n'],
+    ['`---`', '[a]: https://example.com\n---\n'],
+    ['`___`, in a quote', '> [a]: https://example.com\n> ___\n'],
+  ])(
+    'a reference definition over a rule spelled %s keeps a blank line, and holds still',
+    async (_label, file) => {
+      const once = await openAndSaveUnedited(file);
+      expect(once).toMatch(/https:\/\/example\.com\n(?:> ?)?\n(?:> )?---\n$/);
+      expect(await openAndSaveUnedited(once)).toBe(once);
+    },
+  );
+
+  it('a rule that comes under a definition through an edit keeps a blank line (D3)', () => {
+    const instance = editorWith('[a]: https://example.com\nText.\n***\n');
+    let from = -1;
+    let to = -1;
+    instance.editor.state.doc.forEach((node, offset) => {
+      if (node.type.name === 'paragraph' && node.textContent === 'Text.') {
+        from = offset;
+        to = offset + node.nodeSize;
+      }
+    });
+    instance.editor.chain().deleteRange({ from, to }).run();
+    expect(instance.getMarkdown()).toBe('[a]: https://example.com\n\n---');
+  });
+
+  it('a footnote definition over a rule stays adjacent', async () => {
+    const file = 'Text.[^1]\n\n[^1]: note\n---\n';
+    expect(await openAndSaveUnedited(file)).toBe(file);
+  });
+
   it('a document that reads otherwise whole is written as before #568, and holds still', async () => {
     // Each pair reads the same alone; the lazy lines around them do not.
     // The bytes are what `e94d5a9` wrote.

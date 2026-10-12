@@ -25,6 +25,8 @@
  * two blocks, but the rule is written `---`, and `Text.` over `---` is a
  * heading. Each pair is read once, so the cost grows with the document and
  * not with its square, which the step zero measured at 136 s for one save.
+ * One pair is refused by kind rather than by reading: a reference definition
+ * over a rule, which GitHub reads otherwise than the lexer does.
  *
  * ── 3. The whole document, once ──
  *
@@ -181,7 +183,22 @@ function readsTheSame(
     prefix,
   );
   if (apart === null || adjacent === null) return false;
-  return shapeOf(finish(adjacent)) === shapeOf(finish(apart));
+  const apartTokens = lexMarkdown(finish(apart));
+  if (isDefinitionOverRule(apartTokens)) return false;
+  return shapeOf(finish(adjacent)) === JSON.stringify(shapeOfTokens(apartTokens, 0));
+}
+
+/**
+ * Whether the pair is a reference definition over a rule, which is refused
+ * whatever the rule's spelling (AMP review of #592). The rule is always
+ * written `---`, and cmark-gfm, which GitHub uses, reads `---` directly
+ * under a definition as the text `---`, where `marked` reads a rule: so the
+ * lexer cannot see this loss, and it is refused by kind. A footnote
+ * definition over a rule needs no refusal: cmark-gfm reads a rule there.
+ */
+function isDefinitionOverRule(tokens: Token[]): boolean {
+  const blocks = tokens.filter((token) => token.type !== 'space');
+  return blocks[0]?.type === 'referenceDefinition' && blocks[1]?.type === 'hr';
 }
 
 /**
