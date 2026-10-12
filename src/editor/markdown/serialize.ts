@@ -41,6 +41,8 @@ import {
 } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { markupOpenings } from './markup-openers';
+import { REFERENCE_DEFINITION_ATTRIBUTE, referenceSpelling, setDefinedLabels } from './reference';
+import { definedLabels, readsAs, referenceIndentOf } from './reference-save';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
@@ -277,6 +279,9 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
   replacement: (content, node) => {
     const element = node as HTMLElement;
     const href = literalAmpersands(element.getAttribute('href') ?? '').replace(/([()])/g, '\\$1');
+    // A link the file wrote as a reference, while its label resolves (#570).
+    const reference = referenceSpelling(element, content, readsAs(element.textContent), false);
+    if (reference !== null) return `${linkStart()}${reference}`;
     return `${linkStart()}[${content}](${href}${linkTitle(element)})`;
   },
 });
@@ -777,7 +782,7 @@ turndown.addRule('strikethrough', {
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
 // A link the editor does not make live, kept as the file wrote it (#564).
-addKeptLinkRules(turndown);
+addKeptLinkRules(turndown, readsAs);
 // Emphasis the file wrote with underscores, written with them (#566).
 addEmphasisDelimiterRules(turndown);
 // A link the file wrote in angle brackets, written back so while untouched (#567).
@@ -811,6 +816,14 @@ turndown.addRule('markdownComment', {
  * file used for it comes off the element — it cannot be read from the text,
  * because leading whitespace in inline content does not reach here.
  */
+/** Whether a reference definition sits in a table cell, where it defines nothing (#570). */
+function inACell(element: Element): boolean {
+  // A cell writes its blocks one at a time, apart from the table, so the
+  // depth of the cell being written answers where `closest` cannot.
+  const inside = cellDepth > 0 || element.closest('td, th') !== null;
+  return element.hasAttribute(REFERENCE_DEFINITION_ATTRIBUTE) && inside;
+}
+
 function isFootnoteDefinition(node: Node | null): boolean {
   return (
     node !== null &&
@@ -837,7 +850,11 @@ turndown.addRule('footnoteDefinition', {
       current += child.textContent ?? '';
     }
     lines.push(current);
-    const text = joinDefinition({ lines, indents });
+    // A reference definition puts back the indentation of its first line (#570).
+    // In a table cell, whose blocks are written as HTML (#300), it is no
+    // definition to the next reader, so it is written as the text it then is.
+    const joined = `${referenceIndentOf(element)}${joinDefinition({ lines, indents })}`;
+    const text = inACell(element) ? turndown.escape(joined) : joined;
     // Two definitions are a single newline apart unless the one above spelled
     // a blank line there (#418). The gap belongs to the pair, and it is read
     // off the sibling that carries it rather than off this one.
@@ -867,8 +884,13 @@ turndown.addRule('agentedImage', {
       console.warn('[agented] image src looks like asset URL but not in registry:', src);
     }
 
+    const source = decodeHtmlSource(img.getAttribute(IMAGE_HTML_SOURCE_ATTRIBUTE));
+    // An image the file wrote as a reference, while its label resolves (#570).
+    const reference =
+      source === null ? referenceSpelling(img, turndown.escape(alt), readsAs(alt), true) : null;
+    if (reference !== null) return `${linkStart()}${reference}`;
     return imageMarkup(
-      decodeHtmlSource(img.getAttribute(IMAGE_HTML_SOURCE_ATTRIBUTE)),
+      source,
       alt,
       rel || src,
       // `getAttribute` answers `null` for an image with no title, which is the
@@ -1383,6 +1405,8 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   // The start of a link is marked unless the document holds the mark (#565).
   const carriesLinkStart = html.includes(LINK_START);
   const outerMarking = setMarkingLinkStarts(!carriesLinkStart);
+  // The labels the definitions define as they stand, read by `marked` (#570).
+  const outerDefined = setDefinedLabels(definedLabels(html, inACell));
   try {
     const written = turndown.turndown(softBreaksAsVoid(html));
     const resolved = carriesTheMark ? written : resolveDefinitionPositions(written);
@@ -1390,6 +1414,7 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
     setMarkingLinkStarts(outerMarking);
+    setDefinedLabels(outerDefined);
     setDocumentCarriesTheMark(outerCarriesTheMark);
     writingKeptTables = outerWritingKeptTables;
   }

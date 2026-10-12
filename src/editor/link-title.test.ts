@@ -80,8 +80,8 @@ describe('an unedited save keeps the title of a link and its delimiter (#562)', 
     expect(editor.getMarkdown()).toBe('[AgentEd](https://agentedapp.com)');
   });
 
-  it('a title read from a reference definition is written inline, double-quoted (#570)', () => {
-    expect(editorWith("[a][r]\n\n[r]: /u 'Home'").getMarkdown()).toBe('[a](/u "Home")');
+  it('a title read from a reference definition stays in the definition (#570)', () => {
+    expect(editorWith("[a][r]\n\n[r]: /u 'Home'").getMarkdown()).toBe("[a][r]\n\n[r]: /u 'Home'");
   });
 });
 

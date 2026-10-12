@@ -76,6 +76,7 @@ import {
   ONE_NUMBER,
 } from './markdown/list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
+import { REFERENCE_DEFINITION_ATTRIBUTE, referenceMarkAttribute } from './markdown/reference';
 import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
@@ -151,6 +152,16 @@ const FootnoteDefinition = TipTapNode.create({
       renderHTML: (attributes: Record<string, unknown>) =>
         typeof attributes.indents === 'string' && attributes.indents !== ''
           ? { [FOOTNOTE_INDENTS_ATTRIBUTE]: attributes.indents }
+          : {},
+    },
+    // A reference definition rides on this node too (#570): the indentation
+    // of its first line, where a footnote definition carries `null`.
+    referenceIndent: {
+      default: null as string | null,
+      parseHTML: (element: HTMLElement) => element.getAttribute(REFERENCE_DEFINITION_ATTRIBUTE),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        typeof attributes.referenceIndent === 'string'
+          ? { [REFERENCE_DEFINITION_ATTRIBUTE]: attributes.referenceIndent }
           : {},
     },
     // The gap the file left under this definition (#418). A boolean rather
@@ -718,6 +729,8 @@ const ImageWithSpelling = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      // An image the file wrote as a reference knows its spelling (#570).
+      ...referenceMarkAttribute(),
       htmlSource: {
         default: null,
         parseHTML: (element: HTMLElement) =>
@@ -864,6 +877,8 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
           ...linkTitleMarkAttributes(),
           // Two links side by side with one destination stay two (#565).
           ...linkPlaceMarkAttribute(),
+          // A link the file wrote as a reference knows its spelling (#570).
+          ...referenceMarkAttribute(),
         };
       },
     }).configure({

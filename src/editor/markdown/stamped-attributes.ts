@@ -62,6 +62,7 @@ import { LINK_PLACE_ATTRIBUTE } from './link-place';
 import { LINK_TITLE_DELIMITER_ATTRIBUTE } from './link-title';
 import { LIST_MARKER_ATTRIBUTE, LIST_NUMBERING_ATTRIBUTE } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
+import { REFERENCE_ATTRIBUTE, REFERENCE_DEFINITION_ATTRIBUTE } from './reference';
 import {
   SOFT_BREAK_ATTRIBUTE,
   SOFT_BREAK_INDENT_ATTRIBUTE,
@@ -97,6 +98,8 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   KEPT_LINK_TEXT_ATTRIBUTE,
   KEPT_LINK_PLACE_ATTRIBUTE,
   LINK_PLACE_ATTRIBUTE,
+  REFERENCE_ATTRIBUTE,
+  REFERENCE_DEFINITION_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */

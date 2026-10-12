@@ -4,6 +4,12 @@ import type TurndownService from 'turndown';
 import { isRelativeLinkAddress } from '../link-url';
 import { literalAmpersands } from './destination';
 import { linkStart } from './link-start';
+import {
+  referenceAttribute,
+  referenceMarkAttribute,
+  referenceOf,
+  referenceSpelling,
+} from './reference';
 import { softBreaksAsVoid } from './soft-break';
 
 /**
@@ -79,12 +85,23 @@ function isUnsafe(href: string): boolean {
   return UNSAFE_SCHEME.test(withoutIgnored(href));
 }
 
-/**
- * Whether the bytes are an inline link or an autolink: a reference link ends
- * with its label, and its definition is not written (#570).
- */
+/** Whether the bytes are an inline link or an autolink, which end with `)` or open with `<`. */
 function isInlineSpelling(raw: string): boolean {
   return raw.startsWith('<') || raw.endsWith(')');
+}
+
+/**
+ * A reference link of a destination the editor does not make live is kept
+ * too since its definition is written (#570, R3): its spelling rides on the
+ * span as a live reference carries it, and the bytes kept are the inline link
+ * it reads as, written where its label no longer resolves (R2).
+ */
+function inlineBytes(token: Tokens.Link): string {
+  const href = /[\s<>]/.test(token.href)
+    ? `<${token.href}>`
+    : literalAmpersands(token.href).replace(/([()])/g, '\\$1');
+  const title = token.title ? ` "${token.title.replace(/["\\]/g, '\\$&')}"` : '';
+  return `[${token.text}](${href}${title})`;
 }
 
 /** Whether the editor makes `href` a live link: the sanitizer keeps it and the link mark does. */
@@ -106,12 +123,14 @@ export function keptLink(
   sanitizerAllows: RegExp,
   carrier: (bytes: string) => string,
 ): string | null {
-  if (!isInlineSpelling(token.raw) || isUnsafe(token.href)) return null;
-  if (token.text === '') return carrier(token.raw);
+  const reference = referenceOf(token.raw);
+  if ((!isInlineSpelling(token.raw) && reference === null) || isUnsafe(token.href)) return null;
+  if (token.text === '' && reference === null) return carrier(token.raw);
   if (isLive(token.href, sanitizerAllows)) return null;
   nextPlace = (nextPlace + 1) % Number.MAX_SAFE_INTEGER;
   const place = `${KEPT_LINK_PLACE_ATTRIBUTE}="${nextPlace}"`;
-  return `<span ${KEPT_LINK_ATTRIBUTE}="${encode(token.raw)}" ${KEPT_LINK_TEXT_ATTRIBUTE}="${encode(inner)}" ${place}>${inner}</span>`;
+  const raw = reference === null ? token.raw : inlineBytes(token);
+  return `<span ${KEPT_LINK_ATTRIBUTE}="${encode(raw)}" ${KEPT_LINK_TEXT_ATTRIBUTE}="${encode(inner)}" ${place}${referenceAttribute(token.raw)}>${inner}</span>`;
 }
 
 /**
@@ -157,6 +176,7 @@ export function keptLinkMarkAttributes() {
     raw: attribute('raw', KEPT_LINK_ATTRIBUTE),
     inner: attribute('inner', KEPT_LINK_TEXT_ATTRIBUTE),
     at: attribute('at', KEPT_LINK_PLACE_ATTRIBUTE),
+    ...referenceMarkAttribute(),
   };
 }
 
@@ -222,7 +242,10 @@ const MAX_MARKS_AROUND = 16;
  * more is split at its edge, as for a live link: the exception of R-C2 for
  * two overlapping marks.
  */
-export function addKeptLinkRules(turndown: TurndownService): void {
+export function addKeptLinkRules(
+  turndown: TurndownService,
+  readsAs: (text: string | null) => (label: string) => boolean,
+): void {
   const write = (html: string): string => turndown.turndown(softBreaksAsVoid(`<p>${html}</p>`));
 
   /**
@@ -253,6 +276,12 @@ export function addKeptLinkRules(turndown: TurndownService): void {
       const kept = keptBytes(span);
       if (kept === null) return content;
       const drawn = write(kept.inner);
+      // A reference whose label resolves is written as its reference (#570).
+      const reference =
+        content === drawn
+          ? referenceSpelling(span, content, readsAs(span.textContent), false)
+          : null;
+      if (reference !== null) return startingALink(reference);
       if (content === drawn) return startingALink(kept.raw);
       const around = inMarks(span.cloneNode(true) as HTMLElement, drawn, kept.raw);
       if (around === null) return content;
