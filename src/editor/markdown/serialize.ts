@@ -29,6 +29,7 @@ import {
   pixelValue,
 } from './image-spelling';
 import { addKeptRawHtmlRules } from './kept-raw-html';
+import { linkTitle } from './link-title';
 import {
   LIST_MARKER_ATTRIBUTE,
   LIST_NUMBERING_ATTRIBUTE,
@@ -244,15 +245,14 @@ turndown.remove(['style', 'script', 'title', 'noscript']);
 // the next reader does not decode it into another address (#447, see
 // `destination.ts`). Everything else is turndown's own `inlineLink`, restated
 // because a rule cannot be adjusted in place: parentheses escaped, and the
-// title quoted with its newlines collapsed the way turndown collapses them.
+// title with its newlines collapsed the way turndown collapses them, in the
+// delimiter the file used since #562 (`link-title.ts`).
 turndown.addRule('inlineLinkKeepingAmpersands', {
   filter: (node) => node.nodeName === 'A' && Boolean((node as HTMLElement).getAttribute('href')),
   replacement: (content, node) => {
     const element = node as HTMLElement;
     const href = literalAmpersands(element.getAttribute('href') ?? '').replace(/([()])/g, '\\$1');
-    const rawTitle = element.getAttribute('title');
-    const title = rawTitle ? ` "${rawTitle.replace(/(\n+\s*)+/g, '\n').replace(/"/g, '\\"')}"` : '';
-    return `[${content}](${href}${title})`;
+    return `[${content}](${href}${linkTitle(element)})`;
   },
 });
 

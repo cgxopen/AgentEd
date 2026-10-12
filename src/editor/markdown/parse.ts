@@ -25,6 +25,7 @@ import {
   wrapperBlock,
 } from './html-wrapper';
 import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
+import { linkTitleDelimiterAttribute } from './link-title';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
@@ -197,7 +198,10 @@ marked.use({
 marked.use({
   renderer: {
     link(token) {
-      return withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw);
+      const html = withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw);
+      // The delimiter of its title, where not `"` (#562).
+      const delimiter = linkTitleDelimiterAttribute(token.raw, token.title);
+      return delimiter !== '' && html.startsWith('<a ') ? `<a${delimiter}${html.slice(2)}` : html;
     },
   },
 });
