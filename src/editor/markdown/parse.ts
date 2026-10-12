@@ -26,6 +26,7 @@ import {
 } from './html-wrapper';
 import { keptLink } from './kept-link';
 import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
+import { placeLinks, withLinkPlace } from './link-place';
 import { linkTitleDelimiterAttribute } from './link-title';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
@@ -208,7 +209,10 @@ marked.use({
         );
         if (kept !== null) return kept;
       }
-      const html = withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw);
+      const html = withLinkPlace(
+        withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw),
+        token,
+      );
       // The delimiter of its title, where not `"` (#562).
       const delimiter = linkTitleDelimiterAttribute(token.raw, token.title);
       return delimiter !== '' && html.startsWith('<a ') ? `<a${delimiter}${html.slice(2)}` : html;
@@ -236,7 +240,8 @@ marked.use({
   // Then the raw HTML #563 keeps is marked, once the wrappers have taken theirs.
   hooks: {
     processAllTokens: (tokens) => {
-      const joined = joinWrappers(tokens as Token[]);
+      // Each link takes the parity of its place in its block (#565, D5).
+      const joined = placeLinks(joinWrappers(tokens as Token[]));
       // Kept bytes come from a file: a paste keeps none (#563 review).
       return keepingRawHtml ? markKeptRawHtml(joinDetailsRegions(joined)) : joined;
     },

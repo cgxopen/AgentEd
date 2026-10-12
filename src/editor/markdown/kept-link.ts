@@ -3,6 +3,7 @@ import { marked, type Tokens } from 'marked';
 import type TurndownService from 'turndown';
 import { isRelativeLinkAddress } from '../link-url';
 import { literalAmpersands } from './destination';
+import { linkStart } from './link-start';
 import { softBreaksAsVoid } from './soft-break';
 
 /**
@@ -197,6 +198,11 @@ function insideBrackets(raw: string, content: string): string | null {
   return raw[close] === ']' ? `[${content}]${raw.slice(close + 1)}` : null;
 }
 
+/** Bytes that open with a bracket, marked as a link start, so a `!` before them is escaped (#565). */
+function startingALink(written: string): string {
+  return written.startsWith('[') ? `${linkStart()}${written}` : written;
+}
+
 /** Letters alone, which no escape of turndown touches, standing for the bytes. */
 const SENTINEL = 'KeptLinkBytesGoHere';
 
@@ -247,10 +253,12 @@ export function addKeptLinkRules(turndown: TurndownService): void {
       const kept = keptBytes(span);
       if (kept === null) return content;
       const drawn = write(kept.inner);
-      if (content === drawn) return kept.raw;
+      if (content === drawn) return startingALink(kept.raw);
       const around = inMarks(span.cloneNode(true) as HTMLElement, drawn, kept.raw);
       if (around === null) return content;
-      return standsApart(span) ? around : (insideBrackets(kept.raw, content) ?? content);
+      return startingALink(
+        standsApart(span) ? around : (insideBrackets(kept.raw, content) ?? content),
+      );
     },
   });
 }

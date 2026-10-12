@@ -48,6 +48,7 @@ import { AppState } from '../app/state';
 import { loadMarkdown, saveMarkdown } from '../formats/plain';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
 import changesJson from './commonmark-spec-changes.json?raw';
+import { STAMPED_ATTRIBUTES } from './markdown/stamped-attributes';
 import { createEditor } from './setup';
 
 /** A recorded exception, by its title in REQUIREMENTS after `Known exception — `. */
@@ -88,6 +89,7 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   },
   'div-text': { recorded: 'a raw `div` holding text is written as that text' },
   'link-empty': { recorded: 'a raw `a` with an `href` and no text, or no end tag, is lost' },
+  'link-nested': { recorded: 'a link inside a link is read as `marked` reads it' },
   // Recorded for another case of the same mechanism.
   'marks-split': { recorded: 'two overlapping marks have exactly one nesting', caseNotNamed: true },
   'html-as-markdown': {
@@ -114,8 +116,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   // The meaning moves.
   'nested-em': { breaks: 'R-C2 document', what: 'nested emphasis of one kind is made one' },
   'span-padding': { breaks: 'R-C2 document', what: 'the spaces of a code span move or go' },
-  'as-markup': { breaks: 'R-C2 document', what: 'escaped text is written as markup' },
-  'link-unwritten': { breaks: 'R-C13', what: 'text becomes a link or an image nobody wrote' },
   'em-structure': { breaks: 'R-C2 document', what: 'emphasis is written with another nesting' },
   'list-spacing': { breaks: 'R-C2 document', what: 'a list changes between loose and tight' },
   'rule-in-item': { breaks: 'R-C2 document', what: 'a rule in a list item leaves the item' },
@@ -248,6 +248,12 @@ describe('the CommonMark 0.31.2 examples, opened and saved unedited (R-C2, #557)
   it.each(EXAMPLES)('example $n', async ({ n, markdown }) => {
     const first = await openAndSaveUnedited(markdown);
     const second = await openAndSaveUnedited(first);
+    // No attribute the pipeline stamps for itself reaches a file that did not
+    // spell it (#565): a prototype wrote `data-link-at` into 22 files.
+    for (const name of STAMPED_ATTRIBUTES) {
+      if (!markdown.includes(name))
+        expect(first, `example ${n} writes ${name}`).not.toContain(name);
+    }
     const listed = LISTED.get(n);
     if (first === markdown) {
       expect(listed, `example ${n} comes back unchanged: remove its entry`).toBeUndefined();

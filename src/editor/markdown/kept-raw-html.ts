@@ -1,6 +1,7 @@
 import type { Token } from 'marked';
 import type TurndownService from 'turndown';
 import { isEmptyLinkBytes } from './kept-link';
+import { linkStart } from './link-start';
 import { holdsFilteredTag } from './tag-filter';
 
 /**
@@ -358,8 +359,11 @@ export function addKeptRawHtmlRules(turndown: TurndownService): void {
     filter: (node) =>
       node.nodeName === KEPT_RAW_HTML_TAG.toUpperCase() &&
       (node as HTMLElement).hasAttribute(KEPT_RAW_HTML_ATTRIBUTE),
-    replacement: (_content, node) =>
-      decodeKeptRawHtml((node as HTMLElement).getAttribute(KEPT_RAW_HTML_ATTRIBUTE)) ?? '',
+    replacement: (_content, node) => {
+      const bytes = decodeKeptRawHtml((node as HTMLElement).getAttribute(KEPT_RAW_HTML_ATTRIBUTE));
+      // A link with no text rides here too (#564); its start is marked (#565).
+      return bytes?.startsWith('[') ? `${linkStart()}${bytes}` : (bytes ?? '');
+    },
   });
   turndown.addRule('inlineElements', {
     filter: [...INLINE_ELEMENTS],

@@ -53,7 +53,7 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
 
   function removeLink(): void {
     close();
-    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    editor.chain().focus().extendMarkRange('link', editor.getAttributes('link')).unsetLink().run();
   }
 
   function confirm(): void {
@@ -89,8 +89,15 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
 
     // With the caret inside a link and no selection, extendMarkRange covers the
     // whole link, so changing the address rewrites that link rather than
-    // splitting it.
-    editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+    // splitting it. It is asked for the link under the caret, attributes and
+    // all, so a link beside it with the same address and another place is not
+    // taken with it (#565, D5).
+    editor
+      .chain()
+      .focus()
+      .extendMarkRange('link', editor.getAttributes('link'))
+      .setLink({ href })
+      .run();
   }
 
   document.getElementById('link-confirm')!.addEventListener('click', confirm);
