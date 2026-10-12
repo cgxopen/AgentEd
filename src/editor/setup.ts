@@ -33,7 +33,7 @@ import {
 } from './image-handler';
 import type { ReportImageInsert } from './image-insert-outcome';
 import { createImageNodeView } from './image-resize';
-import { KeptRawHtml, Keyboard, Subscript, Superscript } from './inline-html';
+import { KeptLink, KeptRawHtml, Keyboard, Subscript, Superscript } from './inline-html';
 import { FootnoteShortcut } from './insert-footnote';
 import {
   HTML_BLOCK_SOURCE,
@@ -845,6 +845,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     HistoryStaysWithFocus,
     MarkdownComment,
     KeptRawHtml,
+    KeptLink,
     // A line break inside a paragraph, drawn as a space (#571).
     SoftBreak,
     Superscript,

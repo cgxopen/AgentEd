@@ -29,6 +29,7 @@ import {
   imageMarkup,
   pixelValue,
 } from './image-spelling';
+import { addKeptLinkRules } from './kept-link';
 import { addKeptRawHtmlRules } from './kept-raw-html';
 import { linkTitle } from './link-title';
 import {
@@ -761,6 +762,8 @@ turndown.addRule('strikethrough', {
 // file verbatim.
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
+// A link the editor does not make live, kept as the file wrote it (#564).
+addKeptLinkRules(turndown);
 // Emphasis the file wrote with underscores, written with them (#566).
 addEmphasisDelimiterRules(turndown);
 // A link the file wrote in angle brackets, written back so while untouched (#567).

@@ -1,5 +1,6 @@
 import type { Token } from 'marked';
 import type TurndownService from 'turndown';
+import { isEmptyLinkBytes } from './kept-link';
 import { holdsFilteredTag } from './tag-filter';
 
 /**
@@ -274,8 +275,10 @@ export function decodeKeptRawHtml(value: string | null): string | null {
   if (value === null || value === '') return null;
   try {
     const decoded = decodeURIComponent(value);
-    // A lone `</a>` was taken because it closed an anchor this route took.
-    return keptPiece(decoded.trim(), { kept: 1, links: 0 }, true).kept ? decoded : null;
+    // A lone `</a>` was taken because it closed an anchor this route took. A
+    // link with no text rides on the same carrier (#564, `kept-link.ts`).
+    const kept = keptPiece(decoded.trim(), { kept: 1, links: 0 }, true).kept;
+    return kept || isEmptyLinkBytes(decoded) ? decoded : null;
   } catch {
     return null;
   }

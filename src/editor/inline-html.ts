@@ -4,6 +4,7 @@ import {
   KEPT_RAW_HTML_ATTRIBUTE,
   KEPT_RAW_HTML_TAG,
 } from './markdown/kept-raw-html';
+import { KEPT_LINK_ATTRIBUTE, keptLinkMarkAttributes } from './markdown/kept-link';
 
 /**
  * Raw HTML the editor cannot hold, held as its bytes (#563): an anchor with a
@@ -40,6 +41,23 @@ export const KeptRawHtml = Node.create({
   parseHTML: () => [{ tag: `${KEPT_RAW_HTML_TAG}[${KEPT_RAW_HTML_ATTRIBUTE}]` }],
   // `wbr` is void, so nothing is nested inside it.
   renderHTML: ({ HTMLAttributes }) => [KEPT_RAW_HTML_TAG, HTMLAttributes],
+});
+
+/**
+ * The text of a link the editor does not make live, a destination of no
+ * scheme it carries or none at all, kept with the bytes the file wrote (#564).
+ * Drawn as the plain text it was drawn as before: no href, so nothing to
+ * follow. The rank of the link mark, so it holds the marks inside it as the
+ * link would, rather than being split around them. Not inclusive: text typed
+ * at its end is outside it, as at the end of a link.
+ */
+export const KeptLink = Mark.create({
+  name: 'keptLink',
+  priority: 1000,
+  inclusive: false,
+  addAttributes: () => keptLinkMarkAttributes(),
+  parseHTML: () => [{ tag: `span[${KEPT_LINK_ATTRIBUTE}]` }],
+  renderHTML: ({ HTMLAttributes }) => ['span', HTMLAttributes, 0],
 });
 
 /**
