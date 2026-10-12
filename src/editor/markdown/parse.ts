@@ -1,5 +1,5 @@
 import DOMPurify from 'dompurify';
-import { marked, Renderer, type Token } from 'marked';
+import { marked, Renderer, type Token, type Tokens } from 'marked';
 import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
@@ -30,6 +30,7 @@ import { placeLinks, withLinkPlace } from './link-place';
 import { linkTitleDelimiterAttribute } from './link-title';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
+import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { stampedFromTheFile } from './stamped-attributes';
 import { isWholeHtmlTable, stampTableSource } from './table-html-source';
@@ -210,7 +211,10 @@ marked.use({
         if (kept !== null) return kept;
       }
       const html = withLinkPlace(
-        withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw),
+        withReference(
+          withAutolinkAttribute(Renderer.prototype.link.call(this, token), token.raw),
+          token.raw,
+        ),
         token,
       );
       // The delimiter of its title, where not `"` (#562).
@@ -421,7 +425,7 @@ marked.use({
       const href = cleanImageUrl(token.href);
       if (href === null) return escapeForAttribute(text);
       const title = token.title ? ` title="${escapeForAttribute(token.title)}"` : '';
-      return `<img src="${href}" alt="${escapeForAttribute(text)}"${title}>`;
+      return `<img src="${href}" alt="${escapeForAttribute(text)}"${title}${referenceAttribute(token.raw)}>`;
     },
   },
 });
@@ -508,8 +512,56 @@ marked.use({
         return `<div ${FOOTNOTE_DEFINITION_ATTRIBUTE}${gap} ${FOOTNOTE_INDENTS_ATTRIBUTE}="${encodeIndents(indents)}">${body}</div>`;
       },
     },
+    {
+      // A reference definition, read by the `def` tokenizer of `marked` itself
+      // and entered in the same `links` map, so links resolve as before, but
+      // kept as a token where `marked` keeps none (#570, R1). Tried after the
+      // footnote definition, and a label opening with `^` is never taken here.
+      name: 'referenceDefinition',
+      level: 'block',
+      tokenizer(src: string) {
+        // A label opening with `^` is a footnote's (#408), taken or declined by
+        // the extension above, and never a reference here.
+        if (/^ {0,3}\[\^/.test(src)) return undefined;
+        const lexer = (this as unknown as { lexer: DefinitionLexer }).lexer;
+        const definition = lexer.tokenizer.def(src);
+        if (!definition) return undefined;
+        lexer.tokens.links[definition.tag] ??= { href: definition.href, title: definition.title };
+        return { type: 'referenceDefinition', raw: definition.raw, tokens: [] } as never;
+      },
+      renderer(token: unknown) {
+        // The lines as a footnote definition takes them, the gap under it on
+        // the element (#418), and the indentation of the first line beside it.
+        const raw = (token as { raw: string }).raw;
+        const followedByBlankLine = /\n\n$/.test(raw);
+        const gap = followedByBlankLine ? ` ${FOOTNOTE_BLANK_LINE_ATTRIBUTE}` : '';
+        const { lines, indents } = splitDefinition(raw.replace(/\n+$/, ''));
+        const first = /^[ \t]*/.exec(lines[0])?.[0] ?? '';
+        lines[0] = lines[0].slice(first.length);
+        const body = lines.map(escapeHtmlText).join('<br>');
+        return `<div ${FOOTNOTE_DEFINITION_ATTRIBUTE} ${REFERENCE_DEFINITION_ATTRIBUTE}="${encodeURIComponent(first)}"${gap} ${FOOTNOTE_INDENTS_ATTRIBUTE}="${encodeIndents(indents)}">${body}</div>`;
+      },
+    },
   ],
 });
+
+/** What the extension above asks of the lexer: its `def` tokenizer and the map it fills. */
+interface DefinitionLexer {
+  tokenizer: { def(src: string): Tokens.Def | undefined };
+  tokens: { links: Record<string, { href: string; title?: string }> };
+}
+
+/** The text a reader sees of a label: its inline markup taken off. */
+export function labelText(label: string): string {
+  const box = document.createElement('div');
+  box.innerHTML = marked.parseInline(label, { async: false }) as string;
+  return box.textContent ?? '';
+}
+
+/** The link HTML of `marked` with the spelling of a reference, where the file wrote one (#570). */
+function withReference(html: string, raw: string): string {
+  return html.startsWith('<a ') ? `<a${referenceAttribute(raw)}${html.slice(2)}` : html;
+}
 
 /** The three characters that could end the element this text is written into. */
 function escapeHtmlText(text: string): string {

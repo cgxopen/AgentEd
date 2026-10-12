@@ -208,16 +208,20 @@ describe('what this change must not move (#408)', () => {
       'See^[https://example.com/x] it.',
       'See^\\[https://example.com/x\\] it.',
     ],
+    // Since #570 a reference link and its definition are kept as the file
+    // wrote them, beside the footnote tokenizer rather than through it.
     'a reference-style link': [
       'See [docs].\n\n[docs]: https://example.com/d',
-      'See [docs](https://example.com/d).',
+      'See [docs].\n\n[docs]: https://example.com/d',
     ],
-    // Since #562 its title is written with it; the definition is still inlined.
     'a reference-style link with a title': [
       'See [docs].\n\n[docs]: https://example.com/d "The docs"',
-      'See [docs](https://example.com/d "The docs").',
+      'See [docs].\n\n[docs]: https://example.com/d "The docs"',
     ],
-    'a reference definition nobody uses': ['Plain.\n\n[docs]: https://example.com/d', 'Plain.'],
+    'a reference definition nobody uses': [
+      'Plain.\n\n[docs]: https://example.com/d',
+      'Plain.\n\n[docs]: https://example.com/d',
+    ],
   };
 
   for (const [name, [source, today]] of Object.entries(TODAY)) {

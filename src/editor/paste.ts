@@ -14,6 +14,7 @@ import { isSingleUrl } from './link-url';
 import { markdownToHtml } from './markdown/parse';
 import { htmlToMarkdown } from './markdown/serialize';
 import { withoutStampedAttributes } from './markdown/stamped-attributes';
+import { withPastedReferences } from './reference-paste';
 
 /**
  * Predictable paste (R-C13, defect D2).
@@ -317,7 +318,7 @@ function placedOverSelectedCells(view: EditorView, slice: Slice): boolean {
 }
 
 function insertParsedHtml(view: EditorView, event: ClipboardEvent, html: string): void {
-  const slice = parseSlice(view, html);
+  const slice = withPastedReferences(parseSlice(view, html), view.state);
   if (placedAsCells(view, event, slice)) return;
   if (placedOverSelectedCells(view, withoutTheTrailingMerge(slice))) return;
   view.dispatch(
@@ -348,7 +349,10 @@ function insertMarkdown(view: EditorView, event: ClipboardEvent, text: string): 
   // Read as markdown, and keeping no raw HTML as bytes: what is kept is not
   // drawn, so text that spelled a tag would reach the file as live markup with
   // nothing on screen to show it (owner decision of 2026-10-11 on #563).
-  const slice = parseSlice(view, markdownToHtml(body, { breaks: true, keepRawHtml: false }));
+  const slice = withPastedReferences(
+    parseSlice(view, markdownToHtml(body, { breaks: true, keepRawHtml: false })),
+    view.state,
+  );
   if (placedAsCells(view, event, slice)) return;
   // The spaces a single line carried are set aside above; over a selection of
   // cells there is no sentence to put them back into, so the cell takes the
@@ -446,6 +450,9 @@ export function createPastePlugin(storage: PredictablePasteStorage, schema: Sche
     props: {
       // What a copy puts on the clipboard carries this window's token (#447).
       clipboardSerializer: clipboardSerializerWithToken(schema),
+      // A copy from this window keeps the spelling of a reference link, so it
+      // is read against the definitions where it lands (#570, review of #589).
+      transformPasted: (slice: Slice, view: EditorView) => withPastedReferences(slice, view.state),
       handlePaste(view: EditorView, event: ClipboardEvent): boolean {
         if (!event.clipboardData) return false;
         const text = event.clipboardData.getData('text/plain');

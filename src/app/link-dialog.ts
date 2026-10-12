@@ -96,7 +96,10 @@ export function setupLinkDialog(editor: Editor): LinkDialog {
       .chain()
       .focus()
       .extendMarkRange('link', editor.getAttributes('link'))
-      .setLink({ href })
+      // A new address drops the reference spelling, so the link is written
+      // inline with it rather than following its old definition (#570, E2).
+      .setMark('link', { href, reference: null })
+      .setMeta('preventAutolink', true)
       .run();
   }
 

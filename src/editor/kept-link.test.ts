@@ -67,6 +67,9 @@ describe('a link the editor does not make live is written back as the file wrote
     ['an autolink of git over https', '<git+https://github.com/a/b.git>\n'],
     ['a link of a scheme the sanitizer keeps and the link mark refuses', '[x](foo1:bar)\n'],
     ['a link in a table cell', '| a |\n| - |\n| [x](irc://y) |\n'],
+    // A reference, since its definition is written (#570, R3).
+    ['a reference with no destination, example 200', '[foo]: <>\n\n[foo]\n'],
+    ['a reference to irc', 'See [chat][c].\n\n[c]: irc://foo.bar\n'],
   ])('keeps %s byte for byte', (_label, markdown) => {
     const once = saved(markdown);
     expect(once).toBe(markdown);
@@ -147,8 +150,6 @@ describe('what is not kept (#564)', () => {
     ['javascript, with no text', 'a [](javascript:alert(1)) b\n', 'a b\n'],
     ['vbscript', '[x](vbscript:msgbox)\n', 'x\n'],
     ['file', '<file:///etc/passwd>\n', 'file:///etc/passwd\n'],
-    // A reference link: its definition is not written (#570).
-    ['a reference with no destination, example 200', '[foo]: <>\n\n[foo]\n', 'foo\n'],
   ])('%s', (_label, markdown, expected) => {
     expect(saved(markdown)).toBe(expected);
   });

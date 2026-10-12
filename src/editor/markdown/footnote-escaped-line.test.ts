@@ -120,9 +120,10 @@ describe('what the narrowing of start must not cost (#418)', () => {
 
   it('a reference-style link definition is written exactly as it is today', () => {
     // The #408 regression row, re-asserted at this end: the pattern matches
-    // only `[^`, and `start` now asks for a newline as well.
+    // only `[^`, and `start` now asks for a newline as well. Since #570 the
+    // reference and its definition are kept as the file wrote them.
     expect(atTheEditor('See [docs].\n\n[docs]: https://example.com/d')).toBe(
-      'See [docs](https://example.com/d).',
+      'See [docs].\n\n[docs]: https://example.com/d',
     );
     // **And under a paragraph it is not a definition at all**, on `297874c`
     // and here alike - CommonMark does not let one interrupt a paragraph,

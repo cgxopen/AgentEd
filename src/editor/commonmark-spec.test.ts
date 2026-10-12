@@ -90,6 +90,9 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'div-text': { recorded: 'a raw `div` holding text is written as that text' },
   'link-empty': { recorded: 'a raw `a` with an `href` and no text, or no end tag, is lost' },
   'link-nested': { recorded: 'a link inside a link is read as `marked` reads it' },
+  'definition-spaces': {
+    recorded: 'the spaces at the end of a line of a reference definition are not kept',
+  },
   // Recorded for another case of the same mechanism.
   'marks-split': { recorded: 'two overlapping marks have exactly one nesting', caseNotNamed: true },
   'html-as-markdown': {
@@ -98,7 +101,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   },
   'fence-blank-end': { recorded: 'a blank line at the end of a fenced block', caseNotNamed: true },
   // Respelled, rendering alike: named nowhere in R-C2.
-  'reference-inline': { breaks: 'R-C2 file', what: 'a reference link is written inline' },
   'indented-fenced': { breaks: 'R-C2 file', what: 'an indented code block is written fenced' },
   'blank-between': { breaks: 'R-C2 file', what: 'two adjacent blocks are written a line apart' },
   'fence-respelled': { breaks: 'R-C2 file', what: 'a fence is written with other delimiters' },
