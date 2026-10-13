@@ -186,7 +186,11 @@ jobs:
 
   curate-assets:
     needs: build-and-draft
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest (#591): that label moves to Ubuntu 26
+    # from 2026-10-19, and a job would change image with nothing changed here.
+    # Moving to Ubuntu 26 is its own change, made on purpose, with the apt
+    # step of the rust job measured on that image first.
+    runs-on: ubuntu-24.04
     # Its work is a handful of API calls and a few megabytes of download, so
     # this is a backstop rather than a budget - the same relation to its steps
     # that every job ceiling in `ci.yml` has to its own.
