@@ -27,7 +27,11 @@ concurrency:
 jobs:
   guard:
     name: Activity guard + matrix
-    runs-on: ubuntu-latest
+    # Pinned rather than ubuntu-latest (#591): that label moves to Ubuntu 26
+    # from 2026-10-19, and a job would change image with nothing changed here.
+    # Moving to Ubuntu 26 is its own change, made on purpose, with the apt
+    # step of the rust job measured on that image first.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       actions: read

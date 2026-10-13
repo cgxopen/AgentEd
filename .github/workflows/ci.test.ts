@@ -277,6 +277,28 @@ describe('nightly.yml runs weekly, and can still be asked for by hand', () => {
   });
 });
 
+describe('no job runs on a label that moves under it (#591)', () => {
+  /**
+   * `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19, so a job on it would
+   * change image with nothing changed in this repository, and the apt step of
+   * the rust job was never run there. Each workflow is read with its comment
+   * lines taken out, since the comment that says why the label is pinned names
+   * the label; what is left is every `runs-on`, every matrix entry and every
+   * JSON matrix a script builds.
+   */
+  it.each([
+    ['ci.yml', CI],
+    ['nightly.yml', NIGHTLY],
+    ['release.yml', RELEASE],
+  ] as const)('%s: no job runs on ubuntu-latest', (_label, source) => {
+    const withoutComments = source
+      .split('\n')
+      .filter((line) => !/^\s*#/.test(line))
+      .join('\n');
+    expect(withoutComments).not.toContain('ubuntu-latest');
+  });
+});
+
 describe('the build matrix says which targets exist at all (#8)', () => {
   /**
    * Both of these fail **silently** if they regress, which is why they are
