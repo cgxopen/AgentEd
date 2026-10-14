@@ -41,15 +41,15 @@ import type { Rule } from 'turndown';
 import { ADJACENT_ATTRIBUTE } from './adjacency';
 import { lexMarkdown } from './parse';
 
-const ADJACENT = '';
-const PAIR_START = '';
-const PAIR_END = '';
-const NUMBER_END = '';
+const ADJACENT = '\uE015';
+const PAIR_START = '\uE016';
+const PAIR_END = '\uE017';
+const NUMBER_END = '\uE018';
 
-const ANY_MARK = /[-]\d*?/g;
+const ANY_MARK = /[\uE015-\uE017]\d*\uE018?/g;
 
 /** A blank line written before a flagged block: its two prefixes and the pair's number. */
-const BLANK_LINE_BEFORE_A_PAIR = /\n([ \t>]*)\n([ \t>]*)(\d+)/g;
+const BLANK_LINE_BEFORE_A_PAIR = /\n([ \t>]*)\n([ \t>]*)\uE015(\d+)\uE018/g;
 
 /** The most pairs one document is answered for; past it, the rest keep their blank line. */
 const MAX_PAIRS = 1_000_000;
@@ -68,7 +68,7 @@ let nextPairNumber = 0;
  */
 export function beginAdjacency(html: string): () => void {
   const outer = { marking, pairNumbers, nextPairNumber };
-  marking = !/[-]/.test(html);
+  marking = !/[\uE015-\uE018]/.test(html);
   pairNumbers = new WeakMap();
   nextPairNumber = 0;
   return () => {
