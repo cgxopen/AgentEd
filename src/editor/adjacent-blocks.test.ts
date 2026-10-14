@@ -310,6 +310,175 @@ describe('edits: the flag follows the block, and the save decides (#568, D3)', (
   });
 });
 
+describe('Enter gives the second half of a split no flag, wherever the caret stands (#594)', () => {
+  /** Where `text` starts in the document, plus `offset`. */
+  function at(instance: EditorInstance, text: string, offset: number): number {
+    let found = -1;
+    instance.editor.state.doc.descendants((node, pos) => {
+      if (found < 0 && node.isText && node.text?.includes(text)) {
+        found = pos + node.text.indexOf(text) + offset;
+      }
+    });
+    if (found < 0) throw new Error(`not found: ${text}`);
+    return found;
+  }
+
+  /** The flag of the block whose text starts with `text`. */
+  function flagOf(instance: EditorInstance, text: string): unknown {
+    let flag: unknown = null;
+    instance.editor.state.doc.descendants((node) => {
+      if (flag === null && node.isTextblock && node.textContent.startsWith(text)) {
+        flag = node.attrs.adjacent;
+      }
+    });
+    return flag;
+  }
+
+  /** Enter through the keymap, as a key press, then a word typed. */
+  function enterThenType(instance: EditorInstance, word: string): void {
+    const { view } = instance.editor;
+    view.someProp('handleKeyDown', (handler) =>
+      handler(view, new KeyboardEvent('keydown', { key: 'Enter' })),
+    );
+    instance.editor.commands.insertContent(word);
+  }
+
+  // [label, file, the flagged text, caret offset in it, first half, second half, written]
+  const ROWS: ReadonlyArray<readonly [string, string, string, number, string, string, string]> = [
+    [
+      'a paragraph, in the middle',
+      '# Head\nText here.\n',
+      'Text here.',
+      4,
+      'Text',
+      'X here.',
+      '# Head\nText\n\nX here.',
+    ],
+    [
+      'a paragraph, at the start',
+      '# Head\nText here.\n',
+      'Text here.',
+      0,
+      '',
+      'XText here.',
+      '# Head\n\nXText here.',
+    ],
+    [
+      'a paragraph, at the end',
+      '# Head\nText here.\n',
+      'Text here.',
+      10,
+      'Text here.',
+      'X',
+      '# Head\nText here.\n\nX',
+    ],
+    [
+      'a heading, in the middle',
+      '# Head\n## Second heading\n',
+      'Second heading',
+      6,
+      'Second',
+      'X heading',
+      '# Head\n## Second\n\n## X heading',
+    ],
+    [
+      'a heading, at the start',
+      '# Head\n## Second heading\n',
+      'Second heading',
+      0,
+      '',
+      'XSecond heading',
+      '# Head\n\n## XSecond heading',
+    ],
+    [
+      'a heading, at the end',
+      '# Head\n## Second heading\n',
+      'Second heading',
+      14,
+      'Second heading',
+      'X',
+      '# Head\n## Second heading\n\nX',
+    ],
+    [
+      'a paragraph in a list item, in the middle',
+      '- # Head\n  Text here.\n',
+      'Text here.',
+      4,
+      'Text',
+      'X here.',
+      '- # Head\n  Text\n- X here.',
+    ],
+    [
+      'a paragraph in a list item, at the start',
+      '- # Head\n  Text here.\n',
+      'Text here.',
+      0,
+      '',
+      'XText here.',
+      '- # Head\n- XText here.',
+    ],
+    [
+      'a paragraph in a list item, at the end',
+      '- # Head\n  Text here.\n',
+      'Text here.',
+      10,
+      'Text here.',
+      'X',
+      '- # Head\n  Text here.\n- X',
+    ],
+    [
+      'a heading in a list item, in the middle',
+      '- Text.\n  # Head here\n',
+      'Head here',
+      4,
+      'Head',
+      'X here',
+      '- Text.\n  # Head\n- # X here',
+    ],
+    [
+      'a heading in a list item, at the start',
+      '- Text.\n  # Head here\n',
+      'Head here',
+      0,
+      '',
+      'XHead here',
+      '- Text.\n  #\n- # XHead here',
+    ],
+    [
+      'a heading in a list item, at the end',
+      '- Text.\n  # Head here\n',
+      'Head here',
+      9,
+      'Head here',
+      'X',
+      '- Text.\n  # Head here\n- X',
+    ],
+  ];
+
+  it.each(ROWS)('%s', (_label, file, flagged, offset, first, second, written) => {
+    const instance = editorWith(file);
+    expect(flagOf(instance, flagged)).toBe(true);
+    instance.editor.commands.setTextSelection(at(instance, flagged, offset));
+    enterThenType(instance, 'X');
+    expect(flagOf(instance, second), 'the second half').toBe(false);
+    if (first !== '') expect(flagOf(instance, first), 'the first half').toBe(true);
+    expect(instance.getMarkdown()).toBe(written);
+  });
+
+  it('an undo after the split gives the file back', () => {
+    const file = '# Head\nText here.\n';
+    const instance = editorWith(file);
+    instance.editor.commands.setTextSelection(at(instance, 'Text here.', 4));
+    const { view } = instance.editor;
+    view.someProp('handleKeyDown', (handler) =>
+      handler(view, new KeyboardEvent('keydown', { key: 'Enter' })),
+    );
+    instance.editor.commands.undo();
+    expect(flagOf(instance, 'Text here.')).toBe(true);
+    expect(instance.getMarkdown()).toBe('# Head\nText here.');
+  });
+});
+
 describe('a paste carries no flag (#568)', () => {
   it('a plain-text paste of two adjacent blocks is written a blank line apart', () => {
     const instance = editorWith('');
