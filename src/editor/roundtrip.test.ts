@@ -1897,60 +1897,57 @@ function destinations(markdown: string): string[] {
 const DOCUMENT_CASE_TIMEOUT = { timeout: 30_000 };
 
 /**
- * Issue #424 — a run of blank lines between two blocks comes back as one, and
- * this is the record of it rather than a repair.
+ * A run of blank lines between two blocks is kept (#590), where #424 had
+ * recorded it as written back as one.
  *
- * ── Why recorded ──
+ * `marked` holds the run in a `space` token, or at the end of the raw of the
+ * block above for a heading, an indented code block, a table, an HTML block
+ * or a definition. The adjacency carrier of #568 reads it from both places
+ * and gives the block below its count; the save writes that many blank lines.
  *
- * The run **is** readable at parse: `marked` puts it in a `space` token whose
- * raw is `"\n\n\n"` for two blank lines and `"\n\n\n\n"` for three. What it
- * cannot do is ride on a node, because a `space` token renders to nothing and
- * the run sits *between* two blocks rather than inside one. Carrying it would
- * mean stamping it on whichever block follows, and **ten node types can sit at
- * the top level** here - paragraph, heading, codeBlock, table, blockquote,
- * bulletList, orderedList, taskList, horizontalRule and footnoteDefinition -
- * each written by its own renderer, with two more contexts nested inside a
- * blockquote and a list item. **And after a heading there is no `space` token
- * at all**: the run is swallowed into the heading's own raw, `"# H\n\n\n"`,
- * so even the reading is not one shape. That is an attribute per block type
- * rather than one at one address, which is what the owner rule refused.
- *
- * ── What the census says ──
- *
- * Measured over the markdown under `/home/cata`: in the owner's own project
- * documents, **2 files of 365** hold the shape, 5 occurrences, both of them
- * hand-written task briefs. In this repository, **zero**, which is why the
- * guard has never met one.
- *
- * ── The rows ──
- *
- * One per shape, asserting the bytes of the branch taken. All of them hold
- * still on the second save, so what is recorded is a respelling that happens
- * once and then stops.
+ * Three shapes stay recorded, each with a row below: a run at the end of the
+ * document, which no block below carries; a run between two items of one
+ * list, which the list spacing carries per list (#28); and a run holding a
+ * line of spaces, left as before by owner decision E4.
  */
-describe('a run of blank lines between two blocks (#424)', () => {
-  const SHAPES: ReadonlyArray<readonly [string, string, string]> = [
-    ['two paragraphs', 'A.\n\n\nB.', 'A.\n\nB.'],
-    ['three blank lines between paragraphs', 'A.\n\n\n\nB.', 'A.\n\nB.'],
-    ['a heading and a paragraph', '# H\n\n\nB.', '# H\n\nB.'],
-    ['a paragraph and a fenced block', 'A.\n\n\n```\nc\n```', 'A.\n\n```\nc\n```'],
-    ['a fenced block and a paragraph', '```\nc\n```\n\n\nA.', '```\nc\n```\n\nA.'],
-    ['a paragraph and a table', 'A.\n\n\n| H |\n| --- |\n| c |', 'A.\n\n| H |\n| --- |\n| c |'],
-    ['a table and a paragraph', '| H |\n| --- |\n| c |\n\n\nA.', '| H |\n| --- |\n| c |\n\nA.'],
-    ['a paragraph and a blockquote', 'A.\n\n\n> q', 'A.\n\n> q'],
-    ['a blockquote and a paragraph', '> q\n\n\nA.', '> q\n\nA.'],
-    ['inside a blockquote', '> one\n>\n>\n> two', '> one\n>\n> two'],
+describe('a run of blank lines between two blocks (#424, #590)', () => {
+  const KEPT: ReadonlyArray<readonly [string, string]> = [
+    ['two paragraphs', 'A.\n\n\nB.'],
+    ['three blank lines between paragraphs', 'A.\n\n\n\nB.'],
+    ['a heading and a paragraph', '# H\n\n\nB.'],
+    ['a paragraph and a fenced block', 'A.\n\n\n```\nc\n```'],
+    ['a fenced block and a paragraph', '```\nc\n```\n\n\nA.'],
+    ['a paragraph and a table', 'A.\n\n\n| H |\n| --- |\n| c |'],
+    ['a table and a paragraph', '| H |\n| --- |\n| c |\n\n\nA.'],
+    ['a paragraph and a blockquote', 'A.\n\n\n> q'],
+    ['a blockquote and a paragraph', '> q\n\n\nA.'],
+    ['inside a blockquote', '> one\n>\n>\n> two'],
   ];
 
-  for (const [name, source, expected] of SHAPES) {
-    it(`${name} — the run comes back as one blank line`, async () => {
+  for (const [name, source] of KEPT) {
+    it(`${name} — the run is kept, and holds`, async () => {
+      const saved = (await openAndSaveUnedited(source)).trim();
+      expect(saved).toBe(source);
+      expect((await openAndSaveUnedited(saved)).trim()).toBe(source);
+    });
+  }
+
+  const RECORDED: ReadonlyArray<readonly [string, string, string]> = [
+    ['between two items of one list', '- a\n\n\n- b', '- a\n\n- b'],
+    ['holding a line of spaces', 'A.\n\n  \n\nB.', 'A.\n\nB.'],
+  ];
+
+  for (const [name, source, expected] of RECORDED) {
+    it(`${name} — the run comes back as one blank line, and holds`, async () => {
       const saved = (await openAndSaveUnedited(source)).trim();
       expect(saved).toBe(expected);
-      // Once, and then it holds: the second save moves nothing, which is what
-      // separates a recordable respelling from drift.
       expect((await openAndSaveUnedited(saved)).trim()).toBe(expected);
     });
   }
+
+  it('at the end of the document — the run is not kept', async () => {
+    expect(await openAndSaveUnedited('A.\n\nB.\n\n\n\n')).toBe('A.\n\nB.\n');
+  });
 });
 
 /**

@@ -179,19 +179,16 @@ describe('a run of definitions keeps the gaps the file spelled (#418, point j)',
 });
 
 /**
- * **What this does not hold, measured rather than left to be discovered.**
- * Two or more blank lines between definitions come back as none, before this
- * change and after it. `marked` gives the definition a single trailing newline
- * in that case and puts the rest in a `space` token the renderer never sees,
- * so the count is not readable where the gap is read. It is an instance of a
- * wider difference this repository has not recorded - `A.`⏎⏎⏎`B.` comes back
- * `A.`⏎⏎`B.` for two ordinary paragraphs too - and it is reported on #418
- * rather than repaired here, because it is not about footnotes.
+ * A run of two or more blank lines between two definitions is kept since #590
+ * (owner decision E5). `marked` gives the definition one trailing newline and
+ * the rest of the run to a `space` token, which the adjacency carrier counts;
+ * the definition below carries the count, and the definition rule writes the
+ * blank line the run is written from.
  */
-describe('the run of blank lines is not counted (#418, point j)', () => {
-  it('two blank lines between definitions come back as none, as they did before', () => {
+describe('the run of blank lines between definitions (#418, point j; #590)', () => {
+  it('two blank lines between definitions are kept', () => {
     expect(openAndSave('A.[^a] B.[^b]\n\n[^a]: one\n\n\n[^b]: two')).toBe(
-      'A.[^a] B.[^b]\n\n[^a]: one\n[^b]: two',
+      'A.[^a] B.[^b]\n\n[^a]: one\n\n\n[^b]: two',
     );
   });
 });

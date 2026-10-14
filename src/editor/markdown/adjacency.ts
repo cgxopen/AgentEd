@@ -19,6 +19,17 @@
  * the top level, in a quote and in a list item: no `space` token between the
  * two blocks, and no blank line at the end of the first one's raw.
  *
+ * ── A run of blank lines (#590) ──
+ *
+ * The same two places hold a run of two or more blank lines, so the same
+ * attribute carries its count: empty for no blank line, absent for one, a
+ * number from 2 up for a run, written back as that many blank lines. A run
+ * holding a line of spaces or tabs is left as before, written as one blank
+ * line (owner decision E4 on #590). After a block whose bytes are kept, a
+ * raw HTML block, only the line breaks after its last character are a gap:
+ * its bytes already hold the lines of spaces at its end, and counting them
+ * again made three files of the corpus move on the second save.
+ *
  * ── Only a file ──
  *
  * A paste carries no flag, so pasted blocks are written a blank line apart
@@ -29,6 +40,9 @@ import type { Token, TokenizerAndRendererExtension } from 'marked';
 
 /** The attribute a block written directly under another carries. */
 export const ADJACENT_ATTRIBUTE = 'data-adjacent';
+
+/** The longest run a block carries; a longer one is written with this many blank lines. */
+export const MAX_RUN = 1000;
 
 /** The element a mark token is drawn as, until `moveAdjacencyMarks` takes it. */
 const MARK_ELEMENT = 'agented-adjacent';
@@ -54,9 +68,10 @@ export function markAdjacentBlocks(tokens: Token[], depth = 0): Token[] {
   if (depth > MAX_DEPTH) return tokens;
   const marked: Token[] = [];
   let above: Token | null = null;
+  let between = '';
   for (const token of tokens) {
     if (token.type === 'space') {
-      above = null;
+      between += token.raw;
       marked.push(token);
       continue;
     }
@@ -64,14 +79,33 @@ export function markAdjacentBlocks(tokens: Token[], depth = 0): Token[] {
       marked.push(token);
       continue;
     }
-    if (above !== null && !ENDS_IN_A_BLANK_LINE.test(above.raw)) {
-      marked.push({ type: MARK_TOKEN, raw: '' } as unknown as Token);
-    }
+    if (above !== null) marked.push(...markBetween(above, between));
+    between = '';
     markInside(token, depth);
     marked.push(token);
     above = token;
   }
   return marked;
+}
+
+/** The mark the gap between two blocks gets: none, the flag, or the count of a run. */
+function markBetween(above: Token, between: string): Token[] {
+  if (between === '' && !ENDS_IN_A_BLANK_LINE.test(above.raw)) {
+    return [{ type: MARK_TOKEN, raw: '' } as unknown as Token];
+  }
+  const gap = gapOf(above) + between;
+  if (/\n[ \t]+\n/.test(`\n${gap}`)) return [];
+  const blankLines = (gap.match(/\n/g) ?? []).length - 1;
+  return blankLines >= 2
+    ? [{ type: MARK_TOKEN, raw: '', gap: blankLines } as unknown as Token]
+    : [];
+}
+
+/** The end of the raw above that is a gap rather than bytes the block keeps. */
+function gapOf(above: Token): string {
+  const keepsItsBytes =
+    above.type === 'html' || above.type === 'htmlWrapper' || above.type === 'htmlRegion';
+  return (keepsItsBytes ? /\n*$/ : /[ \t\n]*$/).exec(above.raw)?.[0] ?? '';
 }
 
 /** The blocks a quote or a list item holds, marked in place. */
@@ -87,7 +121,12 @@ function markInside(token: Token, depth: number): void {
 export const adjacentMarkExtension: TokenizerAndRendererExtension = {
   name: MARK_TOKEN,
   level: 'block',
-  renderer: () => `<${MARK_ELEMENT}></${MARK_ELEMENT}>`,
+  renderer: (token) => {
+    const gap = (token as unknown as { gap?: number }).gap;
+    return gap === undefined
+      ? `<${MARK_ELEMENT}></${MARK_ELEMENT}>`
+      : `<${MARK_ELEMENT} data-gap="${gap}"></${MARK_ELEMENT}>`;
+  },
 };
 
 /** The elements a block of the document is drawn as. */
@@ -112,7 +151,7 @@ export function moveAdjacencyMarks(html: string): string {
       below = below.nextSibling;
     }
     if (isBlock(below)) {
-      below.setAttribute(ADJACENT_ATTRIBUTE, '');
+      below.setAttribute(ADJACENT_ATTRIBUTE, mark.getAttribute('data-gap') ?? '');
     } else if (below !== null && mark.parentElement?.nodeName === 'LI') {
       wrapBareText(mark, below);
     }
@@ -124,7 +163,7 @@ export function moveAdjacencyMarks(html: string): string {
 /** The inline run from `first` to the next block, wrapped in a flagged paragraph. */
 function wrapBareText(mark: Element, first: ChildNode): void {
   const paragraph = mark.ownerDocument.createElement('p');
-  paragraph.setAttribute(ADJACENT_ATTRIBUTE, '');
+  paragraph.setAttribute(ADJACENT_ATTRIBUTE, mark.getAttribute('data-gap') ?? '');
   mark.parentElement?.insertBefore(paragraph, first);
   let node: ChildNode | null = first;
   while (node !== null && !isBlock(node) && node.nodeName !== MARK_ELEMENT.toUpperCase()) {

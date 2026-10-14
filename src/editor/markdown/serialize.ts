@@ -1,6 +1,7 @@
 import { marked } from 'marked';
 import TurndownService, { type BlankReplacement, type Options } from 'turndown';
 import { getRelativePath } from '../image-registry';
+import { ADJACENT_ATTRIBUTE } from './adjacency';
 import {
   addAdjacencyMarks,
   answerAdjacency,
@@ -879,12 +880,15 @@ turndown.addRule('footnoteDefinition', {
     const text = inACell(element) ? turndown.escape(joined) : joined;
     // Two definitions are a single newline apart unless the one above spelled
     // a blank line there (#418). The gap belongs to the pair, and it is read
-    // off the sibling that carries it rather than off this one.
+    // off the sibling that carries it rather than off this one. A definition
+    // that carries the count of a run gets the blank line the run is written
+    // from (#590, owner decision E5).
     const above = element.previousElementSibling;
     const lead =
       above !== null &&
       isFootnoteDefinition(above) &&
-      !above.hasAttribute(FOOTNOTE_BLANK_LINE_ATTRIBUTE)
+      !above.hasAttribute(FOOTNOTE_BLANK_LINE_ATTRIBUTE) &&
+      !/^\d+$/.test(element.getAttribute(ADJACENT_ATTRIBUTE) ?? '')
         ? '\n'
         : '\n\n';
     const tail = isFootnoteDefinition(element.nextElementSibling) ? '' : '\n\n';

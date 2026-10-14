@@ -1,7 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
 import { ReplaceStep } from '@tiptap/pm/transform';
-import { ADJACENT_ATTRIBUTE } from './markdown/adjacency';
+import { ADJACENT_ATTRIBUTE, MAX_RUN } from './markdown/adjacency';
 
 /**
  * The node types that can stand directly under another block in a file:
@@ -26,7 +26,9 @@ export const ADJACENT_BLOCK_TYPES: readonly string[] = [
 
 /**
  * Whether the file wrote this block directly under the block above it
- * (#568), as one attribute on every block type at once.
+ * (#568), or a run of blank lines above it (#590), as one attribute on every
+ * block type at once: `true` for no blank line, a number from 2 up for a run,
+ * and `false`, the default, for the one blank line a block is written with.
  *
  * It follows the block (owner decision D3): a block moved, or given a new
  * block above it, keeps the flag, and the save decides whether the pair as
@@ -49,15 +51,27 @@ export const AdjacentBlocks = Extension.create({
         adjacent: {
           default: false,
           keepOnSplit: false,
-          parseHTML: (element: HTMLElement) => element.hasAttribute(ADJACENT_ATTRIBUTE),
-          renderHTML: (attributes: Record<string, unknown>) =>
-            attributes.adjacent === true ? { [ADJACENT_ATTRIBUTE]: '' } : {},
+          parseHTML: (element: HTMLElement) =>
+            adjacencyOf(element.getAttribute(ADJACENT_ATTRIBUTE)),
+          renderHTML: (attributes: Record<string, unknown>) => {
+            const { adjacent } = attributes;
+            if (adjacent === true) return { [ADJACENT_ATTRIBUTE]: '' };
+            return typeof adjacent === 'number' ? { [ADJACENT_ATTRIBUTE]: String(adjacent) } : {};
+          },
         },
       },
     },
   ],
   addProseMirrorPlugins: () => [secondHalfWithoutFlag()],
 });
+
+/** The attribute value as the node holds it: absent, empty, or a count of 2 up. */
+function adjacencyOf(value: string | null): boolean | number {
+  if (value === null) return false;
+  if (!/^\d+$/.test(value)) return true;
+  const count = Number(value);
+  return count >= 2 ? Math.min(count, MAX_RUN) : true;
+}
 
 const secondHalfKey = new PluginKey('adjacentBlocksSecondHalf');
 
