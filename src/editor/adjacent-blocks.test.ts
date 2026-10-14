@@ -479,6 +479,76 @@ describe('Enter gives the second half of a split no flag, wherever the caret sta
   });
 });
 
+describe('a run of blank lines between two blocks is kept (#590)', () => {
+  it.each([
+    ['at the top level', '# Head\n\n\n\nText.\n'],
+    ['after a paragraph, two blank lines', 'One.\n\n\nTwo.\n'],
+    ['in a quote, bare blank lines', '> # Head\n>\n>\n> Text.\n'],
+    ['in a quote, blank lines with a space', '> # Head\n> \n> \n> Text.\n'],
+    ['in a list item', '- One.\n\n\n  Two.\n'],
+    ['after a reference definition', '[a]: https://example.com\n\n\nText [a].\n'],
+    ['beside an adjacent pair', '# Head\nText.\n\n\n\n## Next\nMore.\n'],
+    [
+      'after a definition that opens a list item (E1)',
+      '- [a]: https://example.com\n\n\n  Text [a].\n',
+    ],
+  ])('%s: an unedited save writes the file back, and holds', async (_label, file) => {
+    const once = await openAndSaveUnedited(file);
+    expect(once).toBe(file);
+    expect(await openAndSaveUnedited(once)).toBe(once);
+  });
+
+  it('after a raw HTML block, the lines of spaces its bytes keep are not counted again', async () => {
+    // The shape that made three corpus files move on the second save in the
+    // prototype of #568: the bytes of the block hold the lines of spaces.
+    const file =
+      'Text.\n\n<a href="https://example.com/">\n  <img src="x.png" alt="x">\n</a>\n\n  \n  \n\nAfter.\n';
+    const once = await openAndSaveUnedited(file);
+    expect(await openAndSaveUnedited(once)).toBe(once);
+  });
+
+  it('a run holding a line of spaces is written as one blank line, as before (E4)', async () => {
+    expect(await openAndSaveUnedited('A.\n\n  \n\nB.\n')).toBe('A.\n\nB.\n');
+  });
+
+  it('Enter in the middle of a block below a run: the run stays on the first half (#594)', () => {
+    const instance = editorWith('# Head\n\n\n\nText here.\n');
+    let at = -1;
+    instance.editor.state.doc.descendants((node, pos) => {
+      if (at < 0 && node.isText && node.text === 'Text here.') at = pos + 4;
+    });
+    instance.editor.commands.setTextSelection(at);
+    const { view } = instance.editor;
+    view.someProp('handleKeyDown', (handler) =>
+      handler(view, new KeyboardEvent('keydown', { key: 'Enter' })),
+    );
+    instance.editor.commands.insertContent('X');
+    expect(instance.getMarkdown()).toBe('# Head\n\n\n\nText\n\nX here.');
+  });
+
+  it.each([
+    [
+      'Enter at the end of the heading, then text',
+      (e: EditorInstance) =>
+        e.editor.chain().setTextSelection(blockEnd(e, 0)).splitBlock().insertContent('New').run(),
+      '# Head\n\nNew\n\n\n\nText.',
+    ],
+    [
+      'a rule inserted between',
+      (e: EditorInstance) =>
+        e.editor.chain().setTextSelection(blockEnd(e, 0)).setHorizontalRule().run(),
+      '# Head\n\n---\n\n\n\nText.',
+    ],
+  ])(
+    'E3, %s: the new block brings its own blank line, the run stays on its block',
+    (_label, edit, written) => {
+      const instance = editorWith('# Head\n\n\n\nText.\n');
+      edit(instance);
+      expect(instance.getMarkdown()).toBe(written);
+    },
+  );
+});
+
 describe('a paste carries no flag (#568)', () => {
   it('a plain-text paste of two adjacent blocks is written a blank line apart', () => {
     const instance = editorWith('');

@@ -28,6 +28,16 @@
  * One pair is refused by kind rather than by reading: a reference definition
  * over a rule, which GitHub reads otherwise than the lexer does.
  *
+ * ── A run of blank lines (#590) ──
+ *
+ * A block the file wrote a run of blank lines above carries their count and
+ * leads with `RUN`, its count after it. The blank line turndown wrote before
+ * it is written that many times, in the spelling the container gives a blank
+ * line. A run is not read alone: `marked` reads no pair otherwise under a run,
+ * measured on 3468 files on the step zero of #590, so a run answers no
+ * question the lexer could and is written as the file held it (owner
+ * decisions E1 and E6).
+ *
  * ── 3. The whole document, once ──
  *
  * A pair read alone does not see the lines around it, so the document is
@@ -38,18 +48,22 @@
  */
 import type { Token, Tokens } from 'marked';
 import type { Rule } from 'turndown';
-import { ADJACENT_ATTRIBUTE } from './adjacency';
+import { ADJACENT_ATTRIBUTE, MAX_RUN } from './adjacency';
 import { lexMarkdown } from './parse';
 
 const ADJACENT = '\uE015';
 const PAIR_START = '\uE016';
 const PAIR_END = '\uE017';
 const NUMBER_END = '\uE018';
+const RUN = '\uE019';
 
-const ANY_MARK = /[\uE015-\uE017]\d*\uE018?/g;
+const ANY_MARK = /[\uE015-\uE017\uE019]\d*\uE018?/g;
 
 /** A blank line written before a flagged block: its two prefixes and the pair's number. */
 const BLANK_LINE_BEFORE_A_PAIR = /\n([ \t>]*)\n([ \t>]*)\uE015(\d+)\uE018/g;
+
+/** A blank line written before a block that carries a run: its two prefixes and the count. */
+const BLANK_LINE_BEFORE_A_RUN = /\n([ \t>]*)\n([ \t>]*)\uE019(\d+)\uE018/g;
 
 /** The most pairs one document is answered for; past it, the rest keep their blank line. */
 const MAX_PAIRS = 1_000_000;
@@ -68,7 +82,7 @@ let nextPairNumber = 0;
  */
 export function beginAdjacency(html: string): () => void {
   const outer = { marking, pairNumbers, nextPairNumber };
-  marking = !/[\uE015-\uE018]/.test(html);
+  marking = !/[\uE015-\uE019]/.test(html);
   pairNumbers = new WeakMap();
   nextPairNumber = 0;
   return () => {
@@ -97,15 +111,18 @@ function markedRule(rule: Rule, node: Node): Rule {
   if (!marking || node.nodeType !== Node.ELEMENT_NODE || !BLOCK.test(node.nodeName)) return rule;
   const element = node as Element;
   const below = element.nextElementSibling;
-  const facing = below?.hasAttribute(ADJACENT_ATTRIBUTE) === true ? below : null;
-  const flagged = element.hasAttribute(ADJACENT_ATTRIBUTE);
-  if (facing === null && !flagged) return rule;
+  const facing = below?.getAttribute(ADJACENT_ATTRIBUTE) === '' ? below : null;
+  const value = element.getAttribute(ADJACENT_ATTRIBUTE);
+  const flagged = value === '';
+  const run = value !== null && /^\d+$/.test(value) ? Math.min(Number(value), MAX_RUN) : 0;
+  if (facing === null && !flagged && run < 2) return rule;
   return {
     filter: rule.filter,
     replacement: (content, replaced, options) => {
       let written = rule.replacement(content, replaced, options);
       if (written.trim() === '') return written;
       if (facing !== null) written = lead(written, `${PAIR_START}${pairNumber(facing)}`);
+      if (run >= 2) written = lead(written, `${RUN}${run}`);
       if (flagged) {
         const number = pairNumber(element);
         written = lead(written, `${ADJACENT}${number}`).replace(
@@ -142,7 +159,9 @@ export function addAdjacencyMarks(service: { rules?: { forNode?: (node: Node) =>
 export function answerAdjacency(written: string, finish: (text: string) => string): string {
   if (!marking) return finish(written);
   const apart = finish(written.replace(ANY_MARK, ''));
-  if (!written.includes(ADJACENT)) return apart;
+  const withRuns = withTheirBlankLines(written);
+  if (!withRuns.includes(ADJACENT)) return finish(withRuns.replace(ANY_MARK, ''));
+  written = withRuns;
   let joined = '';
   let at = 0;
   let pairs = 0;
@@ -157,9 +176,19 @@ export function answerAdjacency(written: string, finish: (text: string) => strin
     at = site.index + site[0].length;
     pairs += 1;
   }
-  if (pairs === 0) return apart;
+  if (pairs === 0) return finish(written.replace(ANY_MARK, ''));
   const adjacent = finish(`${joined}${written.slice(at)}`.replace(ANY_MARK, ''));
   return shapeOf(adjacent) === shapeOf(apart) ? adjacent : apart;
+}
+
+/** Each run written with its count of blank lines, in the spelling its container uses. */
+function withTheirBlankLines(written: string): string {
+  if (!written.includes(RUN)) return written;
+  return written.replace(
+    BLANK_LINE_BEFORE_A_RUN,
+    (_site, blank: string, prefix: string, count: string) =>
+      `\n${`${blank}\n`.repeat(Math.min(Number(count), MAX_RUN))}${prefix}`,
+  );
 }
 
 /** Whether the pair at `site`, read alone, reads the same adjacent as apart. */
