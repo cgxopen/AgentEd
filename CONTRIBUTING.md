@@ -10,6 +10,10 @@ Thank you for your interest in AgentEd. This document says how a change reaches 
 - **Security issues are not reported in public.** [SECURITY.md](SECURITY.md) says where they go.
 - **Be kind.** Everyone taking part is expected to follow the [code of conduct](CODE_OF_CONDUCT.md).
 
+## Understand what you submit
+
+You should be able to explain every change in your pull request and how it keeps the invariants. Writing it with an AI tool is fine; submitting code you cannot explain is not, and such a pull request is closed.
+
 ## Making a change
 
 1. Pick or open an issue, and agree on the approach there.
@@ -65,6 +69,6 @@ AgentEd is released under the MIT licence in [LICENSE](LICENSE). By opening a pu
 
 The company that publishes AgentEd receives any money given to the project, through sponsorship or otherwise, and spends it on maintaining and developing AgentEd. Contributions are voluntary and unpaid: making one gives no share of that money and no claim to payment. If a piece of work is ever paid for, that is agreed in writing before the work starts.
 
-## Working with Claude Code
+## Working with AI agents
 
-If you use Claude Code on this repository, it reads [CLAUDE.md](CLAUDE.md) on its own: the coding rules there apply to every change, whoever or whatever writes it.
+The coding rules in [CLAUDE.md](CLAUDE.md) apply to every change, whoever or whatever writes it. Claude Code reads that file on its own. Other agents look for [AGENTS.md](AGENTS.md), which OpenAI Codex, GitHub Copilot and Cursor read by their own documentation; it sends them to [REQUIREMENTS.md](REQUIREMENTS.md) and CLAUDE.md, so the rules have one address.
