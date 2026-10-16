@@ -66,6 +66,24 @@ function insideOf(raw: string): string | null {
   return inside.includes('\n') || inside.includes('\r') ? null : inside;
 }
 
+/** A destination the serializer writes as it stands: ASCII, with nothing it escapes or encodes. */
+const PLAIN_DESTINATION = /^[A-Za-z0-9\-._~:/?#@!$+,;=%*']+$/;
+/** A title it writes as it stands, in double quotes. */
+const PLAIN_TITLE = /^[^"\\&\n\r]*$/;
+
+/**
+ * Whether the link is written back as the file wrote it with no carry: a
+ * plain destination, alone or with a plain title in double quotes after one
+ * space. Most links are, and they carry nothing, so the check at save, which
+ * reads each carried link through the whole parse, costs only where a
+ * spelling is kept. Measured on the 2000 links of the timing file of #573.
+ */
+function writtenAlike(inside: string): boolean {
+  const titled = /^(\S+) "([^"]*)"$/.exec(inside);
+  if (titled) return PLAIN_DESTINATION.test(titled[1] ?? '') && PLAIN_TITLE.test(titled[2] ?? '');
+  return PLAIN_DESTINATION.test(inside);
+}
+
 /**
  * The attribute for the tag of a `link` token, or nothing. The split of `raw`
  * is confirmed by `marked` itself: the parentheses found must make the link
@@ -79,7 +97,7 @@ export function linkDestinationAttribute(
 ): string {
   if (!fromAFile) return '';
   const inside = insideOf(raw);
-  if (inside === null) return '';
+  if (inside === null || writtenAlike(inside)) return '';
   const read = marked.Lexer.lexInline(`[x](${inside})`)[0] as
     | { type?: string; href?: string; title?: string | null }
     | undefined;
