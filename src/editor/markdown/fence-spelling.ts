@@ -41,9 +41,9 @@ import type { Rule } from 'turndown';
  * The content can hold a line that closes the run: a fence of tildes written
  * around content holding `~~~`, or one of four backticks around ```` ```` ````.
  * A run written shorter than one in the content opens a block that closes too
- * early. So the spelling is written only where `marked` reads it back as the
- * same code block, with the same language and the same text, as the spelling
- * turndown chose, and that spelling is written otherwise.
+ * early. So the spelling is written only where `marked` reads it back as one
+ * code block with the language and the text the editor holds, and the
+ * spelling turndown chose is written otherwise.
  */
 
 /** Set on a fenced block the file opened otherwise: the opening run and its gap, encoded. */
@@ -130,11 +130,12 @@ export function withFenceSpelling(node: HTMLElement, written: string): string {
   const run = /^(`+|~+)/.exec(opener)?.[0] ?? '';
   const gap = info === '' ? '' : opener.slice(run.length);
   const spelled = `${run}${gap}${info}\n${code}\n${run}`;
-  const chosen = onlyCodeBlock(written.trim());
+  // Read against the block the editor holds, not against the spelling turndown
+  // chose: that spelling looks for a closing run at the margin only, so a run
+  // indented inside the code can end it early, and its reading is then wrong.
+  const held = (node.firstChild?.textContent ?? '').replace(/\n$/, '');
   const read = onlyCodeBlock(spelled);
-  if (chosen === null || read === null || read.lang !== chosen.lang || read.text !== chosen.text) {
-    return written;
-  }
+  if (read === null || read.lang.split(/\s/)[0] !== info || read.text !== held) return written;
   return `${before}${spelled}${after}`;
 }
 

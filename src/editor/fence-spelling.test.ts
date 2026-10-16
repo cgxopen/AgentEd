@@ -117,10 +117,14 @@ describe('an edit to the code keeps the opening (#573)', () => {
 
 describe('a run the content holds (#573)', () => {
   it.each([
-    ['four backticks around three', '````md\n```\ninner\n```\n````'],
+    // Five, not four: turndown writes four around three unasked.
+    ['five backticks around three', '`````md\n```\ninner\n```\n`````'],
     ['tildes around backticks', '~~~\n```\ninner\n```\n~~~'],
     ['backticks around tildes', '````\n~~~\ninner\n~~~\n````'],
     ['four tildes around three', '~~~~\n~~~\ninner\n~~~~'],
+    // A run indented inside the code, which turndown does not see: its own
+    // three backticks would end the block there, moving on every save.
+    ['four backticks around an indented three', '````md\n1. a\n   ```sh\n   x\n   ```\n````'],
   ])('%s is kept', (_label, markdown) => {
     expect(editorWith(markdown).getMarkdown()).toBe(markdown);
   });
