@@ -27,11 +27,11 @@
  * Each entry names one cause from `CAUSES` below, the most severe one where
  * an example shows several. A cause is either a recorded R-C2 exception,
  * named by its title in REQUIREMENTS, which this file reads and checks, or a
- * defect, with the promise it breaks. The cause was assigned by hand: it is
- * what a reader reviews, and the hash, not the label, is what fails. A cause
- * marked `caseNotNamed` is one whose exception is recorded for another case
- * of the same mechanism; the label says where it belongs, not that it is
- * covered.
+ * defect, with the promise it breaks and the issue repairing it. The cause
+ * was assigned by hand: it is what a reader reviews, and the hash, not the
+ * label, is what fails. Until #573 a cause could be marked as recorded for
+ * another case of the same mechanism; the correction of those exceptions
+ * named every such case, so a recorded cause now names its own.
  *
  * ── Where the examples come from ──
  *
@@ -54,12 +54,12 @@ import { createEditor } from './setup';
 /** A recorded exception, by its title in REQUIREMENTS after `Known exception — `. */
 interface Recorded {
   readonly recorded: string;
-  readonly caseNotNamed?: true;
 }
-/** A difference REQUIREMENTS does not record, and the promise it breaks. */
+/** A difference REQUIREMENTS does not record, the promise it breaks, and the issue repairing it. */
 interface Defect {
   readonly breaks: 'R-C2 file' | 'R-C2 document' | 'R-C13' | 'Q4';
   readonly what: string;
+  readonly issue: number;
 }
 type Cause = Recorded | Defect;
 
@@ -97,47 +97,85 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'definition-spaces': {
     recorded: 'the spaces at the end of a line of a reference definition are not kept',
   },
-  // Recorded for another case of the same mechanism.
-  'marks-split': { recorded: 'two overlapping marks have exactly one nesting', caseNotNamed: true },
+  // Named by the correction of #573 (owner decisions K and L).
+  'marks-split': { recorded: 'two overlapping marks have exactly one nesting' },
+  'nested-em': { recorded: 'two overlapping marks have exactly one nesting' },
+  'em-structure': { recorded: 'two overlapping marks have exactly one nesting' },
   'html-as-markdown': {
     recorded: 'raw HTML that is not one whole table at the top level is written as markdown',
-    caseNotNamed: true,
   },
-  'fence-blank-end': { recorded: 'a blank line at the end of a fenced block', caseNotNamed: true },
-  // Respelled, rendering alike: named nowhere in R-C2.
-  'indented-fenced': { breaks: 'R-C2 file', what: 'an indented code block is written fenced' },
-  'fence-respelled': {
-    breaks: 'R-C2 file',
-    what: 'a fence loses its indentation, the spelling of its closing fence, the rest of its info string, or, when empty, its run',
+  'fence-blank-end': { recorded: 'a blank line at the end of a fenced block' },
+  'quote-nested': { recorded: 'a nested quote is written with spaced markers' },
+  // Respelled, rendering alike: recorded by #573 (owner decisions A to E and I).
+  'quote-marker': {
+    recorded:
+      'a quote marker is written with a space, and a blank quote line at either end of a quote is not kept',
   },
+  'inner-spaces': { recorded: 'a run of spaces inside a line of prose is written as one' },
+  'trailing-spaces': { recorded: 'the spaces at the end of a line are not kept' },
+  indentation: {
+    recorded: 'the indentation of a block and the spacing of a list item are not kept',
+  },
+  'list-item': {
+    recorded: 'the indentation of a block and the spacing of a list item are not kept',
+  },
+  'entity-char': { recorded: 'a character reference is written as its character' },
+  'indented-fenced': { recorded: 'an indented code block is written fenced' },
+  tab: { recorded: 'a tab in text is written as a space' },
+  'image-alt': { recorded: 'an image description is written as plain text' },
   'setext-atx': {
-    breaks: 'R-C2 file',
-    what: 'an underlined heading over two lines is written with hashes, and one loses its indentation or trailing spaces',
+    recorded:
+      'an underlined heading over two lines is written with hashes, and the spacing after the opening hashes is not kept',
   },
-  'list-item': { breaks: 'R-C2 file', what: 'a list item is written with other spacing' },
-  'autolink-link': { breaks: 'R-C2 file', what: 'an autolink is written as an inline link' },
-  destination: {
-    breaks: 'R-C2 file',
-    what: 'an image destination, or a link destination and title over two lines, is written another way',
-  },
-  'entity-char': { breaks: 'R-C2 file', what: 'a character reference is written as its character' },
-  'inner-spaces': { breaks: 'R-C2 file', what: 'a run of spaces inside a line is written as one' },
   'atx-respelled': {
-    breaks: 'R-C2 file',
-    what: 'a heading loses the spacing around its hashes and its text',
+    recorded:
+      'an underlined heading over two lines is written with hashes, and the spacing after the opening hashes is not kept',
   },
-  indentation: { breaks: 'R-C2 file', what: 'the indentation of a block is not kept' },
-  'quote-marker': { breaks: 'R-C2 file', what: 'a quote marker is written with a space' },
-  tab: { breaks: 'R-C2 file', what: 'a tab is written as spaces or as a fence' },
-  'image-alt': { breaks: 'R-C2 file', what: 'an image description is written as plain text' },
-  // The meaning moves.
-  'nested-em': { breaks: 'R-C2 document', what: 'nested emphasis of one kind is made one' },
-  'span-padding': { breaks: 'R-C2 document', what: 'the spaces of a code span move or go' },
-  'em-structure': { breaks: 'R-C2 document', what: 'emphasis is written with another nesting' },
-  'list-spacing': { breaks: 'R-C2 document', what: 'a list changes between loose and tight' },
-  'rule-in-item': { breaks: 'R-C2 document', what: 'a rule in a list item leaves the item' },
-  // Content lost.
-  'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped' },
+  'fence-respelled': {
+    recorded:
+      'a fence is written with a closing run like its opening one and with its language alone',
+  },
+  destination: {
+    recorded:
+      'an image destination, and a link destination and title over two lines, are written from what the editor holds',
+  },
+  // The meaning moves, or content is lost: each names the issue repairing it.
+  'code-spaces': {
+    breaks: 'R-C2 document',
+    what: 'a run of spaces inside a code span is written as one',
+    issue: 603,
+  },
+  'code-tab': {
+    breaks: 'R-C2 document',
+    what: 'a tab inside code is written otherwise',
+    issue: 603,
+  },
+  'code-indent': {
+    breaks: 'R-C2 document',
+    what: 'the code of an indented block or fence loses indentation `marked` strips by its own rule',
+    issue: 603,
+  },
+  'span-padding': {
+    breaks: 'R-C2 document',
+    what: 'the padding of a code span is lost, or the span with it',
+    issue: 603,
+  },
+  'list-spacing': {
+    breaks: 'R-C2 document',
+    what: 'a nested list a blank line under its item is written directly under it',
+    issue: 601,
+  },
+  'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped', issue: 604 },
+  'autolink-link': {
+    breaks: 'R-C2 document',
+    what: 'an autolink start in link text gains a backslash GitHub reads into the destination',
+    issue: 605,
+  },
+  'rule-in-item': {
+    breaks: 'R-C2 document',
+    what: 'a rule in a list item leaves the item',
+    issue: 606,
+  },
 };
 
 interface Change {
