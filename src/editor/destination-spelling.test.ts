@@ -89,6 +89,8 @@ const LINKS = [
   ['an ampersand reference in a query', '[q](/s?a=1&amp;b=2)'],
   ['a literal ampersand that spells a reference (#447)', '[q](/s?x=1&amp;copy;=2)'],
   ['a title ending in an escaped backslash', '[e](/u "t\\\\")'],
+  // The sanitizer trims a title, so one with a space at its end is carried.
+  ['a title ending in a space', '[t](/u "a title ")'],
 ] as const;
 
 const CASES = LINKS.flatMap(([label, link]) =>

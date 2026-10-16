@@ -68,15 +68,18 @@ function insideOf(raw: string): string | null {
 
 /** A destination the serializer writes as it stands: ASCII, with nothing it escapes or encodes. */
 const PLAIN_DESTINATION = /^[A-Za-z0-9\-._~:/?#@!$+,;=%*']+$/;
-/** A title it writes as it stands, in double quotes. */
-const PLAIN_TITLE = /^[^"\\&\n\r]*$/;
+/**
+ * A title it writes as it stands, in double quotes: not empty, and with no
+ * space at either end, which the sanitizer of a load trims off the attribute.
+ */
+const PLAIN_TITLE = /^[^"\\&\n\r\s](?:[^"\\&\n\r]*[^"\\&\n\r\s])?$/;
 
 /**
  * Whether the link is written back as the file wrote it with no carry: a
  * plain destination, alone or with a plain title in double quotes after one
  * space. Most links are, and they carry nothing, so the check at save, which
  * reads each carried link through the whole parse, costs only where a
- * spelling is kept. Measured on the 2000 links of the timing file of #573.
+ * spelling is kept.
  */
 function writtenAlike(inside: string): boolean {
   const titled = /^(\S+) "([^"]*)"$/.exec(inside);
