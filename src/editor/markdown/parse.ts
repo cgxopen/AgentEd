@@ -5,6 +5,7 @@ import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
 import { commentCarrier } from './comment-spelling';
+import { linkDestinationAttribute } from './destination-spelling';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
 import { fenceOpenerAttribute } from './fence-spelling';
 import {
@@ -247,9 +248,12 @@ marked.use({
         ),
         token,
       );
-      // The delimiter of its title, where not `"` (#562).
-      const delimiter = linkTitleDelimiterAttribute(token.raw, token.title);
-      return delimiter !== '' && html.startsWith('<a ') ? `<a${delimiter}${html.slice(2)}` : html;
+      // The delimiter of its title, where not `"` (#562), and what stood
+      // between its parentheses, from a file (#573).
+      const spelling =
+        linkTitleDelimiterAttribute(token.raw, token.title) +
+        linkDestinationAttribute(token.raw, token.href, token.title, keepingRawHtml);
+      return spelling !== '' && html.startsWith('<a ') ? `<a${spelling}${html.slice(2)}` : html;
     },
   },
 });

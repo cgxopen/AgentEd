@@ -56,6 +56,7 @@ import {
   encodeComment,
   MARKDOWN_COMMENT_ATTRIBUTE,
 } from './markdown/comment-spelling';
+import { linkDestinationMarkAttribute } from './markdown/destination-spelling';
 import { emphasisDelimiterMarkAttribute } from './markdown/emphasis-delimiter';
 import { fenceOpenerNodeAttribute } from './markdown/fence-spelling';
 import {
@@ -887,6 +888,8 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
           ...this.parent?.(),
           ...autolinkMarkAttribute(),
           ...linkTitleMarkAttributes(),
+          // What the file wrote between its parentheses (#573).
+          ...linkDestinationMarkAttribute(),
           // Two links side by side with one destination stay two (#565).
           ...linkPlaceMarkAttribute(),
           // A link the file wrote as a reference knows its spelling (#570).

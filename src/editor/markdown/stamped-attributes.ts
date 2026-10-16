@@ -42,6 +42,7 @@ import { AUTOLINK_ATTRIBUTE } from './angle-autolink';
 import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { BR_SPELLING_ATTRIBUTE } from './br-spelling';
 import { MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
+import { LINK_DESTINATION_ATTRIBUTE } from './destination-spelling';
 import { EMPHASIS_DELIMITER_ATTRIBUTE } from './emphasis-delimiter';
 import { FENCE_OPENER_ATTRIBUTE } from './fence-spelling';
 import {
@@ -108,6 +109,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   SETEXT_UNDERLINE_ATTRIBUTE,
   ATX_CLOSING_ATTRIBUTE,
   FENCE_OPENER_ATTRIBUTE,
+  LINK_DESTINATION_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */

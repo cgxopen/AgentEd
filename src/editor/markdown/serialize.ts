@@ -14,6 +14,7 @@ import { addBrSpellingRules } from './br-spelling';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
+import { keptDestination, type ReadLink } from './destination-spelling';
 import { addEmphasisDelimiterRules } from './emphasis-delimiter';
 import { emptyBlock, opensWithAnEmptyItem, withoutAnUnderline } from './empty-block';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
@@ -51,6 +52,7 @@ import {
 } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { markupOpenings } from './markup-openers';
+import { markdownToHtml } from './parse';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceSpelling, setDefinedLabels } from './reference';
 import { definedLabels, readsAs, referenceIndentOf } from './reference-save';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
@@ -292,9 +294,24 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
     // A link the file wrote as a reference, while its label resolves (#570).
     const reference = referenceSpelling(element, content, writesAsLabel(content), false);
     if (reference !== null) return `${linkStart()}${reference}`;
+    // What the file wrote between the parentheses, where it still makes this link (#573).
+    // A cell writes its blocks apart from the table, so its depth answers where `closest` cannot.
+    const cell = cellDepth > 0 || element.closest('td, th') !== null;
+    const kept = keptDestination(element, readOneLink, cell);
+    if (kept !== null) return `${linkStart()}[${content}]${kept}`;
     return `${linkStart()}[${content}](${href}${linkTitle(element)})`;
   },
 });
+
+/** The one link `markdown` makes, read by the parse the editor uses, or null. */
+function readOneLink(markdown: string): ReadLink | null {
+  const container = document.createElement('div');
+  container.innerHTML = markdownToHtml(markdown, { keepRawHtml: false });
+  const links = container.querySelectorAll('a');
+  const link = links[0];
+  if (links.length !== 1 || link === undefined) return null;
+  return { href: link.getAttribute('href'), title: link.getAttribute('title') };
+}
 
 // A run of hashes that ends the heading text after a space is its closing
 // sequence to the next reader, so the text loses it (#565, owner decision D2):
