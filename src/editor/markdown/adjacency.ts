@@ -23,7 +23,8 @@
  *
  * The same two places hold a run of two or more blank lines, so the same
  * attribute carries its count: empty for no blank line, absent for one, a
- * number from 2 up for a run, written back as that many blank lines. A run
+ * number from 2 up for a run, written back as that many blank lines. Between
+ * two blocks of a list item one blank line is the number 1 (#601). A run
  * holding a line of spaces or tabs is left as before, written as one blank
  * line (owner decision E4 on #590). After a block whose bytes are kept, a
  * raw HTML block, only the line breaks after its last character are a gap:
@@ -64,7 +65,7 @@ const ENDS_IN_A_BLANK_LINE = /\n[ \t]*\n[ \t\n]*$/;
  * paragraph of whitespace, which the editor drops, and marking it made two
  * files of the corpus move on the second save in the step zero.
  */
-export function markAdjacentBlocks(tokens: Token[], depth = 0): Token[] {
+export function markAdjacentBlocks(tokens: Token[], depth = 0, inItem = false): Token[] {
   if (depth > MAX_DEPTH) return tokens;
   const marked: Token[] = [];
   let above: Token | null = null;
@@ -79,7 +80,10 @@ export function markAdjacentBlocks(tokens: Token[], depth = 0): Token[] {
       marked.push(token);
       continue;
     }
-    if (above !== null) marked.push(...markBetween(above, between));
+    if (above !== null) marked.push(...markBetween(above, between, inItem));
+    // An item whose marker line is empty, `- [ ] ` and a blank line before its
+    // first block, holds that blank line before it (#601).
+    else if (inItem && /\n[ \t]*\n/.test(between)) marked.push(gapMark(1));
     between = '';
     markInside(token, depth);
     marked.push(token);
@@ -88,17 +92,27 @@ export function markAdjacentBlocks(tokens: Token[], depth = 0): Token[] {
   return marked;
 }
 
-/** The mark the gap between two blocks gets: none, the flag, or the count of a run. */
-function markBetween(above: Token, between: string): Token[] {
+/**
+ * The mark the gap between two blocks gets: none, the flag, or the count of a
+ * run. In a list item one blank line is counted too, as 1 (#601): it is the
+ * gap the writer of an item cannot tell from none, `item-spacing.ts` says why.
+ */
+function markBetween(above: Token, between: string, inItem: boolean): Token[] {
   if (between === '' && !ENDS_IN_A_BLANK_LINE.test(above.raw)) {
     return [{ type: MARK_TOKEN, raw: '' } as unknown as Token];
   }
   const gap = gapOf(above) + between;
-  if (/\n[ \t]+\n/.test(`\n${gap}`)) return [];
-  const blankLines = (gap.match(/\n/g) ?? []).length - 1;
-  return blankLines >= 2
-    ? [{ type: MARK_TOKEN, raw: '', gap: blankLines } as unknown as Token]
-    : [];
+  // A run holding a line of spaces is written as one blank line (E4 of #590),
+  // which in an item is the blank line counted below.
+  const holdsSpaces = /\n[ \t]+\n/.test(`\n${gap}`);
+  const blankLines = holdsSpaces ? 1 : (gap.match(/\n/g) ?? []).length - 1;
+  if (holdsSpaces && !inItem) return [];
+  return blankLines >= 2 || (inItem && blankLines === 1) ? [gapMark(blankLines)] : [];
+}
+
+/** The mark of a gap of `blankLines` blank lines. */
+function gapMark(blankLines: number): Token {
+  return { type: MARK_TOKEN, raw: '', gap: blankLines } as unknown as Token;
 }
 
 /** The end of the raw above that is a gap rather than bytes the block keeps. */
@@ -113,7 +127,7 @@ function markInside(token: Token, depth: number): void {
   if (token.type === 'blockquote') {
     token.tokens = markAdjacentBlocks(token.tokens ?? [], depth + 1);
   } else if (token.type === 'list') {
-    for (const item of token.items) item.tokens = markAdjacentBlocks(item.tokens, depth + 1);
+    for (const item of token.items) item.tokens = markAdjacentBlocks(item.tokens, depth + 1, true);
   }
 }
 

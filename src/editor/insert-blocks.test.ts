@@ -202,19 +202,19 @@ const INSIDE_A_CHECKLIST: ReadonlyArray<readonly [string, string, Place, string]
     '- [ ] ```\n  code\n  ```\n- [ ] X',
   ],
   // The shape `splitListItem` broke: it split the item between its two
-  // paragraphs. Here `b` stays in the first item — written one newline apart,
-  // which is the recorded R-C2 exception for two paragraphs in one task item.
+  // paragraphs. Here `b` stays in the first item, the blank line the file
+  // wrote above it kept since #601.
   [
     'an item holding two paragraphs, caret in the first',
     '- [ ] a\n\n  b',
     caret('paragraph', 1, 0),
-    '- [ ] a\n  b\n- [ ] X',
+    '- [ ] a\n\n  b\n- [ ] X',
   ],
   [
     'a blockquote inside an item',
     '- [ ] a\n\n  > q',
     caret('paragraph', 1, 1),
-    '- [ ] a\n  > q\n- [ ] X',
+    '- [ ] a\n\n  > q\n- [ ] X',
   ],
   [
     'a loose checklist',

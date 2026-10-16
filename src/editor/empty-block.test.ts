@@ -135,7 +135,7 @@ describe('an empty first item under the paragraph of its item (#564, owner decis
 
   it('reads the list around it back as tight', () => {
     expect(editorWith('- foo\n\n  -\n- bar\n').editor.getHTML()).toBe(
-      '<ul><li><p>foo</p><ul><li><p></p></li></ul></li><li><p>bar</p></li></ul>',
+      '<ul><li><p>foo</p><ul data-adjacent="1"><li><p></p></li></ul></li><li><p>bar</p></li></ul>',
     );
   });
 
@@ -153,11 +153,12 @@ describe('an empty first item under the paragraph of its item (#564, owner decis
   });
 
   it.each([
-    // The recorded exception: a blank line there would cost the checkbox on
-    // GitHub, so the item is dropped as it was on `0ccf572`.
-    ['alone', '- [ ] foo\n\n  -\n', '- [ ] foo\n'],
-    ['with an item after it', '- [ ] foo\n\n  -\n  - x\n', '- [ ] foo\n  - x\n'],
-  ])('drops it in a checklist item, %s', (_label, markdown, expected) => {
-    expect(saved(markdown)).toBe(expected);
+    // Kept since #601: the checklist item writes the blank line the file had,
+    // which is what keeps the item in a bullet item, and the checkbox with it.
+    ['alone', '- [ ] foo\n\n  -\n'],
+    ['with an item after it', '- [ ] foo\n\n  -\n  - x\n'],
+    ['with a task item after its list', '- [ ] foo\n\n  -\n- [ ] bar\n'],
+  ])('keeps it in a checklist item, %s', (_label, markdown) => {
+    expect(saved(markdown)).toBe(markdown);
   });
 });

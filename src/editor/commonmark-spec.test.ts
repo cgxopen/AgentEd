@@ -160,11 +160,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
     what: 'the padding of a code span is lost, or the span with it',
     issue: 603,
   },
-  'list-spacing': {
-    breaks: 'R-C2 document',
-    what: 'a nested list a blank line under its item is written directly under it',
-    issue: 601,
-  },
   'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped', issue: 604 },
   'autolink-link': {
     breaks: 'R-C2 document',

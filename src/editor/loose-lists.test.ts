@@ -300,15 +300,14 @@ describe('a raw HTML list no longer costs the rest of the document its spacing',
  * pass if nesting were answered by the list around it; this one holds no tight
  * list at all, which is what separates the two claims.
  *
- * It is asserted as exact bytes rather than as byte-identity, and the reason is
- * not this change: the blank line **before** a nested list is dropped, on this
- * branch and on `main` alike, and nothing here moves it either way. What the
- * bytes state is the part #200 is about — the outer list keeps the blank lines
- * between its items and the inner list keeps its own.
+ * The blank line **before** the nested list was dropped until #601, while
+ * this row expected it so; the row now asserts what its name says, every
+ * spacing kept, and that is the part #200 is about too — the outer list keeps
+ * the blank lines between its items and the inner list keeps its own.
  */
 describe('a nested list reads its own spacing', () => {
   it('a loose list inside a loose list keeps both spacings', () => {
-    expect(openAndSave('- a\n\n  - x\n\n  - y\n\n- b')).toBe('- a\n  - x\n\n  - y\n\n- b');
+    expect(openAndSave('- a\n\n  - x\n\n  - y\n\n- b')).toBe('- a\n\n  - x\n\n  - y\n\n- b');
   });
 
   it('and the second save moves nothing further', () => {
