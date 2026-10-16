@@ -62,6 +62,7 @@ import {
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
 } from './markdown/footnote';
+import { headingSpellingNodeAttributes } from './markdown/heading-spelling';
 import { decodeKeptBlockSource } from './markdown/html-wrapper';
 import {
   decodeHtmlSource,
@@ -513,7 +514,12 @@ function paragraphKeepingBlockSource(extension: AnyExtension): AnyExtension {
 function headingKeepingBlockSource(extension: AnyExtension): AnyExtension {
   return extension.extend({
     addAttributes() {
-      return { ...this.parent?.(), ...keptBlockSourceAttributes() };
+      // The underline or closing hashes the file spelled it with (#573).
+      return {
+        ...this.parent?.(),
+        ...keptBlockSourceAttributes(),
+        ...headingSpellingNodeAttributes(),
+      };
     },
   });
 }

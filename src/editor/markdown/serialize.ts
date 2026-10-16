@@ -30,6 +30,7 @@ import {
   FOOTNOTE_INDENTS_ATTRIBUTE,
   joinDefinition,
 } from './footnote';
+import { withHeadingSpelling } from './heading-spelling';
 import { decodeKeptBlockSource } from './html-wrapper';
 import {
   decodeHtmlSource,
@@ -302,10 +303,15 @@ const CLOSING_HASHES = /(^|[ \t])(#+)([ \t]*)$/;
 turndown.addRule('heading', {
   filter: builtinHeading.filter,
   replacement: (content, node, options) =>
-    builtinHeading.replacement(
-      withoutLeadingListEscape(content).replace(CLOSING_HASHES, '$1\\$2$3'),
-      node,
-      options,
+    // The underline or closing hashes the file spelled it with (#573).
+    withHeadingSpelling(
+      node as HTMLElement,
+      content,
+      builtinHeading.replacement(
+        withoutLeadingListEscape(content).replace(CLOSING_HASHES, '$1\\$2$3'),
+        node,
+        options,
+      ),
     ),
 });
 
