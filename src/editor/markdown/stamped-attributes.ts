@@ -43,6 +43,7 @@ import { BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { BR_SPELLING_ATTRIBUTE } from './br-spelling';
 import { MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { EMPHASIS_DELIMITER_ATTRIBUTE } from './emphasis-delimiter';
+import { FENCE_OPENER_ATTRIBUTE } from './fence-spelling';
 import {
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
@@ -106,6 +107,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   REFERENCE_DEFINITION_ATTRIBUTE,
   SETEXT_UNDERLINE_ATTRIBUTE,
   ATX_CLOSING_ATTRIBUTE,
+  FENCE_OPENER_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */

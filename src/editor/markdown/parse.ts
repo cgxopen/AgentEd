@@ -6,6 +6,7 @@ import { blankMarkerAttribute } from './blockquote-spacing';
 import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
 import { commentCarrier } from './comment-spelling';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
+import { fenceOpenerAttribute } from './fence-spelling';
 import {
   encodeIndents,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -193,6 +194,20 @@ marked.use({
     },
     strong(token) {
       return `<strong${emphasisDelimiterAttribute(token.raw)}>${this.parser.parseInline(token.tokens)}</strong>`;
+    },
+  },
+});
+
+// How a file opened a fenced block, its run and the gap before the info
+// string (#573), on the `pre`, so it is written back that way. The rest is
+// `marked`'s own `code`, called rather than restated.
+marked.use({
+  renderer: {
+    code(token) {
+      const html = Renderer.prototype.code.call(this, token);
+      if (token.codeBlockStyle === 'indented') return html;
+      const opener = fenceOpenerAttribute(token.raw, token.lang, keepingRawHtml);
+      return opener === '' ? html : html.replace(/^<pre/, `<pre${opener}`);
     },
   },
 });

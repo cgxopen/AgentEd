@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
 import { ReplaceStep } from '@tiptap/pm/transform';
 import { ADJACENT_ATTRIBUTE, MAX_RUN } from './markdown/adjacency';
+import { FENCE_SPELLING_UNSET } from './markdown/fence-spelling';
 import { HEADING_SPELLING_UNSET } from './markdown/heading-spelling';
 
 /**
@@ -124,9 +125,11 @@ function splitRanges(transactions: readonly Transaction[]): Array<{ from: number
  * The second half of a split loses the flag, whatever it held (#594): the
  * block starting inside the range a split opened is the new one, and the
  * first half starts before it. The count of #590 rides on the same attribute
- * and is cleared by the same step, and so is the spelling of a heading (#573),
- * which `tr.split` copies the same way.
+ * and is cleared by the same step, and so is the spelling of a heading or a
+ * fence (#573), which `tr.split` copies the same way.
  */
+const SPELLING_UNSET = { ...HEADING_SPELLING_UNSET, ...FENCE_SPELLING_UNSET };
+
 function secondHalfWithoutFlag(): Plugin {
   return new Plugin({
     key: secondHalfKey,
@@ -141,7 +144,7 @@ function secondHalfWithoutFlag(): Plugin {
           if ('adjacent' in node.attrs && node.attrs.adjacent !== false) {
             tr.setNodeAttribute(pos, 'adjacent', false);
           }
-          for (const [name, unset] of Object.entries(HEADING_SPELLING_UNSET)) {
+          for (const [name, unset] of Object.entries(SPELLING_UNSET)) {
             if (name in node.attrs && node.attrs[name] !== unset)
               tr.setNodeAttribute(pos, name, unset);
           }
