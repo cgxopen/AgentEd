@@ -133,6 +133,18 @@ describe('a heading the editor makes carries nothing (#573)', () => {
     expect(editor.getMarkdown()).toBe('## Title');
   });
 
+  it.each([
+    ['an underlined heading', 'Title\n=====', '#'],
+    ['a heading with closing hashes', '## Title ##', '##'],
+  ])(
+    '%s emptied in the editor is written as its hashes alone (#564)',
+    (_label, markdown, written) => {
+      const editor = editorWith(markdown);
+      editor.editor.chain().setTextSelection({ from: 1, to: 6 }).deleteSelection().run();
+      expect(editor.getMarkdown()).toBe(written);
+    },
+  );
+
   it('a level the underline cannot spell is written with hashes', () => {
     const editor = editorWith('Title\n=====');
     editor.editor.chain().setTextSelection(2).toggleHeading({ level: 2 }).run();

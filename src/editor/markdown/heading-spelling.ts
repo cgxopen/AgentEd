@@ -152,7 +152,8 @@ function readsAlike(spelled: string, hashes: string): boolean {
  */
 export function withHeadingSpelling(node: HTMLElement, content: string, written: string): string {
   const hashes = written.trim();
-  if (hashes === '' || content.includes('\n')) return written;
+  // A heading left empty is written as its hashes alone, as #564 has it.
+  if (hashes === '' || content.trim() === '' || content.includes('\n')) return written;
   const underline = node.getAttribute(SETEXT_UNDERLINE_ATTRIBUTE);
   if (underline !== null && UNDERLINE.test(underline)) {
     const spelled = `${content.trim()}\n${underline}`;

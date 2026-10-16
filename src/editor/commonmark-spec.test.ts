@@ -107,13 +107,19 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   // Respelled, rendering alike: named nowhere in R-C2.
   'indented-fenced': { breaks: 'R-C2 file', what: 'an indented code block is written fenced' },
   'fence-respelled': { breaks: 'R-C2 file', what: 'a fence is written with other delimiters' },
-  'setext-atx': { breaks: 'R-C2 file', what: 'an underlined heading is written with hashes' },
+  'setext-atx': {
+    breaks: 'R-C2 file',
+    what: 'an underlined heading over two lines is written with hashes, and one loses its indentation or trailing spaces',
+  },
   'list-item': { breaks: 'R-C2 file', what: 'a list item is written with other spacing' },
   'autolink-link': { breaks: 'R-C2 file', what: 'an autolink is written as an inline link' },
   destination: { breaks: 'R-C2 file', what: 'a link destination is written another way' },
   'entity-char': { breaks: 'R-C2 file', what: 'a character reference is written as its character' },
   'inner-spaces': { breaks: 'R-C2 file', what: 'a run of spaces inside a line is written as one' },
-  'atx-respelled': { breaks: 'R-C2 file', what: 'a heading loses its closing hashes or spacing' },
+  'atx-respelled': {
+    breaks: 'R-C2 file',
+    what: 'a heading loses the spacing around its hashes and its text',
+  },
   indentation: { breaks: 'R-C2 file', what: 'the indentation of a block is not kept' },
   'quote-marker': { breaks: 'R-C2 file', what: 'a quote marker is written with a space' },
   tab: { breaks: 'R-C2 file', what: 'a tab is written as spaces or as a fence' },
