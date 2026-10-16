@@ -347,6 +347,27 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     expect(build).toMatch(/^ {10}APPLE_SIGNING_IDENTITY: \$\{\{ matrix\.signing \}\}$/m);
   });
 
+  it('checks the macOS bundle a user downloads after it is built (#555)', () => {
+    // The steps run on the macOS line alone, after the step that builds and
+    // uploads the .dmg, each with its own ceiling (#47). Pinned for the same
+    // reason as the signing field: a release without them still goes green.
+    const all = steps(RELEASE);
+    const build = all.findIndex((step) => /^uses: tauri-apps\/tauri-action@/m.test(step));
+    const checks = all.filter((step) => step.startsWith("name: 'macOS: "));
+    expect(checks.map((step) => step.split('\n')[0])).toHaveLength(3);
+    for (const step of checks) {
+      expect(all.indexOf(step)).toBeGreaterThan(build);
+      expect(step).toMatch(/^ {8}if: matrix\.platform == 'macos-latest'$/m);
+      expect(step).toMatch(/^ {8}timeout-minutes: \d+$/m);
+    }
+    const script = checks.join('\n');
+    expect(script).toContain('hdiutil attach -readonly');
+    expect(script).toContain('codesign --verify --deep --strict');
+    expect(script).toContain("grep -qx 'Signature=adhoc'");
+    expect(script).toContain('open -n "$app"');
+    expect(script).toMatch(/pgrep -f "\$app\/Contents\/MacOS\/"/);
+  });
+
   it('leaves Linux out of the release matrix until it is user-facing', () => {
     const matrixBlock = RELEASE.slice(RELEASE.indexOf('matrix:'), RELEASE.indexOf('runs-on:'));
     expect(matrixBlock).not.toMatch(/^ +- platform: ubuntu/m);

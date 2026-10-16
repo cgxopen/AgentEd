@@ -184,6 +184,73 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      # ── The macOS bundle a user downloads, checked on the runner (#555) ──
+      #
+      # A signature can break with the build, the tests and the upload all
+      # green: a packaging step that changes a signed file after signing
+      # leaves a bundle Apple Silicon refuses to start. So the .dmg the step
+      # above built and uploaded is opened the way a user opens it: mounted
+      # read-only, AgentEd.app copied out of it, its signature verified over
+      # the whole bundle and found ad hoc as the matrix line sets it, then the
+      # copy started and found still running.
+      #
+      # What these steps do not prove: Gatekeeper and the first-launch prompt.
+      # A file built on the runner carries no quarantine attribute, so macOS
+      # never asks about it here; that stays the owner test on a Mac.
+      #
+      # A failure turns this job red, and curate-assets, which needs it, does
+      # not run: the draft is left with the installers and without
+      # SHA256SUMS.txt, which is what the owner sees before publishing.
+      - name: 'macOS: copy AgentEd.app out of the .dmg, as a user would'
+        if: matrix.platform == 'macos-latest'
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          images=(src-tauri/target/release/bundle/dmg/*.dmg)
+          if [ "${#images[@]}" -ne 1 ]; then
+            echo "::error::Expected one .dmg, found ${#images[@]}."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/dmg" "$RUNNER_TEMP/copy"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/dmg" "${images[0]}"
+          ditto "$RUNNER_TEMP/dmg/AgentEd.app" "$RUNNER_TEMP/copy/AgentEd.app"
+          hdiutil detach "$RUNNER_TEMP/dmg"
+
+      - name: 'macOS: the signature of the copy verifies, and is ad hoc'
+        if: matrix.platform == 'macos-latest'
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/copy/AgentEd.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          details=$(codesign --display --verbose=2 "$app" 2>&1)
+          echo "$details"
+          if ! grep -qx 'Signature=adhoc' <<< "$details"; then
+            echo "::error::The bundle is not signed ad hoc, as the matrix line sets it."
+            exit 1
+          fi
+
+      - name: 'macOS: the copy starts and is still running after 10 seconds'
+        if: matrix.platform == 'macos-latest'
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/copy/AgentEd.app"
+          open -n "$app"
+          sleep 10
+          if ! pgrep -f "$app/Contents/MacOS/" > /dev/null; then
+            echo "::error::AgentEd was not running 10 seconds after it was started."
+            exit 1
+          fi
+          # Nothing is unsaved, so the quit gate of #539 lets it go.
+          osascript -e 'quit app "AgentEd"' || true
+          for _ in $(seq 1 20); do
+            pgrep -f "$app/Contents/MacOS/" > /dev/null || exit 0
+            sleep 1
+          done
+          pkill -f "$app/Contents/MacOS/" || true
+
   curate-assets:
     needs: build-and-draft
     # Pinned rather than ubuntu-latest (#591): that label moves to Ubuntu 26
