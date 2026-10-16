@@ -389,7 +389,7 @@ const INSIDE_A_FENCE: ReadonlyArray<readonly [string, string, string]> = [
   [
     'a fence inside a checklist item',
     '- [ ] x\n\n  ```\n  code\n  ```',
-    '- [ ] x\n  ```\n  code\n  ```\n  ```\n  X\n  ```',
+    '- [ ] x\n\n  ```\n  code\n  ```\n  ```\n  X\n  ```',
   ],
   [
     'a fence inside a blockquote',

@@ -138,8 +138,6 @@ const SINGLE_TILDE = 'R-C2: single-tilde strikethrough is written with two';
 const TABLE_SPELLINGS = 'R-C2: five table spellings AgentEd cannot hold';
 const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
 const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
-/** The blank line inside an item, between two of its own blocks (#157). */
-const TASK_ITEM_BLOCKS = "R-C2: an item's own blocks are written one newline apart";
 /** An item holding a table writes its blocks a blank line apart (#281). */
 const TASK_ITEM_WITH_A_TABLE = 'R-C2: an item holding a table writes its blocks a blank line apart';
 /** All three CommonMark title delimiters parse the same, so one is written (#230). */
@@ -430,7 +428,7 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   [
     'a loose task list with a task list nested in it',
     '- [ ] a\n\n  - [ ] n\n\n- [ ] b',
-    { writes: '- [ ] a\n  - [ ] n\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
+    'identical',
   ],
   // Was an exception until #199: the blank line came back as a marker and a
   // space where the file had a bare marker. The quote now keeps the spelling
@@ -441,22 +439,22 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   [
     'a loose task item whose whole content is an empty fence',
     '- [ ] \n\n  ```\n  ```\n\n- [ ] b',
-    { writes: '- [ ] ```\n  ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
+    'identical',
   ],
   [
     'a loose task item whose whole content is an empty fence with a language',
     '- [ ] \n\n  ```js\n  ```\n\n- [ ] b',
-    { writes: '- [ ] ```js\n  ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
+    'identical',
   ],
   [
     'a loose task item holding a blockquote holding an empty fence',
     '- [ ] \n\n  > ```\n  > ```\n\n- [ ] b',
-    { writes: '- [ ] > ```\n  > ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
+    'identical',
   ],
   [
     'a loose task item holding a nested list holding an empty fence',
     '- [ ] \n\n  - ```\n    ```\n\n- [ ] b',
-    { writes: '- [ ] - ```\n    ```\n\n- [ ] b', because: TASK_ITEM_BLOCKS },
+    'identical',
   ],
 
   // ── A loose *ordered* list of markers (#160, members 3a and 3b together) ──

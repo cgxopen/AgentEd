@@ -73,7 +73,7 @@
   { "n": 105, "cause": "rule-under-text", "first": "70ac3b0ec48ec9f9" },
   { "n": 107, "cause": "indented-fenced", "first": "e0e2024e03e84838" },
   { "n": 108, "cause": "list-item", "first": "fc518e8b01cf3ff6" },
-  { "n": 109, "cause": "list-spacing", "first": "98da5d12271e5e92" },
+  { "n": 109, "cause": "list-item", "first": "800bbd38b8fc9b29" },
   { "n": 110, "cause": "indented-fenced", "first": "fa1d7a6d5c206e43" },
   { "n": 111, "cause": "indented-fenced", "first": "fc0d45349e669e47" },
   { "n": 112, "cause": "indented-fenced", "first": "d9ea2cf18989b237" },

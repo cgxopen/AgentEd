@@ -13,6 +13,7 @@
  */
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
+import { ADJACENT_ATTRIBUTE } from './adjacency';
 import { LIST_SPACING_ATTRIBUTE, listSpacingAttribute } from './list-spacing';
 import { markdownToHtml } from './parse';
 import { TABLE_STYLE_ATTRIBUTE } from './table-style';
@@ -119,12 +120,13 @@ describe('the list renderer matches marked byte for byte apart from the attribut
   }
 
   /**
-   * Both attributes this repository writes onto a block element, removed
+   * The attributes this repository writes onto a block element, removed
    * together: one row below holds a table inside a list item, and the table
-   * one is pinned by the guard in `table-style.test.ts` rather than here.
+   * one is pinned by the guard in `table-style.test.ts` rather than here; the
+   * count of blank lines above a block in an item (#601) by `item-spacing.test.ts`.
    */
   const OUR_ATTRIBUTES = new RegExp(
-    ` ${LIST_SPACING_ATTRIBUTE}="true"| ${TABLE_STYLE_ATTRIBUTE}="[^"]*"`,
+    ` ${LIST_SPACING_ATTRIBUTE}="true"| ${TABLE_STYLE_ATTRIBUTE}="[^"]*"| ${ADJACENT_ATTRIBUTE}="\\d+"`,
     'g',
   );
 

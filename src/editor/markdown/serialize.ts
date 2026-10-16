@@ -40,6 +40,7 @@ import {
   imageMarkup,
   pixelValue,
 } from './image-spelling';
+import { blankLineAbove } from './item-spacing';
 import { addKeptLinkRules } from './kept-link';
 import { addKeptRawHtmlRules } from './kept-raw-html';
 import { answerLinkStarts, LINK_START, linkStart, setMarkingLinkStarts } from './link-start';
@@ -344,22 +345,22 @@ turndown.addRule('heading', {
 // ── Why the blocks are written one at a time ──
 //
 // The separator between them is not turndown's to choose here. turndown puts
-// a blank line between two blocks, and **the item carries no spacing of its
-// own**: nothing on it says whether the file wrote a blank line between two
-// of its blocks, so one separator serves every task item. Every block is
-// joined to the next by exactly one newline, the tight spelling, and an item
-// the file spelled loose loses its blank lines, the R-C2 exception for two
-// paragraphs in one task item.
+// a blank line between two blocks, which would make every task list the
+// editor nests tight a loose one, so a block is joined to the one above by
+// one newline, the tight spelling, **unless the file wrote a blank line
+// there** (#601): the adjacency carrier counts that blank line on the block
+// below, `item-spacing.ts` says how, and it is written back. A block the
+// editor puts in an item carries nothing, so a second paragraph inserted
+// there is still written one newline under the first, the R-C2 exception for
+// two paragraphs an edit puts in one task item.
 //
 // The reason given here until #573, that a blank line inside a task item
 // ends the checkbox, was measured false on its step zero: `marked` and
 // cmark-gfm both read `- [ ] a`, a blank line and `  two` as one task item
-// holding two paragraphs, and with the blocks written a blank line apart
-// `  ## h` after a blank line comes back byte for byte. That separator was
-// not taken because it moves the tight spellings instead: a nested task list
-// or a fence directly under the paragraph gains a blank line, and GitHub then
-// reads the list loose. Carrying the spacing is the route #601 opens with a
-// nested list, owner decision H of #573.
+// holding two paragraphs. Writing every block a blank line apart was not
+// taken because it moves the tight spellings instead: a nested task list or a
+// fence directly under the paragraph gains a blank line, and GitHub then
+// reads the list loose. Carrying the gap of the file moves neither.
 //
 // The recursion this costs is over the document's own nesting — one further
 // call for each task list nested inside a task item, each on a strictly
@@ -485,9 +486,9 @@ function taskListItemReplacement(node: Node): string {
   const blocks = taskItemBlocks(taskItemContent(li));
   // ── A block after a table inside an item (#281) ──
   //
-  // The blocks of an item are written one newline apart — the recorded
-  // exception for two paragraphs in one task item — and that is exactly where
-  // GFM expects another table row. Measured on `c96ad04`: an item holding a
+  // The blocks of an item are written one newline apart where the file wrote
+  // no blank line between them (#601), and that is exactly where GFM expects
+  // another table row. Measured on `c96ad04`: an item holding a
   // table and then the paragraph `after` read back with `after` as a third row
   // of that table, and a second table after the first turned two rows into
   // five. Six other blocks survive on their own spelling, because a heading, a
@@ -513,16 +514,24 @@ function taskListItemReplacement(node: Node): string {
   // spaces its own blocks and the outer paragraph ends the table by its lesser
   // indentation. Pinned by two rows in `src/editor/roundtrip.test.ts`.
   const holdsATable = blocks.some((block) => block.nodeName.toUpperCase() === 'TABLE');
-  const body = blocks
-    .map((block, i) => {
-      const written = trimBlock(turndown.turndown(block.outerHTML));
-      // An empty first item under the paragraph would underline it (#564).
-      return blocks[i - 1]?.nodeName === 'P' ? withoutAnUnderline(written) : written;
-    })
-    .filter((block) => block.length > 0)
-    .join(holdsATable ? '\n\n' : '\n');
+  let body = '';
+  blocks.forEach((block, i) => {
+    let written = trimBlock(turndown.turndown(block.outerHTML));
+    // A block the file wrote a blank line under the one above keeps it (#601).
+    const apart = holdsATable || blankLineAbove(block);
+    // An empty first item directly under the paragraph would underline it (#564).
+    if (blocks[i - 1]?.nodeName === 'P' && !apart) written = withoutAnUnderline(written);
+    if (written.length === 0) return;
+    // Under an empty marker line the blank line is still the file's: `- [ ] `,
+    // a blank line and a fence keep the line between.
+    const first = body === '' && !blankLineAbove(block);
+    body += first ? written : `${apart ? '\n\n' : '\n'}${written}`;
+  });
   const separator = li.nextSibling !== null && isLooseList(li) ? '\n\n' : '\n';
-  return `- [${checked}] ${indentContinuation(body, TASK_ITEM_INDENT)}${separator}`;
+  // The marker the file wrote the task list with (#431), as a bullet list keeps it.
+  const carried = li.parentElement?.getAttribute(LIST_MARKER_ATTRIBUTE) ?? null;
+  const marker = carried === null ? '-' : markerFor(carried, false);
+  return `${marker} [${checked}] ${indentContinuation(body, TASK_ITEM_INDENT)}${separator}`;
 }
 
 turndown.addRule('taskListItem', {
@@ -609,8 +618,9 @@ turndown.addRule('listItem', {
 });
 
 // A paragraph inside a list item ends with a single newline when a nested
-// list follows, so the nested list stays tight ("- one\n  - nested"); two
-// paragraphs in the same item keep the blank line that separates them.
+// list follows, so the nested list stays tight ("- one\n  - nested"), unless
+// the file wrote it a blank line under (#601); two paragraphs in the same
+// item keep the blank line that separates them.
 turndown.addRule('listItemParagraph', {
   filter: (node) => {
     const parent = node.parentElement;
@@ -620,8 +630,9 @@ turndown.addRule('listItemParagraph', {
     const next = (node as HTMLElement).nextElementSibling;
     const nestedListFollows = next?.nodeName === 'UL' || next?.nodeName === 'OL';
     // An empty first item is written a line apart, or it would be read as a
-    // heading underline or as text continuing the paragraph (#564, D3).
-    const tight = nestedListFollows && !opensWithAnEmptyItem(next);
+    // heading underline or as text continuing the paragraph (#564, D3), and
+    // so is a nested list the file wrote a blank line under (#601).
+    const tight = nestedListFollows && !opensWithAnEmptyItem(next) && !blankLineAbove(next);
     return `\n\n${content}${next && !tight ? '\n\n' : '\n'}`;
   },
 });
@@ -1430,7 +1441,7 @@ turndown.addRule('tableSection', {
 // and written adjacent again where they still read the same (#568).
 addAdjacencyMarks(turndown);
 
-const EMPTY_TASK_ITEM_AT_THE_END = /(?:^|\n)[>\s]*- \[[ x]\]$/;
+const EMPTY_TASK_ITEM_AT_THE_END = /(?:^|\n)[>\s]*[-*+] \[[ x]\]$/;
 
 export interface SerializeOptions {
   /**

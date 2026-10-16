@@ -31,6 +31,8 @@ export const ADJACENT_BLOCK_TYPES: readonly string[] = [
  * (#568), or a run of blank lines above it (#590), as one attribute on every
  * block type at once: `true` for no blank line, a number from 2 up for a run,
  * and `false`, the default, for the one blank line a block is written with.
+ * In a list item that one blank line is `1` where the file wrote it (#601),
+ * since an item writes its blocks closer than that by default.
  *
  * It follows the block (owner decision D3): a block moved, or given a new
  * block above it, keeps the flag, and the save decides whether the pair as
@@ -67,11 +69,16 @@ export const AdjacentBlocks = Extension.create({
   addProseMirrorPlugins: () => [secondHalfWithoutFlag()],
 });
 
-/** The attribute value as the node holds it: absent, empty, or a count of 2 up. */
+/**
+ * The attribute value as the node holds it: absent, empty, or a count, from 2
+ * up for a run and 1 for the one blank line between two blocks of a list
+ * item (#601).
+ */
 function adjacencyOf(value: string | null): boolean | number {
   if (value === null) return false;
   if (!/^\d+$/.test(value)) return true;
   const count = Number(value);
+  if (count === 1) return 1;
   return count >= 2 ? Math.min(count, MAX_RUN) : true;
 }
 
