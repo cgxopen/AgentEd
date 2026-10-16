@@ -32,12 +32,15 @@
  *  2. **Documents** are living text and cannot carry expected bytes. What holds
  *     for every one of them with no list at all is the property from #96: the
  *     **second save moves nothing**. What the *first* save may change is decided
- *     by a small set of named normalisers, one per recorded exception, each
- *     erasing exactly that exception's signature from both sides of a
- *     difference. A difference no normaliser can erase **fails**, and prints
- *     itself. That is the half that must not rot: a list of expected strings
- *     stops being read, a normaliser that cannot claim a new difference cannot
- *     stay quiet about it.
+ *     by a small set of named normalisers, each erasing exactly one recorded
+ *     exception's signature from both sides of a difference. The set is driven
+ *     by what the documents below exercise, not by the list of exceptions: most
+ *     exceptions R-C2 records meet no document here and have no normaliser, so
+ *     a document that comes to hold one fails until one is written. A
+ *     difference no normaliser can erase **fails**, and prints itself. That is
+ *     the half that must not rot: a list of expected strings stops being read,
+ *     a normaliser that cannot claim a new difference cannot stay quiet about
+ *     it.
  *
  * Two floors are asserted for every document independently of the normalisers,
  * because a normaliser is a statement about spelling and these are statements
@@ -1735,6 +1738,22 @@ const NORMALISERS: readonly Normaliser[] = [
     name: 'emphasis re-nested around a link (#84)',
     apply: (text) => text.replace(/\[(\*{1,2}|~~)([^\]]*)\1\]\(([^)\s]*)\)/g, '$1[$2]($3)$1'),
   },
+  {
+    // The same exception where the run goes on past the link, on its head side
+    // or its tail side (#573, owner decision L): `**head [t](u)**` is written
+    // `**head** [**t**](u)` and `**[t](u) tail**` as `[**t**](u) **tail**`.
+    // The rule above moves the run out of the brackets, `**head** **[t](u)**`,
+    // and this joins the two runs that then meet across one space beside the
+    // link, which gives the spelling of the file back.
+    //
+    // Only a run that closes or opens against a link is joined, so two runs of
+    // bold side by side in prose, `**a** **b**`, still differ from `**a b**`.
+    name: 'emphasis split at a link it goes on past (#573)',
+    apply: (text) =>
+      text
+        .replace(/(\*{1,2}|~~)(\[[^\]]*\]\([^)\s]*\))\1 \1/g, '$1$2 ')
+        .replace(/(\*{1,2}|~~) \1(\[[^\]]*\]\([^)\s]*\))\1/g, ' $2$1'),
+  },
 ];
 
 /** Apply every normaliser, in order. */
@@ -1979,6 +1998,38 @@ describe('the rule for that run is positioned (#424)', () => {
     const regions = differenceRegions(source, saved);
     expect(regions).toHaveLength(1);
     expect(isClaimed(regions[0], source.split('\n'))).toBe(false);
+  });
+});
+
+/**
+ * The two shapes the overlapping-marks exception names beside the whole-link
+ * one (#573, owner decision L). No document above holds either outside a code
+ * span, so the rows build them: with the normaliser for them removed, both
+ * fail the guard, which is what a document holding one would do.
+ */
+describe('emphasis split at a link it goes on past is claimed (#573)', () => {
+  it.each([
+    ['the head side', '**head [t](https://e.com)**\n', '**head** [**t**](https://e.com)\n'],
+    ['the tail side', '**[t](https://e.com) tail**\n', '[**t**](https://e.com) **tail**\n'],
+  ])('%s', async (_name, source, written) => {
+    const saved = await openAndSaveUnedited(source);
+    expect(saved).toBe(written);
+    const regions = differenceRegions(source, saved);
+    expect(regions).toHaveLength(1);
+    expect(isClaimed(regions[0], source.split('\n'))).toBe(true);
+  });
+
+  it('does not claim a link that lost its emphasis beside the split', () => {
+    const region = {
+      removed: ['**head [t](https://e.com)**'],
+      added: ['**head** [t](https://e.com)'],
+      at: 0,
+    };
+    expect(isClaimed(region, [])).toBe(false);
+  });
+
+  it('does not claim two runs of bold in prose written as one', () => {
+    expect(isClaimed({ removed: ['**a** **b**'], added: ['**a b**'], at: 0 }, [])).toBe(false);
   });
 });
 

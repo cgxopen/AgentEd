@@ -344,15 +344,22 @@ turndown.addRule('heading', {
 // ── Why the blocks are written one at a time ──
 //
 // The separator between them is not turndown's to choose here. turndown puts
-// a blank line between two blocks, and **a blank line anywhere inside a task
-// item ends the checkbox**: `marked` reads a task item only when the item's
-// first block is a paragraph opening with the marker, and a blank line makes
-// the `<input>` part of that paragraph instead. Measured — `- [ ] a` followed
-// by a blank line and `  ## h` comes back as a plain bullet whose text begins
-// with a checkbox character, so writing an item loosely would trade the lost
-// block for a lost checkbox. Every block of a task item is therefore joined
-// to the next by exactly one newline, which is the tight spelling `marked`
-// reads back as the same item.
+// a blank line between two blocks, and **the item carries no spacing of its
+// own**: nothing on it says whether the file wrote a blank line between two
+// of its blocks, so one separator serves every task item. Every block is
+// joined to the next by exactly one newline, the tight spelling, and an item
+// the file spelled loose loses its blank lines, the R-C2 exception for two
+// paragraphs in one task item.
+//
+// The reason given here until #573, that a blank line inside a task item
+// ends the checkbox, was measured false on its step zero: `marked` and
+// cmark-gfm both read `- [ ] a`, a blank line and `  two` as one task item
+// holding two paragraphs, and with the blocks written a blank line apart
+// `  ## h` after a blank line comes back byte for byte. That separator was
+// not taken because it moves the tight spellings instead: a nested task list
+// or a fence directly under the paragraph gains a blank line, and GitHub then
+// reads the list loose. Carrying the spacing is the route #601 opens with a
+// nested list, owner decision H of #573.
 //
 // The recursion this costs is over the document's own nesting — one further
 // call for each task list nested inside a task item, each on a strictly
