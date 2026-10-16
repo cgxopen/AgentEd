@@ -52,7 +52,6 @@ import {
 } from './list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './list-spacing';
 import { markupOpenings } from './markup-openers';
-import { markdownToHtml } from './parse';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceSpelling, setDefinedLabels } from './reference';
 import { definedLabels, readsAs, referenceIndentOf } from './reference-save';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
@@ -303,11 +302,18 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
   },
 });
 
-/** The one link `markdown` makes, read by the parse the editor uses, or null. */
+/**
+ * The one link `markdown` makes, read by the parse the editor uses, or null:
+ * the inline parse with this pipeline's own renderers, read by the DOM, which
+ * decodes the href and the title as it does for the editor. The sanitizer of
+ * a whole load is not run: it changes no href it keeps, and a link it drops
+ * has no href for this rule to write. Measured five times quicker than a whole
+ * load per link, on 2000 links (#573).
+ */
 function readOneLink(markdown: string): ReadLink | null {
-  const container = document.createElement('div');
-  container.innerHTML = markdownToHtml(markdown, { keepRawHtml: false });
-  const links = container.querySelectorAll('a');
+  const template = document.createElement('template');
+  template.innerHTML = marked.parseInline(markdown, { async: false }) as string;
+  const links = template.content.querySelectorAll('a');
   const link = links[0];
   if (links.length !== 1 || link === undefined) return null;
   return { href: link.getAttribute('href'), title: link.getAttribute('title') };
