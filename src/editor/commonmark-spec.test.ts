@@ -116,7 +116,10 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   },
   'list-item': { breaks: 'R-C2 file', what: 'a list item is written with other spacing' },
   'autolink-link': { breaks: 'R-C2 file', what: 'an autolink is written as an inline link' },
-  destination: { breaks: 'R-C2 file', what: 'a link destination is written another way' },
+  destination: {
+    breaks: 'R-C2 file',
+    what: 'an image destination, or a link destination and title over two lines, is written another way',
+  },
   'entity-char': { breaks: 'R-C2 file', what: 'a character reference is written as its character' },
   'inner-spaces': { breaks: 'R-C2 file', what: 'a run of spaces inside a line is written as one' },
   'atx-respelled': {
