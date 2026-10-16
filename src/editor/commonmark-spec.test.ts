@@ -106,7 +106,10 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'fence-blank-end': { recorded: 'a blank line at the end of a fenced block', caseNotNamed: true },
   // Respelled, rendering alike: named nowhere in R-C2.
   'indented-fenced': { breaks: 'R-C2 file', what: 'an indented code block is written fenced' },
-  'fence-respelled': { breaks: 'R-C2 file', what: 'a fence is written with other delimiters' },
+  'fence-respelled': {
+    breaks: 'R-C2 file',
+    what: 'a fence loses its indentation, the spelling of its closing fence, the rest of its info string, or, when empty, its run',
+  },
   'setext-atx': {
     breaks: 'R-C2 file',
     what: 'an underlined heading over two lines is written with hashes, and one loses its indentation or trailing spaces',

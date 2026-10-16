@@ -23,6 +23,7 @@ import {
   resolveDefinitionPositions,
   setDocumentCarriesTheMark,
 } from './escape';
+import { addFenceSpellingRule } from './fence-spelling';
 import {
   decodeIndents,
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -801,6 +802,8 @@ addKeptLinkRules(turndown, (content) => writesAsLabel(content));
 addEmphasisDelimiterRules(turndown);
 // A link the file wrote in angle brackets, written back so while untouched (#567).
 addAutolinkRules(turndown);
+// A fence the file opened with another run or a gap, written so (#573).
+addFenceSpellingRule(turndown);
 
 turndown.addRule('markdownComment', {
   filter: (node) =>

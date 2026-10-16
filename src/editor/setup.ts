@@ -57,6 +57,7 @@ import {
   MARKDOWN_COMMENT_ATTRIBUTE,
 } from './markdown/comment-spelling';
 import { emphasisDelimiterMarkAttribute } from './markdown/emphasis-delimiter';
+import { fenceOpenerNodeAttribute } from './markdown/fence-spelling';
 import {
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
   FOOTNOTE_DEFINITION_ATTRIBUTE,
@@ -617,6 +618,10 @@ function starterKitWithLocalSchemaRules() {
           // `this.type` — the value the rules are built against. The guard
           // above is what makes the narrowing true at runtime.
           return (extension as NodeExtension).extend({
+            // The opening run the file wrote the fence with (#573).
+            addAttributes() {
+              return { ...this.parent?.(), ...fenceOpenerNodeAttribute() };
+            },
             addInputRules() {
               return codeBlockInputRules(this.type);
             },
