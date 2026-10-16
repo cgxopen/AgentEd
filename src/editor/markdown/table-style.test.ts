@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import claudeMd from '../../../CLAUDE.md?raw';
 import readme from '../../../README.md?raw';
 import requirements from '../../../REQUIREMENTS.md?raw';
+import { LINK_DESTINATION_ATTRIBUTE } from './destination-spelling';
 import { markdownToHtml } from './parse';
 import {
   decodeTableStyle,
@@ -326,7 +327,11 @@ describe('the table renderer matches marked byte for byte apart from the attribu
     return new Marked({ gfm: true, breaks: false }).parse(markdown, { async: false }) as string;
   }
 
-  const OUR_ATTRIBUTE = new RegExp(` ${TABLE_STYLE_ATTRIBUTE}="[^"]*"`, 'g');
+  // The link in a cell carries what it wrote between its parentheses (#573).
+  const OUR_ATTRIBUTE = new RegExp(
+    ` (?:${TABLE_STYLE_ATTRIBUTE}|${LINK_DESTINATION_ATTRIBUTE})="[^"]*"`,
+    'g',
+  );
 
   it.each([
     ['a hugged table', '| a | b |\n| --- | --- |\n| c | d |'],

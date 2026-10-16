@@ -28,6 +28,7 @@
 import { Marked } from 'marked';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createEditor, type EditorInstance } from '../setup';
+import { LINK_DESTINATION_ATTRIBUTE } from './destination-spelling';
 import { markdownToHtml } from './parse';
 
 let instance: EditorInstance | null = null;
@@ -129,7 +130,12 @@ describe('the renderer matches marked byte for byte where the escape cannot appl
     // None of these holds a character the escape touches, so the two must agree
     // to the byte. Where they would differ is the whole point of the change and
     // has its own tests above.
-    expect(markdownToHtml(markdown)).toBe(pristine(markdown));
+    // A link around the image carries what it wrote between its parentheses (#573).
+    const ours = markdownToHtml(markdown).replace(
+      new RegExp(` ${LINK_DESTINATION_ATTRIBUTE}="[^"]*"`),
+      '',
+    );
+    expect(ours).toBe(pristine(markdown));
   });
 
   it('and differs only by the escape where one is needed', () => {
