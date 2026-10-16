@@ -14,6 +14,7 @@ import {
   FOOTNOTE_INDENTS_ATTRIBUTE,
   splitDefinition,
 } from './footnote';
+import { headingSpellingAttributes } from './heading-spelling';
 import {
   detailsRegionBlock,
   type HtmlRegionToken,
@@ -192,6 +193,19 @@ marked.use({
     },
     strong(token) {
       return `<strong${emphasisDelimiterAttribute(token.raw)}>${this.parser.parseInline(token.tokens)}</strong>`;
+    },
+  },
+});
+
+// How a file spelled a heading, an underline or closing hashes (#573), on the
+// element, so it is written back that way. The rest is `marked`'s own
+// `heading`, restated: the tag of its level around the inline content.
+marked.use({
+  renderer: {
+    heading(token) {
+      const spelling = headingSpellingAttributes(token.raw, token.depth, keepingRawHtml);
+      const inline = this.parser.parseInline(token.tokens);
+      return `<h${token.depth}${spelling}>${inline}</h${token.depth}>\n`;
     },
   },
 });

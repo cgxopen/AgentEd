@@ -48,6 +48,7 @@ import {
   FOOTNOTE_DEFINITION_ATTRIBUTE,
   FOOTNOTE_INDENTS_ATTRIBUTE,
 } from './footnote';
+import { ATX_CLOSING_ATTRIBUTE, SETEXT_UNDERLINE_ATTRIBUTE } from './heading-spelling';
 import {
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   stampImageSources,
@@ -103,6 +104,8 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   LINK_PLACE_ATTRIBUTE,
   REFERENCE_ATTRIBUTE,
   REFERENCE_DEFINITION_ATTRIBUTE,
+  SETEXT_UNDERLINE_ATTRIBUTE,
+  ATX_CLOSING_ATTRIBUTE,
 ];
 
 /** One tag with every stamped attribute taken out, each however often it appears. */

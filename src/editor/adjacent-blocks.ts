@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
 import { ReplaceStep } from '@tiptap/pm/transform';
 import { ADJACENT_ATTRIBUTE, MAX_RUN } from './markdown/adjacency';
+import { HEADING_SPELLING_UNSET } from './markdown/heading-spelling';
 
 /**
  * The node types that can stand directly under another block in a file:
@@ -123,7 +124,8 @@ function splitRanges(transactions: readonly Transaction[]): Array<{ from: number
  * The second half of a split loses the flag, whatever it held (#594): the
  * block starting inside the range a split opened is the new one, and the
  * first half starts before it. The count of #590 rides on the same attribute
- * and is cleared by the same step.
+ * and is cleared by the same step, and so is the spelling of a heading (#573),
+ * which `tr.split` copies the same way.
  */
 function secondHalfWithoutFlag(): Plugin {
   return new Plugin({
@@ -138,6 +140,10 @@ function secondHalfWithoutFlag(): Plugin {
           if (pos < from || pos >= to) return true;
           if ('adjacent' in node.attrs && node.attrs.adjacent !== false) {
             tr.setNodeAttribute(pos, 'adjacent', false);
+          }
+          for (const [name, unset] of Object.entries(HEADING_SPELLING_UNSET)) {
+            if (name in node.attrs && node.attrs[name] !== unset)
+              tr.setNodeAttribute(pos, name, unset);
           }
           return true;
         });
