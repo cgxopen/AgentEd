@@ -34,6 +34,7 @@ import { placeLinks, withLinkPlace } from './link-place';
 import { linkTitleDelimiterAttribute } from './link-title';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
+import { paragraphsOfALinkAlone } from './loose-item-link';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { stampedFromTheFile } from './stamped-attributes';
@@ -345,7 +346,11 @@ marked.use({
       // An ordered list numbered with one number throughout (#569).
       const numbering = listNumberingAttribute(token.items, token.ordered);
       let body = '';
-      for (const item of token.items) body += this.listitem(item);
+      for (const item of token.items) {
+        // A loose item whose text is one link reads the bytes of the file (#602).
+        paragraphsOfALinkAlone(item);
+        body += this.listitem(item);
+      }
       const tag = token.ordered ? 'ol' : 'ul';
       // `marked` writes `start` only when it is not 1, and the attribute order
       // is its own: an ordered list that names its start keeps that spelling.
