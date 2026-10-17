@@ -1,4 +1,6 @@
 import type { Token, Tokens } from 'marked';
+import { isCodeElementBytes } from './code-element-bytes';
+import { closingDetails, isOneRegion, withClosingRest } from './details-region-ends';
 import { HTML_BLOCK_SOURCE_ATTRIBUTE, holdsFilteredTag } from './tag-filter';
 
 /**
@@ -193,7 +195,10 @@ export function decodeKeptBlockSource(value: string | null): string | null {
   if (value === null || value === '') return null;
   try {
     const decoded = decodeURIComponent(value);
-    return holdsFilteredTag(decoded) || isHtmlWrapper(decoded) || isDetailsRegion(decoded)
+    return holdsFilteredTag(decoded) ||
+      isHtmlWrapper(decoded) ||
+      isDetailsRegion(decoded) ||
+      isCodeElementBytes(decoded)
       ? decoded
       : null;
   } catch {
@@ -244,14 +249,12 @@ export interface HtmlRegionToken {
 
 const DETAILS_OPEN = /^<details(?=[\s>])[^>]*>/i;
 
-/** Whether `raw` is one `details` region: its start tag first, its end tag last, no other inside. */
+/**
+ * Whether `raw` is one `details` region: its start tag first, every `details`
+ * it opens ended, what its last block holds after the end tag included (#604).
+ */
 export function isDetailsRegion(raw: string): boolean {
-  const text = raw.trim();
-  return (
-    DETAILS_OPEN.test(text) &&
-    /<\/details\s*>$/i.test(text) &&
-    (text.match(/<details(?=[\s>])/gi) ?? []).length === 1
-  );
+  return isOneRegion(raw.trim());
 }
 
 /** Join each `details` spread over several blocks into one region token. */
@@ -288,7 +291,9 @@ export function joinDetailsRegions(tokens: Token[]): Token[] {
           .slice(i, summary + 1)
           .map((t) => t.raw)
           .join(''),
-        inner: tokens.slice(summary + 1, end),
+        // A `details` inside it is a region of its own, and what the last block
+        // holds after the end tag is drawn after the blocks (#604).
+        inner: withClosingRest(joinDetailsRegions(tokens.slice(summary + 1, end)), tokens[end]),
       };
       out.push(region as unknown as Token);
       i = end;
@@ -297,16 +302,6 @@ export function joinDetailsRegions(tokens: Token[]): Token[] {
     out.push(token);
   }
   return out;
-}
-
-/** The index of the end tag alone that closes the `details` opened at `i`, or -1. */
-function closingDetails(tokens: Token[], i: number): number {
-  for (let j = i + 1; j < tokens.length; j++) {
-    const raw = tokens[j].raw;
-    if (tokens[j].type === 'html' && /^<\/details\s*>$/i.test(raw.trim())) return j;
-    if (/<\/?details(?=[\s>])/i.test(raw)) return -1;
-  }
-  return -1;
 }
 
 /**

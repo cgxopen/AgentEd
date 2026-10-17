@@ -278,7 +278,14 @@ export function decodeKeptRawHtml(value: string | null): string | null {
     const decoded = decodeURIComponent(value);
     // A lone `</a>` was taken because it closed an anchor this route took. A
     // link with no text rides on the same carrier (#564, `kept-link.ts`).
-    const kept = keptPiece(decoded.trim(), { kept: 1, links: 0 }, true).kept;
+    // A carrier is believed by either rule it can be made by (#604): an inline
+    // piece is taken by the rule of `HELD`, so a `video` alone in its paragraph
+    // was taken there and refused here by the rule of `DRAWS`, its bytes
+    // dropped on open, as 4 files (2 distinct) of the corpus snapshot lost it.
+    const piece = decoded.trim();
+    const kept =
+      keptPiece(piece, { kept: 1, links: 0 }, true).kept ||
+      keptPiece(piece, { kept: 1, links: 0 }, false).kept;
     return kept || isEmptyLinkBytes(decoded) ? decoded : null;
   } catch {
     return null;

@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
 import { EditorState } from '@tiptap/pm/state';
 import { fixTables } from '@tiptap/pm/tables';
 import { parseDocument } from './document-load';
+import { type Reread, rereadFor } from './kept-block-reread';
 
 /**
  * The editor half of keeping a raw HTML table as its bytes (#283). The file
@@ -75,18 +76,20 @@ export function htmlForSave(editor: Editor): string {
     tr.setNodeAttribute(offset, KEPT_HTML_SOURCE, node.attrs[HTML_SOURCE]);
     kept += 1;
   });
+  // The bytes of a block are read again with the definitions they name (#604).
+  const reread = rereadFor(state.doc, schema);
   // A block of the tag filter can sit in a quote or a list item (#461), so it
   // is looked for at every depth, where a raw table is kept at the top only.
   // Setting an attribute moves no position, so the walk's positions hold.
   state.doc.descendants((node, pos) => {
-    if (!isUneditedHtmlBlock(node, schema)) return;
+    if (!isUneditedHtmlBlock(node, schema, reread)) return;
     tr.setNodeAttribute(pos, KEPT_HTML_BLOCK_SOURCE, node.attrs[HTML_BLOCK_SOURCE]);
     kept += 1;
   });
   // A `details` holding several blocks (#563): where the bytes read again
   // give the blocks the editor holds, they stand in for them. Replaced from
   // the last back, through the mapping, so each range is where it was.
-  const regions = uneditedRegions(state.doc, schema);
+  const regions = uneditedRegions(state.doc, schema, reread);
   for (const region of regions.reverse()) {
     // Some text, which the rule writing the bytes never writes: turndown takes
     // an empty paragraph as blank before any rule can see it.
@@ -149,11 +152,15 @@ function asLoaded(doc: ProseMirrorNode): ProseMirrorNode {
  * unedited exactly when they give the same paragraph back. So no edit route
  * can be missed, and an edit that is undone gives the bytes back.
  */
-export function isUneditedHtmlBlock(node: ProseMirrorNode, schema: Schema): boolean {
+export function isUneditedHtmlBlock(
+  node: ProseMirrorNode,
+  schema: Schema,
+  read: Reread = (source) => parseDocument(schema, source),
+): boolean {
   const source = node.attrs[HTML_BLOCK_SOURCE];
   const kind = node.type.name;
   if ((kind !== 'paragraph' && kind !== 'heading') || typeof source !== 'string') return false;
-  const reread = parseDocument(schema, source);
+  const reread = read(source);
   const block = reread.firstChild;
   return (
     reread.childCount === 1 &&
@@ -173,6 +180,7 @@ export function isUneditedHtmlBlock(node: ProseMirrorNode, schema: Schema): bool
 export function uneditedRegions(
   doc: ProseMirrorNode,
   schema: Schema,
+  read: Reread = (source) => parseDocument(schema, source),
 ): { from: number; to: number; source: string }[] {
   const found: { from: number; to: number; source: string }[] = [];
   doc.descendants((node, pos, parent, index) => {
@@ -181,7 +189,7 @@ export function uneditedRegions(
     // is several blocks keeps the loss #468 records.
     if (typeof source !== 'string' || parent === null || !/^<details(?=[\s>])/i.test(source.trim()))
       return;
-    const reread = parseDocument(schema, source);
+    const reread = read(source);
     if (reread.childCount < 2) return;
     let size = 0;
     for (let i = 0; i < reread.childCount; i++) {
