@@ -40,6 +40,7 @@ import { listItemEndExtension } from './list-item-end';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { paragraphsOfALinkAlone } from './loose-item-link';
+import { mediaBlock } from './media-block';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { stampedFromTheFile } from './stamped-attributes';
@@ -164,7 +165,11 @@ marked.use({
         stampTableSource(own, token.raw) ??
         headingBlock(own, token.raw) ??
         wrapperBlock(own, token.raw) ??
-        (kept ? keptRawHtmlCarrier(token.raw, true) : keepingRawHtml ? keepInsideBlock(own) : own)
+        (kept
+          ? keptRawHtmlCarrier(token.raw, true)
+          : keepingRawHtml
+            ? mediaBlock(keepInsideBlock(own), token.raw)
+            : own)
       );
     },
   },

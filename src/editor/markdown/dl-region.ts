@@ -1,5 +1,5 @@
 import type { Token } from 'marked';
-import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
+import { withBytesOnFirstBlock } from './kept-block-stamp';
 
 /**
  * A raw `dl` kept as its bytes while untouched (#604, head 2, owner decision 2
@@ -101,60 +101,7 @@ export function joinDlRegions(tokens: Token[]): Token[] {
   return out;
 }
 
-/** Elements that start a block of the editor; anything else at the start is inline content. */
-const BLOCKS = new Set([
-  'p',
-  'h1',
-  'h2',
-  'h3',
-  'h4',
-  'h5',
-  'h6',
-  'pre',
-  'ul',
-  'ol',
-  'li',
-  'blockquote',
-  'table',
-  'thead',
-  'tbody',
-  'tfoot',
-  'tr',
-  'td',
-  'th',
-  'caption',
-  'div',
-  'center',
-  'details',
-  'summary',
-  'hr',
-  'picture',
-  'img',
-]);
-
 /** The region as the editor reads it: its blocks as they render, the first carrying the bytes. */
 export function dlRegionBlock(html: string, raw: string): string {
-  const template = document.createElement('template');
-  template.innerHTML = html;
-  const box = template.content;
-  const nodes = Array.from(box.childNodes);
-  const first = nodes.findIndex(
-    (n) => n.nodeType === Node.ELEMENT_NODE && BLOCKS.has((n as Element).nodeName.toLowerCase()),
-  );
-  const leading = nodes.slice(0, first < 0 ? nodes.length : first);
-  const bytes = encodeURIComponent(raw.replace(/\n+$/, ''));
-  if (leading.some((n) => n.nodeType !== Node.TEXT_NODE || (n.textContent ?? '').trim() !== '')) {
-    const paragraph = document.createElement('p');
-    paragraph.setAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE, bytes);
-    box.insertBefore(paragraph, leading[0]);
-    for (const n of leading) paragraph.appendChild(n);
-    return `${template.innerHTML}\n`;
-  }
-  const element = first < 0 ? null : (nodes[first] as Element);
-  if (element && /^(?:p|h[1-6])$/i.test(element.nodeName)) {
-    element.setAttribute(HTML_BLOCK_SOURCE_ATTRIBUTE, bytes);
-    return `${template.innerHTML}\n`;
-  }
-  // A region opening with another block keeps the loss it had: nothing carries the bytes.
-  return html;
+  return withBytesOnFirstBlock(html, raw, false);
 }

@@ -232,7 +232,14 @@ describe('a list item ends at a line opening an HTML block with an end tag (#604
   });
 });
 
-describe('a video kept as its carrier (#604, K2a)', () => {
+const VIDEO_SOURCE = '<video controls>\n  <source src="./v.mp4" type="video/mp4">\n</video>\n';
+const VIDEO_POSTER =
+  '<video controls>\n  <source src="./v.mp4">\n  <img src="./poster.png" alt="poster">\n</video>\n';
+const VIDEO_TEXT =
+  '<video controls>\n  <source src="./v.mp4">\n  Your browser does not play it.\n</video>\n';
+const AUDIO = '<audio controls>\n  <source src="./a.ogg" type="audio/ogg">\n</audio>\n';
+
+describe('a video kept as its carrier (#604, K2a, K2b and head 3)', () => {
   it.each([
     ['alone', '<video src="https://media.example/a.mp4"></video>\n'],
     [
@@ -251,20 +258,71 @@ describe('a video kept as its carrier (#604, K2a)', () => {
       '<video src="https://media.example/a.mp4"></video>\n',
       'See <video src="./v.mp4"></video> here.\n',
       '<video controls>\n  <source src="./v.mp4" type="video/mp4">\n</video>\n',
+      VIDEO_POSTER,
+      VIDEO_TEXT,
+      AUDIO,
     ]) {
-      expect(markdownToHtml(file)).not.toMatch(/<video/i);
+      // A `source` left outside any media element, as `main` leaves it for a
+      // block holding a poster or text, loads nothing: measured in Chromium.
+      expect(markdownToHtml(file)).not.toMatch(/<(video|audio|track)/i);
       const instance = editorWith(file);
-      expect(instance.editor.view.dom.querySelector('video, source')).toBeNull();
+      expect(instance.editor.view.dom.querySelector('video, audio, source, track')).toBeNull();
     }
   });
 
-  it('with source children, as a block of its own, keeps its tags and loses its sources', async () => {
-    // Not reached by K2a: the block is refused whole, as a block of media
-    // draws, and only the tags it holds are carriers. No corpus file holds it.
-    const file = '<video controls>\n  <source src="./v.mp4" type="video/mp4">\n</video>\n';
-    const once = await openAndSaveUnedited(file);
-    expect(once).toBe('<video controls> </video>\n');
-    expect(await openAndSaveUnedited(once)).toBe(once);
+  // A block of media is kept whole (K2b), and one holding a poster or text
+  // keeps its bytes on the paragraph it is drawn as (head 3).
+  it.each([
+    ['with source children', VIDEO_SOURCE],
+    ['with source children, in a quote', inQuote(VIDEO_SOURCE)],
+    ['with source children, in a list item', inItem(VIDEO_SOURCE)],
+    [
+      'with a source and a track',
+      '<video controls>\n  <source src="./v.mp4">\n  <track kind="captions" src="./v.vtt">\n</video>\n',
+    ],
+    ['an audio with a source', AUDIO],
+    ['with a source and a poster', VIDEO_POSTER],
+    ['with a source and a poster, in a quote', inQuote(VIDEO_POSTER)],
+    ['with a source and fallback text', VIDEO_TEXT],
+    ['with a source and fallback text, in a list item', inItem(VIDEO_TEXT)],
+  ])('a block %s', async (_label, file) => {
+    await holds(file);
+  });
+
+  it.each([
+    ['the poster', VIDEO_POSTER, ['paragraph'], ['image']],
+    ['the text', VIDEO_TEXT, ['paragraph'], []],
+  ])('a block holding %s draws it as main does', (_label, file, blocks, images) => {
+    const instance = editorWith(file);
+    const kinds: string[] = [];
+    const drawn: string[] = [];
+    instance.editor.state.doc.descendants((node) => {
+      if (node.isBlock && node.type.name !== 'doc') kinds.push(node.type.name);
+      if (node.type.name === 'image') drawn.push(node.type.name);
+    });
+    expect(kinds).toEqual(blocks);
+    expect(drawn).toEqual(images);
+    if (file === VIDEO_TEXT)
+      expect(instance.editor.state.doc.textContent).toContain('Your browser does not play it.');
+  });
+
+  it('a block of media alone hands the parser no source element (K2b)', () => {
+    // Kept whole as one carrier, where its tags were carriers around a `source`
+    // element the schema then dropped.
+    for (const file of [VIDEO_SOURCE, AUDIO]) expect(markdownToHtml(file)).not.toMatch(/<source/i);
+  });
+
+  it('a picture holding sources alone is written as on main', async () => {
+    const file = '<picture>\n  <source srcset="./a.webp" type="image/webp">\n</picture>\n';
+    expect(await openAndSaveUnedited(file)).toBe('');
+  });
+
+  it('an edit in the fallback text lets the bytes go, and undo gives them back', async () => {
+    const instance = editorWith(VIDEO_TEXT);
+    typeAt(instance, positionAfter(instance, 'play it'), 'X');
+    expect(await save(instance)).not.toBe(VIDEO_TEXT);
+    instance.editor.commands.undo();
+    expect(await save(instance)).toBe(VIDEO_TEXT);
   });
 });
 
