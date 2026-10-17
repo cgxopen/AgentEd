@@ -8,6 +8,7 @@ import { codeElementItemText, codeElementParagraph } from './code-element-bytes'
 import { codeSpanTextExtension } from './code-span-text';
 import { commentCarrier } from './comment-spelling';
 import { linkDestinationAttribute } from './destination-spelling';
+import { type DlRegionToken, dlRegionBlock, joinDlRegions } from './dl-region';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
 import { fenceIndentationExtension } from './fence-indentation';
 import { fenceOpenerAttribute } from './fence-spelling';
@@ -301,7 +302,7 @@ marked.use({
       // The kept bytes and the adjacency come from a file: a paste has neither
       // (#563 review, #568).
       return keepingRawHtml
-        ? markAdjacentBlocks(markKeptRawHtml(joinDetailsRegions(joined)))
+        ? markAdjacentBlocks(markKeptRawHtml(joinDlRegions(joinDetailsRegions(joined))))
         : joined;
     },
   },
@@ -320,6 +321,15 @@ marked.use({
         const startTag =
           wrapper.inlineStartTag === null ? null : stampedFromTheFile(wrapper.inlineStartTag);
         return joinedWrapperBlock(wrapper, content, startTag);
+      },
+    },
+    {
+      // A raw `dl`, over one block or several (#604), drawn as its blocks.
+      name: 'htmlDlRegion',
+      level: 'block',
+      renderer(token) {
+        const region = token as unknown as DlRegionToken;
+        return dlRegionBlock(this.parser.parse(region.inner), region.raw);
       },
     },
     {

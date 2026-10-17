@@ -437,3 +437,95 @@ describe('a copy of a kept region (#604, R-C13)', () => {
     expect(await save(target)).not.toMatch(/<(details|code|video)/);
   });
 });
+
+const DL_LINKS =
+  '<dl>\n<dt><a href="https://x.org">X</a></dt>\n<dd>desc <a href="y.md">y</a></dd>\n</dl>\n';
+const DL_CODE =
+  '<dl>\n<dt><a href="#Result">Result</a> ⇒ <code><a href="#Result">Result</a></code></dt>\n<dd><p>a no-op placeholder</p>\n</dd>\n</dl>\n';
+const DL_BLOCKS =
+  '<dl>\n<dt id="s">\n  <code><strong><a href="#s">schema</a></strong>: <span class="type">Schema</span></code></dt>\n\n<dd><p>Doc schema.</p>\n</dd>\n<dt id="M">\n  <h4>\n    <code><span class=keyword>class</span></code>\n    <a href="#M">M</a></h4>\n</dt>\n\n<dd><p>A parser.</p>\n</dd>\n</dl>\n';
+const DL_AFTER_HEADING =
+  '<h1>Module</h1>\n<p>About <a href="https://x.org">it</a>.</p>\n<h2>Documentation</h2>\n<dl>\n<dt id="a">\n  <code><strong><a href="#a">a</a></strong></code></dt>\n\n<dd><p>First.</p>\n</dd>\n</dl>\n\nAfter.\n';
+
+describe('a raw dl kept as its bytes (#604, head 2)', () => {
+  it.each([
+    ['holding links', DL_LINKS],
+    ['whose code holds HTML', DL_CODE],
+    ['over several blocks', DL_BLOCKS],
+    ['opening inside a block after a heading', DL_AFTER_HEADING],
+  ])('%s, at the top level', async (_label, file) => {
+    await holds(file);
+  });
+
+  it.each([
+    ['holding links', DL_LINKS],
+    ['over several blocks', DL_BLOCKS],
+  ])('%s, inside a quote', async (_label, file) => {
+    await holds(inQuote(file));
+  });
+
+  it.each([
+    ['holding links', DL_LINKS],
+    ['over several blocks', DL_BLOCKS],
+  ])('%s, inside a list item', async (_label, file) => {
+    await holds(inItem(file));
+  });
+
+  // The blocks `main` draws for each, measured at 49582c8: no paragraph of
+  // carriers is added, where the route of K3r on the step zero added 11 in 00551.
+  it.each([
+    ['holding links', DL_LINKS, ['paragraph']],
+    [
+      'over several blocks',
+      DL_BLOCKS,
+      ['paragraph', 'paragraph', 'paragraph', 'heading', 'paragraph', 'paragraph', 'paragraph'],
+    ],
+    [
+      'opening inside a block after a heading',
+      DL_AFTER_HEADING,
+      ['heading', 'paragraph', 'heading', 'paragraph', 'paragraph', 'paragraph', 'paragraph'],
+    ],
+  ])('%s is drawn in the blocks main draws', (_label, file, drawn) => {
+    const kinds: string[] = [];
+    editorWith(file).editor.state.doc.descendants((node) => {
+      if (node.isBlock && node.type.name !== 'doc') kinds.push(node.type.name);
+    });
+    expect(kinds).toEqual(drawn);
+  });
+
+  it('an edit inside lets the bytes go, and undo gives them back', async () => {
+    const instance = editorWith(DL_LINKS);
+    typeAt(instance, positionAfter(instance, 'desc'), 'X');
+    expect(await save(instance)).not.toBe(DL_LINKS);
+    instance.editor.commands.undo();
+    expect(await save(instance)).toBe(DL_LINKS);
+  });
+
+  it('an edit after it keeps its bytes', async () => {
+    const instance = editorWith(DL_AFTER_HEADING);
+    typeAt(instance, positionAfter(instance, 'After'), 'X');
+    expect(await save(instance)).toBe(DL_AFTER_HEADING.replace('After.', 'AfterX.'));
+  });
+
+  it('a copy pasted into another window carries none of its tags', async () => {
+    const copied = copyAll(editorWith(DL_LINKS));
+    const html = copied.html.replace(/data-agented-copy="[0-9a-f]+"/, 'data-agented-copy="0000"');
+    const target = editorWith('');
+    if (!paste(target, { 'text/html': html, 'text/plain': copied.text }))
+      target.editor.view.pasteHTML(html);
+    expect(await save(target)).not.toMatch(/<\/?dl/);
+  });
+
+  it('a copy pasted inside one window carries the bytes of the region none, its tags as main does', async () => {
+    // Each tag is a carrier of #563, which a copy from this window keeps
+    // (R-C13), and the links between them are written as markdown: the same
+    // bytes `main` writes for the same paste, measured at 49582c8.
+    const copied = copyAll(editorWith(DL_LINKS));
+    const target = editorWith('');
+    if (!paste(target, { 'text/html': copied.html, 'text/plain': copied.text }))
+      target.editor.view.pasteHTML(copied.html);
+    expect(await save(target)).toBe(
+      '<dl> <dt>[X](https://x.org)</dt> <dd>desc [y](y.md)</dd> </dl>\n',
+    );
+  });
+});

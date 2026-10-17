@@ -1,6 +1,7 @@
 import type { Token, Tokens } from 'marked';
 import { isCodeElementBytes } from './code-element-bytes';
 import { closingDetails, isOneRegion, withClosingRest } from './details-region-ends';
+import { isDlRegion } from './dl-region';
 import { HTML_BLOCK_SOURCE_ATTRIBUTE, holdsFilteredTag } from './tag-filter';
 
 /**
@@ -198,7 +199,8 @@ export function decodeKeptBlockSource(value: string | null): string | null {
     return holdsFilteredTag(decoded) ||
       isHtmlWrapper(decoded) ||
       isDetailsRegion(decoded) ||
-      isCodeElementBytes(decoded)
+      isCodeElementBytes(decoded) ||
+      isDlRegion(decoded)
       ? decoded
       : null;
   } catch {

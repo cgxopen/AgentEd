@@ -4,6 +4,7 @@ import { EditorState } from '@tiptap/pm/state';
 import { fixTables } from '@tiptap/pm/tables';
 import { parseDocument } from './document-load';
 import { type Reread, rereadFor } from './kept-block-reread';
+import { isDlRegion } from './markdown/dl-region';
 
 /**
  * The editor half of keeping a raw HTML table as its bytes (#283). The file
@@ -185,10 +186,10 @@ export function uneditedRegions(
   const found: { from: number; to: number; source: string }[] = [];
   doc.descendants((node, pos, parent, index) => {
     const source = node.attrs[HTML_BLOCK_SOURCE];
-    // A `details` alone, by the owner decision: any other wrapper whose content
-    // is several blocks keeps the loss #468 records.
-    if (typeof source !== 'string' || parent === null || !/^<details(?=[\s>])/i.test(source.trim()))
-      return;
+    // A `details` and a raw `dl` (#604) alone, by the owner decisions: any
+    // other wrapper whose content is several blocks keeps the loss #468 records.
+    if (typeof source !== 'string' || parent === null) return;
+    if (!/^<details(?=[\s>])/i.test(source.trim()) && !isDlRegion(source)) return;
     const reread = read(source);
     if (reread.childCount < 2) return;
     let size = 0;
