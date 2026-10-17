@@ -139,27 +139,12 @@ const CAUSES: Readonly<Record<string, Cause>> = {
     recorded:
       'an image destination, and a link destination and title over two lines, are written from what the editor holds',
   },
+  // Lost in `marked` before any code here runs: recorded by #603 (owner decision 2).
+  'code-upstream': {
+    recorded:
+      'a tab or the indentation of code that `marked` reads by its own rule is written as `marked` reads it',
+  },
   // The meaning moves, or content is lost: each names the issue repairing it.
-  'code-spaces': {
-    breaks: 'R-C2 document',
-    what: 'a run of spaces inside a code span is written as one',
-    issue: 603,
-  },
-  'code-tab': {
-    breaks: 'R-C2 document',
-    what: 'a tab inside code is written otherwise',
-    issue: 603,
-  },
-  'code-indent': {
-    breaks: 'R-C2 document',
-    what: 'the code of an indented block or fence loses indentation `marked` strips by its own rule',
-    issue: 603,
-  },
-  'span-padding': {
-    breaks: 'R-C2 document',
-    what: 'the padding of a code span is lost, or the span with it',
-    issue: 603,
-  },
   'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped', issue: 604 },
   'autolink-link': {
     breaks: 'R-C2 document',

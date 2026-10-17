@@ -4,9 +4,11 @@ import { adjacentMarkExtension, markAdjacentBlocks, moveAdjacencyMarks } from '.
 import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
+import { codeSpanTextExtension } from './code-span-text';
 import { commentCarrier } from './comment-spelling';
 import { linkDestinationAttribute } from './destination-spelling';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
+import { fenceIndentationExtension } from './fence-indentation';
 import { fenceOpenerAttribute } from './fence-spelling';
 import {
   encodeIndents,
@@ -57,6 +59,12 @@ marked.setOptions({
 // `url` inline tokenizer leaves those URLs as text; explicit links —
 // "[text](url)" and "<url>" — are matched by other tokenizers and still parse.
 marked.use({ tokenizer: { url: () => undefined } });
+
+// The text of a code span as CommonMark reads it, line endings and all (#603).
+marked.use(codeSpanTextExtension);
+
+// The code of an indented fence as CommonMark reads it (#603, example 133).
+marked.use(fenceIndentationExtension);
 
 // How each blockquote spelled its blank lines, written onto the quote it
 // belongs to (#199). Two spellings of one blank line — a bare marker and a

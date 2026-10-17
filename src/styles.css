@@ -1284,6 +1284,29 @@ button.indicator-search:hover {
   min-height: 100%;
 }
 
+/* **The white space of the document is drawn as it is held** (#603, owner
+ * decision of 2026-10-17, option a). TipTap sets these rules through an inline
+ * `<style>` tag, and the CSP of the app, `style-src 'self'`, refuses it, so the
+ * editor drew with `white-space: normal`: a run of spaces collapsed on screen,
+ * and the first of two spaces typed reached the file as U+00A0, measured on
+ * Windows from the artifact of #613. ProseMirror expects `pre-wrap` on the
+ * editable element. The rules are restated from `@tiptap/core` 2.27, the
+ * white-space ones alone, `break-spaces` without the `pre-wrap` TipTap writes
+ * before it for engines that lack it, since every webview here has it: an atom the editor does not edit keeps `normal`, and
+ * an editable area inside one goes back to `pre-wrap`. The rule for a `pre` is
+ * left out, since a highlighted fence here scrolls rather than wraps. */
+.tiptap {
+  white-space: break-spaces;
+}
+
+.tiptap [contenteditable="false"] {
+  white-space: normal;
+}
+
+.tiptap [contenteditable="false"] [contenteditable="true"] {
+  white-space: pre-wrap;
+}
+
 /* **The first block of a document has no text above it to be held off** (#416,
  * owner decision of 2026-09-22). Every block below carries a top margin so it
  * stands clear of what comes before it; the first one has nothing before it,

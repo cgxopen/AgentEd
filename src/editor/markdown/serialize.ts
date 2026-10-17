@@ -12,6 +12,7 @@ import { addAutolinkRules } from './angle-autolink';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { addBrSpellingRules } from './br-spelling';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
+import { keepingSpansOfSpaces } from './code-span-spaces';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
 import { keptDestination, type ReadLink } from './destination-spelling';
@@ -153,6 +154,8 @@ const EMPTY_BLOCK_WRITERS = {
 };
 
 const turndown = new TurndownService({
+  // The text of a code span is written as it is held, white space included (#603).
+  preformattedCode: true,
   headingStyle: 'atx',
   hr: '---',
   bulletListMarker: '-',
@@ -1486,13 +1489,15 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   // Unless the document carries one of their characters (#568).
   const endAdjacency = beginAdjacency(html);
   try {
-    const written = turndown.turndown(softBreaksAsVoid(html));
+    // A span of white space only is not blank to turndown (#603).
+    const spans = keepingSpansOfSpaces(softBreaksAsVoid(html));
+    const written = turndown.turndown(spans.html);
     const finish = (text: string) => {
       const resolved = carriesTheMark ? text : resolveDefinitionPositions(text);
       return carriesLinkStart ? resolved : answerLinkStarts(resolved);
     };
     // Adjacent pairs are answered first, each read as the finished text (#568).
-    const markdown = answerAdjacency(written, finish);
+    const markdown = spans.restore(answerAdjacency(written, finish));
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
     endAdjacency();

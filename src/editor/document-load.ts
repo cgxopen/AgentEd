@@ -5,6 +5,7 @@ import {
   type Schema,
 } from '@tiptap/pm/model';
 import type { Plugin } from '@tiptap/pm/state';
+import { parseKeepingCodeSpacing } from './code-span-spacing';
 import { markdownToHtml } from './markdown/parse';
 
 /**
@@ -189,5 +190,6 @@ export function replaceDocument(editor: Editor, markdown: string): void {
 export function parseDocument(schema: Schema, markdown: string): ProseMirrorNode {
   const container = document.createElement('div');
   container.innerHTML = markdownToHtml(markdown);
-  return ProseMirrorDOMParser.fromSchema(schema).parse(container);
+  // The white space of a code span and around it, as the HTML holds it (#603).
+  return parseKeepingCodeSpacing(ProseMirrorDOMParser.fromSchema(schema), container);
 }

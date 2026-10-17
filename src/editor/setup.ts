@@ -16,12 +16,13 @@ import TableRow from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import Underline from '@tiptap/extension-underline';
-import type { Schema } from '@tiptap/pm/model';
+import type { Schema, TagParseRule } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import { AdjacentBlocks } from './adjacent-blocks';
 import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
+import { codeSpanTextRule } from './code-span-spacing';
 import { replaceDocument } from './document-load';
 import { FootnoteHover } from './footnote-hover';
 import { HistoryStaysWithFocus } from './history-focus';
@@ -576,6 +577,11 @@ function starterKitWithLocalSchemaRules() {
           return extension.extend({
             excludes: '',
             priority: 1,
+            // The text of a code span as it stands, white space included (#603).
+            parseHTML() {
+              const inherited = (this.parent?.() ?? [{ tag: 'code' }]) as readonly TagParseRule[];
+              return [codeSpanTextRule, ...inherited];
+            },
             // ── The refusal on a node selection (#427) ──
             //
             // `toggleCode` on a selected image wrote the image markdown as

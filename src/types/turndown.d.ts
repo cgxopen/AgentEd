@@ -18,6 +18,12 @@ declare module 'turndown' {
     linkStyle?: 'inlined' | 'referenced';
     linkReferenceStyle?: 'full' | 'collapsed' | 'shortcut';
     blankReplacement?: BlankReplacement;
+    /**
+     * Whether a `code` element is read as preformatted in the white-space
+     * pass, so its text is written as it is held (#603). Present in turndown
+     * 7.2.4, false by default, and named in neither of its README tables.
+     */
+    preformattedCode?: boolean;
   }
 
   export interface Rule {
