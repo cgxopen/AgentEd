@@ -1307,6 +1307,58 @@ button.indicator-search:hover {
   white-space: pre-wrap;
 }
 
+/* **The gap cursor is drawn** (#614). Beside a block with no text position,
+ * before a table opening the document, after one closing it, beside a rule or
+ * between two tables, ProseMirror puts an element where the caret stands, and
+ * TipTap draws it through the inline `<style>` tag the CSP refuses, so the
+ * caret was there and nothing showed it: measured on the step zero of #614 in
+ * Chromium under the CSP of the app, a block 0 px high with nothing drawn. The
+ * rules are restated from `@tiptap/core` 2.27, the line in the colour of the
+ * text caret where TipTap draws it black, which a dark theme would hide.
+ * `position: relative` on the editor is left out: it moved none of 55
+ * elements, and the cursor draws at the same place without it. The element is
+ * 0 px high either way, so no block moves when it shows. */
+.tiptap .ProseMirror-gapcursor {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+  margin: 0;
+}
+
+.tiptap .ProseMirror-gapcursor::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -2px;
+  width: 20px;
+  border-top: 1px solid var(--accent);
+  animation: ProseMirror-cursor-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ProseMirror-cursor-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.tiptap.ProseMirror-focused .ProseMirror-gapcursor {
+  display: block;
+}
+
+/* **Letters are drawn one by one** (#614). The same refused tag switches
+ * ligatures off, so that a caret between `f` and `i` stands between two
+ * letters rather than at a share of one glyph: measured on the step zero of
+ * #614, a font holding them draws `fi`, `fl` and `ffi` joined without this,
+ * and places the caret up to 0.5 px from the letter edge. Restated from
+ * `@tiptap/core` 2.27; the `font-feature-settings` line is the one TipTap
+ * writes for engines that ignore the first. Word wrap, the other rule of that
+ * block, is left out: every editable element has `overflow-wrap: break-word`
+ * from the default stylesheet of Chromium, so it changed nothing. */
+.tiptap {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+}
+
 /* **The first block of a document has no text above it to be held off** (#416,
  * owner decision of 2026-09-22). Every block below carries a top margin so it
  * stands clear of what comes before it; the first one has nothing before it,
