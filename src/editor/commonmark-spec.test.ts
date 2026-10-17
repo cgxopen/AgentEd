@@ -145,11 +145,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
       'a tab or the indentation of code that `marked` reads by its own rule is written as `marked` reads it',
   },
   // The meaning moves, or content is lost: each names the issue repairing it.
-  'fence-indent-code': {
-    breaks: 'R-C2 document',
-    what: 'an indented fence loses the indentation of a line `marked` keeps less indented than the fence',
-    issue: 603,
-  },
   'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped', issue: 604 },
   'autolink-link': {
     breaks: 'R-C2 document',

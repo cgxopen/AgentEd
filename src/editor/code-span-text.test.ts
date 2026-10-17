@@ -111,6 +111,34 @@ describe('code that is not a span (#603)', () => {
     expect(editorWith(markdown).getMarkdown()).toBe(markdown);
   });
 
+  it.each([
+    // The fence is written at the margin, the indentation of a fence not being
+    // carried; its code is what CommonMark reads under the indented fence.
+    [
+      'example 133, an indented fence with a line indented less',
+      '   ```\n   aaa\n    aaa\n  aaa\n   ```',
+      '```\naaa\n aaa\naaa\n```',
+    ],
+    ['a fence indented by one, a line at the margin', ' ```\n aaa\naaa\n```', '```\naaa\naaa\n```'],
+    [
+      'a fence with a language, a line indented less',
+      '  ```js\n  x\n y\n  ```',
+      '```js\nx\ny\n```',
+    ],
+    [
+      'a fence in a list item indented by three, a line indented by two',
+      '- item\n\n     ```\n     a\n    b\n     ```',
+      '- item\n\n  ```\n  a\n  b\n  ```',
+    ],
+    ['a fence of tildes, a line indented less', '   ~~~\n  a\n   ~~~', '~~~\na\n~~~'],
+  ])('%s keeps the code CommonMark reads (#603)', (_label, markdown, written) => {
+    expect(editorWith(markdown).getMarkdown()).toBe(written);
+  });
+
+  it('a fence at the margin keeps its indented lines as they are', () => {
+    expect(editorWith('```\n  a\n b\n```').getMarkdown()).toBe('```\n  a\n b\n```');
+  });
+
   it('a tab in code in a list item is written as four spaces, as marked reads it', () => {
     expect(editorWith('- x\n\n  ```\n  a\tb\n  ```').getMarkdown()).toBe(
       '- x\n\n  ```\n  a    b\n  ```',
