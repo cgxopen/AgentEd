@@ -2,6 +2,7 @@ import type { Token } from 'marked';
 import type TurndownService from 'turndown';
 import { isEmptyLinkBytes } from './kept-link';
 import { linkStart } from './link-start';
+import { MEDIA_START } from './media-block';
 import { holdsFilteredTag } from './tag-filter';
 
 /**
@@ -121,6 +122,19 @@ export const DRAWS = new Set([
   'noscript',
 ]);
 
+/**
+ * What a whole block holding a `video` or an `audio` may not be taken for
+ * (#604, K2b, owner decision of 2026-10-17, comment 6239267458): `DRAWS` less
+ * the media element and its children. The schema draws none of them, so such
+ * a block, `<video controls>`, its `source` lines and `</video>`, holds nothing
+ * the editor shows and is kept whole as its bytes, where it was taken apart
+ * into its tags and lost its sources. A block holding no `video` or `audio`,
+ * a `picture` with `source` children among them, is judged by `DRAWS` as before.
+ */
+const DRAWS_BESIDE_MEDIA = new Set(
+  [...DRAWS].filter((tag) => !['video', 'audio', 'source', 'track'].includes(tag)),
+);
+
 /** One piece of markup: a construct, or a start or end tag. */
 export const PIECE =
   /<!--(?:-?>|[\s\S]*?-->)|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<![A-Za-z][^>]*>|<(\/?)([A-Za-z][A-Za-z0-9-]*)((?:\s(?:[^>"']|"[^"]*"|'[^']*')*)?)\/?>/g;
@@ -152,7 +166,7 @@ export function keptPiece(
   before: AnchorsOpen = NONE_OPEN,
   wholeBlock = false,
 ): { kept: boolean; after: AnchorsOpen } {
-  const refusedTags = wholeBlock ? DRAWS : HELD;
+  const refusedTags = wholeBlock ? (MEDIA_START.test(text) ? DRAWS_BESIDE_MEDIA : DRAWS) : HELD;
   let { kept, links } = before;
   const refused = { kept: false, after: before };
   if (holdsFilteredTag(text)) return refused;
@@ -278,7 +292,14 @@ export function decodeKeptRawHtml(value: string | null): string | null {
     const decoded = decodeURIComponent(value);
     // A lone `</a>` was taken because it closed an anchor this route took. A
     // link with no text rides on the same carrier (#564, `kept-link.ts`).
-    const kept = keptPiece(decoded.trim(), { kept: 1, links: 0 }, true).kept;
+    // A carrier is believed by either rule it can be made by (#604): an inline
+    // piece is taken by the rule of `HELD`, so a `video` alone in its paragraph
+    // was taken there and refused here by the rule of `DRAWS`, its bytes
+    // dropped on open, as 4 files (2 distinct) of the corpus snapshot lost it.
+    const piece = decoded.trim();
+    const kept =
+      keptPiece(piece, { kept: 1, links: 0 }, true).kept ||
+      keptPiece(piece, { kept: 1, links: 0 }, false).kept;
     return kept || isEmptyLinkBytes(decoded) ? decoded : null;
   } catch {
     return null;

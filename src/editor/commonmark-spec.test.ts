@@ -145,7 +145,7 @@ const CAUSES: Readonly<Record<string, Cause>> = {
       'a tab or the indentation of code that `marked` reads by its own rule is written as `marked` reads it',
   },
   // The meaning moves, or content is lost: each names the issue repairing it.
-  'html-dropped': { breaks: 'Q4', what: 'raw HTML is dropped', issue: 604 },
+  'html-dropped': { recorded: 'a comment opening the text of its raw HTML block is lost' },
   'autolink-link': {
     breaks: 'R-C2 document',
     what: 'an autolink start in link text gains a backslash GitHub reads into the destination',

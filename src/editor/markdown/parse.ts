@@ -4,9 +4,11 @@ import { adjacentMarkExtension, markAdjacentBlocks, moveAdjacencyMarks } from '.
 import { withAutolinkAttribute } from './angle-autolink';
 import { blankMarkerAttribute } from './blockquote-spacing';
 import { brBlockParagraph, brElement, brSpelling, hardBreakElement } from './br-spelling';
+import { codeElementItemText, codeElementParagraph } from './code-element-bytes';
 import { codeSpanTextExtension } from './code-span-text';
 import { commentCarrier } from './comment-spelling';
 import { linkDestinationAttribute } from './destination-spelling';
+import { type DlRegionToken, dlRegionBlock, joinDlRegions } from './dl-region';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
 import { fenceIndentationExtension } from './fence-indentation';
 import { fenceOpenerAttribute } from './fence-spelling';
@@ -34,9 +36,11 @@ import { keptLink } from './kept-link';
 import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
 import { placeLinks, withLinkPlace } from './link-place';
 import { linkTitleDelimiterAttribute } from './link-title';
+import { listItemEndExtension } from './list-item-end';
 import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { paragraphsOfALinkAlone } from './loose-item-link';
+import { mediaBlock } from './media-block';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { stampedFromTheFile } from './stamped-attributes';
@@ -59,6 +63,10 @@ marked.setOptions({
 // `url` inline tokenizer leaves those URLs as text; explicit links —
 // "[text](url)" and "<url>" — are matched by other tokenizers and still parse.
 marked.use({ tokenizer: { url: () => undefined } });
+
+// A line opening an HTML block with an end tag ends a list item, as CommonMark
+// reads it (#604): `</details>` under a list closes the `details`.
+marked.use(listItemEndExtension);
 
 // The text of a code span as CommonMark reads it, line endings and all (#603).
 marked.use(codeSpanTextExtension);
@@ -157,7 +165,11 @@ marked.use({
         stampTableSource(own, token.raw) ??
         headingBlock(own, token.raw) ??
         wrapperBlock(own, token.raw) ??
-        (kept ? keptRawHtmlCarrier(token.raw, true) : keepingRawHtml ? keepInsideBlock(own) : own)
+        (kept
+          ? keptRawHtmlCarrier(token.raw, true)
+          : keepingRawHtml
+            ? mediaBlock(keepInsideBlock(own), token.raw)
+            : own)
       );
     },
   },
@@ -172,7 +184,9 @@ marked.use({
       // A newline the text renderer turned into a soft break (#571) is a wrap
       // only between two lines.
       const inline = withoutEdgeBreaks(this.parser.parseInline(token.tokens));
-      return inlineWrapperParagraph(token.raw, inline) ?? `<p>${inline}</p>\n`;
+      // A raw `code` with markup inside keeps the bytes of its block (#604).
+      const kept = keepingRawHtml ? codeElementParagraph(token, inline) : null;
+      return inlineWrapperParagraph(token.raw, inline) ?? kept ?? `<p>${inline}</p>\n`;
     },
   },
 });
@@ -293,7 +307,7 @@ marked.use({
       // The kept bytes and the adjacency come from a file: a paste has neither
       // (#563 review, #568).
       return keepingRawHtml
-        ? markAdjacentBlocks(markKeptRawHtml(joinDetailsRegions(joined)))
+        ? markAdjacentBlocks(markKeptRawHtml(joinDlRegions(joinDetailsRegions(joined))))
         : joined;
     },
   },
@@ -312,6 +326,15 @@ marked.use({
         const startTag =
           wrapper.inlineStartTag === null ? null : stampedFromTheFile(wrapper.inlineStartTag);
         return joinedWrapperBlock(wrapper, content, startTag);
+      },
+    },
+    {
+      // A raw `dl`, over one block or several (#604), drawn as its blocks.
+      name: 'htmlDlRegion',
+      level: 'block',
+      renderer(token) {
+        const region = token as unknown as DlRegionToken;
+        return dlRegionBlock(this.parser.parse(region.inner), region.raw);
       },
     },
     {
@@ -357,6 +380,8 @@ marked.use({
       for (const item of token.items) {
         // A loose item whose text is one link reads the bytes of the file (#602).
         paragraphsOfALinkAlone(item);
+        // Item text holding a raw `code` with markup inside, as a paragraph (#604).
+        if (keepingRawHtml) codeElementItemText(item);
         body += this.listitem(item);
       }
       const tag = token.ordered ? 'ol' : 'ul';
