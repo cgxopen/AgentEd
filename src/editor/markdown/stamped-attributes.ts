@@ -1,3 +1,4 @@
+import { SPACER_ATTRIBUTE } from './spacer-paragraph';
 /**
  * The attributes this pipeline stamps for itself, and the one guard that keeps
  * a document from supplying them (#447).
@@ -79,6 +80,7 @@ import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './tag-filter';
 
 /** Every attribute the pipeline stamps for itself and the serializer trusts. */
 export const STAMPED_ATTRIBUTES: readonly string[] = [
+  SPACER_ATTRIBUTE,
   ADJACENT_ATTRIBUTE,
   IMAGE_HTML_SOURCE_ATTRIBUTE,
   TABLE_HTML_SOURCE_ATTRIBUTE,

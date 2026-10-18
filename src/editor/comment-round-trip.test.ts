@@ -258,7 +258,7 @@ describe('the node holding a comment', () => {
       type: 'paragraph',
       // Every paragraph carries the two attributes of #461 and the flag of
       // #568, unset here.
-      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null, adjacent: false },
+      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null, adjacent: false, spacer: false },
       content: [
         { type: 'markdownComment', attrs: { comment: '<!--\n## heading\n\n- a\n- b\n-->' } },
       ],
@@ -290,7 +290,7 @@ describe('a comment on its own line has room for a caret beside it', () => {
       type: 'paragraph',
       // Every paragraph carries the two attributes of #461 and the flag of
       // #568, unset here.
-      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null, adjacent: false },
+      attrs: { htmlBlockSource: null, keptHtmlBlockSource: null, adjacent: false, spacer: false },
       content: [{ type: 'markdownComment', attrs: { comment: '<!-- a note -->' } }],
     });
   });

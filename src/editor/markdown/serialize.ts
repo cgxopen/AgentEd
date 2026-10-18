@@ -63,7 +63,9 @@ import { markupOpenings } from './markup-openers';
 import { markdownToHtml } from './parse';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceSpelling, setDefinedLabels } from './reference';
 import { definedLabels, readsAs, referenceIndentOf } from './reference-save';
+import { opensADashItem, RULE_IN_A_DASH_ITEM } from './rule-in-item';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
+import { keepingSpacerParagraphs } from './spacer-paragraph';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
   type ColumnStyle,
@@ -1076,10 +1078,17 @@ if (!builtinHorizontalRule) {
   );
 }
 
+// A rule that opens an item of a `-` list is written `***` (#606).
 turndown.addRule('horizontalRuleInACell', {
   filter: 'hr',
   replacement: (content, node, options) =>
-    cellDepth > 0 ? '<hr>' : builtinHorizontalRule.replacement(content, node, options),
+    cellDepth > 0
+      ? '<hr>'
+      : builtinHorizontalRule.replacement(
+          content,
+          node,
+          opensADashItem(node) ? { ...options, hr: RULE_IN_A_DASH_ITEM } : options,
+        ),
 });
 
 // ── A hard break inside a table cell (#300) ──
@@ -1501,13 +1510,15 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   try {
     // A span of white space only is not blank to turndown (#603).
     const spans = keepingSpansOfSpaces(softBreaksAsVoid(html));
-    const written = turndown.turndown(spans.html);
+    // And a paragraph of non-breaking spaces only, a spacer (#606).
+    const spacers = keepingSpacerParagraphs(spans.html);
+    const written = turndown.turndown(spacers.html);
     const finish = (text: string) => {
       const resolved = carriesTheMark ? text : resolveDefinitionPositions(text);
       return answerAutolinkLiterals(carriesLinkStart ? resolved : answerLinkStarts(resolved));
     };
     // Adjacent pairs are answered first, each read as the finished text (#568).
-    const markdown = spans.restore(answerAdjacency(written, finish));
+    const markdown = spacers.restore(spans.restore(answerAdjacency(written, finish)));
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
     endAdjacency();
