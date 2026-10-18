@@ -2,6 +2,7 @@ import { holdsBreakRun, writeBreakRuns } from './break-runs';
 import { holdsEmphasisBesideStrong, writeEmphasisBesideStrong } from './emphasis-beside-strong';
 import { holdsMarkOverTag, writeMarkInsideTag } from './mark-inside-tag';
 import { definitionsOf, readsAsBlock } from './mark-reading';
+import { REFERENCE_DEFINITION_ATTRIBUTE } from './reference';
 import { holdsStrikeBesideLink, writeStrikeAroundLinks } from './strike-around-link';
 
 /**
@@ -30,18 +31,26 @@ const REPAIRS: readonly [(block: Element) => boolean, (block: Element) => void, 
   [holdsMarkOverTag, writeMarkInsideTag, true],
 ];
 
-/** Elements whose inline content is a block of its own. */
-const BLOCKS = 'p, h1, h2, h3, h4, h5, h6, li';
+/**
+ * The blocks whose inline content is a block of its own, found in the HTML
+ * rather than parsed: a paragraph or a heading, neither of which can hold
+ * another. A list item and a table cell hold paragraphs in this schema, so
+ * their text is always inside one. Each is checked below to be the element it
+ * looks like before anything is done with it.
+ */
+const BLOCK = /<(p|h[1-6])(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi;
 
 /**
  * What the HTML of a document holds before any of the four shapes can be in
  * it, tried before the document is parsed: a break; a block, or a link, opening
  * or ending with a space; a strikethrough next to a link; an emphasis and a
- * strong touching; an emphasis around a `sup`, a `sub` or a `kbd`. Most
- * documents hold none, and are not parsed here at all.
+ * strong touching; an emphasis around a `sup`, a `sub` or a `kbd`. A block
+ * opens with a space only through the inline elements `break-runs.ts` walks
+ * through, so only those may stand before the space. Most documents hold
+ * none, and are not parsed here at all.
  */
 const MAY_HOLD_A_SHAPE =
-  /<br[\s>/]|<(?:p|h[1-6]|li)(?:\s[^>]*)?>(?:<[^>]+>)*[ \t]|[ \t]<\/a>|<\/a><(?:s|del)>|<\/(?:s|del)><a[\s>]|<a[^>]*><(?:s|del)>|<\/(?:strong|b|em|i)><(?:strong|b|em|i)[\s>]|<(?:em|i|strong|b)[^>]*><(?:sup|sub|kbd)[\s>]/i;
+  /<br[\s>/]|<(?:p|h[1-6])(?:\s[^>]*)?>(?:<\/?(?:a|strong|b|em|i|s|del|span|sup|sub|kbd|u)(?:\s[^>]*)?>)*[ \t]|[ \t]<\/a>|<\/a><(?:s|del)>|<\/(?:s|del)><a[\s>]|<a[^>]*><(?:s|del)>|<\/(?:strong|b|em|i)><(?:strong|b|em|i)[\s>]|<(?:em|i|strong|b)[^>]*><(?:sup|sub|kbd)[\s>]/i;
 
 /** The markers the serializer writes and answers later: none is text, so none is read. */
 const PRIVATE_USE = /[-]/g;
@@ -49,33 +58,57 @@ const PRIVATE_USE = /[-]/g;
 /** The most blocks of one document repaired; a bound on the work. */
 const MAX_BLOCKS = 5000;
 
+/** `source` parsed alone, where it is one element written back as itself; `null` otherwise. */
+function parsedAlone(source: string): Element | null {
+  const template = document.createElement('template');
+  template.innerHTML = source;
+  const element = template.content.firstElementChild;
+  return template.content.childNodes.length === 1 && element?.outerHTML === source ? element : null;
+}
+
+/** The reference definitions of the whole document, parsed only where it holds one. */
+function documentDefinitions(html: string): string {
+  if (!html.includes(REFERENCE_DEFINITION_ATTRIBUTE)) return '';
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  return definitionsOf(template.content);
+}
+
+/** The block written with the repairs it holds, where `marked` reads that back as the block. */
+function repairedBlock(
+  block: Element,
+  write: (html: string) => string,
+  definitions: () => string,
+): string | null {
+  let applicable = REPAIRS.filter(([holds]) => holds(block));
+  if (applicable.length === 0) return null;
+  if (applicable.some(([, , onlyWhereWrong]) => onlyWhereWrong)) {
+    const today = write(block.outerHTML).replace(PRIVATE_USE, '');
+    if (readsAsBlock(today, block, definitions())) {
+      applicable = applicable.filter(([, , onlyWhereWrong]) => !onlyWhereWrong);
+    }
+    if (applicable.length === 0) return null;
+  }
+  const copy = block.cloneNode(true) as Element;
+  for (const [, repair] of applicable) repair(copy);
+  const written = write(copy.outerHTML).replace(PRIVATE_USE, '');
+  return readsAsBlock(written, block, definitions()) ? copy.outerHTML : null;
+}
+
 /** `html` with the blocks a repair reads back as themselves written that way, or `html` itself. */
 export function withSecondSaveRepairs(html: string, write: (html: string) => string): string {
   if (!MAY_HOLD_A_SHAPE.test(html)) return html;
-  const template = document.createElement('template');
-  template.innerHTML = html;
-  const blocks = Array.from(template.content.querySelectorAll(BLOCKS)).filter(
-    (block) => block.querySelector(BLOCKS) === null,
-  );
   let definitions: string | null = null;
-  let changed = 0;
-  for (const block of blocks.slice(0, MAX_BLOCKS)) {
-    let applicable = REPAIRS.filter(([holds]) => holds(block));
-    if (applicable.length === 0) continue;
-    definitions ??= definitionsOf(template.content);
-    if (applicable.some(([, , onlyWhereWrong]) => onlyWhereWrong)) {
-      const today = write(block.outerHTML).replace(PRIVATE_USE, '');
-      if (readsAsBlock(today, block, definitions)) {
-        applicable = applicable.filter(([, , onlyWhereWrong]) => !onlyWhereWrong);
-      }
-      if (applicable.length === 0) continue;
-    }
-    const copy = block.cloneNode(true) as Element;
-    for (const [, repair] of applicable) repair(copy);
-    const written = write(copy.outerHTML).replace(PRIVATE_USE, '');
-    if (!readsAsBlock(written, block, definitions)) continue;
-    block.replaceWith(copy);
-    changed += 1;
-  }
-  return changed === 0 ? html : template.innerHTML;
+  const lazyDefinitions = () => {
+    definitions ??= documentDefinitions(html);
+    return definitions;
+  };
+  let seen = 0;
+  return html.replace(BLOCK, (source) => {
+    seen += 1;
+    if (seen > MAX_BLOCKS || !MAY_HOLD_A_SHAPE.test(source)) return source;
+    const block = parsedAlone(source);
+    if (block === null) return source;
+    return repairedBlock(block, write, lazyDefinitions) ?? source;
+  });
 }
