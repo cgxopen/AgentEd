@@ -33,6 +33,16 @@ const REPAIRS: readonly [(block: Element) => boolean, (block: Element) => void, 
 /** Elements whose inline content is a block of its own. */
 const BLOCKS = 'p, h1, h2, h3, h4, h5, h6, li';
 
+/**
+ * What the HTML of a document holds before any of the four shapes can be in
+ * it, tried before the document is parsed: a break; a block, or a link, opening
+ * or ending with a space; a strikethrough next to a link; an emphasis and a
+ * strong touching; an emphasis around a `sup`, a `sub` or a `kbd`. Most
+ * documents hold none, and are not parsed here at all.
+ */
+const MAY_HOLD_A_SHAPE =
+  /<br[\s>/]|<(?:p|h[1-6]|li)(?:\s[^>]*)?>(?:<[^>]+>)*[ \t]|[ \t]<\/a>|<\/a><(?:s|del)>|<\/(?:s|del)><a[\s>]|<a[^>]*><(?:s|del)>|<\/(?:strong|b|em|i)><(?:strong|b|em|i)[\s>]|<(?:em|i|strong|b)[^>]*><(?:sup|sub|kbd)[\s>]/i;
+
 /** The markers the serializer writes and answers later: none is text, so none is read. */
 const PRIVATE_USE = /[-]/g;
 
@@ -41,7 +51,7 @@ const MAX_BLOCKS = 5000;
 
 /** `html` with the blocks a repair reads back as themselves written that way, or `html` itself. */
 export function withSecondSaveRepairs(html: string, write: (html: string) => string): string {
-  if (!/<(?:br|a|em|i|sup|sub|kbd)[\s>/]/i.test(html)) return html;
+  if (!MAY_HOLD_A_SHAPE.test(html)) return html;
   const template = document.createElement('template');
   template.innerHTML = html;
   const blocks = Array.from(template.content.querySelectorAll(BLOCKS)).filter(

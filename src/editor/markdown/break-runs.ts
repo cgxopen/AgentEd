@@ -116,19 +116,39 @@ function spacesEndingImageLinks(block: Element): Node[] {
     );
 }
 
+/**
+ * For each node, in one pass each way: whether anything other than a break
+ * is held after it, and the last node holding something before it.
+ */
+function neighbours(nodes: Node[]): { after: boolean[]; before: (Node | undefined)[] } {
+  const after: boolean[] = new Array(nodes.length).fill(false);
+  let seen = false;
+  for (let i = nodes.length - 1; i >= 0; i -= 1) {
+    after[i] = seen;
+    if (holdsSomething(nodes[i]) && !isBreak(nodes[i])) seen = true;
+  }
+  const before: (Node | undefined)[] = new Array(nodes.length).fill(undefined);
+  let last: Node | undefined;
+  for (let i = 0; i < nodes.length; i += 1) {
+    before[i] = last;
+    if (holdsSomething(nodes[i])) last = nodes[i];
+  }
+  return { after, before };
+}
+
 /** Whether `block` holds a break this repair would write otherwise. */
 export function holdsBreakRun(block: Element): boolean {
   if (spacesEndingImageLinks(block).length > 0) return true;
   const nodes = walk(block);
   if (opensWithSpace(nodes)) return true;
+  if (block.querySelector('br') === null) return false;
+  const { after, before } = neighbours(nodes);
   return nodes.some((node, i) => {
     if (!isBreak(node)) return false;
-    const after = nodes.slice(i + 1).filter((n) => holdsSomething(n) && !isBreak(n));
-    const before = nodes.slice(0, i).filter((n) => holdsSomething(n));
     const next = nodes[i + 1];
     return (
-      after.length === 0 ||
-      before[before.length - 1]?.nodeName === 'BR' ||
+      !after[i] ||
+      before[i]?.nodeName === 'BR' ||
       (next?.nodeType === 3 && /^[ \t]/.test(next.textContent ?? ''))
     );
   });
@@ -148,18 +168,18 @@ export function writeBreakRuns(block: Element): void {
     nodes = walk(block);
   }
   for (const blank of leadingBlanks(nodes)) blank.textContent = '';
-  const opening = firstHeld(nodes);
-  if (opening?.nodeType === 3)
+  const opening = openingText(nodes);
+  if (opening !== undefined) {
     opening.textContent = (opening.textContent ?? '').replace(/^[ \t]+/, '');
+  }
+  const { after, before } = neighbours(nodes);
   nodes.forEach((node, i) => {
     if (!isBreak(node)) return;
-    const after = nodes.slice(i + 1).filter((n) => holdsSomething(n) && !isBreak(n));
-    if (after.length === 0) {
+    if (!after[i]) {
       node.parentNode?.removeChild(node);
       return;
     }
-    const before = nodes.slice(0, i).filter(holdsSomething);
-    if (before[before.length - 1]?.nodeName === 'BR') {
+    if (before[i]?.nodeName === 'BR') {
       (node as Element).setAttribute(BR_SPELLING_ATTRIBUTE, '\\');
     }
     const next = nodes[i + 1];
