@@ -157,11 +157,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   },
   // The meaning moves, or content is lost: each names the issue repairing it.
   'html-dropped': { recorded: 'a comment opening the text of its raw HTML block is lost' },
-  'rule-in-item': {
-    breaks: 'R-C2 document',
-    what: 'a rule in a list item leaves the item',
-    issue: 606,
-  },
 };
 
 interface Change {

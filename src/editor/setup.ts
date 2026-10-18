@@ -93,6 +93,7 @@ import { OrderedListContinuity } from './ordered-list-continuity';
 import { PredictablePaste } from './paste';
 import { createSearchExtension } from './search-extension';
 import { SoftBreak } from './soft-break-node';
+import { SpacerParagraphs } from './spacer-blocks';
 
 // ── The node that holds an HTML comment (#245) ──
 //
@@ -957,6 +958,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     Placeholder.configure({ placeholder: 'Start writing…' }),
     // A block the file wrote directly under another (#568).
     AdjacentBlocks,
+    SpacerParagraphs,
     TaskListWithSpacing,
     TaskItemHoldingABlock,
     ImageWithSpelling.configure({ inline: true, allowBase64: false }),

@@ -43,6 +43,7 @@ import { paragraphsOfALinkAlone } from './loose-item-link';
 import { mediaBlock } from './media-block';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
+import { spacerAttribute } from './spacer-paragraph';
 import { stampedFromTheFile } from './stamped-attributes';
 import { isWholeHtmlTable, stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
@@ -186,7 +187,8 @@ marked.use({
       const inline = withoutEdgeBreaks(this.parser.parseInline(token.tokens));
       // A raw `code` with markup inside keeps the bytes of its block (#604).
       const kept = keepingRawHtml ? codeElementParagraph(token, inline) : null;
-      return inlineWrapperParagraph(token.raw, inline) ?? kept ?? `<p>${inline}</p>\n`;
+      const spacer = keepingRawHtml ? spacerAttribute(token.raw) : '';
+      return inlineWrapperParagraph(token.raw, inline) ?? kept ?? `<p${spacer}>${inline}</p>\n`;
     },
   },
 });
