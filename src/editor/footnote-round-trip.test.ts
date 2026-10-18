@@ -201,9 +201,11 @@ describe('what this change must not move (#408)', () => {
       'A note^\\[inline text\\] here.',
     ],
     'the inline form in a list item': ['- Item^[inline text]', '- Item^\\[inline text\\]'],
+    // Moved by #605, toward the file: the brackets stand right before and
+    // after a bare URL, where GitHub took the backslash into the address.
     'the inline form holding a URL': [
       'See^[https://example.com/x] it.',
-      'See^\\[https://example.com/x\\] it.',
+      'See^[https://example.com/x] it.',
     ],
     // Since #570 a reference link and its definition are kept as the file
     // wrote them, beside the footnote tokenizer rather than through it.

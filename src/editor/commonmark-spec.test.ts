@@ -94,6 +94,17 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'div-text': { recorded: 'a raw `div` holding text is written as that text' },
   'link-empty': { recorded: 'a raw `a` with an `href` and no text, or no end tag, is lost' },
   'link-nested': { recorded: 'a link inside a link is read as `marked` reads it' },
+  // Recorded by #605 (owner decision 2 of 2026-10-18): the escape writes what
+  // `marked` reads where GitHub reads a construct. An autolink start in link
+  // text is the same, with the backslash before its closing angle bracket.
+  'marked-reading': {
+    recorded:
+      'an escape writes the reading of `marked` where it reads the source otherwise than GitHub',
+  },
+  'autolink-link': {
+    recorded:
+      'an escape writes the reading of `marked` where it reads the source otherwise than GitHub',
+  },
   'definition-spaces': {
     recorded: 'the spaces at the end of a line of a reference definition are not kept',
   },
@@ -146,11 +157,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   },
   // The meaning moves, or content is lost: each names the issue repairing it.
   'html-dropped': { recorded: 'a comment opening the text of its raw HTML block is lost' },
-  'autolink-link': {
-    breaks: 'R-C2 document',
-    what: 'an autolink start in link text gains a backslash GitHub reads into the destination',
-    issue: 605,
-  },
   'rule-in-item': {
     breaks: 'R-C2 document',
     what: 'a rule in a list item leaves the item',
