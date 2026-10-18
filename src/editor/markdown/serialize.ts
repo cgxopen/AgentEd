@@ -9,6 +9,12 @@ import {
   withoutAdjacencyMarks,
 } from './adjacency-save';
 import { addAutolinkRules } from './angle-autolink';
+import {
+  AUTOLINK_LITERAL_MARK,
+  answerAutolinkLiterals,
+  setWithholding,
+  withAutolinkLiterals,
+} from './autolink-literal-escape';
 import { BARE_BLANK_MARKER, BLOCKQUOTE_BLANK_MARKER_ATTRIBUTE } from './blockquote-spacing';
 import { addBrSpellingRules } from './br-spelling';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
@@ -174,9 +180,11 @@ const turndown = new TurndownService({
 // original method stays the authority on everything else — including every
 // backtick; see `escape.ts` for why `*` and `` ` `` are deliberately not
 // treated the same way.
-turndown.escape = createNarrowedEscape(
-  TurndownService.prototype.escape.bind(turndown),
-  markupOpenings,
+//
+// A backslash in or beside a bare URL is held and answered on the assembled
+// document, since GitHub reads it into the address (#605).
+turndown.escape = withAutolinkLiterals(
+  createNarrowedEscape(TurndownService.prototype.escape.bind(turndown), markupOpenings),
 );
 
 // ── A number that begins a heading or a table cell (#97) ──
@@ -1488,19 +1496,22 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   const outerDefined = setDefinedLabels(definedLabels(html, inACell));
   // Unless the document carries one of their characters (#568).
   const endAdjacency = beginAdjacency(html);
+  // A backslash beside a URL is held unless the document carries the stand-in (#605).
+  const outerWithholding = setWithholding(!html.includes(AUTOLINK_LITERAL_MARK));
   try {
     // A span of white space only is not blank to turndown (#603).
     const spans = keepingSpansOfSpaces(softBreaksAsVoid(html));
     const written = turndown.turndown(spans.html);
     const finish = (text: string) => {
       const resolved = carriesTheMark ? text : resolveDefinitionPositions(text);
-      return carriesLinkStart ? resolved : answerLinkStarts(resolved);
+      return answerAutolinkLiterals(carriesLinkStart ? resolved : answerLinkStarts(resolved));
     };
     // Adjacent pairs are answered first, each read as the finished text (#568).
     const markdown = spans.restore(answerAdjacency(written, finish));
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
     endAdjacency();
+    setWithholding(outerWithholding);
     setMarkingLinkStarts(outerMarking);
     setDefinedLabels(outerDefined);
     setDocumentCarriesTheMark(outerCarriesTheMark);
