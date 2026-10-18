@@ -918,7 +918,8 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   [
     'a raw HTML table inside another element',
     '<div><table><tr><td>a</td></tr></table></div>',
-    { writes: '| a |\n| --- |', because: HTML_TABLE_NOT_KEPT },
+    // Kept as its bytes since #572, a wrapper whose content is a block.
+    'identical',
   ],
   [
     'a raw HTML table with no rows',

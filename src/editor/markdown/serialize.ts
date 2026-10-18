@@ -22,6 +22,7 @@ import { keepingSpansOfSpaces } from './code-span-spaces';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { literalAmpersands } from './destination';
 import { keptDestination, type ReadLink } from './destination-spelling';
+import { addEmphasisBesideStrongRule } from './emphasis-beside-strong';
 import { addEmphasisDelimiterRules } from './emphasis-delimiter';
 import { emptyBlock, opensWithAnEmptyItem, withoutAnUnderline } from './empty-block';
 import { type ContainerReplacements, createBlankReplacement } from './empty-fence';
@@ -64,6 +65,7 @@ import { markdownToHtml } from './parse';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceSpelling, setDefinedLabels } from './reference';
 import { definedLabels, readsAs, referenceIndentOf } from './reference-save';
 import { opensADashItem, RULE_IN_A_DASH_ITEM } from './rule-in-item';
+import { withSecondSaveRepairs } from './second-save-repairs';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
 import { keepingSpacerParagraphs } from './spacer-paragraph';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
@@ -846,6 +848,7 @@ turndown.addRule('strikethrough', {
 addKeptRawHtmlRules(turndown);
 // A link the editor does not make live, kept as the file wrote it (#564).
 addKeptLinkRules(turndown, (content) => writesAsLabel(content));
+addEmphasisBesideStrongRule(turndown);
 // Emphasis the file wrote with underscores, written with them (#566).
 addEmphasisDelimiterRules(turndown);
 // A link the file wrote in angle brackets, written back so while untouched (#567).
@@ -1509,7 +1512,11 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
   const outerWithholding = setWithholding(!html.includes(AUTOLINK_LITERAL_MARK));
   try {
     // A span of white space only is not blank to turndown (#603).
-    const spans = keepingSpansOfSpaces(softBreaksAsVoid(html));
+    // The shapes the second save wrote otherwise, each read back first (#572).
+    const repaired = withSecondSaveRepairs(html, (block) =>
+      turndown.turndown(softBreaksAsVoid(block)),
+    );
+    const spans = keepingSpansOfSpaces(softBreaksAsVoid(repaired));
     // And a paragraph of non-breaking spaces only, a spacer (#606).
     const spacers = keepingSpacerParagraphs(spans.html);
     const written = turndown.turndown(spacers.html);

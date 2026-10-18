@@ -4,7 +4,6 @@ import { EditorState } from '@tiptap/pm/state';
 import { fixTables } from '@tiptap/pm/tables';
 import { parseDocument } from './document-load';
 import { type Reread, rereadFor } from './kept-block-reread';
-import { isDlRegion } from './markdown/dl-region';
 
 /**
  * The editor half of keeping a raw HTML table as its bytes (#283). The file
@@ -174,7 +173,7 @@ export function isUneditedHtmlBlock(
 }
 
 /**
- * The unedited `details` regions of `doc` (#563): a block carrying bytes that
+ * The unedited regions of `doc` (#563, #572): a block carrying bytes that
  * read again as more than one block, each equal to the block at the same place
  * after it. A region whose blocks moved, or one of them edited, is not one.
  */
@@ -186,10 +185,11 @@ export function uneditedRegions(
   const found: { from: number; to: number; source: string }[] = [];
   doc.descendants((node, pos, parent, index) => {
     const source = node.attrs[HTML_BLOCK_SOURCE];
-    // A `details` and a raw `dl` (#604) alone, by the owner decisions: any
-    // other wrapper whose content is several blocks keeps the loss #468 records.
+    // Every block whose bytes read back as several blocks, a `details`, a raw
+    // `dl` (#604), and since #572 any wrapper and any stamped raw block
+    // (owner decision 1 of 2026-10-18, K9 of the step zero): each is written
+    // back as its bytes while the blocks it became are unedited.
     if (typeof source !== 'string' || parent === null) return;
-    if (!/^<details(?=[\s>])/i.test(source.trim()) && !isDlRegion(source)) return;
     const reread = read(source);
     if (reread.childCount < 2) return;
     let size = 0;

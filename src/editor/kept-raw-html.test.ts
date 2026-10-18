@@ -145,11 +145,11 @@ describe('kept as bytes: an unedited save writes the file back and holds still (
     expect(await openAndSaveUnedited(once)).toBe(once);
   });
 
-  it('a comment after other markup in its block is kept, the markup written as R-C2 records', async () => {
-    // The `p` is raw HTML that is not one whole table, written as markdown
-    // (#283, and #573 for the rest of that family); the comment is #563.
+  it('a comment after other markup in its block is kept, and the markup with it', async () => {
+    // The `p` keeps its bytes since #572, as a raw block the editor draws as a
+    // paragraph; the comment is #563.
     const once = await openAndSaveUnedited('<p>x</p>\n<!-- end -->\n\nText.\n');
-    expect(once).toBe('x\n\n<!-- end -->\n\nText.\n');
+    expect(once).toBe('<p>x</p>\n<!-- end -->\n\nText.\n');
     expect(await openAndSaveUnedited(once)).toBe(once);
   });
 
@@ -192,8 +192,8 @@ describe('what is never taken (#563)', () => {
     expect(await openAndSaveUnedited('foo <a href="x">\n')).toBe('foo\n');
   });
 
-  it('a div holding text is written as its text, as R-C2 records', async () => {
-    expect(await openAndSaveUnedited('<div>\n*foo*\n\n*bar*\n')).toBe('\\*foo\\*\n\n*bar*\n');
+  it('a div holding text whose blocks read back the same keeps its bytes (#572)', async () => {
+    expect(await openAndSaveUnedited('<div>\n*foo*\n\n*bar*\n')).toBe('<div>\n*foo*\n\n*bar*\n');
   });
 
   it('a comment opening the text of its block keeps the loss it had, and holds still', async () => {
