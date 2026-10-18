@@ -32,10 +32,22 @@ const WITHHELD = '';
 /** Unless the document carries the stand-in itself (#425): then every backslash is written. */
 let withholding = true;
 
+/**
+ * Blocks answered during one save, by their text and definitions. The check
+ * of #568 finishes the whole document twice, apart and adjacent, and each
+ * reading of a block costs about what opening it costs, 0.8 s for a paragraph
+ * of 2000 URLs; the second finish reads the same blocks again.
+ */
+const answered = new Map<string, string>();
+
+/** The most blocks kept answered in one save; past it a block is read again. */
+const MAX_ANSWERED = 512;
+
 /** Set whether stand-ins are made, and return the value it held, for the caller to restore. */
 export function setWithholding(value: boolean): boolean {
   const previous = withholding;
   withholding = value;
+  answered.clear();
   return previous;
 }
 
@@ -168,7 +180,10 @@ export function answerAutolinkLiterals(markdown: string): string {
     while (end < lines.length && lines[end].trim() !== '') end += 1;
     const above = out.splice(out.length - (i - start), i - start);
     const block = [...above, ...lines.slice(i, end)].join('\n');
-    out.push(...answerBlock(block, definitions).split('\n'));
+    const key = `${block}\u0000${definitions}`;
+    const answer = answered.get(key) ?? answerBlock(block, definitions);
+    if (answered.size < MAX_ANSWERED) answered.set(key, answer);
+    out.push(...answer.split('\n'));
     i = end;
   }
   return out.join('\n');
