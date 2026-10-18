@@ -41,6 +41,7 @@ import { listMarkerAttribute, listNumberingAttribute } from './list-marker';
 import { listSpacingAttribute } from './list-spacing';
 import { paragraphsOfALinkAlone } from './loose-item-link';
 import { mediaBlock } from './media-block';
+import { stampRawBlock } from './raw-block-stamp';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { spacerAttribute } from './spacer-paragraph';
@@ -169,7 +170,7 @@ marked.use({
         (kept
           ? keptRawHtmlCarrier(token.raw, true)
           : keepingRawHtml
-            ? mediaBlock(keepInsideBlock(own), token.raw)
+            ? stampRawBlock(mediaBlock(keepInsideBlock(own), token.raw), token.raw)
             : own)
       );
     },
@@ -230,7 +231,13 @@ marked.use({
 marked.use({
   renderer: {
     code(token) {
-      const html = Renderer.prototype.code.call(this, token);
+      // `marked` takes one line ending off the text before it draws it, so a
+      // fence ending in blank lines lost one on each save (#572, example 318).
+      const ending = token.codeBlockStyle !== 'indented' && token.text.endsWith('\n');
+      const html = Renderer.prototype.code.call(
+        this,
+        ending ? { ...token, text: `${token.text}\n` } : token,
+      );
       if (token.codeBlockStyle === 'indented') return html;
       const opener = fenceOpenerAttribute(token.raw, token.lang, keepingRawHtml);
       return opener === '' ? html : html.replace(/^<pre/, `<pre${opener}`);

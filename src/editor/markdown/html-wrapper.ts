@@ -3,6 +3,7 @@ import { isCodeElementBytes } from './code-element-bytes';
 import { closingDetails, isOneRegion, withClosingRest } from './details-region-ends';
 import { isDlRegion } from './dl-region';
 import { isMediaBlockBytes } from './media-block';
+import { isRawBlockBytes } from './raw-block-stamp';
 import { HTML_BLOCK_SOURCE_ATTRIBUTE, holdsFilteredTag } from './tag-filter';
 
 /**
@@ -202,7 +203,8 @@ export function decodeKeptBlockSource(value: string | null): string | null {
       isDetailsRegion(decoded) ||
       isCodeElementBytes(decoded) ||
       isDlRegion(decoded) ||
-      isMediaBlockBytes(decoded)
+      isMediaBlockBytes(decoded) ||
+      isRawBlockBytes(decoded)
       ? decoded
       : null;
   } catch {

@@ -115,7 +115,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   'html-as-markdown': {
     recorded: 'raw HTML that is not one whole table at the top level is written as markdown',
   },
-  'fence-blank-end': { recorded: 'a blank line at the end of a fenced block' },
   'quote-nested': { recorded: 'a nested quote is written with spaced markers' },
   // Respelled, rendering alike: recorded by #573 (owner decisions A to E and I).
   'quote-marker': {
