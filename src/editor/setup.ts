@@ -3,6 +3,7 @@ import {
   type CommandProps,
   Editor,
   Extension,
+  type Mark as MarkExtension,
   type Node as NodeExtension,
   Node as TipTapNode,
 } from '@tiptap/core';
@@ -22,6 +23,7 @@ import { AdjacentBlocks } from './adjacent-blocks';
 import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
+import { codeInputRule } from './code-input-rule';
 import { codeSpanTextRule } from './code-span-spacing';
 import { replaceDocument } from './document-load';
 import { FootnoteHover } from './footnote-hover';
@@ -574,9 +576,15 @@ function starterKitWithLocalSchemaRules() {
           });
         }
         if (extension.name === 'code') {
-          return extension.extend({
+          // Narrowed to a mark extension, as the code block below is to a node,
+          // for the `this.type` its input rule is built against.
+          return (extension as MarkExtension).extend({
             excludes: '',
             priority: 1,
+            // A typed span keeps the character typed before it (#619).
+            addInputRules() {
+              return [codeInputRule(this.type)];
+            },
             // The text of a code span as it stands, white space included (#603).
             parseHTML() {
               const inherited = (this.parent?.() ?? [{ tag: 'code' }]) as readonly TagParseRule[];
