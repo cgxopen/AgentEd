@@ -241,7 +241,7 @@
   { "n": 389, "cause": "nested-em", "first": "236c0120ddf3b4a3" },
   { "n": 391, "cause": "escape-added", "first": "066c42e4998180b5" },
   { "n": 392, "cause": "escape-added", "first": "9b09d056a1e26b98" },
-  { "n": 393, "cause": "em-structure", "first": "9b58da3d8afac443" },
+  { "n": 393, "cause": "em-structure", "first": "4669ef7e28b69aad" },
   { "n": 397, "cause": "escape-added", "first": "47e76564bb4ce788" },
   { "n": 398, "cause": "escape-added", "first": "be9c507ae2f78bcc" },
   { "n": 399, "cause": "em-structure", "first": "645be714d5cf4c07" },
