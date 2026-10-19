@@ -53,7 +53,7 @@ describe('the spelling (owner decision on #558: Cmd written out)', () => {
   });
 
   it('aria-keyshortcuts names Meta for Command, and nothing else changes', () => {
-    expect(chordAria('Control+Alt+F', true)).toBe('Meta+Alt+F');
+    expect(chordAria('Control+Alt+1', true)).toBe('Meta+Alt+1');
     expect(chordAria('Shift+F3', true)).toBe('Shift+F3');
     expect(chordAria('Control+Z', false)).toBe('Control+Z');
   });
@@ -85,7 +85,9 @@ describe('the shipped page (#558)', () => {
     expect(root.querySelector('#menu-undo')?.getAttribute('title')).toBe('Cmd+Z');
     expect(root.querySelector('#menu-undo')?.getAttribute('aria-keyshortcuts')).toBe('Meta+Z');
     expect(root.querySelector('#menu-find-next')?.getAttribute('title')).toBe('Fn+F3');
-    expect(root.querySelector('#menu-insert-footnote')?.getAttribute('title')).toBe('Cmd+Option+F');
+    // Two chords are other keys on a Mac (#630): Replace and the footnote.
+    expect(root.querySelector('#menu-insert-footnote')?.getAttribute('title')).toBe('Cmd+Option+N');
+    expect(root.querySelector('#menu-replace')?.getAttribute('title')).toBe('Cmd+Option+F');
     expect(root.querySelectorAll('[aria-keyshortcuts]').length).toBe(named);
   });
 });

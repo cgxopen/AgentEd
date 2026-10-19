@@ -3,6 +3,7 @@ import { Extension } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { AllSelection, TextSelection } from '@tiptap/pm/state';
 import { CellSelection } from '@tiptap/pm/tables';
+import { modIsCommand } from '../ui/chord-label';
 import { FOOTNOTE_REFERENCE } from './markdown/footnote';
 
 /**
@@ -186,17 +187,31 @@ export function footnoteMenuCallbacks(editor: Editor): FootnoteRoutes {
  * verified; `Ctrl+Shift+F` measured equally free and is the fallback.
  */
 export const FOOTNOTE_SHORTCUT = {
-  /** What ProseMirror binds. `Mod` is Ctrl on Windows and Linux. */
+  /**
+   * What ProseMirror binds where `Mod` is Ctrl: Windows and Linux. A Mac binds
+   * `macBinding`, Option+Cmd+N, since Option+Cmd+F is Find and Replace there
+   * and Replace took it (#630, owner decision of 2026-10-19).
+   */
   binding: 'Mod-Alt-f',
-  /** What a person reads, in the menu tooltip and on the toolbar button. */
+  macBinding: 'Mod-Alt-n',
+  /**
+   * What a person reads, in the menu tooltip and on the toolbar button, in the
+   * Windows spelling every label is written in; `chordLabel` spells it
+   * Cmd+Option+N on a Mac, through `MAC_CHORDS`.
+   */
   chord: 'Ctrl+Alt+F',
 } as const;
+
+/** The binding of the footnote for the keymap of this platform. */
+export function footnoteBinding(command: boolean = modIsCommand()): string {
+  return command ? FOOTNOTE_SHORTCUT.macBinding : FOOTNOTE_SHORTCUT.binding;
+}
 
 export const FootnoteShortcut = Extension.create({
   name: 'footnoteShortcut',
   addKeyboardShortcuts() {
     return {
-      [FOOTNOTE_SHORTCUT.binding]: () => {
+      [footnoteBinding()]: () => {
         if (!canInsertFootnote(this.editor)) return false;
         insertFootnote(this.editor);
         return true;

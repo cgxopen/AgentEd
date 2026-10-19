@@ -55,10 +55,35 @@ export function isModHeld(
   return event.ctrlKey || event.metaKey;
 }
 
+/**
+ * The chords that are other keys on a Mac, not the same keys under Command
+ * (#630, owner decision of 2026-10-19): Replace takes Option+Cmd+F, the Find
+ * and Replace of TextEdit, Script Editor and Xcode, measured on a macOS
+ * runner, and leaves Cmd+H to Hide; the footnote, which held Option+Cmd+F,
+ * takes Option+Cmd+N. Each is written here in both spellings, the label and
+ * the `aria-keyshortcuts` value, so a label and the binding of the chord
+ * (`app/search-manager.ts`, `editor/insert-footnote.ts`) say the same.
+ */
+export const MAC_CHORDS = [
+  { label: ['Ctrl+H', 'Cmd+Option+F'], aria: ['Control+H', 'Meta+Alt+F'] },
+  { label: ['Ctrl+Alt+F', 'Cmd+Option+N'], aria: ['Control+Alt+F', 'Meta+Alt+N'] },
+] as const;
+
+/** `text` with each whole chord of `pairs` spelled the second way. */
+function respellWhole(text: string, pairs: ReadonlyArray<readonly [string, string]>): string {
+  return pairs.reduce((out, [from, to]) => {
+    const escaped = from.replace(/[+]/g, '\\+');
+    return out.replace(new RegExp(`(^|[^\\w+])${escaped}(?![\\w+])`, 'g'), `$1${to}`);
+  }, text);
+}
+
 /** A label as the person reads it: `Ctrl+Z` on Windows, `Cmd+Z` on a Mac. */
 export function chordLabel(windowsSpelling: string, command: boolean = COMMAND): string {
   if (!command) return windowsSpelling;
-  return windowsSpelling
+  return respellWhole(
+    windowsSpelling,
+    MAC_CHORDS.map((chord) => chord.label),
+  )
     .replace(/\bCtrl\+/g, 'Cmd+')
     .replace(/\bAlt\+/g, 'Option+')
     .replace(/(^|[\s(,])((?:Shift\+)?F\d{1,2})\b/g, '$1Fn+$2');
@@ -67,7 +92,10 @@ export function chordLabel(windowsSpelling: string, command: boolean = COMMAND):
 /** An `aria-keyshortcuts` value: `Control+Z`, or `Meta+Z` on a Mac. */
 export function chordAria(windowsValue: string, command: boolean = COMMAND): string {
   if (!command) return windowsValue;
-  return windowsValue.replace(/\bControl\+/g, 'Meta+');
+  return respellWhole(
+    windowsValue,
+    MAC_CHORDS.map((chord) => chord.aria),
+  ).replace(/\bControl\+/g, 'Meta+');
 }
 
 /**
