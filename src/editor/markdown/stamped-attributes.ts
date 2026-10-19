@@ -45,6 +45,7 @@ import { BR_SPELLING_ATTRIBUTE } from './br-spelling';
 import { MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { LINK_DESTINATION_ATTRIBUTE } from './destination-spelling';
 import { EMPHASIS_DELIMITER_ATTRIBUTE } from './emphasis-delimiter';
+import { EMPTY_FENCE_LINE_ATTRIBUTE } from './empty-fence';
 import { FENCE_OPENER_ATTRIBUTE } from './fence-spelling';
 import {
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -111,6 +112,7 @@ export const STAMPED_ATTRIBUTES: readonly string[] = [
   SETEXT_UNDERLINE_ATTRIBUTE,
   ATX_CLOSING_ATTRIBUTE,
   FENCE_OPENER_ATTRIBUTE,
+  EMPTY_FENCE_LINE_ATTRIBUTE,
   LINK_DESTINATION_ATTRIBUTE,
 ];
 

@@ -139,13 +139,13 @@ describe('what this change does not touch', () => {
     // fence, on both sides, because the serializer no longer writes nothing
     // for a block with no visible content. The document model is unchanged —
     // which is the point: #89's finding stands, and what #94 changed is only
-    // what is written for it. The blank line normalises away upstream in
-    // `marked`, a recorded R-C2 exception (see `markdown/empty-fence.test.ts`).
+    // what is written for it. Since #625 the blank line is written back too,
+    // from a stamp the parse sets (see `markdown/empty-fence.ts`).
     const editor = editorWith('```\n\n```');
     expect(editor.editor.getJSON()).toMatchObject({
       content: [{ type: 'codeBlock', content: [{ type: 'text', text: '\n' }] }],
     });
-    expect(editor.getMarkdown().trim()).toBe('```\n```');
+    expect(editor.getMarkdown().trim()).toBe('```\n\n```');
   });
 });
 

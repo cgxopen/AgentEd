@@ -55,8 +55,8 @@ describe('an empty fence', () => {
     holds('```\n\n\n```\n');
   });
 
-  it('holding one is still written as the empty fence, as R-C2 records', () => {
-    holds('```\n\n```\n', '```\n```\n');
-    holds('```js\n\n```\n', '```js\n```\n');
+  it('holding one keeps it (#625)', () => {
+    holds('```\n\n```\n');
+    holds('```js\n\n```\n');
   });
 });

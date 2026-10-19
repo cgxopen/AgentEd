@@ -62,6 +62,7 @@ import {
 } from './markdown/comment-spelling';
 import { linkDestinationMarkAttribute } from './markdown/destination-spelling';
 import { emphasisDelimiterMarkAttribute } from './markdown/emphasis-delimiter';
+import { emptyFenceLineNodeAttribute } from './markdown/empty-fence';
 import { fenceOpenerNodeAttribute } from './markdown/fence-spelling';
 import {
   FOOTNOTE_BLANK_LINE_ATTRIBUTE,
@@ -635,9 +636,14 @@ function starterKitWithLocalSchemaRules() {
           // `this.type` — the value the rules are built against. The guard
           // above is what makes the narrowing true at runtime.
           return (extension as NodeExtension).extend({
-            // The opening run the file wrote the fence with (#573).
+            // The opening run the file wrote the fence with (#573), and the
+            // blank line of an empty one (#625).
             addAttributes() {
-              return { ...this.parent?.(), ...fenceOpenerNodeAttribute() };
+              return {
+                ...this.parent?.(),
+                ...fenceOpenerNodeAttribute(),
+                ...emptyFenceLineNodeAttribute(),
+              };
             },
             addInputRules() {
               return codeBlockInputRules(this.type);

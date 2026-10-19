@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
 import { ReplaceStep } from '@tiptap/pm/transform';
 import { ADJACENT_ATTRIBUTE, MAX_RUN } from './markdown/adjacency';
+import { EMPTY_FENCE_LINE_UNSET } from './markdown/empty-fence';
 import { FENCE_SPELLING_UNSET } from './markdown/fence-spelling';
 import { HEADING_SPELLING_UNSET } from './markdown/heading-spelling';
 
@@ -133,9 +134,14 @@ function splitRanges(transactions: readonly Transaction[]): Array<{ from: number
  * block starting inside the range a split opened is the new one, and the
  * first half starts before it. The count of #590 rides on the same attribute
  * and is cleared by the same step, and so is the spelling of a heading or a
- * fence (#573), which `tr.split` copies the same way.
+ * fence (#573) and the blank line of an empty fence (#625), which `tr.split`
+ * copies the same way.
  */
-const SPELLING_UNSET = { ...HEADING_SPELLING_UNSET, ...FENCE_SPELLING_UNSET };
+const SPELLING_UNSET = {
+  ...HEADING_SPELLING_UNSET,
+  ...FENCE_SPELLING_UNSET,
+  ...EMPTY_FENCE_LINE_UNSET,
+};
 
 function secondHalfWithoutFlag(): Plugin {
   return new Plugin({
