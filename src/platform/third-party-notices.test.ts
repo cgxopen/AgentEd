@@ -56,8 +56,10 @@ describe('one notices file per shipped target (#540)', () => {
   it('is installed by the macOS bundle under the same name, from its own file', () => {
     // JSON Merge Patch replaces the base list whole with this map, so the
     // Windows file does not reach the .app beside it.
-    expect(JSON.parse(tauriMacosConf)).toEqual({
-      bundle: { resources: { 'THIRD-PARTY-NOTICES.macos.txt': THIRD_PARTY_NOTICES_FILE } },
+    // The file also restates the window since #615, held against the base
+    // window in `src-tauri/src/main.rs`; its bundle holds the notices alone.
+    expect(JSON.parse(tauriMacosConf).bundle).toEqual({
+      resources: { 'THIRD-PARTY-NOTICES.macos.txt': THIRD_PARTY_NOTICES_FILE },
     });
   });
 

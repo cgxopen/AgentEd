@@ -250,6 +250,16 @@ export interface PlatformIO {
 }
 
 /**
+ * A window whose title bar is drawn over its content, so the system buttons
+ * stand over the header (#615, macOS). What the header needs from it: whether
+ * it is full screen, where the buttons leave, and a call on each resize.
+ */
+export interface TitleBarOverlay {
+  fullscreen(): Promise<boolean>;
+  onResize(listener: () => void): void;
+}
+
+/**
  * The three buttons a window frame carries, for a window whose frame this
  * build draws itself (#366).
  *

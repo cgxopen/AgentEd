@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "window-frame-macos",
+  "description": "The header as title bar on macOS (#615): a drag and a double click from its passive parts, and nothing else",
+  "platforms": [
+    "macOS"
+  ],
+  "windows": [
+    "main",
+    "doc-*"
+  ],
+  "permissions": [
+    "core:window:allow-start-dragging",
+    "core:window:allow-internal-toggle-maximize"
+  ]
+}

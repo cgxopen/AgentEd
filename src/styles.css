@@ -263,8 +263,9 @@ body {
  * It stood on `--surface` until then, a step of 1.05 to 1.16 off the page in
  * the seven palettes, with a line of `--border` below it. The native frame
  * read the same token from #326 until #366, when on Windows the header became
- * the title bar and there was no native frame left to colour; on Linux and
- * macOS the system draws its own bar above this one, in its own colours.
+ * the title bar and there was no native frame left to colour. On macOS the
+ * header is the title bar too since #615, the system buttons drawn over it; on
+ * Linux the system draws its own bar above this one, in its own colours.
  *
  * **The border stays, transparent**, so the header keeps the 44 px it had.
  * Measured in Chromium at 100, 125, 150 and 200 per cent: 44, 43.8, 43.67 and
@@ -296,8 +297,8 @@ body {
 }
 
 /* No reservation on the right where the system draws the window controls, on
- * a native title bar above this webview: Linux and macOS, where
- * `tauri.conf.json` leaves `decorations` at its default. The 128px this rule
+ * a native title bar above this webview, as on Linux, or over its left, as on
+ * macOS since #615 (the room is at the left, below). The 128px this rule
  * reserved until #330 was clear of nothing. The last child is then the files
  * panel control, and its right edge lands on the menubar own 16px padding,
  * where the hamburger left edge is.
@@ -315,6 +316,27 @@ body {
 
 #menubar.window-frame-own .header-right {
   margin-left: auto;
+}
+
+/* ── The header under the system buttons of macOS (#615) ──
+ *
+ * The title bar is drawn over the content there (`tauri.macos.conf.json`), so
+ * the three buttons stand over the left of this bar, 16 by 16 points at 15, 38
+ * and 61, their right edge at 77, measured on a macOS runner on step 2 of
+ * #615. The bar starts its controls at 80 instead of 16, and at 16 again in
+ * full screen, where the buttons leave. The brand stands at the right end, so
+ * its gap is on its left. */
+#menubar.window-frame-overlay {
+  padding-left: 80px;
+}
+
+#menubar.window-frame-overlay.window-frame-fullscreen {
+  padding-left: 16px;
+}
+
+#menubar.window-frame-overlay .window-brand {
+  margin-right: 0;
+  margin-left: 4px;
 }
 
 /* ── The window frame AgentEd draws itself, on Windows (#366) ──
