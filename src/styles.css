@@ -1908,6 +1908,34 @@ button.indicator-search:hover {
   min-width: 80px;
 }
 
+/*
+ * **A run with no break in it wraps inside its cell** (#618, owner decision of
+ * 2026-10-19). A URL, a code span or a word of 400 characters made its table
+ * as wide as the run, 3582 to 4243 px measured in Chromium under the CSP of
+ * the app, and the whole document scrolled sideways, in every window and
+ * panel state.
+ *
+ * **`anywhere` here, where the fence keeps `break-word`.** A cell already has
+ * `break-word`, from the editable element, and it did not wrap: `break-word`
+ * breaks a run only once the box is laid out, and the table sizes a column
+ * from the minimum width of its cells, which stays the width of the longest
+ * run. `anywhere` feeds the shorter measure into that minimum, the very
+ * effect the fence rule above declines (owner decision of 2026-08-31, read
+ * here as context): a fence is a block that should keep its width, a column
+ * is a width the table negotiates, and the long run is what made it wide.
+ *
+ * **The accepted price**: a table of short text that is already wider than the
+ * editor narrows to fit it, and breaks its short words mid-way to do so. On
+ * the step zero, only at the 600x400 minimum with the files panel open, where
+ * a table of three short columns was 304 px against an editor of 292. Every
+ * other table of short text is drawn as before, column for column. The text is
+ * untouched: the wrap is a line-box decision, as for the fence.
+ */
+.tiptap table td,
+.tiptap table th {
+  overflow-wrap: anywhere;
+}
+
 .tiptap table th {
   background: var(--surface);
   font-weight: 600;
