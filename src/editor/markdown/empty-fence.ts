@@ -44,6 +44,64 @@ import type { BlankReplacement, Options } from 'turndown';
  * not a recursion.
  */
 
+/**
+ * Set on the `pre` of an empty fence the file wrote around one blank line
+ * (#625). Stamped only where the parse keeps raw HTML, which is a file and
+ * never a paste, the route of `fence-spelling.ts`, so a block the editor
+ * makes carries none and is written with nothing between its fences (R-C15).
+ */
+export const EMPTY_FENCE_LINE_ATTRIBUTE = 'data-fence-blank-line';
+
+/** The opening line of a fence, then a line holding nothing but spaces or tabs. */
+const OPENER_THEN_BLANK_LINE = /^[^\n]*\n[ \t]*\n/;
+
+/**
+ * The attribute for the `pre` of a `code` token, or nothing.
+ *
+ * `text` is empty for a fence of none and for one around a single blank line
+ * alike, and the raw tells them apart: its second line is the blank one. A
+ * fence of two or more blank lines has text and keeps them as content (#572);
+ * a line of spaces is text too. `marked` turns a CRLF into a LF before it
+ * lexes, and hands a fence inside a quote or a list item its raw without the
+ * markers and the indentation, so one test reads every container.
+ */
+export function emptyFenceLineAttribute(raw: string, text: string, fromAFile: boolean): string {
+  if (!fromAFile || text !== '' || !OPENER_THEN_BLANK_LINE.test(raw)) return '';
+  return ` ${EMPTY_FENCE_LINE_ATTRIBUTE}`;
+}
+
+/**
+ * The node attribute, read from the element and rendered back onto it. It
+ * stays through an edit, as the opener of a fence does, and the plugin of
+ * #594 in `adjacent-blocks.ts` clears it off the second half of a split.
+ */
+export function emptyFenceLineNodeAttribute() {
+  return {
+    fenceBlankLine: {
+      default: false,
+      keepOnSplit: false,
+      parseHTML: (element: HTMLElement) => element.hasAttribute(EMPTY_FENCE_LINE_ATTRIBUTE),
+      renderHTML: (attributes: Record<string, unknown>) =>
+        attributes.fenceBlankLine === true ? { [EMPTY_FENCE_LINE_ATTRIBUTE]: '' } : {},
+    },
+  };
+}
+
+/** The node attribute at the value a block the editor makes holds. */
+export const EMPTY_FENCE_LINE_UNSET: Readonly<Record<string, false>> = { fenceBlankLine: false };
+
+/**
+ * Whether the block is written with its blank line: stamped, and holding
+ * exactly the one line ending the editor holds for an empty fence. A
+ * character typed and deleted leaves that; Enter adds a line, which is then
+ * content, and deleting the line ending leaves the fence of none the block
+ * now draws.
+ */
+function holdsItsBlankLine(node: Node): boolean {
+  const element = node as HTMLElement;
+  return element.hasAttribute(EMPTY_FENCE_LINE_ATTRIBUTE) && element.textContent === '\n';
+}
+
 /** The language, as turndown's own fenced rule reads it off the `<code>`. */
 const LANGUAGE_CLASS = /language-(\S+)/;
 
@@ -82,7 +140,8 @@ function isFencedBlock(node: Node, options: Options): boolean {
  * This is turndown's own `fencedCodeBlock` shape with **one line omitted**:
  * for empty content its rule writes ```` ```⏎⏎``` ````, a fence around a
  * blank line, where the file had ```` ```⏎``` ```` — so delegating to it
- * would respell the very bytes this fix exists to keep. Everything else
+ * would respell the very bytes this fix exists to keep; a block stamped as
+ * holding one blank line is written with it (#625). Everything else
  * follows it, deliberately: the same `options.fence`, the same
  * `language-(\S+)` reading of the class, and the same single trailing newline
  * stripped from the content, which is the parser's rather than the file's.
@@ -102,7 +161,7 @@ function fenceFor(node: Node, options: Options): string {
   const language = code.getAttribute('class')?.match(LANGUAGE_CLASS)?.[1] ?? '';
   const fence = options.fence ?? '```';
   const content = (code.textContent ?? '').replace(/\n$/, '');
-  const body = content === '' ? '' : `${content}\n`;
+  const body = content === '' ? (holdsItsBlankLine(node) ? '\n' : '') : `${content}\n`;
   return `\n\n${fence}${language}\n${body}${fence}\n\n`;
 }
 
@@ -114,15 +173,13 @@ function fenceFor(node: Node, options: Options): string {
  * original `escape`: it stays the authority on every blank node that is not
  * ours, and it goes on being that if a future release changes what it does.
  *
- * **One shape normalises, and this fix is not what normalises it.**
- * ```` ```⏎⏎``` ```` — a fence around a single blank line — is read by
- * `marked` as the same `<pre><code>\n</code></pre>` as ```` ```⏎``` ````, so
- * the two are indistinguishable by the time anything here runs and both are
- * written as ```` ```⏎``` ````. That is the recorded R-C2 exception *a blank
- * line at the end of a fenced block*, which is upstream in `marked`, meeting
- * this fix. Telling them apart would mean reading each block's spelling from
- * the raw markdown on open and carrying it on the node — the #93 shape — to
- * preserve a blank line that R-C2 already records as lost on the way in.
+ * **A fence around one blank line is told apart by a carrier (#625).**
+ * `marked` hands ```` ```⏎⏎``` ```` and ```` ```⏎``` ```` over as one empty
+ * code token, and the editor holds both as the same `\n`; only the raw of the
+ * token still holds the blank line. So the parse stamps the `pre` of the first
+ * from that raw, `fenceFor` writes the line back while the block still holds
+ * exactly what it opened with, and an edit that leaves it otherwise writes
+ * what the block then holds. See `emptyFenceLineAttribute` below.
  *
  * ── The container, and why one condition is the whole of #104 ──
  *

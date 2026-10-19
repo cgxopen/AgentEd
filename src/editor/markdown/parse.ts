@@ -10,6 +10,7 @@ import { commentCarrier } from './comment-spelling';
 import { linkDestinationAttribute } from './destination-spelling';
 import { type DlRegionToken, dlRegionBlock, joinDlRegions } from './dl-region';
 import { emphasisDelimiterAttribute } from './emphasis-delimiter';
+import { emptyFenceLineAttribute } from './empty-fence';
 import { fenceIndentationExtension } from './fence-indentation';
 import { fenceOpenerAttribute } from './fence-spelling';
 import {
@@ -226,7 +227,8 @@ marked.use({
 });
 
 // How a file opened a fenced block, its run and the gap before the info
-// string (#573), on the `pre`, so it is written back that way. The rest is
+// string (#573), and an empty one its blank line (#625), on the `pre`, so it
+// is written back that way. The rest is
 // `marked`'s own `code`, called rather than restated.
 marked.use({
   renderer: {
@@ -240,7 +242,10 @@ marked.use({
       );
       if (token.codeBlockStyle === 'indented') return html;
       const opener = fenceOpenerAttribute(token.raw, token.lang, keepingRawHtml);
-      return opener === '' ? html : html.replace(/^<pre/, `<pre${opener}`);
+      // An empty fence around one blank line, told apart by its raw (#625).
+      const blankLine = emptyFenceLineAttribute(token.raw, token.text, keepingRawHtml);
+      const stamps = `${opener}${blankLine}`;
+      return stamps === '' ? html : html.replace(/^<pre/, `<pre${stamps}`);
     },
   },
 });

@@ -121,14 +121,13 @@ describe('an empty fenced block survives open → save (#94)', () => {
     });
   });
 
-  it('normalises a fence around a blank line, and then holds still', () => {
-    // Upstream in `marked`, recorded in R-C2: ```⏎⏎``` and ```⏎``` reach the
-    // editor as the same block, so the first save writes the shorter one and
-    // every save after it writes the same thing. Stated here as the expected
-    // result rather than met as a surprise.
+  it('keeps a fence around a blank line, and then holds still (#625)', () => {
+    // ```⏎⏎``` and ```⏎``` reach the editor as the same block, and the parse
+    // tells them apart from the raw of the token; `empty-fence-line.test.ts`
+    // holds the shapes.
     const editor = editorWith('```\n\n```\n');
     const saved = savedFrom('```\n\n```\n', editor);
-    expect(saved).toBe('```\n```\n');
+    expect(saved).toBe('```\n\n```\n');
     expect(savedFrom(saved, reopen(saved))).toBe(saved);
   });
 

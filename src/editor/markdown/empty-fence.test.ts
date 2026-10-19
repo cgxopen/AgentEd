@@ -29,23 +29,22 @@ describe('an empty fenced block survives the save (#94)', () => {
 
   it('is stable on the second save', () => {
     // The property #96 established: whatever the first save writes, the
-    // second must move nothing. It is the joint promise the fix and the
-    // upstream exception below make together.
+    // second must move nothing.
     for (const markdown of ['```\n```', '```js\n```', '```\n   \n```', '```\n\n```']) {
       const once = roundtrip(markdown);
       expect(roundtrip(once)).toBe(once);
     }
   });
 
-  it('normalises a fence around a blank line, upstream and not here', () => {
+  it('keeps a fence around a blank line, told apart by a stamp (#625)', () => {
     // ```⏎⏎``` and ```⏎``` are read by `marked` as the *same*
-    // `<pre><code>\n</code></pre>`, so nothing downstream can tell them
-    // apart. That is the recorded R-C2 exception "a blank line at the end of
-    // a fenced block" meeting this fix: before it, the whole block was
-    // dropped and the normalisation had nothing to show itself in.
-    expect(markdownToHtml('```\n\n```')).toBe(markdownToHtml('```\n```'));
-    expect(roundtrip('```\n\n```')).toBe('```\n```');
-    expect(roundtrip('```js\n\n```')).toBe('```js\n```');
+    // `<pre><code>\n</code></pre>`; the parse stamps the first from the raw
+    // of its token, and the blank rule writes its line back.
+    expect(markdownToHtml('```\n\n```')).toBe(
+      markdownToHtml('```\n```').replace('<pre>', '<pre data-fence-blank-line="">'),
+    );
+    expect(roundtrip('```\n\n```')).toBe('```\n\n```');
+    expect(roundtrip('```js\n\n```')).toBe('```js\n\n```');
   });
 
   it('leaves a fence that has content alone', () => {
