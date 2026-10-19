@@ -80,7 +80,7 @@ describe('Replace and Find (#630)', () => {
   });
 
   /** The panel and its mode after a chord: closed, find or replace. */
-  function after(init: KeyboardEventInit): string {
+  function modeAfter(init: KeyboardEventInit): string {
     press(init);
     return manager.isOpen() ? manager.panel.mode() : 'closed';
   }
@@ -107,12 +107,12 @@ describe('Replace and Find (#630)', () => {
 
   it.each(MAC)('on a Mac, $chord: $mode', ({ init, mode }) => {
     mac.command = true;
-    expect(after(init)).toBe(mode);
+    expect(modeAfter(init)).toBe(mode);
   });
 
   it.each(ELSEWHERE)('on Windows and Linux, $chord: $mode', ({ init, mode }) => {
     mac.command = false;
-    expect(after(init)).toBe(mode);
+    expect(modeAfter(init)).toBe(mode);
   });
 });
 

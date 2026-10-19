@@ -172,7 +172,8 @@ export function footnoteMenuCallbacks(editor: Editor): FootnoteRoutes {
 }
 
 /**
- * `Ctrl+Alt+F`, bound in the editor rather than in `src/app/keyboard.ts`.
+ * `Ctrl+Alt+F`, and `Cmd+Option+N` on a Mac (#630), bound in the editor rather
+ * than in `src/app/keyboard.ts`.
  *
  * The chord writes into the document, so the document is what it asks for:
  * bound here it fires while the editor has focus and not while the caret is

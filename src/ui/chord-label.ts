@@ -19,7 +19,8 @@
  *
  * **The source spelling is the Windows one**, which `index.html` and the code
  * write and which is shown unchanged where Ctrl is the key: every `Ctrl` in it
- * means the keymap's `Mod`. On a Mac it becomes Cmd, Alt becomes Option, and a
+ * means the keymap's `Mod`, except the chords `MAC_CHORDS` below names, which
+ * are other keys on a Mac (#630) and are spelled from that table. On a Mac it becomes Cmd, Alt becomes Option, and a
  * function key takes Fn, which a Mac keyboard needs to send one (owner decision
  * on #558: F3 stays the chord, and the label says Fn).
  */
