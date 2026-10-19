@@ -1,6 +1,6 @@
 /**
  * #630 - on a Mac Replace takes Option+Cmd+F and leaves Cmd+H to Hide, and the
- * footnote takes Option+Cmd+N; Windows and Linux keep Ctrl+H and Ctrl+Alt+F
+ * footnote takes Option+Cmd+R; Windows and Linux keep Ctrl+H and Ctrl+Alt+F
  * (owner decision of 2026-10-19, route a of the step zero).
  *
  * Measured on a macOS runner on the step zero: Find and Replace is
@@ -11,7 +11,7 @@
  *
  * **The keymap of the harness reads `Mod` as Ctrl**: `prosemirror-keymap`
  * decides it from `navigator.platform` when it loads, and the harness is not a
- * Mac. So the footnote rows of a Mac press the Mac binding, `Mod-Alt-n`, with
+ * Mac. So the footnote rows of a Mac press the Mac binding, `Mod-Alt-r`, with
  * Ctrl; that `Mod` is Command on a Mac is ProseMirror's, and the runner
  * pressed it with Command.
  */
@@ -140,7 +140,7 @@ describe('the footnote chord (#630)', () => {
   }
 
   it.each([
-    { chord: 'Option+Cmd+N, its binding pressed with Ctrl', key: 'n', code: 'KeyN', made: true },
+    { chord: 'Option+Cmd+R, its binding pressed with Ctrl', key: 'r', code: 'KeyR', made: true },
     { chord: 'Option+Cmd+F, its binding pressed with Ctrl', key: 'f', code: 'KeyF', made: false },
   ])('on a Mac, $chord: $made', ({ key, code, made }) => {
     expect(footnoteFrom(true, { key, code, ctrlKey: true, altKey: true })).toBe(made);
@@ -148,7 +148,7 @@ describe('the footnote chord (#630)', () => {
 
   it.each([
     { chord: 'Ctrl+Alt+F', key: 'f', code: 'KeyF', made: true },
-    { chord: 'Ctrl+Alt+N', key: 'n', code: 'KeyN', made: false },
+    { chord: 'Ctrl+Alt+R', key: 'r', code: 'KeyR', made: false },
   ])('on Windows and Linux, $chord: $made', ({ key, code, made }) => {
     expect(footnoteFrom(false, { key, code, ctrlKey: true, altKey: true })).toBe(made);
   });
@@ -157,8 +157,8 @@ describe('the footnote chord (#630)', () => {
 describe('the labels say the chord each platform binds (#630)', () => {
   it.each([
     { windows: 'Ctrl+H', mac: 'Cmd+Option+F' },
-    { windows: 'Ctrl+Alt+F', mac: 'Cmd+Option+N' },
-    { windows: 'Footnote (Ctrl+Alt+F)', mac: 'Footnote (Cmd+Option+N)' },
+    { windows: 'Ctrl+Alt+F', mac: 'Cmd+Option+R' },
+    { windows: 'Footnote (Ctrl+Alt+F)', mac: 'Footnote (Cmd+Option+R)' },
     { windows: 'Ctrl+Shift+H', mac: 'Cmd+Shift+H' },
   ])('$windows', ({ windows, mac: onMac }) => {
     expect(chordLabel(windows, false)).toBe(windows);
@@ -167,7 +167,7 @@ describe('the labels say the chord each platform binds (#630)', () => {
 
   it.each([
     { windows: 'Control+H', mac: 'Meta+Alt+F' },
-    { windows: 'Control+Alt+F', mac: 'Meta+Alt+N' },
+    { windows: 'Control+Alt+F', mac: 'Meta+Alt+R' },
   ])('aria-keyshortcuts $windows', ({ windows, mac: onMac }) => {
     expect(chordAria(windows, false)).toBe(windows);
     expect(chordAria(windows, true)).toBe(onMac);

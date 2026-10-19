@@ -86,7 +86,7 @@ describe('the shipped page (#558)', () => {
     expect(root.querySelector('#menu-undo')?.getAttribute('aria-keyshortcuts')).toBe('Meta+Z');
     expect(root.querySelector('#menu-find-next')?.getAttribute('title')).toBe('Fn+F3');
     // Two chords are other keys on a Mac (#630): Replace and the footnote.
-    expect(root.querySelector('#menu-insert-footnote')?.getAttribute('title')).toBe('Cmd+Option+N');
+    expect(root.querySelector('#menu-insert-footnote')?.getAttribute('title')).toBe('Cmd+Option+R');
     expect(root.querySelector('#menu-replace')?.getAttribute('title')).toBe('Cmd+Option+F');
     expect(root.querySelectorAll('[aria-keyshortcuts]').length).toBe(named);
   });

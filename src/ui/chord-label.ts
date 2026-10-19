@@ -61,13 +61,15 @@ export function isModHeld(
  * (#630, owner decision of 2026-10-19): Replace takes Option+Cmd+F, the Find
  * and Replace of TextEdit, Script Editor and Xcode, measured on a macOS
  * runner, and leaves Cmd+H to Hide; the footnote, which held Option+Cmd+F,
- * takes Option+Cmd+N. Each is written here in both spellings, the label and
+ * takes Option+Cmd+R: Option with N, E, I or U is a dead key on a Mac, which
+ * the keymap does not see, measured on the runner. Each is written here in
+ * both spellings, the label and
  * the `aria-keyshortcuts` value, so a label and the binding of the chord
  * (`app/search-manager.ts`, `editor/insert-footnote.ts`) say the same.
  */
 export const MAC_CHORDS = [
   { label: ['Ctrl+H', 'Cmd+Option+F'], aria: ['Control+H', 'Meta+Alt+F'] },
-  { label: ['Ctrl+Alt+F', 'Cmd+Option+N'], aria: ['Control+Alt+F', 'Meta+Alt+N'] },
+  { label: ['Ctrl+Alt+F', 'Cmd+Option+R'], aria: ['Control+Alt+F', 'Meta+Alt+R'] },
 ] as const;
 
 /** `text` with each whole chord of `pairs` spelled the second way. */

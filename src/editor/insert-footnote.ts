@@ -172,7 +172,7 @@ export function footnoteMenuCallbacks(editor: Editor): FootnoteRoutes {
 }
 
 /**
- * `Ctrl+Alt+F`, and `Cmd+Option+N` on a Mac (#630), bound in the editor rather
+ * `Ctrl+Alt+F`, and `Cmd+Option+R` on a Mac (#630), bound in the editor rather
  * than in `src/app/keyboard.ts`.
  *
  * The chord writes into the document, so the document is what it asks for:
@@ -190,15 +190,17 @@ export function footnoteMenuCallbacks(editor: Editor): FootnoteRoutes {
 export const FOOTNOTE_SHORTCUT = {
   /**
    * What ProseMirror binds where `Mod` is Ctrl: Windows and Linux. A Mac binds
-   * `macBinding`, Option+Cmd+N, since Option+Cmd+F is Find and Replace there
-   * and Replace took it (#630, owner decision of 2026-10-19).
+   * `macBinding`, Option+Cmd+R, since Option+Cmd+F is Find and Replace there
+   * and Replace took it (#630, owner decisions of 2026-10-19). Not N: Option
+   * with N is a dead key on a Mac, and the page receives the code of the tilde
+   * key for it, which the keymap does not match, measured on a macOS runner.
    */
   binding: 'Mod-Alt-f',
-  macBinding: 'Mod-Alt-n',
+  macBinding: 'Mod-Alt-r',
   /**
    * What a person reads, in the menu tooltip and on the toolbar button, in the
    * Windows spelling every label is written in; `chordLabel` spells it
-   * Cmd+Option+N on a Mac, through `MAC_CHORDS`.
+   * Cmd+Option+R on a Mac, through `MAC_CHORDS`.
    */
   chord: 'Ctrl+Alt+F',
 } as const;
