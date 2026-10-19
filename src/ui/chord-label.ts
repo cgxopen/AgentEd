@@ -3,13 +3,15 @@
  *
  * **Which key that is belongs to the editor keymap, not to the platform.**
  * Every chord a label names is bound either as `Mod` in a ProseMirror keymap,
- * or in `app/keyboard.ts` and `app/search-manager.ts`, which take Ctrl or
- * Command alike. ProseMirror reads `Mod` as Command where `navigator.platform`
- * passes the test below, copied from `prosemirror-keymap` 1.2, and as Ctrl
- * everywhere else. So the label asks the same question the binding does, with
- * the same expression: the desktop build on a Mac and the web build opened on
- * a Mac both say Cmd, because both bind Command. `chord-label.test.ts` holds
- * the two answers together on both kinds of `navigator.platform`.
+ * or by a listener of ours that asks `isModHeld` below: `app/keyboard.ts`,
+ * `app/search-manager.ts`, the replace field of `ui/search-panel.ts`, the
+ * plain paste of `editor/paste.ts` and the link click of `app/link-open.ts`.
+ * ProseMirror reads `Mod` as Command where `navigator.platform` passes the
+ * test below, copied from `prosemirror-keymap` 1.2, and as Ctrl everywhere
+ * else. So the label asks the same question the binding does, with the same
+ * expression: the desktop build on a Mac and the web build opened on a Mac
+ * both say Cmd, because both bind Command. `chord-label.test.ts` holds the two
+ * answers together on both kinds of `navigator.platform`.
  *
  * Measured on a macOS runner on the step zero of #558: with Command every chord
  * of the menu and the README works; with Ctrl, Undo, Redo, the marks and the
@@ -30,6 +32,28 @@ export function modIsCommand(
 }
 
 const COMMAND = modIsCommand();
+
+/**
+ * Whether the key of a chord is held: Command alone where `Mod` is Command,
+ * Ctrl or Command elsewhere, as every listener of ours took it until #627.
+ *
+ * **On a Mac, Ctrl is left to macOS** (#627). Measured on a macOS runner on
+ * the step zero of #627, a listener taking Ctrl or Command took chords the
+ * system and its text fields own: Ctrl+F, Ctrl+K, Ctrl+O and Ctrl+H, which
+ * move the caret, delete to the end of the line, open a line and delete
+ * backward in a field, opened Find, the link dialog, the open panel and
+ * Replace instead; Ctrl+Command+F opened Find instead of full screen; and
+ * Ctrl+Shift+V, which selects to the page below in a field, selected and
+ * pasted nothing. Ctrl and Command held together are not the chord either,
+ * since the system chords that hold both are not ours.
+ */
+export function isModHeld(
+  event: { readonly ctrlKey: boolean; readonly metaKey: boolean },
+  command: boolean = COMMAND,
+): boolean {
+  if (command) return event.metaKey && !event.ctrlKey;
+  return event.ctrlKey || event.metaKey;
+}
 
 /** A label as the person reads it: `Ctrl+Z` on Windows, `Cmd+Z` on a Mac. */
 export function chordLabel(windowsSpelling: string, command: boolean = COMMAND): string {

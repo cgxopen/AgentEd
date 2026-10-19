@@ -4,6 +4,7 @@ import {
   type SearchEngine,
   type SearchOptions,
 } from '../editor/search-extension';
+import { isModHeld } from '../ui/chord-label';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import { type SearchPanel, setupSearchPanel } from '../ui/search-panel';
 import { showToast } from '../ui/toast';
@@ -246,8 +247,8 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
           else manager.findNext();
           return;
         }
-        const mod = e.ctrlKey || e.metaKey;
-        if (!mod) return;
+        // Command alone on a Mac, Ctrl or Command elsewhere (#627).
+        if (!isModHeld(e)) return;
         if (!e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
           e.preventDefault();
           manager.openFind();

@@ -1,3 +1,5 @@
+import { isModHeld } from '../ui/chord-label';
+
 export interface KeyboardHandlers {
   onSave: () => void;
   onOpen: () => void;
@@ -10,7 +12,8 @@ export interface KeyboardHandlers {
 
 /**
  * Global Ctrl/Cmd shortcuts: S (save), O (open), K (link), Shift+K (code
- * block), Shift+E (the files panel).
+ * block), Shift+E (the files panel). The key is Command alone on a Mac and Ctrl
+ * or Command elsewhere, by `isModHeld` (#627).
  *
  * **Save As has no chord** (owner decision of 2026-09-18). The save branch
  * used to hand a Shift held with it to Save As, testing the lowercase `s`. On
@@ -29,8 +32,7 @@ export interface KeyboardHandlers {
  */
 export function setupKeyboard(handlers: KeyboardHandlers): void {
   document.addEventListener('keydown', (e) => {
-    const mod = e.ctrlKey || e.metaKey;
-    if (!mod) return;
+    if (!isModHeld(e)) return;
 
     if (e.key === 's' && !e.shiftKey) {
       e.preventDefault();

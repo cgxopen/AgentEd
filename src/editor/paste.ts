@@ -8,6 +8,7 @@ import {
   handlePaste as pasteCellsIntoTable,
 } from '@tiptap/pm/tables';
 import type { EditorView } from '@tiptap/pm/view';
+import { isModHeld } from '../ui/chord-label';
 import { showToast } from '../ui/toast';
 import { carriesThisWindowsToken, clipboardSerializerWithToken } from './clipboard-token';
 import { isSingleUrl } from './link-url';
@@ -96,7 +97,7 @@ export function requestPlainPaste(storage: PredictablePasteStorage): void {
  * no code (synthetic events, some IMEs).
  */
 export function isPlainPasteShortcut(event: KeyboardEvent): boolean {
-  if (!(event.ctrlKey || event.metaKey)) return false;
+  if (!isModHeld(event)) return false;
   if (!event.shiftKey || event.altKey) return false;
   return event.code === 'KeyV' || event.key === 'v' || event.key === 'V';
 }

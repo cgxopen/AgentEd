@@ -1,4 +1,5 @@
 import { webAddressFor } from '../editor/link-url';
+import { isModHeld } from '../ui/chord-label';
 import { reportSystemOpenFailure } from './system-open-failure';
 
 /**
@@ -42,9 +43,12 @@ function linkAt(event: MouseEvent): string | null {
   return href === undefined || href === '' ? null : href;
 }
 
-/** Ctrl/Cmd + primary button — the "follow this" gesture. */
+/**
+ * Ctrl/Cmd + primary button — the "follow this" gesture. Command alone on a
+ * Mac, where Ctrl with a click is the context menu (#627).
+ */
 function isFollowGesture(event: MouseEvent): boolean {
-  return (event.ctrlKey || event.metaKey) && event.button === 0;
+  return isModHeld(event) && event.button === 0;
 }
 
 export function installLinkOpener(root: HTMLElement, options: LinkOpenerOptions): () => void {
