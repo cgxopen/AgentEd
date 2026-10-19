@@ -32,7 +32,12 @@ import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
 import { isTauri } from './platform/detect';
-import { getPlatformIO, ownWindowFrame, requestFolderAccess } from './platform/index';
+import {
+  getPlatformIO,
+  ownWindowFrame,
+  requestFolderAccess,
+  titleBarOverlay,
+} from './platform/index';
 import { listenForPlainPasteRequest } from './platform/plain-paste';
 import { clearRecentFiles, loadRecentFiles, purgeLegacyPreferences } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
@@ -48,7 +53,7 @@ import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar, spellcheckMenuCallbacks } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
 import { setupToolbar } from './ui/toolbar';
-import { drawWindowFrame } from './ui/window-frame';
+import { drawOverlayFrame, drawWindowFrame } from './ui/window-frame';
 
 // Sweep deprecated localStorage keys before any preference read runs.
 // One-shot per launch; subsequent runs are no-ops.
@@ -404,6 +409,17 @@ void ownWindowFrame()
     }
   })
   .catch((e: unknown) => console.error('[main] the window frame could not be drawn:', e));
+
+// On macOS the system buttons stand over the header, which becomes the title
+// bar (#615): the platform hands over the window where its config says so.
+void titleBarOverlay()
+  .then((overlay) => {
+    if (overlay) {
+      drawOverlayFrame(overlay);
+      measureHeaderRoom();
+    }
+  })
+  .catch((e: unknown) => console.error('[main] the overlay frame could not be drawn:', e));
 
 setupKeyboard({
   onSave: () => {

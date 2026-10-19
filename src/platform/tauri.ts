@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { resolveResource } from '@tauri-apps/api/path';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -21,6 +22,7 @@ import type {
   FileSnapshot,
   PickedFile,
   PlatformIO,
+  TitleBarOverlay,
   WindowControls,
 } from './types';
 import { reportCloseCancelled } from './window-coordination';
@@ -243,6 +245,36 @@ export async function ownWindowFrame(): Promise<WindowControls | null> {
     minimize: () => appWindow.minimize(),
     toggleMaximize: () => appWindow.toggleMaximize(),
     close: () => appWindow.close(),
+  };
+}
+
+/**
+ * The window whose title bar is drawn over its content, or `null` (#615).
+ *
+ * Asked of `title_bar_overlay` in `src-tauri/src/title_bar.rs`, which reads
+ * the style from the config the calling window was built from. **A failed
+ * answer draws the header as on Linux and is logged**: the bar then has no
+ * room for the system buttons, which stand over the Menu button, and nothing
+ * else is lost. It is reached only if the command or the description of the
+ * window is missing, which the Rust tests hold against.
+ */
+export async function titleBarOverlay(): Promise<TitleBarOverlay | null> {
+  let overlay: boolean;
+  try {
+    overlay = await invoke<boolean>('title_bar_overlay');
+  } catch (e) {
+    console.error('[window-frame] the style of the title bar was not answered:', e);
+    return null;
+  }
+  if (!overlay) return null;
+  const appWindow = getCurrentWindow();
+  return {
+    fullscreen: () => appWindow.isFullscreen(),
+    onResize: (listener) => {
+      appWindow.onResized(listener).catch((e: unknown) => {
+        console.error('[window-frame] full screen will not be followed:', e);
+      });
+    },
   };
 }
 

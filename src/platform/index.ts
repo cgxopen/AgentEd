@@ -1,7 +1,7 @@
 import { isTauri } from './detect';
-import type { PlatformIO, WindowControls } from './types';
+import type { PlatformIO, TitleBarOverlay, WindowControls } from './types';
 
-export type { FileEntry, FileResult, PlatformIO, WindowControls } from './types';
+export type { FileEntry, FileResult, PlatformIO, TitleBarOverlay, WindowControls } from './types';
 
 let _io: PlatformIO | null = null;
 
@@ -80,6 +80,22 @@ export async function ownWindowFrame(): Promise<WindowControls | null> {
   if (!isTauri) return null;
   const { ownWindowFrame: own } = await import('./tauri');
   return await own();
+}
+
+/**
+ * The window whose system buttons stand over the header, or `null` where the
+ * title bar is drawn apart from the content (#615).
+ *
+ * **The window answers**, from the config it was built from, through
+ * `titleBarOverlay()` in `tauri.ts`: macOS sets the overlay style in
+ * `tauri.macos.conf.json`, and no other target does. `isTauri` answers only
+ * whether there is a window to ask, as for `ownWindowFrame` above; the web
+ * build has none and answers `null`.
+ */
+export async function titleBarOverlay(): Promise<TitleBarOverlay | null> {
+  if (!isTauri) return null;
+  const { titleBarOverlay: overlay } = await import('./tauri');
+  return await overlay();
 }
 
 /** The name every desktop bundle installs its third-party notices under (#475, #540). */

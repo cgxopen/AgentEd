@@ -16,6 +16,7 @@ mod macos_windows;
 mod main_window;
 #[cfg(test)]
 mod shell_scope;
+mod title_bar;
 
 fn main() {
     let builder = tauri::Builder::default().manage(file_open::PendingOpen::default());
@@ -26,14 +27,17 @@ fn main() {
     #[cfg(target_os = "macos")]
     let builder = builder.manage(macos_windows::DocumentWindows::default());
     #[cfg(not(target_os = "macos"))]
-    let builder =
-        builder.invoke_handler(tauri::generate_handler![file_open::take_pending_file_open]);
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        file_open::take_pending_file_open,
+        title_bar::title_bar_overlay
+    ]);
     // Several document windows report to the process on macOS (#559).
     #[cfg(target_os = "macos")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
         macos_windows::report_window_state,
-        macos_windows::window_close_cancelled
+        macos_windows::window_close_cancelled,
+        title_bar::title_bar_overlay
     ]);
     let app = builder
         .plugin(tauri_plugin_dialog::init())
@@ -169,6 +173,71 @@ mod tests {
             .keys()
             .collect();
         assert_eq!(app, ["windows"]);
+    }
+
+    /// Issue #615 - the macOS window is the base window with its title bar
+    /// drawn over the header, and nothing else.
+    ///
+    /// The same Merge Patch as on Windows: `tauri.macos.conf.json` restates
+    /// `app.windows` in full to set three keys, so the two objects are held
+    /// equal here apart from those keys, and a minimum size or the #65 line
+    /// changed in one file and not the other turns this red. The document
+    /// windows of #559 are built from this same description.
+    #[test]
+    fn the_macos_window_is_the_base_window_with_its_title_bar_over_the_header() {
+        let base: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
+            .expect("tauri.conf.json should parse");
+        let macos: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.macos.conf.json"))
+                .expect("tauri.macos.conf.json should parse");
+
+        let base_windows = base["app"]["windows"].as_array().expect("base windows");
+        let own_windows = macos["app"]["windows"].as_array().expect("macOS windows");
+        assert_eq!(own_windows.len(), base_windows.len(), "one window each");
+
+        let mut expected = base_windows[0].clone();
+        expected["titleBarStyle"] = serde_json::json!("Overlay");
+        expected["hiddenTitle"] = serde_json::json!(true);
+        expected["trafficLightPosition"] = serde_json::json!({ "x": 16, "y": 24 });
+        assert_eq!(own_windows[0], expected);
+        for key in ["titleBarStyle", "hiddenTitle", "trafficLightPosition"] {
+            assert!(
+                base_windows[0].get(key).is_none(),
+                "the base keeps `{key}` at its default on Windows and Linux"
+            );
+        }
+
+        // The macOS file holds the window and the notices of #540, nothing else.
+        let keys: Vec<&String> = macos.as_object().expect("an object").keys().collect();
+        assert_eq!(keys, ["app", "bundle"]);
+        let app: Vec<&String> = macos["app"]
+            .as_object()
+            .expect("an object")
+            .keys()
+            .collect();
+        assert_eq!(app, ["windows"]);
+    }
+
+    /// Issue #615 - the header as title bar on macOS is dragged and zoomed
+    /// from its passive parts, and the capability for it grants those two
+    /// commands and nothing else, on macOS alone, to `main` and the document
+    /// windows of #559. The two commands are the ones the drag script of
+    /// Tauri calls on a press and on a double click.
+    #[test]
+    fn the_macos_frame_capability_grants_drag_and_zoom_alone() {
+        let frame: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/window-frame-macos.json"))
+                .expect("window-frame-macos.json should parse");
+        let glob = format!("{}*", crate::document_windows::DOCUMENT_WINDOW_PREFIX);
+        assert_eq!(frame["windows"], serde_json::json!(["main", glob]));
+        assert_eq!(frame["platforms"], serde_json::json!(["macOS"]));
+        assert_eq!(
+            frame["permissions"],
+            serde_json::json!([
+                "core:window:allow-start-dragging",
+                "core:window:allow-internal-toggle-maximize"
+            ])
+        );
     }
 
     /// Issue #249, decision 4 of #220 - `svg` is not in the shell `open`

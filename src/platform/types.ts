@@ -257,6 +257,16 @@ export interface PlatformIO {
  * button and Alt+F4 raise, so the unsaved-changes gate answers it (R-C3). It is
  * never the call that closes without asking.
  */
+/**
+ * A window whose title bar is drawn over its content, so the system buttons
+ * stand over the header (#615, macOS). What the header needs from it: whether
+ * it is full screen, where the buttons leave, and a call on each resize.
+ */
+export interface TitleBarOverlay {
+  fullscreen(): Promise<boolean>;
+  onResize(listener: () => void): void;
+}
+
 export interface WindowControls {
   minimize(): Promise<void>;
   toggleMaximize(): Promise<void>;

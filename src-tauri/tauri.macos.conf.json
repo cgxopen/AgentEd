@@ -3,5 +3,24 @@
     "resources": {
       "THIRD-PARTY-NOTICES.macos.txt": "THIRD-PARTY-NOTICES.txt"
     }
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "AgentEd",
+        "dragDropEnabled": false,
+        "width": 1024,
+        "height": 768,
+        "minWidth": 600,
+        "minHeight": 400,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 24
+        }
+      }
+    ]
   }
 }

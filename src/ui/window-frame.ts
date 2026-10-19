@@ -24,9 +24,16 @@
  *   ancestors, so each passive part carries it. No control ever does: a press
  *   on a control is the control's, and a drag region there would move the
  *   window instead.
+ *
+ * **On macOS the system draws the buttons over the header** (#615): the title
+ * bar is set to the overlay style in `tauri.macos.conf.json`, and
+ * `drawOverlayFrame` below leaves room for the buttons at the left, closes it
+ * in full screen where they leave, marks the same passive parts, and draws the
+ * brand at the right end of the bar, after the last control (owner decision
+ * of 2026-10-19 on #615). No caption buttons: the system keeps its own.
  */
 import markSvg from '../assets/agented-mark.svg?raw';
-import type { WindowControls } from '../platform';
+import type { TitleBarOverlay, WindowControls } from '../platform';
 
 /** The attribute Tauri starts a window drag from, and a double click maximizes from. */
 export const DRAG_REGION = 'data-tauri-drag-region';
@@ -114,13 +121,40 @@ export function drawWindowFrame(controls: WindowControls): void {
   bar.insertBefore(drawCaption(controls), document.getElementById('menu-dropdown'));
   bar.classList.add('window-frame-own');
 
+  markPassive([bar, left, right, brand, ...brand.children]);
+}
+
+/** The drag region on the bar, its groups, the brand and every passive part by id. */
+function markPassive(parts: Element[]): void {
   const passive: Array<Element | null> = [
-    bar,
-    left,
-    right,
-    brand,
-    ...brand.children,
+    ...parts,
     ...PASSIVE_IDS.map((id) => document.getElementById(id)),
   ];
   for (const element of passive) element?.setAttribute(DRAG_REGION, '');
+}
+
+/**
+ * The header under the system buttons of macOS (#615), with the window the
+ * platform handed over. The room for the buttons is the stylesheet's, on the
+ * class this sets; full screen is read on every resize, since the buttons
+ * leave with it and the room closes with them.
+ */
+export function drawOverlayFrame(overlay: TitleBarOverlay): void {
+  const bar = required('#menubar');
+  const left = required('#menubar .header-left');
+  const right = required('#menubar .header-right');
+
+  const brand = drawBrand();
+  right.append(brand);
+  bar.classList.add('window-frame-overlay');
+  markPassive([bar, left, right, brand, ...brand.children]);
+
+  const follow = (): void => {
+    overlay
+      .fullscreen()
+      .then((fullscreen) => bar.classList.toggle('window-frame-fullscreen', fullscreen))
+      .catch((e: unknown) => console.error('[window-frame] full screen was not read:', e));
+  };
+  follow();
+  overlay.onResize(follow);
 }
