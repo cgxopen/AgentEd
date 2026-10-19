@@ -1,3 +1,4 @@
+import { isModHeld } from './chord-label';
 export type SearchPanelMode = 'find' | 'replace';
 
 export interface SearchPanelCallbacks {
@@ -87,7 +88,7 @@ export function setupSearchPanel(root: HTMLElement, callbacks: SearchPanelCallba
   });
 
   replaceInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    if (e.key === 'Enter' && isModHeld(e)) {
       e.preventDefault();
       callbacks.onReplaceAll();
       return;
