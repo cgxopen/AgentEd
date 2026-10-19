@@ -47,6 +47,7 @@ import {
   KEPT_HTML_SOURCE,
 } from './kept-html-table';
 import { isRelativeLinkAddress } from './link-url';
+import { LongRun } from './long-run';
 import { autolinkMarkAttribute } from './markdown/angle-autolink';
 import {
   BARE_BLANK_MARKER,
@@ -988,6 +989,7 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     // footnote from the document (#409). Both are the editing surface R-C17
     // names; neither reaches the file.
     FootnoteHover,
+    LongRun,
     FootnoteShortcut,
     // Find & Replace highlights (R-C4). The wrapper in
     // src/editor/search-extension.ts owns the user-facing API; this

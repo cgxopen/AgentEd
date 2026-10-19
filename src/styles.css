@@ -1908,6 +1908,27 @@ button.indicator-search:hover {
   min-width: 80px;
 }
 
+/*
+ * **A long run in a cell may wrap anywhere, and only the run** (#618, owner
+ * decision of 2026-10-19 on the stop of #624). `long-run.ts` gives the class
+ * to every run of 30 characters or more with no white space in a table cell;
+ * a URL, a code span or a word of 400 characters had made its table 3582 to
+ * 4243 px wide and the whole document scroll sideways.
+ *
+ * **`anywhere` here, where the fence keeps `break-word`.** A cell has
+ * `break-word` already, from the editable element, and it did not wrap: a
+ * table sizes a column from the minimum width of its cells, and `break-word`
+ * leaves that minimum at the width of the longest run. `anywhere` feeds the
+ * shorter measure into it, the very effect the fence rule above declines
+ * (owner decision of 2026-08-31, read here as context). On the whole cell it
+ * lowered the minimum for every word, and an options table broke its short
+ * code spans mid-way in a wide window; on the run alone, the cell narrows to
+ * its longest other word and those stay whole.
+ */
+.tiptap .long-run {
+  overflow-wrap: anywhere;
+}
+
 .tiptap table th {
   background: var(--surface);
   font-weight: 600;
