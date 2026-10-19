@@ -46,7 +46,9 @@ const TABLE = `| Name | Value |\n| --- | --- |\n| short | see ${URL} end |\n| co
 
 describe('which runs carry the class', () => {
   it('a long run in a cell, bare, linked or in code, and nothing else', () => {
-    const editor = open(`${TABLE}\n| a | [${URL}](${URL}) |\n| --- | --- |\n| b | ${'y'.repeat(LONG_RUN - 1)} |\n\n${URL}\n`);
+    const editor = open(
+      `${TABLE}\n| a | [${URL}](${URL}) |\n| --- | --- |\n| b | ${'y'.repeat(LONG_RUN - 1)} |\n\n${URL}\n`,
+    );
     expect(marked(editor)).toEqual([URL, 'x'.repeat(40), URL]);
   });
 
@@ -68,7 +70,8 @@ describe('the set kept per transaction is the set a whole walk finds', () => {
     const end = (text: string) => {
       let at = -1;
       ed.state.doc.descendants((node, pos) => {
-        if (node.isText && node.text?.includes(text)) at = pos + node.text.indexOf(text) + text.length;
+        if (node.isText && node.text?.includes(text))
+          at = pos + node.text.indexOf(text) + text.length;
       });
       return at;
     };
