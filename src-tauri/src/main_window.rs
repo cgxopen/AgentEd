@@ -109,7 +109,25 @@ pub fn create(app: &App) -> Result<(), Box<dyn Error>> {
     window
         .scale_factor()
         .map_err(|error| format!("the main window was not created ({error})"))?;
+    show_after_fallback(window);
     Ok(())
+}
+
+/// The window is created hidden and the page shows it once its theme is
+/// applied (#639, `window_shown.rs`). If the page has not after `FALLBACK`,
+/// the window is shown here, so a page that fails still opens one. A window
+/// that cannot be shown would leave a process with no window, so that is said
+/// in the dialog of a window that could not be built, and the process ends.
+fn show_after_fallback(window: tauri::WebviewWindow) {
+    std::thread::spawn(move || {
+        std::thread::sleep(crate::window_shown::FALLBACK);
+        if window.is_visible().unwrap_or(false) {
+            return;
+        }
+        if let Err(error) = window.show() {
+            report_and_exit(&error);
+        }
+    });
 }
 
 /// The owner decision of 2026-09-23 on #434, variant B: a main window that

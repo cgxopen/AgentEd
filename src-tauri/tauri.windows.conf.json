@@ -10,7 +10,8 @@
         "minWidth": 600,
         "minHeight": 400,
         "decorations": false,
-        "create": false
+        "create": false,
+        "visible": false
       }
     ]
   }

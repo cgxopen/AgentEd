@@ -36,6 +36,7 @@ import {
   getPlatformIO,
   ownWindowFrame,
   requestFolderAccess,
+  showWindowOnceThemed,
   titleBarOverlay,
 } from './platform/index';
 import { listenForPlainPasteRequest } from './platform/plain-paste';
@@ -76,6 +77,9 @@ const reportImageInsert = createImageInsertReporter(state);
 // palette before the menu binds. It doesn't participate in the phased
 // ctx because no other module consumes it — it owns its own DOM effect.
 const themeManager = new ThemeManager();
+// The theme is on `<html>` now, so the window may be seen (#639). A failure
+// leaves the fallback of the process to show it after 2 s.
+showWindowOnceThemed().catch(console.error);
 
 // Phase 2 — header DOM wiring. Produces helpers we stash onto ctx so
 // downstream consumers don't need a separate import for them.

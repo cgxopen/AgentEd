@@ -17,6 +17,7 @@ mod main_window;
 #[cfg(test)]
 mod shell_scope;
 mod title_bar;
+mod window_shown;
 
 fn main() {
     let builder = tauri::Builder::default().manage(file_open::PendingOpen::default());
@@ -29,7 +30,8 @@ fn main() {
     #[cfg(not(target_os = "macos"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
-        title_bar::title_bar_overlay
+        title_bar::title_bar_overlay,
+        window_shown::show_window_themed
     ]);
     // Several document windows report to the process on macOS (#559).
     #[cfg(target_os = "macos")]
@@ -37,7 +39,8 @@ fn main() {
         file_open::take_pending_file_open,
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
-        title_bar::title_bar_overlay
+        title_bar::title_bar_overlay,
+        window_shown::show_window_themed
     ]);
     let app = builder
         .plugin(tauri_plugin_dialog::init())
@@ -130,7 +133,11 @@ mod tests {
     /// restated in full on Windows just to turn `decorations` off. Restated,
     /// the two can drift - a minimum size changed in one file and not the
     /// other, or the #65 drag-and-drop line lost on the one target it is for.
-    /// So the two window objects are held equal here, apart from two keys.
+    /// So the two window objects are held equal here, apart from three keys.
+    ///
+    /// `visible: false` keeps the window hidden until the page has applied
+    /// its theme (#639, `window_shown.rs`); in the base file it would hide
+    /// the window of Linux and macOS, where nothing shows it after a bound.
     ///
     /// `create: false` hands the window to `main_window`, which builds it
     /// from this same description with the spell-check language added. Lost
@@ -154,7 +161,12 @@ mod tests {
         let mut expected = base_windows[0].clone();
         expected["decorations"] = serde_json::Value::Bool(false);
         expected["create"] = serde_json::Value::Bool(false);
+        expected["visible"] = serde_json::Value::Bool(false);
         assert_eq!(own_windows[0], expected);
+        assert!(
+            base_windows[0].get("visible").is_none(),
+            "the base shows the window on Linux and macOS from its creation (#639)"
+        );
         assert!(
             base_windows[0].get("decorations").is_none(),
             "the base keeps the native bar on Linux and macOS by leaving the default"
