@@ -140,8 +140,8 @@ On macOS, a document opened from Finder opens in a window of its own, and **File
 | `Ctrl+S` | `Cmd+S` | Save (Save As is in the File menu) |
 | `Ctrl+O` | `Cmd+O` | Open |
 | `Ctrl+V` / `Ctrl+Shift+V` | `Cmd+V` / `Cmd+Shift+V` | Paste (reads markdown) / Paste as plain text |
-| `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+H` | Find / Replace |
-| `Ctrl+Alt+F` | `Cmd+Option+F` | Footnote (Insert → Footnote does the same) |
+| `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+Option+F` | Find / Replace (on a Mac `Cmd+H` hides AgentEd, as in every Mac app) |
+| `Ctrl+Alt+F` | `Cmd+Option+R` | Footnote (Insert → Footnote does the same) |
 | `Ctrl+Shift+E` | `Cmd+Shift+E` | Files panel (open / close) |
 | `F3` | `Fn+F3` | Find next |
 | `Shift+F3` | `Fn+Shift+F3` | Find previous |

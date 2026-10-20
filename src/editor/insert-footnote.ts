@@ -3,6 +3,7 @@ import { Extension } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { AllSelection, TextSelection } from '@tiptap/pm/state';
 import { CellSelection } from '@tiptap/pm/tables';
+import { modIsCommand } from '../ui/chord-label';
 import { FOOTNOTE_REFERENCE } from './markdown/footnote';
 
 /**
@@ -171,7 +172,8 @@ export function footnoteMenuCallbacks(editor: Editor): FootnoteRoutes {
 }
 
 /**
- * `Ctrl+Alt+F`, bound in the editor rather than in `src/app/keyboard.ts`.
+ * `Ctrl+Alt+F`, and `Cmd+Option+R` on a Mac (#630), bound in the editor rather
+ * than in `src/app/keyboard.ts`.
  *
  * The chord writes into the document, so the document is what it asks for:
  * bound here it fires while the editor has focus and not while the caret is
@@ -186,17 +188,33 @@ export function footnoteMenuCallbacks(editor: Editor): FootnoteRoutes {
  * verified; `Ctrl+Shift+F` measured equally free and is the fallback.
  */
 export const FOOTNOTE_SHORTCUT = {
-  /** What ProseMirror binds. `Mod` is Ctrl on Windows and Linux. */
+  /**
+   * What ProseMirror binds where `Mod` is Ctrl: Windows and Linux. A Mac binds
+   * `macBinding`, Option+Cmd+R, since Option+Cmd+F is Find and Replace there
+   * and Replace took it (#630, owner decisions of 2026-10-19). Not N: Option
+   * with N is a dead key on a Mac, and the page receives the code of the tilde
+   * key for it, which the keymap does not match, measured on a macOS runner.
+   */
   binding: 'Mod-Alt-f',
-  /** What a person reads, in the menu tooltip and on the toolbar button. */
+  macBinding: 'Mod-Alt-r',
+  /**
+   * What a person reads, in the menu tooltip and on the toolbar button, in the
+   * Windows spelling every label is written in; `chordLabel` spells it
+   * Cmd+Option+R on a Mac, through `MAC_CHORDS`.
+   */
   chord: 'Ctrl+Alt+F',
 } as const;
+
+/** The binding of the footnote for the keymap of this platform. */
+export function footnoteBinding(command: boolean = modIsCommand()): string {
+  return command ? FOOTNOTE_SHORTCUT.macBinding : FOOTNOTE_SHORTCUT.binding;
+}
 
 export const FootnoteShortcut = Extension.create({
   name: 'footnoteShortcut',
   addKeyboardShortcuts() {
     return {
-      [FOOTNOTE_SHORTCUT.binding]: () => {
+      [footnoteBinding()]: () => {
         if (!canInsertFootnote(this.editor)) return false;
         insertFootnote(this.editor);
         return true;

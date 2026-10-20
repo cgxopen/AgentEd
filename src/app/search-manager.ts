@@ -4,7 +4,7 @@ import {
   type SearchEngine,
   type SearchOptions,
 } from '../editor/search-extension';
-import { isModHeld } from '../ui/chord-label';
+import { isModHeld, modIsCommand } from '../ui/chord-label';
 import { showConfirmDialog } from '../ui/confirm-dialog';
 import { type SearchPanel, setupSearchPanel } from '../ui/search-panel';
 import { showToast } from '../ui/toast';
@@ -48,6 +48,23 @@ export interface SearchManagerDeps {
   /** Called whenever the panel transitions from closed → open. Used to
    * dismiss other floating UI (the «Images» popover). */
   onOpen?: () => void;
+}
+
+/**
+ * The Replace chord, once the key of the chord is held: Ctrl+H where `Mod` is
+ * Ctrl, Option+Cmd+F where it is Command (#630). On a Mac Cmd+H is Hide in the
+ * application menu, measured to hide AgentEd once the page leaves it, and
+ * Option+Cmd+F is Find and Replace in TextEdit, Script Editor and Xcode; the
+ * labels say the same through `MAC_CHORDS` in `ui/chord-label.ts`. Option
+ * with F reports another character on a Mac, so the physical key is read too.
+ */
+export function isReplaceChord(
+  e: Pick<KeyboardEvent, 'key' | 'code' | 'shiftKey' | 'altKey'>,
+  command: boolean = modIsCommand(),
+): boolean {
+  if (e.shiftKey) return false;
+  if (command) return e.altKey && (e.key === 'f' || e.key === 'F' || e.code === 'KeyF');
+  return !e.altKey && (e.key === 'h' || e.key === 'H');
 }
 
 export function createSearchManager(deps: SearchManagerDeps): SearchManager {
@@ -254,7 +271,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
           manager.openFind();
           return;
         }
-        if (!e.shiftKey && !e.altKey && (e.key === 'h' || e.key === 'H')) {
+        if (isReplaceChord(e)) {
           e.preventDefault();
           manager.openReplace();
         }
