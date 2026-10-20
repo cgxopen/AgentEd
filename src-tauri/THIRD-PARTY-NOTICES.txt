@@ -675,7 +675,7 @@ serde_derive_internals 0.29.1
   The serde_derive_internals authors: Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
   Licence texts: 8, 3
 
-serde_json 1.0.152
+serde_json 1.0.154
   Licence: MIT OR Apache-2.0
   No copyright line published
   Licence texts: 8, 3
