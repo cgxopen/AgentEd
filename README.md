@@ -119,6 +119,8 @@ The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized 
 4. In the dialog that follows, click **Open Anyway**. The highlighted button in that dialog is **Move to Trash** (**Move to Bin** in British English), which deletes the application.
 5. Enter your password. AgentEd opens, and from then on it opens without asking.
 
+macOS asks again each time AgentEd is installed anew: every new installation opens only after steps 2 to 5 are repeated once for it.
+
 The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
 
 On macOS, a document opened from Finder opens in a window of its own, and **File**, **New Window** (Cmd+Shift+N) opens an empty one. The shortcut hints in the menus name Command, as the table below does.
