@@ -76,10 +76,10 @@ fn main() {
         match _event {
             // macOS hands a file opened from Finder or Open With to the app
             // as an Apple event, at start-up and while it runs (#541); each
-            // document goes to a window of its own or to an untouched one
-            // (#559).
+            // file goes to a window of its own or to an untouched one
+            // (#559), whose page opens it or says why not (#636).
             tauri::RunEvent::Opened { urls } => {
-                macos_windows::open_documents(_handle, file_open::markdown_paths_from_urls(&urls));
+                macos_windows::open_documents(_handle, file_open::file_paths_from_urls(&urls));
             }
             // A quit asking one window at a time goes on when it is gone.
             tauri::RunEvent::WindowEvent {

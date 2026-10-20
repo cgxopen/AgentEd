@@ -10,7 +10,7 @@ import { reportSystemOpenFailure } from './system-open-failure';
  *   1. Validate the target is inside the listing root. Fail silently
  *      (console.warn for debugging, no user-facing message) — security
  *      events should not be surfaced or guess-able.
- *   2. Markdown file (`.md` / `.markdown`) → reuse the existing
+ *   2. Markdown file (`isMarkdownPath`) → reuse the existing
  *      `openFilePath` flow, which routes through the unsaved-changes
  *      safety gate, and hand it the listing root this click came from
  *      (#178) so the panel is not dissolved by the only action it

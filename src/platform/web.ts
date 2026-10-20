@@ -1,6 +1,6 @@
 import { decodeFileText } from './decode';
 import { DocumentIdentity, type GrantedHandles } from './document-identity';
-import { joinPath } from './paths';
+import { joinPath, MARKDOWN_EXTENSIONS } from './paths';
 import {
   type CloseGuard,
   type EntryPresence,
@@ -107,7 +107,8 @@ export class WebIO implements PlatformIO {
           {
             description: 'AgentEd files',
             accept: {
-              'text/markdown': ['.md', '.markdown'],
+              // The markdown extensions of the rule (#636).
+              'text/markdown': MARKDOWN_EXTENSIONS.map((extension) => `.${extension}`),
               'text/plain': ['.txt'],
             },
           },

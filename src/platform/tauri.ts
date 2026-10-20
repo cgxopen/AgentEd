@@ -13,7 +13,7 @@ import {
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { loadLastOpenedFolder } from '../preferences';
 import { decodeFileText } from './decode';
-import { basename, dirname, joinPath, shellPath } from './paths';
+import { basename, dirname, joinPath, MARKDOWN_EXTENSIONS, shellPath } from './paths';
 import type {
   CloseGuard,
   EntryPresence,
@@ -52,7 +52,8 @@ export class TauriIO implements PlatformIO {
       const lastFolder = loadLastOpenedFolder();
       const selected = await open({
         multiple: false,
-        filters: [{ name: 'AgentEd', extensions: ['md', 'markdown', 'txt'] }],
+        // The markdown extensions of the rule (#636), and txt beside them.
+        filters: [{ name: 'AgentEd', extensions: [...MARKDOWN_EXTENSIONS, 'txt'] }],
         ...(lastFolder ? { defaultPath: lastFolder } : {}),
       });
       if (!selected) return null;

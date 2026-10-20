@@ -8,6 +8,7 @@
  */
 
 import { OpenCutError } from '../formats/types';
+import { MARKDOWN_EXTENSIONS } from '../platform/paths';
 import { FILE_ABSENT, NOT_UTF8, READ_REFUSED } from '../platform/types';
 
 /** The dialog's title. */
@@ -150,6 +151,23 @@ function openCutMessage(path: string, cause: OpenCutError): string {
 /** What a missing file is told, from any route. */
 function notFound(path: string): string {
   return `AgentEd could not find ${path}. It may have been moved, renamed or removed.`;
+}
+
+/**
+ * A file the OS or the command line asked AgentEd to open whose name is not
+ * that of a markdown document (#636). The shape of the encoding refusal
+ * (#259): the cause and what did not happen, then the rule, then the path.
+ * The extensions are read from the rule itself, so the sentence names
+ * exactly what `isMarkdownPath` accepts. Nothing was read, so nothing is
+ * claimed about the file beyond its name.
+ */
+export function notMarkdownMessage(path: string): string {
+  const dotted = MARKDOWN_EXTENSIONS.map((extension) => `.${extension}`);
+  const named = `${dotted.slice(0, -1).join(', ')} or ${dotted[dotted.length - 1]}`;
+  return (
+    'This file is not a markdown document, so it has not been opened. ' +
+    `Nothing has changed on disk.\n\nAgentEd opens files whose names end in ${named}.\n\n${path}`
+  );
 }
 
 /**
