@@ -63,18 +63,21 @@ jobs:
       - name: Compute build matrix
         id: matrix
         run: |
-          # Windows is the primary target; Linux rides along here because
-          # this is the only place it runs at all (#8). Both are built on
-          # every scheduled run.
+          # Windows is the primary target, and Linux is built here as well as
+          # in the release since #550, where it ships labelled experimental.
+          # Both are built on every scheduled run.
           #
-          # Linux is a contributor lane rather than a shipped target (owner
-          # decision, 2026-09-06), and that is what puts it here instead of
-          # in `ci.yml`. The Rust job there already compiles the whole crate
-          # graph for this platform on every code change, so a per-pull-
+          # Linux is built here rather than in `ci.yml` for the reason it
+          # always was (#8). The Rust job there already compiles the whole
+          # crate graph for this platform on every code change, so a per-pull-
           # request bundle would only add packaging failures - and those come
           # from a runner image or an upstream tool moving, not from anything
           # in `src/`. That is environment drift, which is the weekly-scale
           # thing this workflow exists for.
+          #
+          # The release builds the deb alone; the rpm is built here too, with
+          # the same desktop entry and the same glibc floor, so a later test
+          # on Fedora needs no code (#550, owner decision 4).
           #
           # `--bundles deb,rpm` leaves AppImage out, and it is left out for
           # what it costs rather than because it breaks. It builds here: the
@@ -173,6 +176,50 @@ jobs:
           # means on this workflow's events: `schedule` and
           # `workflow_dispatch`, neither of which builds a merge commit.
           AGENTED_BUILD_COMMIT: ${{ github.sha }}
+
+      # ── The glibc the Linux binary needs, against the floor it declares (#550) ──
+      #
+      # The deb declares libc6 (>= 2.34) and the rpm libc.so.6(GLIBC_2.34)(64bit),
+      # in src-tauri/tauri.linux.conf.json. The binary needs the glibc of the
+      # runner that built it, and nothing else holds the two together: the
+      # floor rides on the ubuntu-22.04 image, which GitHub will retire one
+      # day, and a build on a newer image would still install on an older
+      # system and fail at launch on a missing symbol. So the binary in the
+      # deb is read, and the job fails if it needs a GLIBC_ version above the
+      # floor, or if the deb no longer declares the floor this step holds.
+      - name: 'Linux: the binary needs no glibc above the declared floor'
+        if: matrix.platform == 'ubuntu-22.04'
+        timeout-minutes: 5
+        env:
+          GLIBC_FLOOR: '2.34'
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          debs=(src-tauri/target/release/bundle/deb/*.deb)
+          if [ "${#debs[@]}" -ne 1 ]; then
+            echo "::error::Expected one .deb, found ${#debs[@]}."
+            exit 1
+          fi
+          depends=$(dpkg-deb --field "${debs[0]}" Depends)
+          echo "Depends: $depends"
+          if ! grep -qF "libc6 (>= $GLIBC_FLOOR)" <<< "$depends"; then
+            echo "::error::The deb does not declare libc6 (>= $GLIBC_FLOOR)."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/deb"
+          dpkg-deb -x "${debs[0]}" "$RUNNER_TEMP/deb"
+          versions=$(objdump -T "$RUNNER_TEMP/deb/usr/bin/agented" | grep -o 'GLIBC_[0-9][0-9.]*' | sed 's/^GLIBC_//' | sort -uV)
+          highest=$(tail -n 1 <<< "$versions")
+          echo "GLIBC_ versions needed: $(tr '\n' ' ' <<< "$versions")"
+          echo "Highest: $highest; declared floor: $GLIBC_FLOOR"
+          if [ -z "$highest" ]; then
+            echo "::error::No GLIBC_ symbol was read from the binary."
+            exit 1
+          fi
+          if [ "$(printf '%s\n%s\n' "$highest" "$GLIBC_FLOOR" | sort -V | tail -n 1)" != "$GLIBC_FLOOR" ]; then
+            echo "::error::The binary needs GLIBC_$highest, above the declared floor $GLIBC_FLOOR."
+            exit 1
+          fi
 
       - name: Upload bundle artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

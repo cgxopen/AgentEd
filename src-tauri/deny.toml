@@ -17,10 +17,9 @@
 [graph]
 # What the bundles ship, one target for each notices file the generator writes
 # (#540). Build dependencies stay in, since cargo-deny reads them with the
-# normal graph; dev dependencies do not ship. Linux waits for the issue that
-# ships it: measured on 2026-10-06, its build graph brings target-lexicon
-# under Apache-2.0 WITH LLVM-exception, which the list below does not name.
-targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
+# normal graph; dev dependencies do not ship. Linux joined with #550, which
+# ships it; its build graph brings target-lexicon, excepted below.
+targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-unknown-linux-gnu"]
 exclude-dev = true
 
 [licenses]
@@ -47,6 +46,15 @@ confidence-threshold = 0.93
 # The two npm licences above are allowed and never met by a crate; that is
 # by design rather than a stale entry.
 unused-allowed-license = "allow"
+# target-lexicon alone, under Apache-2.0 WITH LLVM-exception, by owner
+# decision of 2026-10-06 (#540, comment 6024173825). Read in the crate at
+# 0.12.16, the exception only removes conditions of Apache-2.0, which the
+# list above holds. It is a build dependency of the GTK sys crates Tauri
+# needs on Linux, reached through cfg-expr and system-deps, and ships in no
+# binary. The licence is not added to the list, so no other crate gets it.
+exceptions = [
+  { allow = ["Apache-2.0 WITH LLVM-exception"], crate = "target-lexicon" },
+]
 
 [sources]
 # Crates come from crates.io and from nowhere else.

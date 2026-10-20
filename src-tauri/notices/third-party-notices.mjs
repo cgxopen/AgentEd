@@ -25,13 +25,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const TAURI = join(HERE, '..');
 const ROOT = join(TAURI, '..');
 // One file per shipped target (#540). The Windows file keeps the name and the
-// path it had, so the Windows bundle is unchanged; the macOS one is installed
-// under the same name by tauri.macos.conf.json. Linux joins with the issue
-// that ships it: on 2026-10-06 its build graph held a licence the allow list
-// in deny.toml does not name.
+// path it had, so the Windows bundle is unchanged; the macOS one and the Linux
+// one are installed under the same name by tauri.macos.conf.json and
+// tauri.linux.conf.json. Linux joined with #550, which ships it.
 export const TARGETS = [
   { triple: 'x86_64-pc-windows-msvc', file: 'THIRD-PARTY-NOTICES.txt' },
   { triple: 'aarch64-apple-darwin', file: 'THIRD-PARTY-NOTICES.macos.txt' },
+  { triple: 'x86_64-unknown-linux-gnu', file: 'THIRD-PARTY-NOTICES.linux.txt' },
 ];
 const VENDORED = 'src/editor/vendor/search-and-replace.ts';
 

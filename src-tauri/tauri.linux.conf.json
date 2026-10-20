@@ -1,0 +1,18 @@
+{
+  "bundle": {
+    "resources": {
+      "THIRD-PARTY-NOTICES.linux.txt": "THIRD-PARTY-NOTICES.txt"
+    },
+    "longDescription": "Turn notes, project briefs and AI instructions into clear Markdown files. Edit visually, keep your files, and see a live token estimate as you write.",
+    "linux": {
+      "deb": {
+        "desktopTemplate": "linux/agented.desktop",
+        "depends": ["libc6 (>= 2.34)"]
+      },
+      "rpm": {
+        "desktopTemplate": "linux/agented.desktop",
+        "depends": ["libc.so.6(GLIBC_2.34)(64bit)"]
+      }
+    }
+  }
+}

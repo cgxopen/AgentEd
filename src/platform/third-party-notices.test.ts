@@ -6,9 +6,11 @@ import {
   splitCopyright,
   TARGETS,
 } from '../../src-tauri/notices/third-party-notices.mjs';
+import linuxNotices from '../../src-tauri/THIRD-PARTY-NOTICES.linux.txt?raw';
 import macosNotices from '../../src-tauri/THIRD-PARTY-NOTICES.macos.txt?raw';
 import notices from '../../src-tauri/THIRD-PARTY-NOTICES.txt?raw';
 import tauriConf from '../../src-tauri/tauri.conf.json?raw';
+import tauriLinuxConf from '../../src-tauri/tauri.linux.conf.json?raw';
 import tauriMacosConf from '../../src-tauri/tauri.macos.conf.json?raw';
 import { openThirdPartyNotices, THIRD_PARTY_NOTICES_FILE } from './index';
 
@@ -36,13 +38,15 @@ function headsOf(text: string): Set<string> {
 const FILES: Record<string, string> = {
   'THIRD-PARTY-NOTICES.txt': notices,
   'THIRD-PARTY-NOTICES.macos.txt': macosNotices,
+  'THIRD-PARTY-NOTICES.linux.txt': linuxNotices,
 };
 
 describe('one notices file per shipped target (#540)', () => {
-  it('is generated for Windows and macOS, the Windows file under the name it had', () => {
+  it('is generated for Windows, macOS and Linux, the Windows file under the name it had', () => {
     expect(TARGETS).toEqual([
       { triple: 'x86_64-pc-windows-msvc', file: THIRD_PARTY_NOTICES_FILE },
       { triple: 'aarch64-apple-darwin', file: 'THIRD-PARTY-NOTICES.macos.txt' },
+      { triple: 'x86_64-unknown-linux-gnu', file: 'THIRD-PARTY-NOTICES.linux.txt' },
     ]);
   });
 
@@ -63,6 +67,15 @@ describe('one notices file per shipped target (#540)', () => {
     });
   });
 
+  it('is installed by the Linux bundle under the same name, from its own file (#550)', () => {
+    // As the macOS map: the base list is replaced whole, so neither the
+    // Windows nor the macOS file reaches the deb. The rest of the file is
+    // the packaging of #550, held in `.github/workflows/ci.test.ts`.
+    expect(JSON.parse(tauriLinuxConf).bundle.resources).toEqual({
+      'THIRD-PARTY-NOTICES.linux.txt': THIRD_PARTY_NOTICES_FILE,
+    });
+  });
+
   it.each(TARGETS)('names the graph it was generated from: $triple', ({ triple, file }) => {
     expect(FILES[file]).toContain(`the normal dependency graph for ${triple})`);
   });
@@ -74,6 +87,11 @@ describe('one notices file per shipped target (#540)', () => {
     expect([...macos].some((head) => head.startsWith('webview2-com '))).toBe(false);
     expect([...macos].some((head) => head.startsWith('objc2 '))).toBe(true);
     expect([...windows].some((head) => head.startsWith('objc2 '))).toBe(false);
+    const linux = headsOf(linuxNotices);
+    expect([...linux].some((head) => head.startsWith('webkit2gtk '))).toBe(true);
+    expect([...windows, ...macos].some((head) => head.startsWith('webkit2gtk '))).toBe(false);
+    expect([...linux].some((head) => head.startsWith('webview2-com '))).toBe(false);
+    expect([...linux].some((head) => head.startsWith('objc2 '))).toBe(false);
   });
 });
 
