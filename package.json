@@ -26,7 +26,7 @@
     "@biomejs/biome": "2.5.15",
     "@tauri-apps/cli": "^2.12.1",
     "@types/dompurify": "^3.2.0",
-    "@vitest/ui": "^5.0.3",
+    "@vitest/ui": "^5.0.5",
     "commonmark-spec": "0.31.2",
     "happy-dom": "^21.0.3",
     "typescript": "~7.0.2",
@@ -51,8 +51,8 @@
     "@tiptap/extension-underline": "^2.27",
     "@tiptap/pm": "^2.27",
     "@tiptap/starter-kit": "^2.27",
-    "dompurify": "3.4.16",
-    "gpt-tokenizer": "^4.0.0",
+    "dompurify": "3.4.17",
+    "gpt-tokenizer": "^4.0.3",
     "marked": "^15",
     "turndown": "^7.2"
   }
