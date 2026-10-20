@@ -1,15 +1,26 @@
 //! The document a launch or the OS asks AgentEd to open (R-C11).
 //!
-//! Two routes bring one. On every platform the command line: a `.md` path
-//! in `argv` at start-up, which is how Windows and Linux open a file from
+//! Two routes bring one. On every platform the command line: a path in
+//! `argv` at start-up, which is how Windows and Linux open a file from
 //! the file manager. On macOS an Apple event instead: Finder, Open With and
 //! `open -a` send no argument, and Tauri delivers the file as
 //! `RunEvent::Opened`, at start-up and again whenever one is opened while
 //! AgentEd runs, since LaunchServices hands it to the running instance.
 //!
 //! Either way the path reaches the page as the `file-open` event, which
-//! `src/platform/file-open.ts` listens to and hands to `openFilePath`, so a
-//! file arriving while a document is open meets the unsaved-changes gate.
+//! `src/platform/file-open.ts` listens to and `src/app/file-association.ts`
+//! hands to `openFilePath`, so a file arriving while a document is open
+//! meets the unsaved-changes gate.
+//!
+//! **Every path is handed over, markdown or not** (#636). Whether a file is
+//! a markdown document is asked in the page, of `isMarkdownPath` in
+//! `src/platform/paths.ts`, the rule the files panel and the Open pickers
+//! follow; a file it refuses is said there, in the words of the other
+//! refusals of an open. This side kept a rule of its own until #636, `.md`
+//! alone and case and all, and dropped every other path without a word, so
+//! `NOTES.MD` or `notes.markdown` opened from the file manager gave an
+//! empty window. Holding no list here is what keeps the two from drifting
+//! apart again.
 //!
 //! **A path that arrives before the page listens is held, not emitted**
 //! (#541). Measured on a macOS runner: `Opened` arrived at 121 to 319 ms,
@@ -27,23 +38,17 @@ use tauri::{AppHandle, Emitter, Manager};
 #[cfg(not(target_os = "macos"))]
 use tauri::State;
 
-/// Only a markdown document is opened, on either route. A name that does
-/// not end in `.md` is ignored, as the command line always did.
-fn is_markdown(path: &str) -> bool {
-    path.ends_with(".md")
-}
-
-/// Extract a file path from CLI arguments (skip the executable name)
+/// The file a command line names: its first argument after the executable
+/// that is not a flag, whatever its name. The page decides whether it opens.
 pub fn extract_file_arg(args: &[String]) -> Option<String> {
     args.iter()
         .skip(1) // skip executable path
         .find(|arg| !arg.starts_with('-')) // skip flags
-        .filter(|path| is_markdown(path))
         .cloned()
 }
 
-/// The markdown files among the URLs of an Apple event, as paths, in the
-/// order of the event.
+/// The files among the URLs of an Apple event, as paths, in the order of
+/// the event, whatever their names. The page decides whether each opens.
 ///
 /// The URL carries the path percent-encoded, a space as `%20`, and Finder
 /// spells a letter such as ș decomposed, measured on #541. `to_file_path`
@@ -52,11 +57,10 @@ pub fn extract_file_arg(args: &[String]) -> Option<String> {
 /// Several files opened at once bring a window each (#559); a window holds
 /// one document (R-C8).
 #[cfg(any(target_os = "macos", test))]
-pub fn markdown_paths_from_urls(urls: &[tauri::Url]) -> Vec<String> {
+pub fn file_paths_from_urls(urls: &[tauri::Url]) -> Vec<String> {
     urls.iter()
         .filter_map(|url| url.to_file_path().ok())
         .filter_map(|path| path.to_str().map(str::to_string))
-        .filter(|path| is_markdown(path))
         .collect()
 }
 
@@ -148,14 +152,36 @@ mod tests {
         list.iter().map(|s| s.to_string()).collect()
     }
 
+    /// The five names of #636, each handed over as it was given: the page
+    /// opens the first four and refuses the last.
+    const NAMES: [&str; 5] = [
+        "notes.md",
+        "NOTES.MD",
+        "notes.markdown",
+        "notes.mkd",
+        "notes.txt",
+    ];
+
     #[test]
-    fn the_command_line_names_the_first_markdown_argument_after_the_flags() {
+    fn the_command_line_names_its_first_argument_after_the_flags() {
         assert_eq!(
-            extract_file_arg(&args(&["agented", "--flag", "/d/a.md"])),
+            extract_file_arg(&args(&["agented", "--flag", "/d/a.md", "/d/b.md"])),
             Some("/d/a.md".to_string())
         );
-        assert_eq!(extract_file_arg(&args(&["agented", "/d/a.txt"])), None);
+        assert_eq!(extract_file_arg(&args(&["agented", "--flag"])), None);
         assert_eq!(extract_file_arg(&args(&["agented"])), None);
+    }
+
+    #[test]
+    fn the_command_line_hands_every_name_over_for_the_page_to_decide() {
+        for name in NAMES {
+            let path = format!("/d/{name}");
+            assert_eq!(
+                extract_file_arg(&args(&["agented", &path])),
+                Some(path.clone()),
+                "{name}"
+            );
+        }
     }
 
     #[test]
@@ -194,27 +220,25 @@ mod tests {
     #[test]
     fn an_apple_event_url_is_read_back_into_its_path() {
         assert_eq!(
-            markdown_paths_from_urls(&urls(&["file:///Users/runner/docs/a.md"])),
+            file_paths_from_urls(&urls(&["file:///Users/runner/docs/a.md"])),
             ["/Users/runner/docs/a.md"]
         );
         assert_eq!(
-            markdown_paths_from_urls(&urls(&["file:///Users/runner/My%20Notes/s%CC%A6.md"])),
+            file_paths_from_urls(&urls(&["file:///Users/runner/My%20Notes/s%CC%A6.md"])),
             ["/Users/runner/My Notes/s\u{326}.md"]
         );
     }
 
     #[cfg(unix)]
     #[test]
-    fn an_apple_event_opens_every_markdown_file_in_order_and_nothing_else() {
-        assert!(markdown_paths_from_urls(&urls(&["file:///d/e.txt"])).is_empty());
-        assert!(markdown_paths_from_urls(&urls(&["https://example.com/a.md"])).is_empty());
-        assert_eq!(
-            markdown_paths_from_urls(&urls(&[
-                "file:///d/e.txt",
-                "file:///d/b.md",
-                "file:///d/c.md"
-            ])),
-            ["/d/b.md", "/d/c.md"]
-        );
+    fn an_apple_event_hands_every_file_over_in_order_and_nothing_else() {
+        assert!(file_paths_from_urls(&urls(&["https://example.com/a.md"])).is_empty());
+        let given: Vec<String> = NAMES
+            .iter()
+            .map(|name| format!("file:///d/{name}"))
+            .collect();
+        let given: Vec<&str> = given.iter().map(String::as_str).collect();
+        let handed: Vec<String> = NAMES.iter().map(|name| format!("/d/{name}")).collect();
+        assert_eq!(file_paths_from_urls(&urls(&given)), handed);
     }
 }

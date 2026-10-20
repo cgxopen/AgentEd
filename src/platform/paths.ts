@@ -167,11 +167,25 @@ export function collapseDotSegments(path: string): string {
  * A pure question about a name: no filesystem access, no platform. Case
  * is folded because a file called `NOTES.MD` is a markdown document on
  * every system this runs on.
+ *
+ * **The only answer AgentEd gives to it** (#636). The launch route asks
+ * it too, in `app/file-association.ts`: the Rust side hands the page every
+ * path it is given and holds no list of its own, so the files panel, the
+ * command line and the file manager cannot drift apart again, as they had
+ * when the launch route took `.md` alone. The Open pickers offer the same
+ * list, and `txt` beside it.
  */
 export function isMarkdownPath(path: string): boolean {
   const lower = path.toLowerCase();
-  return lower.endsWith('.md') || lower.endsWith('.markdown');
+  return MARKDOWN_EXTENSIONS.some((extension) => lower.endsWith(`.${extension}`));
 }
+
+/**
+ * The extensions of a markdown document, without the dot (#636, owner
+ * decision of 2026-10-20). `.mkd` is among them because GitHub reads it as
+ * markdown, and shared-mime-info maps all three to `text/markdown`.
+ */
+export const MARKDOWN_EXTENSIONS: readonly string[] = ['md', 'markdown', 'mkd'];
 
 /**
  * True iff `target` resolves strictly inside `root` after collapsing

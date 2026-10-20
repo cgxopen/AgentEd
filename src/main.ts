@@ -445,7 +445,7 @@ setupWindowReports(ctx.state, header.onFilenameChange, (e) => {
     'Unsaved changes not reported',
   );
 });
-setupFileAssociation(docActions.openFilePath);
+setupFileAssociation(docActions.openFilePath, ctx.reporter);
 // Paste and Match Style chosen from the macOS Edit menu (#558). Asked of the
 // platform name because the question is whether a desktop menu bar exists to
 // send it; the web build has none, as `file-association.ts` asks for its event.
