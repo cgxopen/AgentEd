@@ -1370,10 +1370,10 @@ crelt 1.0.6
   Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin>
   Licence text: 36
 
-dompurify 3.4.16
+dompurify 3.4.17
   Licence: (MPL-2.0 OR Apache-2.0)
   (c) Cure53 and other contributors
-  Source code: https://www.npmjs.com/package/dompurify/v/3.4.16
+  Source code: https://www.npmjs.com/package/dompurify/v/3.4.17
   Licence texts: 27, 18
 
 entities 4.5.0
@@ -1386,7 +1386,7 @@ escape-string-regexp 4.0.0
   Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
   Licence text: 62
 
-gpt-tokenizer 4.0.0
+gpt-tokenizer 4.0.3
   Licence: MIT
   Copyright (c) 2023-2024 Bazyli Brzoska
   Licence text: 13
