@@ -98,6 +98,20 @@ export async function titleBarOverlay(): Promise<TitleBarOverlay | null> {
   return await overlay();
 }
 
+/**
+ * Tell the process the theme is applied, so a window created hidden is shown
+ * now (#639): on Windows the main window is hidden until this arrives, or
+ * until the fallback of `src-tauri/src/window_shown.rs` shows it after 2 s.
+ * Elsewhere the window is visible already and the command changes nothing.
+ * `isTauri` answers only whether there is a process to tell; the web build
+ * has none.
+ */
+export async function showWindowOnceThemed(): Promise<void> {
+  if (!isTauri) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('show_window_themed');
+}
+
 /** The name every desktop bundle installs its third-party notices under (#475, #540). */
 export const THIRD_PARTY_NOTICES_FILE = 'THIRD-PARTY-NOTICES.txt';
 
