@@ -38,9 +38,17 @@ const PALETTE_VALUES: readonly PaletteName[] = ['default', 'paper', 'solarized',
  */
 const PALETTE_BEFORE_379 = 'claude';
 
-export function loadPalettePreference(): PaletteName {
+/**
+ * The palette a person chose, or `null` when **nothing is stored** (#635): then
+ * the theme manager draws Paper Warm in a light mode and Default in a dark one
+ * until a palette is chosen. Only an absent key reads as `null`. A value this
+ * module does not know, and a storage that cannot be read, still read as
+ * Default, as they did before, so no stored value reads otherwise than it did.
+ */
+export function loadPalettePreference(): PaletteName | null {
   try {
     const stored = localStorage.getItem(PALETTE_PREF_KEY);
+    if (stored === null) return null;
     if (stored === PALETTE_BEFORE_379) {
       savePalettePreference('paper');
       return 'paper';

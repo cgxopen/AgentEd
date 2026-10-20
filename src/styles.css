@@ -36,6 +36,9 @@
    */
   --border: #909090;
   --accent: #2563eb;
+  /* The colour of a link in a document (#635): the accent in every palette but
+   * Paper Warm, whose accent is 3.82 to 1 on its page. */
+  --link: var(--accent);
   --muted: #6b7280;
   --surface: #f9fafb;
 
@@ -115,6 +118,13 @@
   --text: #2d1e12;
   --border: #898278;
   --accent: #b8653f;
+  /* **A link colour of its own** (#635, owner decision of 2026-10-20): the
+   * accent is 3.82 to 1 on the page and 2.20 on a selected header cell, below
+   * the 4.5 the text of a link needs. This brown of the accent hue is 7.81 on
+   * the page, 6.98 on `--surface` (a header cell, inline code in a link),
+   * 4.87 and 4.50 on a selected body and header cell, and 5.94 to 6.89 under
+   * the search highlights, so a selected header cell is its lowest ground. */
+  --link: #723e27;
   --muted: #7a6a5a;
   --surface: #efe6d8;
 
@@ -2151,7 +2161,7 @@ button.indicator-search:hover {
 
 /* Links */
 .tiptap a {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: underline;
   cursor: pointer;
 }
@@ -2519,6 +2529,10 @@ button.indicator-search:hover {
   background: var(--hover-overlay-strong);
 }
 
+/* The current level in `--accent`, bold. **Below 4.5 in Paper Warm, recorded
+ * rather than changed** (#635): 3.82 to 1 on the list and 3.50 under the hover
+ * shade. It is the accent itself, not the link colour of a document, so the
+ * repair of links does not reach it. */
 .heading-levels-option[aria-current="true"] {
   font-weight: 600;
   color: var(--accent);

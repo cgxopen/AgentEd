@@ -127,6 +127,15 @@ describe('setupAppearanceMenu — selection apply + persistence', () => {
     expect(isHidden(popover)).toBe(false);
     // Active marker moves to the new choice.
     expect(darkBtn.classList.contains('active')).toBe(true);
+    // #635: with no palette chosen, Dark draws Default and the menu marks it;
+    // the mode was chosen, the palette was not, so none is stored.
+    expect(tm.getPalette()).toBe('default');
+    expect(
+      popover
+        .querySelector('.appearance-palette[data-palette="default"]')
+        ?.classList.contains('active'),
+    ).toBe(true);
+    expect(localStorage.getItem('agented:palette')).toBeNull();
   });
 
   it('applies a Palette choice immediately and persists it', () => {

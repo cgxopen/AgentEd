@@ -40,8 +40,29 @@ describe('theme + palette persistence', () => {
     expect(loadPalettePreference()).toBe('paper');
   });
 
-  it('returns "default" when no palette is stored', () => {
+  // #635: nothing stored is told apart from a choice, so the theme manager can
+  // draw Paper Warm or Default by the mode; nothing else reads otherwise.
+  it('returns null when no palette is stored', () => {
+    expect(loadPalettePreference()).toBeNull();
+  });
+
+  it('still reads a value it does not know as "default", as before #635', () => {
+    localStorage.setItem('agented:palette', 'github');
     expect(loadPalettePreference()).toBe('default');
+  });
+
+  it('still reads "default" when storage cannot be read, as before #635', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('denied');
+      },
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(loadPalettePreference()).toBe('default');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

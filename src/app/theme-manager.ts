@@ -61,18 +61,23 @@ export function missingMode(palette: PaletteName): ResolvedMode | null {
  * waits under a one-mode palette, and the palette left for one with both finds
  * it again.
  *
+ * **While no palette is chosen the mode picks it** (#635): Paper Warm in light,
+ * Default in dark, redrawn when the mode or the system changes, and nothing
+ * stored until a person chooses.
+ *
  * Listeners (menu palette + mode radios) are notified via onChange.
  */
 export class ThemeManager {
   private mode: ThemePreference;
-  private palette: PaletteName;
+  /** The palette chosen, or `null` while none is: then the mode picks it (#635). */
+  private chosen: PaletteName | null;
   private mql: MediaQueryList | null = null;
   private modeListeners: Array<(p: ThemePreference) => void> = [];
   private paletteListeners: Array<(p: PaletteName) => void> = [];
 
   constructor() {
     this.mode = loadThemePreference();
-    this.palette = loadPalettePreference();
+    this.chosen = loadPalettePreference();
     this.apply();
     if (this.mode === 'auto') this.watchSystem();
   }
@@ -81,8 +86,21 @@ export class ThemeManager {
     return this.mode;
   }
 
+  /**
+   * The palette drawn. **While none is chosen** (#635, owner decision of
+   * 2026-10-20), Paper Warm while the mode resolves light and Default while it
+   * resolves dark, so a first launch on a light system is Paper Warm and one on
+   * a dark system is not a light page. Nothing is stored for it: the palette is
+   * stored when a person chooses one, and from then on behaves as before.
+   */
   getPalette(): PaletteName {
-    return this.palette;
+    if (this.chosen !== null) return this.chosen;
+    return this.resolveMode() === 'dark' ? 'default' : 'paper';
+  }
+
+  /** Whether a person has chosen a palette, rather than the mode picking one. */
+  isPaletteChosen(): boolean {
+    return this.chosen !== null;
   }
 
   /**
@@ -92,7 +110,10 @@ export class ThemeManager {
    * it is.
    */
   getEffectiveMode(): ThemePreference {
-    const missing = missingMode(this.palette);
+    // A palette picked by the mode has the mode it was picked for, so no mode
+    // is missing and the stored one is what the page is in.
+    if (this.chosen === null) return this.mode;
+    const missing = missingMode(this.chosen);
     if (missing === null) return this.mode;
     return missing === 'dark' ? 'light' : 'dark';
   }
@@ -104,10 +125,11 @@ export class ThemeManager {
     if (pref === 'auto') this.watchSystem();
     else this.unwatchSystem();
     for (const cb of this.modeListeners) cb(pref);
+    this.notifyPickedPalette();
   }
 
   setPalette(p: PaletteName): void {
-    this.palette = p;
+    this.chosen = p;
     savePalettePreference(p);
     this.apply();
     for (const cb of this.paletteListeners) cb(p);
@@ -132,9 +154,10 @@ export class ThemeManager {
 
   /** Build the `data-theme` attribute value from current mode + palette. */
   private computeDataTheme(): string | null {
-    const themes = PALETTE_THEMES[this.palette];
+    const palette = this.getPalette();
+    const themes = PALETTE_THEMES[palette];
     const wanted = this.resolveMode();
-    const drawn = paletteHasMode(this.palette, wanted) ? wanted : this.otherMode(wanted);
+    const drawn = paletteHasMode(palette, wanted) ? wanted : this.otherMode(wanted);
     return themes[drawn] ?? null;
   }
 
@@ -162,7 +185,16 @@ export class ThemeManager {
     this.mql = null;
   }
 
+  /** While none is chosen the palette follows the mode, so its listeners hear a change of mode. */
+  private notifyPickedPalette(): void {
+    if (this.chosen !== null) return;
+    const palette = this.getPalette();
+    for (const cb of this.paletteListeners) cb(palette);
+  }
+
   private onSystemChange = (): void => {
-    if (this.mode === 'auto') this.apply();
+    if (this.mode !== 'auto') return;
+    this.apply();
+    this.notifyPickedPalette();
   };
 }
