@@ -60,7 +60,7 @@ The Windows installer is in the **~3 MB class**. This refers to the installer do
 
 [Read the full quick start](https://agentedapp.com/quick-start.html).
 
-**Platforms:** Windows is the primary preview platform. Releases contain a Windows installer and, from v0.2.0-preview.4, a macOS preview for Apple Silicon as a `.dmg`; they do not contain Linux packages. Experimental Linux availability and tested distributions will be documented when a build is released.
+**Platforms:** Windows is the primary preview platform. Releases contain a Windows installer, from v0.2.0-preview.4 a macOS preview for Apple Silicon as a `.dmg`, and from the release after v0.2.0-preview.5 an experimental Linux package as a `.deb`, tested on Ubuntu 24.04; see [Linux installation](#linux-installation).
 
 ## Features
 
@@ -119,9 +119,25 @@ The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized 
 4. In the dialog that follows, click **Open Anyway**. The highlighted button in that dialog is **Move to Trash** (**Move to Bin** in British English), which deletes the application.
 5. Enter your password. AgentEd opens, and from then on it opens without asking.
 
+macOS asks again each time AgentEd is installed anew: every new installation opens only after steps 2 to 5 are repeated once for it.
+
 The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
 
 On macOS, a document opened from Finder opens in a window of its own, and **File**, **New Window** (Cmd+Shift+N) opens an empty one. The shortcut hints in the menus name Command, as the table below does.
+
+## Linux installation
+
+Linux builds are **experimental**. They were tested on Ubuntu 24.04 (GNOME, Wayland) in a VirtualBox virtual machine, and on no other distribution.
+
+The release contains a `.deb` package for 64-bit x86 systems. It needs **glibc 2.34** or later and **WebKitGTK 4.1**. The package declares both, so the package manager installs WebKitGTK if it is missing and refuses a system whose glibc is older. Download the package from the release page, check its SHA-256 checksum, then install it from the folder you saved it to:
+
+```sh
+sudo apt install ./AgentEd_*_amd64.deb
+```
+
+AgentEd then appears among your applications. On a stock Ubuntu it also becomes the application that opens Markdown files, since no other installed application declares them; choose another one with **Open With** in the Files app if you prefer. Each file you open gets a window of its own, and a file AgentEd does not open, such as a `.txt` file, says why.
+
+To remove AgentEd, run `sudo apt remove agent-ed`. Your documents are not touched, and the settings AgentEd keeps for itself stay in `~/.local/share/com.agentedapp.editor`; delete that folder too if you want nothing left behind.
 
 ## Keyboard shortcuts
 
@@ -158,6 +174,7 @@ Honest edges, documented rather than discovered:
 - **A file that begins with a line of three hyphens** and has another such line further down opens with everything between them as metadata — the panel at the top — rather than as text. AgentEd never writes a file in this shape itself, so this concerns files written by hand or by another tool. Where the second line of hyphens sits inside a code block, the file opens without that block and the text after it shows as code; saving loses no bytes, but the file keeps opening this way.
 - **Paste as plain text** in the right-click menu behaves like an ordinary paste — Windows hands the page the same content either way, so AgentEd cannot tell them apart. For a literal paste, use `Ctrl+Shift+V`.
 - **Spell check works in one language at a time**, and on Windows that language is the first one in the Windows preferred-languages list (Settings, Language) when the checker has a dictionary for it, and the Windows display language otherwise; the list is read when AgentEd starts, so a change there applies once every AgentEd window has been closed and AgentEd opened again.
+- **Linux was tested in one place only**: Ubuntu 24.04 with GNOME on Wayland, in a virtual machine with 3D acceleration off. Other desktops such as KDE or Xfce, an X11 session and a machine with 3D acceleration on were not tried, and no `.rpm` package is published.
 - **Insert → Metadata** is not part of undo: `Ctrl+Z` does not remove the block it adds. Deleting every field in the panel removes the block as if it had never been there.
 
 ---

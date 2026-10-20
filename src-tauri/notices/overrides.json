@@ -16,6 +16,16 @@
       "texts": ["MIT"],
       "source": "LICENSE.md of github.com/madsmtm/objc2 at tag dispatch2-0.3.1, which carries no copyright line; authors from Cargo.toml; Zlib OR Apache-2.0 OR MIT, taken under MIT"
     },
+    "dlopen2": {
+      "copyright": "Copyright (c) 2017 Szymon Wieloch; Copyright (C) 2019 Ahmed Masud <ahmed.masud@saf.ai>; Copyright (C) 2022 OpenByte <development.openbyte@gmail.com>",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/OpenByteDev/dlopen2 at commit cc80e4a, the commit dlopen2 0.8.2 was published from (its .cargo_vcs_info.json); the crate carries no licence file"
+    },
+    "dlopen2_derive": {
+      "copyright": "Copyright (c) 2017 Szymon Wieloch; Copyright (C) 2019 Ahmed Masud <ahmed.masud@saf.ai>; Copyright (C) 2022 OpenByte <development.openbyte@gmail.com>",
+      "texts": ["MIT"],
+      "source": "LICENSE of github.com/OpenByteDev/dlopen2 at commit cc80e4a, the commit dlopen2_derive 0.4.3 was published from (its .cargo_vcs_info.json); the crate carries no licence file"
+    },
     "objc2": {
       "copyright": "The objc2 authors: Mads Marquart",
       "texts": ["MIT"],

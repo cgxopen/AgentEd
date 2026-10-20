@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 // files and different languages, and reading one of them is the only way to
 // check it against the other.
 import ROUNDTRIP_GUARD from '../../src/editor/roundtrip.test.ts?raw';
+// The floor the Linux packages declare (#550), held against the floor the
+// build checks the binary for.
+import TAURI_LINUX_CONF from '../../src-tauri/tauri.linux.conf.json?raw';
 // The other side of the build-identity contract (#41): the workflows pass the
 // value and this file is what receives it, so the assertion that there is no
 // second source for it belongs beside the assertions about the senders.
@@ -319,13 +322,12 @@ describe('the build matrix says which targets exist at all (#8)', () => {
    * red: an Intel or universal build nobody tested, or a bundle signed by
    * the linker alone. So the line is pinned as decided.
    *
-   * Linux is absent from the release for a different reason and fails the
-   * same quiet way. It builds, and the packages it produces install — what
-   * is missing is a person who has launched one, the file association
-   * section 7 records as not honoured, and a declared distribution floor.
-   * Putting the entry back would attach those packages to a public release
-   * under a table telling users to take the installer for their OS, and
-   * nothing would go red.
+   * Linux is in the release since #550, labelled experimental, as the deb
+   * alone, and fails the same quiet way. An rpm added to the line would
+   * attach a package nobody has installed on an rpm distribution to a public
+   * release (owner decision 4 on #550), and a line moved off ubuntu-22.04
+   * would build against a newer glibc than the floor the deb declares. The
+   * floor check below would catch the second; nothing would catch the first.
    */
   it('builds Linux on every scheduled nightly, not on request', () => {
     expect(NIGHTLY).toContain('"platform\\":\\"ubuntu-22.04\\"');
@@ -368,14 +370,19 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     expect(script).toMatch(/pgrep -f "\$app\/Contents\/MacOS\/"/);
   });
 
-  it('leaves Linux out of the release matrix until it is user-facing', () => {
+  it('builds Linux in the release as the deb alone, on ubuntu-22.04 (#550)', () => {
     const matrixBlock = RELEASE.slice(RELEASE.indexOf('matrix:'), RELEASE.indexOf('runs-on:'));
-    expect(matrixBlock).not.toMatch(/^ +- platform: ubuntu/m);
+    expect(matrixBlock.match(/^ +- platform: ubuntu/gm)).toHaveLength(1);
+    const linux = matrixBlock.match(/^ {10}- platform: ubuntu-22\.04\n(?: {12}.*\n)*/m)?.[0];
+    expect(linux, 'no ubuntu-22.04 line in the release matrix').toBeDefined();
+    expect(linux).toContain("            args: '--bundles deb'\n");
+    expect(linux).toContain("            target: ''\n");
   });
 
-  it('asks Linux for the two bundles it can actually produce', () => {
-    // Nightly only — the release builds no Linux at all, so there is no
-    // bundle list there to assert.
+  it('asks nightly Linux for the deb and the rpm', () => {
+    // The release asks the deb alone (the row above); nightly keeps the rpm,
+    // with the same desktop entry and floor, so a later Fedora test needs
+    // no code (#550, owner decision 4).
     //
     // AppImage is out for what it costs, not because it breaks — it builds
     // on the runner. So dropping this flag would leave nightly **green** and
@@ -391,6 +398,57 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     const linuxEntry = NIGHTLY.match(/^ *entries=.*ubuntu-22\.04.*$/m)?.[0];
     expect(linuxEntry, 'no Linux entry in the nightly matrix').toBeDefined();
     expect(linuxEntry).toContain('--bundles deb,rpm');
+  });
+});
+
+describe('every Linux bundle is checked against the glibc floor it declares (#550)', () => {
+  /**
+   * The deb declares `libc6 (>= 2.34)` and the rpm
+   * `libc.so.6(GLIBC_2.34)(64bit)`, while the binary needs the glibc of the
+   * runner that built it. The floor rides on the ubuntu-22.04 image, and a
+   * build on a newer one would install on an older system and fail at launch.
+   * So every job that builds a Linux bundle reads the highest GLIBC_ symbol
+   * of the binary in the deb, and the floor that step holds is the one the
+   * packages declare. Shown red once on a measurement run with the floor
+   * lowered, as the macOS checks of #555 were.
+   */
+  const NAME = "name: 'Linux: the binary needs no glibc above the declared floor'";
+  // The step up to the blank line that ends it, so the comment of the next
+  // step, which the split of `steps` keeps, is not read as part of it.
+  const check = (source: string) =>
+    steps(source)
+      .find((step) => step.startsWith(`${NAME}\n`))
+      ?.split('\n\n')[0];
+
+  it.each([
+    ['nightly.yml', NIGHTLY, 'Build the bundles'],
+    ['release.yml', RELEASE, 'tauri-apps/tauri-action@'],
+  ] as const)(
+    '%s: after the build, on the Linux line, with its own ceiling',
+    (_f, source, build) => {
+      const all = steps(source);
+      const step = check(source);
+      expect(step, 'no glibc floor step').toBeDefined();
+      const built = all.findIndex((s) => s.includes(build));
+      expect(built).toBeGreaterThan(-1);
+      expect(all.findIndex((s) => s.startsWith(`${NAME}\n`))).toBeGreaterThan(built);
+      expect(step).toMatch(/^ {8}if: matrix\.platform == 'ubuntu-22\.04'$/m);
+      expect(step).toMatch(/^ {8}timeout-minutes: \d+$/m);
+      expect(step).toContain('objdump -T "$RUNNER_TEMP/deb/usr/bin/agented"');
+      expect(step).toContain('grep -qF "libc6 (>= $GLIBC_FLOOR)"');
+    },
+  );
+
+  it('is the same step, byte for byte, in both files', () => {
+    expect(check(RELEASE)).toBe(check(NIGHTLY));
+  });
+
+  it('holds the floor the deb and the rpm declare', () => {
+    const floor = check(NIGHTLY)?.match(/^ {10}GLIBC_FLOOR: '([0-9.]+)'$/m)?.[1];
+    expect(floor).toBe('2.34');
+    const linux = JSON.parse(TAURI_LINUX_CONF).bundle.linux;
+    expect(linux.deb.depends).toContain(`libc6 (>= ${floor})`);
+    expect(linux.rpm.depends).toContain(`libc.so.6(GLIBC_${floor})(64bit)`);
   });
 });
 
