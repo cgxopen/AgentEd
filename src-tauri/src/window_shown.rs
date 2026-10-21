@@ -1,7 +1,11 @@
 //! Issue #639 - on Windows the main window is created hidden and shown once
 //! the page has applied its theme, so no frame in a colour the settings of
 //! the person do not give is ever on screen. Issue #645 - on macOS every
-//! window is, the same way: `main` and each document window of #559.
+//! window is, the same way: `main` and each document window of #559. Each
+//! macOS window is also given the colour of the palette as its background
+//! before it is shown, since a hidden window is not painted and the first
+//! window of a process still flashed white on a real Mac
+//! (`window_background.rs`).
 //!
 //! Measured by the owner on Windows on 2026-10-20, on three installers built
 //! from the same main: as before, the window flashed white at launch; with

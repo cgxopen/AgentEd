@@ -17,6 +17,8 @@ mod main_window;
 #[cfg(test)]
 mod shell_scope;
 mod title_bar;
+#[cfg(any(target_os = "macos", test))]
+mod window_background;
 mod window_shown;
 
 fn main() {
@@ -26,7 +28,9 @@ fn main() {
     // a macOS runner on #559 - opened at 0 ms, setup done at 81 ms - and a
     // registry managed in `setup` was not there for it.
     #[cfg(target_os = "macos")]
-    let builder = builder.manage(macos_windows::DocumentWindows::default());
+    let builder = builder
+        .manage(macos_windows::DocumentWindows::default())
+        .manage(window_background::WindowBackground::default());
     #[cfg(not(target_os = "macos"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
