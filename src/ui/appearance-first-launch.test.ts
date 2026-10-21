@@ -1,9 +1,10 @@
 /**
- * #635 - a first launch, with no palette stored, draws Paper Warm while the
- * mode resolves light and Default while it resolves dark, and the Appearance
- * menu marks the palette drawn (owner decisions of 2026-10-20). A palette the
- * person chooses is stored and behaves as before, so a chosen Paper Warm greys
- * Dark and Auto (#391). And links in Paper Warm have a colour of their own, at
+ * #635 and #642 - a first launch, with no palette stored, draws Paper Warm on
+ * every system (owner decision of 2026-10-21 on #642, replacing the route of
+ * #635 that drew Default on a dark system), and the Appearance menu reads as
+ * for a chosen Paper Warm: Light marked, Dark and Auto greyed (#391). Nothing
+ * is stored by a launch. A palette the person chooses is stored and behaves
+ * as before. And links in Paper Warm have a colour of their own, at
  * 4.5 or more on every ground a link of a document stands on.
  *
  * **Said first: what a window shows is not observable here.** The system mode
@@ -65,8 +66,9 @@ const greyed = () =>
     .map((b) => b.dataset.mode);
 const choose = (palette: PaletteName) =>
   (document.querySelector(`.appearance-palette[data-palette="${palette}"]`) as HTMLElement).click();
-const chooseMode = (mode: ThemePreference) =>
-  (document.querySelector(`.appearance-mode[data-mode="${mode}"]`) as HTMLElement).click();
+const modeButton = (mode: ThemePreference) =>
+  document.querySelector(`.appearance-mode[data-mode="${mode}"]`) as HTMLButtonElement;
+const note = () => document.getElementById('appearance-mode-note')?.textContent;
 const stored = () => [
   localStorage.getItem('agented:palette'),
   localStorage.getItem('agented:theme'),
@@ -84,23 +86,19 @@ afterEach(() => {
   document.documentElement.removeAttribute('data-theme');
 });
 
-describe('a first launch, nothing stored (#635)', () => {
-  it('on a light system: Paper Warm, marked, Auto marked, nothing greyed', () => {
-    launch();
-    expect(theme()).toBe('paper');
-    expect(markedPalette()).toBe('paper');
-    expect(markedMode()).toBe('auto');
-    expect(greyed()).toEqual([]);
-  });
-
-  it('on a dark system: Default dark, Default marked, Auto marked, nothing greyed', () => {
-    system.dark = true;
-    launch();
-    expect(theme()).toBe('dark');
-    expect(markedPalette()).toBe('default');
-    expect(markedMode()).toBe('auto');
-    expect(greyed()).toEqual([]);
-  });
+describe('a first launch, nothing stored (#642)', () => {
+  it.each([false, true])(
+    'on a dark system %s: Paper Warm, Light marked, Dark and Auto greyed',
+    (dark) => {
+      system.dark = dark;
+      launch();
+      expect(theme()).toBe('paper');
+      expect(markedPalette()).toBe('paper');
+      expect(markedMode()).toBe('light');
+      expect(greyed()).toEqual(['dark', 'auto']);
+      expect(note()).toBe('No dark version.');
+    },
+  );
 
   it('stores nothing, on either system and after the system changes', () => {
     launch();
@@ -109,32 +107,40 @@ describe('a first launch, nothing stored (#635)', () => {
   });
 });
 
-describe('the system mode changing while no palette is chosen (#635)', () => {
-  it('light to dark: the page and the menu follow to Default', () => {
+describe('the system mode changing while no palette is chosen (#642)', () => {
+  it.each([false, true])('from a dark system %s: the page and the menu stay Paper Warm', (dark) => {
+    system.dark = dark;
     launch();
-    switchSystem(true);
-    expect(theme()).toBe('dark');
-    expect(markedPalette()).toBe('default');
-  });
-
-  it('dark to light: the page and the menu follow to Paper Warm', () => {
-    system.dark = true;
-    launch();
-    switchSystem(false);
+    switchSystem(!dark);
     expect(theme()).toBe('paper');
     expect(markedPalette()).toBe('paper');
+    expect(markedMode()).toBe('light');
+    expect(stored()).toEqual([null, null]);
   });
 });
 
-describe('a choice made while no palette is chosen (#635)', () => {
-  it('Paper Warm chosen on a dark system: stored, light, Dark and Auto greyed (#391)', () => {
+describe('a choice made while no palette is chosen (#642)', () => {
+  it('Paper Warm chosen on a dark system: stored, and nothing else changes (#391)', () => {
     system.dark = true;
     launch();
     choose('paper');
-    expect(stored()[0]).toBe('paper');
+    expect(stored()).toEqual(['paper', null]);
     expect(theme()).toBe('paper');
     expect(markedMode()).toBe('light');
     expect(greyed()).toEqual(['dark', 'auto']);
+  });
+
+  it('Default chosen on a dark system after a first launch: the page goes dark, Auto marked', () => {
+    system.dark = true;
+    launch();
+    choose('default');
+    expect(stored()).toEqual(['default', null]);
+    expect(theme()).toBe('dark');
+    expect(markedPalette()).toBe('default');
+    expect(markedMode()).toBe('auto');
+    expect(greyed()).toEqual([]);
+    switchSystem(false);
+    expect(theme()).toBeNull();
   });
 
   it('Default chosen on a light system: stored, and Auto then follows the system', () => {
@@ -147,12 +153,11 @@ describe('a choice made while no palette is chosen (#635)', () => {
     expect(markedPalette()).toBe('default');
   });
 
-  it('Dark chosen as a mode: Default drawn and marked, the mode stored and no palette', () => {
+  it('Dark cannot be chosen as a mode while nothing is chosen: it is greyed', () => {
+    system.dark = true;
     launch();
-    chooseMode('dark');
-    expect(theme()).toBe('dark');
-    expect(markedPalette()).toBe('default');
-    expect(stored()).toEqual([null, 'dark']);
+    expect(modeButton('dark').disabled).toBe(true);
+    expect(modeButton('auto').disabled).toBe(true);
   });
 });
 

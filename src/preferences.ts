@@ -40,8 +40,8 @@ const PALETTE_BEFORE_379 = 'claude';
 
 /**
  * The palette a person chose, or `null` when **nothing is stored** (#635): then
- * the theme manager draws Paper Warm in a light mode and Default in a dark one
- * until a palette is chosen. Only an absent key reads as `null`. A value this
+ * the theme manager draws Paper Warm, on every system (#642), until a palette
+ * is chosen. Only an absent key reads as `null`. A value this
  * module does not know, and a storage that cannot be read, still read as
  * Default, as they did before, so no stored value reads otherwise than it did.
  */

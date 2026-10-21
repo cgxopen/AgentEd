@@ -165,11 +165,10 @@ export function setupAppearanceMenu(themeManager: ThemeManager): AppearanceMenu 
    */
   function refresh(): void {
     const mode = themeManager.getEffectiveMode();
-    // The palette drawn is marked, chosen or not (#635). One the mode picked
-    // has the mode it was picked for, so nothing is greyed until a palette is
-    // chosen; a chosen Paper Warm greys Dark and Auto as before (#391).
+    // The palette drawn is marked, chosen or not (#635), and greys the mode
+    // it lacks either way: a Paper Warm nobody chose is a Paper Warm (#642).
     const palette = themeManager.getPalette();
-    const missing = themeManager.isPaletteChosen() ? missingMode(palette) : null;
+    const missing = missingMode(palette);
     for (const [value, el] of modeButtons) {
       el.classList.toggle('active', value === mode);
       el.disabled = missing !== null && value !== mode;

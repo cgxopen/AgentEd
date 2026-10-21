@@ -113,6 +113,9 @@ describe('setupAppearanceMenu — selection apply + persistence', () => {
   });
 
   it('applies a Mode choice immediately and persists it', () => {
+    // A palette with a dark version: with nothing stored the palette is Paper
+    // Warm, which greys Dark (#642), held in `appearance-first-launch.test.ts`.
+    localStorage.setItem('agented:palette', 'default');
     const { button, popover } = mount();
     const tm = new ThemeManager();
     setupAppearanceMenu(tm);
@@ -127,15 +130,8 @@ describe('setupAppearanceMenu — selection apply + persistence', () => {
     expect(isHidden(popover)).toBe(false);
     // Active marker moves to the new choice.
     expect(darkBtn.classList.contains('active')).toBe(true);
-    // #635: with no palette chosen, Dark draws Default and the menu marks it;
-    // the mode was chosen, the palette was not, so none is stored.
-    expect(tm.getPalette()).toBe('default');
-    expect(
-      popover
-        .querySelector('.appearance-palette[data-palette="default"]')
-        ?.classList.contains('active'),
-    ).toBe(true);
-    expect(localStorage.getItem('agented:palette')).toBeNull();
+    // The palette stored is the one the test stored, untouched by a mode.
+    expect(localStorage.getItem('agented:palette')).toBe('default');
   });
 
   it('applies a Palette choice immediately and persists it', () => {
