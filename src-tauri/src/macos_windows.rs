@@ -14,6 +14,9 @@
 //! - **A quit** asks the windows holding unsaved changes one at a time, the
 //!   one in front first, and stops at the first Cancel; with nothing unsaved
 //!   anywhere it is approved to macOS at once, so a logout goes on.
+//! - **Every window is created hidden** and shown by its page once the theme
+//!   is applied (#645, `window_shown.rs`); `show_after_fallback` shows it
+//!   anyway after `FALLBACK`, for `main` and for each window built here.
 //!
 //! Each page learns that it is one of several from the `window-coordination`
 //! event, sent to it once it has asked for its document. From then on it
@@ -56,6 +59,10 @@ fn registry(app: &AppHandle) -> MutexGuard<'_, Registry> {
 /// `main.rs`, since the document of a cold start can reach it before this.
 pub fn install(app: &App) {
     registry(app.handle()).add(MAIN_WINDOW);
+    match app.get_webview_window(MAIN_WINDOW) {
+        Some(window) => show_after_fallback(window),
+        None => eprintln!("macos_windows: no window {MAIN_WINDOW} to show after the fallback"),
+    }
     if let Err(e) = extend_default_menu(app) {
         eprintln!("macos_windows: the menu items of AgentEd were not added: {e}");
     }
@@ -136,10 +143,35 @@ fn build(app: &AppHandle, label: &str) {
     let built = WebviewWindowBuilder::from_config(app, &config)
         .map(|builder| builder.position(x, y))
         .and_then(|builder| builder.build());
-    if let Err(e) = built {
-        eprintln!("macos_windows: window {label} was not built: {e}");
-        registry(app).remove(label);
+    match built {
+        Ok(window) => show_after_fallback(window),
+        Err(e) => {
+            eprintln!("macos_windows: window {label} was not built: {e}");
+            registry(app).remove(label);
+        }
     }
+}
+
+/// The window is created hidden and its page shows it once its theme is
+/// applied (#645, `window_shown.rs`). If the page has not after `FALLBACK`,
+/// the window is shown here, so a page that fails still opens one. The same
+/// wait as `show_after_fallback` of `main_window.rs` on Windows, kept apart
+/// so the Windows module, and the Windows pass, are not touched; a window
+/// that cannot be shown is said on stderr, as the rest of this module says
+/// its failures.
+fn show_after_fallback(window: WebviewWindow) {
+    std::thread::spawn(move || {
+        std::thread::sleep(crate::window_shown::FALLBACK);
+        if window.is_visible().unwrap_or(false) {
+            return;
+        }
+        if let Err(e) = window.show() {
+            eprintln!(
+                "macos_windows: {} not shown after the fallback: {e}",
+                window.label()
+            );
+        }
+    });
 }
 
 /// Where the window `label` sits, in points: down and right of the top

@@ -1,6 +1,7 @@
 //! Issue #639 - on Windows the main window is created hidden and shown once
 //! the page has applied its theme, so no frame in a colour the settings of
-//! the person do not give is ever on screen.
+//! the person do not give is ever on screen. Issue #645 - on macOS every
+//! window is, the same way: `main` and each document window of #559.
 //!
 //! Measured by the owner on Windows on 2026-10-20, on three installers built
 //! from the same main: as before, the window flashed white at launch; with
@@ -11,17 +12,20 @@
 //! slower.
 //!
 //! The page asks for the window with `show_window_themed`, right after the
-//! theme manager has set `data-theme`. If that never arrives, `main_window`
+//! theme manager has set `data-theme`. If that never arrives, the process
 //! shows the window anyway after `FALLBACK`, so a page that fails still opens
-//! a window. Only the Windows description of the window is hidden
-//! (`tauri.windows.conf.json`); on macOS and Linux the window is visible from
-//! its creation, as before, and the command shows a window already shown.
+//! a window: `main_window` on Windows, and `macos_windows` on macOS for
+//! `main` and for every window it builds from the same description. The
+//! Windows and the macOS descriptions of the window are hidden
+//! (`tauri.windows.conf.json`, `tauri.macos.conf.json`); on Linux the window
+//! is visible from its creation, as before, and the command shows a window
+//! already shown.
 
 use std::time::Duration;
 
-/// How long `main_window` waits for the page before it shows the window
+/// How long the process waits for the page before it shows the window
 /// itself: the bound of Q2, which asks AgentEd to open in under about 2 s.
-#[cfg_attr(not(windows), allow(dead_code))]
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub const FALLBACK: Duration = Duration::from_millis(2000);
 
 /// The page has applied its theme: show the window that asked.
