@@ -137,7 +137,7 @@ sudo apt install ./AgentEd_*_amd64.deb
 
 AgentEd then appears among your applications. On a stock Ubuntu it also becomes the application that opens Markdown files, since no other installed application declares them; choose another one with **Open With** in the Files app if you prefer. Each file you open gets a window of its own, and a file AgentEd does not open, such as a `.txt` file, says why.
 
-To remove AgentEd, run `sudo apt remove agent-ed`. Your documents are not touched, and the settings AgentEd keeps for itself stay in `~/.local/share/com.agentedapp.editor`; delete that folder too if you want nothing left behind.
+To remove AgentEd, run `sudo apt remove agent-ed`. Your documents are not touched, and the settings AgentEd keeps for itself stay in `~/.local/share/com.agentedapp.editor` and `~/.config/com.agentedapp.editor`; delete those two folders too if you want nothing left behind.
 
 ## Keyboard shortcuts
 

@@ -9,14 +9,9 @@ import type { AppState } from './state';
  * document never edited, which a document opened from Finder takes instead
  * of a new window (owner decision on #559).
  *
- * It also reports the colour of its page, which the process draws behind
- * every window it shows next, so a window is in the palette before its page
- * has painted (#645). That colour changes with the theme, so the report is
- * sent again whenever `data-theme` on `<html>` changes, a change of the
- * system under Auto included.
- *
- * Reported at once and again whenever the name, the unsaved mark or the
- * theme changes.
+ * Reported at once and again whenever the name or the unsaved mark
+ * changes. The colour of the page reaches the process on its own, on every
+ * platform (`page-colour.ts`, #648).
  * Nothing is reported on Windows or Linux, where the process never says the
  * window is one of several (`platform/window-coordination.ts`).
  *
@@ -30,7 +25,6 @@ export function setupWindowReports(
   state: AppState,
   onFilenameChange: (cb: (name: string) => void) => void,
   showFailure: (error: unknown) => void,
-  page: PageColour = documentPageColour,
 ): void {
   let name = 'Untitled';
   let failed = false;
@@ -40,7 +34,6 @@ export function setupWindowReports(
       title: name,
       unsaved: state.modified,
       untouched: state.filePath === null && !state.modified,
-      background: page.read(),
     }).catch((e: unknown) => {
       console.error('[window-reports] report failed:', e);
       if (failed) return;
@@ -56,23 +49,5 @@ export function setupWindowReports(
     report();
   });
   state.onModifiedChange(() => report());
-  page.onChange(() => report());
   onCoordinated(report);
 }
-
-/** Where the colour of the page is read, and told when it may have changed. */
-export interface PageColour {
-  read(): string;
-  onChange(cb: () => void): void;
-}
-
-/** The page of this document: `--bg` on `<html>`, which `data-theme` sets. */
-export const documentPageColour: PageColour = {
-  read: () => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
-  onChange: (cb) => {
-    new MutationObserver(cb).observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme'],
-    });
-  },
-};

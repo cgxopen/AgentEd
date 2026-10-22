@@ -64,7 +64,7 @@ pub fn install(app: &App) {
     match app.get_webview_window(MAIN_WINDOW) {
         Some(window) => {
             crate::window_background::paint(app.handle(), &window);
-            show_after_fallback(window);
+            crate::window_shown::show_after_fallback(window);
         }
         None => eprintln!("macos_windows: no window {MAIN_WINDOW} to show after the fallback"),
     }
@@ -151,35 +151,13 @@ fn build(app: &AppHandle, label: &str) {
     match built {
         Ok(window) => {
             crate::window_background::paint(app, &window);
-            show_after_fallback(window);
+            crate::window_shown::show_after_fallback(window);
         }
         Err(e) => {
             eprintln!("macos_windows: window {label} was not built: {e}");
             registry(app).remove(label);
         }
     }
-}
-
-/// The window is created hidden and its page shows it once its theme is
-/// applied (#645, `window_shown.rs`). If the page has not after `FALLBACK`,
-/// the window is shown here, so a page that fails still opens one. The same
-/// wait as `show_after_fallback` of `main_window.rs` on Windows, kept apart
-/// so the Windows module, and the Windows pass, are not touched; a window
-/// that cannot be shown is said on stderr, as the rest of this module says
-/// its failures.
-fn show_after_fallback(window: WebviewWindow) {
-    std::thread::spawn(move || {
-        std::thread::sleep(crate::window_shown::FALLBACK);
-        if window.is_visible().unwrap_or(false) {
-            return;
-        }
-        if let Err(e) = window.show() {
-            eprintln!(
-                "macos_windows: {} not shown after the fallback: {e}",
-                window.label()
-            );
-        }
-    });
 }
 
 /// Where the window `label` sits, in points: down and right of the top
@@ -249,9 +227,8 @@ pub fn take_pending(app: &AppHandle, window: &WebviewWindow) -> Option<String> {
 }
 
 /// What a page says about its document. The window takes the document name
-/// as its title, which the Window menu and the Dock list; the colour of the
-/// page is kept for the next window to be drawn in (#645,
-/// `window_background.rs`).
+/// as its title, which the Window menu and the Dock list. The colour of the
+/// page reaches the process on its own, `keep_page_colour` (#648).
 #[tauri::command]
 pub fn report_window_state(
     app: AppHandle,
@@ -259,12 +236,8 @@ pub fn report_window_state(
     title: String,
     unsaved: bool,
     untouched: bool,
-    background: Option<String>,
 ) {
     registry(&app).report(window.label(), unsaved, untouched);
-    if let Some(colour) = background {
-        crate::window_background::remember(&app, &colour);
-    }
     if let Err(e) = window.set_title(&title) {
         eprintln!("macos_windows: title of {} not set: {e}", window.label());
     }

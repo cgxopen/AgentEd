@@ -1,24 +1,30 @@
 //! Issue #645 - on macOS each window is drawn in the colour of the palette
-//! from the moment it is shown, before its page has painted.
+//! from the moment it is shown, before its page has painted. Issue #648 - on
+//! Linux the same.
 //!
-//! Every macOS window is created hidden and shown once its page has applied
-//! its theme (`window_shown.rs`). On a real Mac the first window of a process
-//! still showed white for a moment (owner pass on #646): WebKit paints nothing
-//! while a window is hidden, so that window came on screen before its page
-//! had painted, and what showed was the default white of the window and of
-//! the web view. Windows made while AgentEd runs did not flash.
+//! Every macOS and Linux window is created hidden and shown once its page has
+//! applied its theme (`window_shown.rs`). A hidden window is not painted, so
+//! the first window of a process came on screen before its page had painted:
+//! white on a real Mac (owner pass on #646), and under Xvfb on Linux the grey
+//! of the GTK window, then the white of the WebKitGTK web view (#648).
 //!
 //! So the process keeps the colour of the page, `--bg`, which the page of
-//! every macOS window reports with its state (`report_window_state`) and
-//! again whenever its theme changes. The last colour is kept in a file of the
+//! every window reports with `keep_page_colour` when its theme is applied and
+//! again whenever it changes. The last colour is kept in a file of the
 //! configuration folder of AgentEd, never beside a document. Before a window
 //! is shown, `paint` sets that colour as its background. On macOS
 //! `set_background_color` colours the window and stops the web view from
-//! drawing its white, so until the page paints the window shows the palette.
-//! With nothing kept yet it is the colour of Paper Warm, the palette of a
-//! launch with nothing stored (#642).
+//! drawing its white; on Linux it colours the GTK window through its CSS
+//! provider and the WebKitGTK web view. So until the page paints the window
+//! shows the palette. With nothing kept yet it is the colour of Paper Warm,
+//! the palette of a launch with nothing stored (#642).
 //!
-//! Compiled on macOS, and for the tests of the pure parts everywhere.
+//! A kept colour that disagrees with the stored palette, as after storage was
+//! cleared by hand, shows until the page paints, and the next report corrects
+//! it.
+//!
+//! Compiled on macOS and Linux, and for the tests of the pure parts
+//! everywhere.
 
 use std::sync::Mutex;
 
@@ -29,7 +35,7 @@ pub const PAPER_WARM: &str = "#f7f3ed";
 
 /// The name of the file, in the configuration folder of AgentEd, that holds
 /// the last colour a page reported.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
 const FILE_NAME: &str = "window-background";
 
 /// A colour as the page reports it, `#rrggbb` or `#rgb` in lower or upper
@@ -54,7 +60,7 @@ pub fn parse(text: &str) -> Option<(u8, u8, u8)> {
 }
 
 /// A colour in the one form it is kept in, `#rrggbb` in lower case.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
 fn normal(text: &str) -> Option<String> {
     parse(text).map(|(r, g, b)| format!("#{r:02x}{g:02x}{b:02x}"))
 }
@@ -62,10 +68,10 @@ fn normal(text: &str) -> Option<String> {
 /// The last colour a page reported, read from its file the first time it is
 /// needed. `None` until then.
 #[derive(Default)]
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", target_os = "linux")), allow(dead_code))]
 pub struct WindowBackground(Mutex<Option<String>>);
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 mod process {
     use super::{normal, parse, WindowBackground, FILE_NAME, PAPER_WARM};
     use std::path::PathBuf;
@@ -90,7 +96,17 @@ mod process {
         // A panic while this was held aborts the process (`panic = "abort"`).
         let mut guard = state.inner().0.lock().unwrap_or_else(|e| e.into_inner());
         if guard.is_none() {
-            let read = file(app).and_then(|path| std::fs::read_to_string(path).ok());
+            let read = file(app).and_then(|path| match std::fs::read_to_string(&path) {
+                Ok(text) => Some(text),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                Err(e) => {
+                    eprintln!(
+                        "window_background: {} not read, Paper Warm used: {e}",
+                        path.display()
+                    );
+                    None
+                }
+            });
             let colour = read.as_deref().and_then(normal);
             *guard = Some(colour.unwrap_or_else(|| PAPER_WARM.to_string()));
         }
@@ -138,7 +154,7 @@ mod process {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub use process::{paint, remember};
 
 #[cfg(test)]

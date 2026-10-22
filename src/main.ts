@@ -14,6 +14,7 @@ import { setupKeyboard } from './app/keyboard';
 import { type LinkDialog, linkAvailability, setupLinkDialog } from './app/link-dialog';
 import { installLinkOpener } from './app/link-open';
 import { insertMedia } from './app/media-picker';
+import { setupPageColour } from './app/page-colour';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
 import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
@@ -80,6 +81,8 @@ const themeManager = new ThemeManager();
 // The theme is on `<html>` now, so the window may be seen (#639). A failure
 // leaves the fallback of the process to show it after 2 s.
 showWindowOnceThemed().catch(console.error);
+// The colour of the page, for the next window the process draws (#648).
+setupPageColour();
 
 // Phase 2 — header DOM wiring. Produces helpers we stash onto ctx so
 // downstream consumers don't need a separate import for them.

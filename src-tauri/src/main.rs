@@ -17,7 +17,7 @@ mod main_window;
 #[cfg(test)]
 mod shell_scope;
 mod title_bar;
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod window_background;
 mod window_shown;
 
@@ -31,11 +31,15 @@ fn main() {
     let builder = builder
         .manage(macos_windows::DocumentWindows::default())
         .manage(window_background::WindowBackground::default());
+    // The colour a Linux window is drawn in before its page paints (#648).
+    #[cfg(target_os = "linux")]
+    let builder = builder.manage(window_background::WindowBackground::default());
     #[cfg(not(target_os = "macos"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
         title_bar::title_bar_overlay,
-        window_shown::show_window_themed
+        window_shown::show_window_themed,
+        window_shown::keep_page_colour
     ]);
     // Several document windows report to the process on macOS (#559).
     #[cfg(target_os = "macos")]
@@ -44,7 +48,8 @@ fn main() {
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
         title_bar::title_bar_overlay,
-        window_shown::show_window_themed
+        window_shown::show_window_themed,
+        window_shown::keep_page_colour
     ]);
     let app = builder
         .plugin(tauri_plugin_dialog::init())
@@ -64,6 +69,21 @@ fn main() {
             {
                 macos_windows::install(app);
                 macos_quit::install(app);
+            }
+
+            // The Linux window, built hidden by Tauri from its description,
+            // is drawn in the kept colour of the palette and shown when its
+            // page asks, or after the fallback (#648).
+            #[cfg(target_os = "linux")]
+            {
+                use tauri::Manager;
+                match app.get_webview_window("main") {
+                    Some(window) => {
+                        window_background::paint(app.handle(), &window);
+                        window_shown::show_after_fallback(window);
+                    }
+                    None => eprintln!("setup: no window main to show after the fallback"),
+                }
             }
 
             // Cold start: a file named on the command line waits for the
@@ -140,8 +160,8 @@ mod tests {
     /// So the two window objects are held equal here, apart from three keys.
     ///
     /// `visible: false` keeps the window hidden until the page has applied
-    /// its theme (#639, `window_shown.rs`); in the base file it would hide
-    /// the window of Linux, where nothing shows it after a bound.
+    /// its theme (#639, `window_shown.rs`). Each platform file sets it for
+    /// its own window, Linux since #648, so the base leaves it out.
     ///
     /// `create: false` hands the window to `main_window`, which builds it
     /// from this same description with the spell-check language added. Lost
@@ -169,7 +189,7 @@ mod tests {
         assert_eq!(own_windows[0], expected);
         assert!(
             base_windows[0].get("visible").is_none(),
-            "the base shows the window on Linux from its creation (#639, #645)"
+            "each platform file hides its own window; the base leaves `visible` out (#639, #645, #648)"
         );
         assert!(
             base_windows[0].get("decorations").is_none(),
@@ -260,6 +280,42 @@ mod tests {
                 "core:window:allow-internal-toggle-maximize"
             ])
         );
+    }
+
+    /// Issue #648 - the Linux window is the base window hidden until its page
+    /// has applied its theme, and nothing else.
+    ///
+    /// The same Merge Patch as on Windows and macOS: `tauri.linux.conf.json`
+    /// restates `app.windows` in full to set one key, so the two objects are
+    /// held equal here apart from it, and a minimum size or the #65 line
+    /// changed in one file and not the other turns this red. `main.rs` paints
+    /// the window in the kept colour and arms the fallback of
+    /// `window_shown.rs`, so a page that never asks still opens it.
+    #[test]
+    fn the_linux_window_is_the_base_window_hidden_until_its_theme() {
+        let base: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
+            .expect("tauri.conf.json should parse");
+        let linux: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.linux.conf.json"))
+                .expect("tauri.linux.conf.json should parse");
+
+        let base_windows = base["app"]["windows"].as_array().expect("base windows");
+        let own_windows = linux["app"]["windows"].as_array().expect("Linux windows");
+        assert_eq!(own_windows.len(), base_windows.len(), "one window each");
+
+        let mut expected = base_windows[0].clone();
+        expected["visible"] = serde_json::Value::Bool(false);
+        assert_eq!(own_windows[0], expected);
+
+        // The Linux file holds the window and its bundle, nothing else.
+        let keys: Vec<&String> = linux.as_object().expect("an object").keys().collect();
+        assert_eq!(keys, ["app", "bundle"]);
+        let app: Vec<&String> = linux["app"]
+            .as_object()
+            .expect("an object")
+            .keys()
+            .collect();
+        assert_eq!(app, ["windows"]);
     }
 
     /// Issue #249, decision 4 of #220 - `svg` is not in the shell `open`

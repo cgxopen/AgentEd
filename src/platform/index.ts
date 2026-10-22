@@ -113,6 +113,19 @@ export async function showWindowOnceThemed(): Promise<void> {
   await invoke('show_window_themed');
 }
 
+/**
+ * Tell the process the colour of the page, `--bg`, so the next window it
+ * shows is drawn in it before its page paints (#645, #648): on macOS and
+ * Linux the process keeps it, `src-tauri/src/window_background.rs`, and on
+ * Windows it is answered and changes nothing. `isTauri` answers only whether
+ * there is a process to tell; the web build has none.
+ */
+export async function keepPageColour(colour: string): Promise<void> {
+  if (!isTauri) return;
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('keep_page_colour', { colour });
+}
+
 /** The name every desktop bundle installs its third-party notices under (#475, #540). */
 export const THIRD_PARTY_NOTICES_FILE = 'THIRD-PARTY-NOTICES.txt';
 

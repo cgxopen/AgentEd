@@ -14,10 +14,7 @@ vi.mock('../platform/window-coordination', () => ({
 }));
 
 const { AppState } = await import('./state');
-const { documentPageColour, setupWindowReports } = await import('./window-reports');
-
-let pageColour = '#f7f3ed';
-const themeListeners: Array<() => void> = [];
+const { setupWindowReports } = await import('./window-reports');
 
 function wire(): {
   state: InstanceType<typeof AppState>;
@@ -27,10 +24,7 @@ function wire(): {
   const state = new AppState();
   const listeners: Array<(name: string) => void> = [];
   const showFailure = vi.fn();
-  setupWindowReports(state, (cb) => listeners.push(cb), showFailure, {
-    read: () => pageColour,
-    onChange: (cb) => themeListeners.push(cb),
-  });
+  setupWindowReports(state, (cb) => listeners.push(cb), showFailure);
   const rename = (name: string): void => {
     for (const cb of listeners) cb(name);
   };
@@ -40,8 +34,6 @@ function wire(): {
 beforeEach(() => {
   reports.length = 0;
   starters.length = 0;
-  themeListeners.length = 0;
-  pageColour = '#f7f3ed';
   failNext = false;
 });
 
@@ -50,12 +42,7 @@ describe('what a window reports once it is one of several (#559)', () => {
     wire();
     for (const start of starters) start();
     await vi.waitFor(() => expect(reports).toHaveLength(1));
-    expect(reports[0]).toEqual({
-      title: 'Untitled',
-      unsaved: false,
-      untouched: true,
-      background: '#f7f3ed',
-    });
+    expect(reports[0]).toEqual({ title: 'Untitled', unsaved: false, untouched: true });
   });
 
   it('reports again when the document is named and when it changes', async () => {
@@ -65,8 +52,8 @@ describe('what a window reports once it is one of several (#559)', () => {
     rename('a.md');
     state.setModified(true);
     await vi.waitFor(() => expect(reports).toHaveLength(3));
-    expect(reports[1]).toMatchObject({ title: 'a.md', unsaved: false, untouched: false });
-    expect(reports[2]).toMatchObject({ title: 'a.md', unsaved: true, untouched: false });
+    expect(reports[1]).toEqual({ title: 'a.md', unsaved: false, untouched: false });
+    expect(reports[2]).toEqual({ title: 'a.md', unsaved: true, untouched: false });
   });
 
   it('an Untitled document with typed text is not untouched', async () => {
@@ -87,37 +74,5 @@ describe('what a window reports once it is one of several (#559)', () => {
     await vi.waitFor(() => expect(showFailure).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 0));
     expect(showFailure).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('the colour of the page, for the next window the process shows (#645)', () => {
-  it('a report carries the page colour as the stylesheet resolves it', async () => {
-    pageColour = '#000000';
-    wire();
-    for (const start of starters) start();
-    await vi.waitFor(() => expect(reports).toHaveLength(1));
-    expect(reports[0]?.background).toBe('#000000');
-  });
-
-  it('a change of theme is reported again with the new colour', async () => {
-    wire();
-    for (const start of starters) start();
-    await vi.waitFor(() => expect(reports).toHaveLength(1));
-    pageColour = '#1a1a1a';
-    for (const cb of themeListeners) cb();
-    await vi.waitFor(() => expect(reports).toHaveLength(2));
-    expect(reports[1]?.background).toBe('#1a1a1a');
-  });
-
-  it('the page colour is --bg on <html>, and a change of data-theme is told', async () => {
-    const root = document.documentElement;
-    root.style.setProperty('--bg', '#123456');
-    expect(documentPageColour.read()).toBe('#123456');
-    const told = vi.fn();
-    documentPageColour.onChange(told);
-    root.setAttribute('data-theme', 'oled');
-    await vi.waitFor(() => expect(told).toHaveBeenCalled());
-    root.style.removeProperty('--bg');
-    root.removeAttribute('data-theme');
   });
 });
