@@ -32,15 +32,31 @@ pub const PAPER_WARM: &str = "#f7f3ed";
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 const FILE_NAME: &str = "window-background";
 
-/// A colour as the page reports it, `#rrggbb` in lower or upper case, or
-/// `None` for anything else, which is not kept.
+/// A colour as the page reports it, `#rrggbb` or `#rgb` in lower or upper
+/// case, or `None` for anything else, which is not kept.
+///
+/// The short form is what the page reports for OLED Black and Default Light:
+/// the build minifies the stylesheet, so `#000000` reaches the page as
+/// `#000` and `#ffffff` as `#fff`. Seen on a Mac on #645, where `#000` was
+/// refused and nothing was kept.
 pub fn parse(text: &str) -> Option<(u8, u8, u8)> {
     let hex = text.trim().strip_prefix('#')?;
-    if hex.len() != 6 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
         return None;
     }
-    let byte = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
-    Some((byte(0)?, byte(2)?, byte(4)?))
+    let digit = |i: usize| u8::from_str_radix(&hex[i..=i], 16).ok();
+    let pair = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok();
+    match hex.len() {
+        3 => Some((digit(0)? * 17, digit(1)? * 17, digit(2)? * 17)),
+        6 => Some((pair(0)?, pair(2)?, pair(4)?)),
+        _ => None,
+    }
+}
+
+/// A colour in the one form it is kept in, `#rrggbb` in lower case.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+fn normal(text: &str) -> Option<String> {
+    parse(text).map(|(r, g, b)| format!("#{r:02x}{g:02x}{b:02x}"))
 }
 
 /// The last colour a page reported, read from its file the first time it is
@@ -51,7 +67,7 @@ pub struct WindowBackground(Mutex<Option<String>>);
 
 #[cfg(target_os = "macos")]
 mod process {
-    use super::{parse, WindowBackground, FILE_NAME, PAPER_WARM};
+    use super::{normal, parse, WindowBackground, FILE_NAME, PAPER_WARM};
     use std::path::PathBuf;
     use std::sync::MutexGuard;
     use tauri::window::Color;
@@ -75,10 +91,7 @@ mod process {
         let mut guard = state.inner().0.lock().unwrap_or_else(|e| e.into_inner());
         if guard.is_none() {
             let read = file(app).and_then(|path| std::fs::read_to_string(path).ok());
-            let colour = read
-                .as_deref()
-                .filter(|text| parse(text).is_some())
-                .map(|text| text.trim().to_string());
+            let colour = read.as_deref().and_then(normal);
             *guard = Some(colour.unwrap_or_else(|| PAPER_WARM.to_string()));
         }
         guard
@@ -101,10 +114,9 @@ mod process {
     /// A page reported its colour. Kept, and written to the file, when it is
     /// a colour and differs from the one kept.
     pub fn remember(app: &AppHandle, colour: &str) {
-        if parse(colour).is_none() {
+        let Some(colour) = normal(colour) else {
             return;
-        }
-        let colour = colour.trim().to_lowercase();
+        };
         {
             let mut guard = kept(app);
             if guard.as_deref() == Some(colour.as_str()) {
@@ -134,12 +146,56 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_colour_is_six_hex_digits_after_a_hash() {
+    fn a_colour_is_six_or_three_hex_digits_after_a_hash() {
         assert_eq!(parse("#f7f3ed"), Some((0xf7, 0xf3, 0xed)));
         assert_eq!(parse(" #000000\n"), Some((0, 0, 0)));
         assert_eq!(parse("#FDF6E3"), Some((0xfd, 0xf6, 0xe3)));
-        for text in ["", "#fff", "f7f3ed", "#f7f3edff", "#g7f3ed", "rgb(0, 0, 0)"] {
+        assert_eq!(parse("#000"), Some((0, 0, 0)));
+        assert_eq!(parse("#fff"), Some((255, 255, 255)));
+        assert_eq!(parse("#1A2"), Some((0x11, 0xaa, 0x22)));
+        for text in [
+            "",
+            "#ff",
+            "f7f3ed",
+            "#f7f3edff",
+            "#g7f3ed",
+            "#ggg",
+            "rgb(0, 0, 0)",
+            "black",
+        ] {
             assert_eq!(parse(text), None, "{text:?} is not kept");
+        }
+        assert_eq!(normal("#000").as_deref(), Some("#000000"));
+        assert_eq!(normal(" #F7F3ED ").as_deref(), Some("#f7f3ed"));
+    }
+
+    /// Every page colour of the stylesheet is kept, in the form it is written
+    /// and in the short form a minifier makes of it where it has one (#645:
+    /// OLED Black reached the process as `#000`).
+    #[test]
+    fn every_page_colour_of_the_stylesheet_is_kept_long_or_short() {
+        let css = include_str!("../../src/styles.css");
+        let colours: Vec<&str> = css
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("--bg:"))
+            .map(|value| value.trim().trim_end_matches(';').trim())
+            .collect();
+        assert_eq!(
+            colours.len(),
+            6,
+            "the six palette blocks set --bg: {colours:?}"
+        );
+        for colour in colours {
+            assert!(parse(colour).is_some(), "{colour} is kept");
+            let hex = colour.trim_start_matches('#').as_bytes();
+            if hex.len() == 6 && hex[0] == hex[1] && hex[2] == hex[3] && hex[4] == hex[5] {
+                let short = format!("#{}{}{}", hex[0] as char, hex[2] as char, hex[4] as char);
+                assert_eq!(
+                    normal(&short),
+                    normal(colour),
+                    "{short} is kept as {colour}"
+                );
+            }
         }
     }
 
