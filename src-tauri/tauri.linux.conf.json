@@ -1,4 +1,18 @@
 {
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "AgentEd",
+        "dragDropEnabled": false,
+        "width": 1024,
+        "height": 768,
+        "minWidth": 600,
+        "minHeight": 400,
+        "visible": false
+      }
+    ]
+  },
   "bundle": {
     "resources": {
       "THIRD-PARTY-NOTICES.linux.txt": "THIRD-PARTY-NOTICES.txt"

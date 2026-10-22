@@ -22,12 +22,6 @@ export interface WindowReport {
   readonly unsaved: boolean;
   /** An empty Untitled document never edited, which a Finder open may reuse. */
   readonly untouched: boolean;
-  /**
-   * The colour of the page, `--bg` as the stylesheet resolves it, which the
-   * process draws behind the next window it shows (#645,
-   * `src-tauri/src/window_background.rs`).
-   */
-  readonly background: string;
 }
 
 let coordinated = false;
