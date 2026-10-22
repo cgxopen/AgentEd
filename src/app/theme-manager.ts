@@ -9,6 +9,12 @@ import {
 
 const MEDIA_QUERY = '(prefers-color-scheme: dark)';
 
+/**
+ * The mark on `<html>` that the theme is applied. The stylesheet draws
+ * nothing of the page until it is there (#645).
+ */
+export const THEME_APPLIED_ATTRIBUTE = 'data-theme-applied';
+
 /** The two halves of the mode axis; `auto` resolves to one of them. */
 export type ResolvedMode = 'light' | 'dark';
 
@@ -134,6 +140,9 @@ export class ThemeManager {
     } else {
       document.documentElement.removeAttribute('data-theme');
     }
+    // From here the page may be drawn: the stylesheet keeps it transparent
+    // and hidden until this mark is set, so no unthemed frame is painted (#645).
+    document.documentElement.setAttribute(THEME_APPLIED_ATTRIBUTE, '');
   }
 
   /** Build the `data-theme` attribute value from current mode + palette. */

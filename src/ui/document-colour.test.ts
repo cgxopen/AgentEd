@@ -13,6 +13,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import shippedPage from '../../index.html?raw';
+import { THEME_APPLIED_ATTRIBUTE } from '../app/theme-manager';
 import stylesCss from '../styles.css?raw';
 import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { contrast, paletteTokens, resolveColour } from '../test-support/theme-colours';
@@ -25,11 +26,13 @@ const palettes = paletteTokens(rules);
 /**
  * An element of the shipped page's body, parsed rather than mounted, and without
  * the head and the module script: happy-dom fetches a stylesheet link even in a
- * parsed document.
+ * parsed document. The page is marked themed, as it is once `ThemeManager` has
+ * run and whenever it is seen: before that the stylesheet draws nothing (#645).
  */
 function shippedElement(selector: string): Element {
   const body = shippedPage.slice(shippedPage.indexOf('<body>'), shippedPage.indexOf('<script'));
   const page = new DOMParser().parseFromString(body, 'text/html');
+  page.documentElement.setAttribute(THEME_APPLIED_ATTRIBUTE, '');
   const found = page.querySelector(selector);
   if (!found) throw new Error(`the shipped page has no ${selector}`);
   return found;

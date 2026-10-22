@@ -17,6 +17,8 @@ mod main_window;
 #[cfg(test)]
 mod shell_scope;
 mod title_bar;
+#[cfg(any(target_os = "macos", test))]
+mod window_background;
 mod window_shown;
 
 fn main() {
@@ -26,7 +28,9 @@ fn main() {
     // a macOS runner on #559 - opened at 0 ms, setup done at 81 ms - and a
     // registry managed in `setup` was not there for it.
     #[cfg(target_os = "macos")]
-    let builder = builder.manage(macos_windows::DocumentWindows::default());
+    let builder = builder
+        .manage(macos_windows::DocumentWindows::default())
+        .manage(window_background::WindowBackground::default());
     #[cfg(not(target_os = "macos"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
@@ -137,7 +141,7 @@ mod tests {
     ///
     /// `visible: false` keeps the window hidden until the page has applied
     /// its theme (#639, `window_shown.rs`); in the base file it would hide
-    /// the window of Linux and macOS, where nothing shows it after a bound.
+    /// the window of Linux, where nothing shows it after a bound.
     ///
     /// `create: false` hands the window to `main_window`, which builds it
     /// from this same description with the spell-check language added. Lost
@@ -165,7 +169,7 @@ mod tests {
         assert_eq!(own_windows[0], expected);
         assert!(
             base_windows[0].get("visible").is_none(),
-            "the base shows the window on Linux and macOS from its creation (#639)"
+            "the base shows the window on Linux from its creation (#639, #645)"
         );
         assert!(
             base_windows[0].get("decorations").is_none(),
@@ -191,10 +195,15 @@ mod tests {
     /// drawn over the header, and nothing else.
     ///
     /// The same Merge Patch as on Windows: `tauri.macos.conf.json` restates
-    /// `app.windows` in full to set three keys, so the two objects are held
+    /// `app.windows` in full to set four keys, so the two objects are held
     /// equal here apart from those keys, and a minimum size or the #65 line
     /// changed in one file and not the other turns this red. The document
     /// windows of #559 are built from this same description.
+    ///
+    /// `visible: false` is the fourth (#645): every macOS window is hidden
+    /// until its page has applied its theme, and `macos_windows` shows it
+    /// after `FALLBACK` if the page never asks, `main` and each document
+    /// window alike (`window_shown.rs`).
     #[test]
     fn the_macos_window_is_the_base_window_with_its_title_bar_over_the_header() {
         let base: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json"))
@@ -211,6 +220,7 @@ mod tests {
         expected["titleBarStyle"] = serde_json::json!("Overlay");
         expected["hiddenTitle"] = serde_json::json!(true);
         expected["trafficLightPosition"] = serde_json::json!({ "x": 16, "y": 24 });
+        expected["visible"] = serde_json::Value::Bool(false);
         assert_eq!(own_windows[0], expected);
         for key in ["titleBarStyle", "hiddenTitle", "trafficLightPosition"] {
             assert!(

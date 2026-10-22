@@ -260,6 +260,23 @@ body {
   background: var(--bg);
 }
 
+/* Nothing of the page is drawn before its theme (#645). Until `ThemeManager`
+ * marks `<html>` with `data-theme-applied`, the page is transparent and its
+ * body hidden, so no frame of the unthemed page, Default Light, can be painted.
+ * On macOS the window is drawn in the colour of the palette behind it
+ * (`src-tauri/src/window_background.rs`), and a frame painted before the theme
+ * was seen there about 0.2 s after a window was shown, at some launches. On
+ * Windows the window is hidden until the theme anyway; on Linux the background
+ * of the web view shows for that moment instead of the unthemed page. */
+html:not([data-theme-applied]),
+html:not([data-theme-applied]) body {
+  background: transparent;
+}
+
+html:not([data-theme-applied]) body {
+  visibility: hidden;
+}
+
 #app {
   display: flex;
   flex-direction: column;

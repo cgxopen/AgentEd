@@ -17,7 +17,7 @@ beforeEach(async () => {
   coordination = await import('./window-coordination');
 });
 
-const REPORT = { title: 'a.md', unsaved: true, untouched: false };
+const REPORT = { title: 'a.md', unsaved: true, untouched: false, background: '#000000' };
 
 describe('a window among several, on macOS (#559)', () => {
   it('reports nothing and calls nothing until the process says so', async () => {

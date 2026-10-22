@@ -100,9 +100,10 @@ export async function titleBarOverlay(): Promise<TitleBarOverlay | null> {
 
 /**
  * Tell the process the theme is applied, so a window created hidden is shown
- * now (#639): on Windows the main window is hidden until this arrives, or
- * until the fallback of `src-tauri/src/window_shown.rs` shows it after 2 s.
- * Elsewhere the window is visible already and the command changes nothing.
+ * now: on Windows the main window (#639) and on macOS every window (#645) is
+ * hidden until this arrives, or until the fallback of
+ * `src-tauri/src/window_shown.rs` shows it after 2 s. On Linux the window is
+ * visible already and the command changes nothing.
  * `isTauri` answers only whether there is a process to tell; the web build
  * has none.
  */
