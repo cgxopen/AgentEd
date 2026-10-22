@@ -318,8 +318,9 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
   // need one file per answer.
   //
   // Not a field on `PlatformIO`, deliberately: that interface is built
-  // by hand in twenty-two test files, and a new member would be
-  // twenty-two edits to state something this layer already knows.
+  // by hand in test files, fifty-five of them at seventy-six sites by the
+  // count of the compiler at #650, and a new member would be an edit at
+  // each site to state something this layer already knows.
   return {
     kind: 'tree',
     nodes,

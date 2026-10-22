@@ -79,27 +79,3 @@ export function clearImages(): void {
   registry.clear();
   displayUrls.clear();
 }
-
-/** Create a blob URL for display and register image binary data */
-export async function registerBlob(file: File, relativePath: string): Promise<string> {
-  const buf = await file.arrayBuffer();
-  const url = URL.createObjectURL(file);
-  registerImage(url, {
-    relativePath,
-    data: new Uint8Array(buf),
-    filename: file.name,
-  });
-  return url;
-}
-
-/** Register image from binary data. Uses blob URLs universally (both Tauri and Web). */
-export function registerForDisplay(
-  relativePath: string,
-  data: Uint8Array,
-  filename: string,
-  _docDir: string, // kept for signature compatibility
-): string {
-  const displayUrl = URL.createObjectURL(new Blob([data.slice().buffer as ArrayBuffer]));
-  registerImage(displayUrl, { relativePath, data, filename });
-  return displayUrl;
-}

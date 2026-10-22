@@ -74,7 +74,8 @@ const PALETTE_OPTIONS: ReadonlyArray<{
     // than a night colour, since there is no dark version for it to show
     // (#391, owner decision of 2026-09-19 on captures of four candidates).
     swatch: 'linear-gradient(135deg, #f7f3ed 50%, #b8653f 50%)',
-    title: 'Warm palette, light mode only',
+    // No tooltip: once it is chosen the Mode note says it has no dark
+    // version, which the tooltip only restated (#399, owner decision on #650).
   },
   {
     value: 'solarized',

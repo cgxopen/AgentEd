@@ -60,12 +60,14 @@ export function editorRoom(): Room {
  * **When the surface is wider than the room the left bound wins and the surface
  * spills to the right**, which is the owner decision of 2026-09-18 rather than
  * an accident of the arithmetic. It is reached at exactly one measured state:
- * the bar with an image selected is 372.7 px against 372 px of room at 600x400
- * with the panel open, so it overhangs the card by 8.7 px. The alternatives
- * were built and put with their costs — spilling left puts the first button of
- * the bar off the window where it cannot be pressed, which costs a command
- * rather than an appearance, and centring it in the room overhangs 0.35 px at
- * each end at the cost of touching both. **The order of these two calls is what
+ * the bar on a text selection is 380.84 px against 372 px of room at 600x400
+ * with the panel open, so it overhangs the card by 16.84 px (measured in
+ * Chromium, #650; an image selection draws 337.55 px and fits). The
+ * alternatives were built and put with their costs when the widest bar was
+ * 372.7 px — spilling left puts the first button of the bar off the window
+ * where it cannot be pressed, which costs a command rather than an appearance,
+ * and centring it in the room overhangs 0.35 px at each end at the cost of
+ * touching both. **The order of these two calls is what
  * decides that**, which is why swapping them is a reversal this change owes.
  */
 export function withinRoom(desiredLeft: number, width: number, room: Room, margin: number): number {

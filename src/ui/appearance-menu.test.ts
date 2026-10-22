@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ThemeManager } from '../app/theme-manager';
+import stylesCss from '../styles.css?raw';
+import { splitTopLevel, stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import { setupAppearanceMenu } from './appearance-menu';
 
 function mount(): { button: HTMLButtonElement; popover: HTMLElement } {
@@ -46,7 +48,10 @@ describe('setupAppearanceMenu — structure', () => {
       'Solarized',
       'OLED Black',
     ]);
-    expect(options[1].title).toBe('Warm palette, light mode only');
+    // Paper Warm has no tooltip, since the Mode note says the same (#650);
+    // OLED Black keeps its own, pinned in appearance-oled-mode.test.ts.
+    expect(options[1].hasAttribute('title')).toBe(false);
+    expect(options[3].title).not.toBe('');
   });
 
   it('marks the ThemeManager current mode + palette as active', () => {
@@ -61,6 +66,39 @@ describe('setupAppearanceMenu — structure', () => {
       'solarized',
     );
   });
+});
+
+/**
+ * The space between the Mode and Palette sections is not observable here, since
+ * happy-dom lays nothing out; the owner pass on the artifact is where it is
+ * verified. What these rows hold is the other half: the rules that give the
+ * Palette label its top margin, read out of the shipped sheet and run against
+ * the popover the menu rendered, in a palette with a dark version and in two
+ * without one, where the Mode note is shown (#650).
+ */
+describe('setupAppearanceMenu — the space above the Palette label (#650)', () => {
+  const rules = stylesheetRules(stylesCss).filter(
+    (rule) =>
+      rule.declarations.has('margin-top') && rule.selector.includes('.appearance-section-label'),
+  );
+  beforeEach(() => localStorage.clear());
+
+  it.each(['default', 'paper', 'oled'])(
+    'in %s, one rule reaches the label and each one used',
+    (palette) => {
+      localStorage.setItem('agented:palette', palette);
+      const { popover } = mount();
+      setupAppearanceMenu(new ThemeManager());
+      const label = popover.querySelectorAll('.appearance-section-label')[1];
+
+      expect(label?.textContent).toBe('Palette');
+      expect(valuesReaching(rules, label, 'margin-top')).toEqual(['9px']);
+      const unused = rules
+        .flatMap((rule) => splitTopLevel(rule.selector))
+        .filter((selector) => popover.querySelector(selector) === null);
+      expect(unused).toEqual([]);
+    },
+  );
 });
 
 describe('setupAppearanceMenu — open / close', () => {

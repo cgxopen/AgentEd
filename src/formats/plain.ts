@@ -64,9 +64,10 @@ export function parseMarkdown(text: string, path: string): LoadResult {
       markdownBody: body,
       images: [],
       rootPath: path,
-      // Read from the text before any splitting — the same text the
-      // R-C14 baseline is taken from, and for the same reason: this is
-      // what the file actually contains (#79).
+      // Read from the whole text before the metadata split, because this
+      // is what the file actually contains (#79). The byte order mark is
+      // off it, and holds no line ending; the R-C14 baseline below is the
+      // text as read, mark included (#260).
       lineConventions: detectLineConventions(withoutMark),
     },
     diskText: text,
