@@ -75,15 +75,15 @@ describe('withinRoom keeps a surface inside the room it is given', () => {
 
   it('lets the surface spill to the right when it is wider than the room', () => {
     // The owner decision of 2026-09-18, at the one state that reaches it: the
-    // bar with an image selected is 372.66 px and the room at 600x400 with the
-    // panel open is 372, so it cannot fit with a margin at each end — or with
-    // no margin at all. The left bound wins, which puts the bar at the margin
-    // from the window and 8.66 px over the card.
+    // bar on a text selection is 380.84 px, measured in Chromium (#650), and
+    // the room at 600x400 with the panel open is 372, so it cannot fit with a
+    // margin at each end — or with no margin at all. The left bound wins, which
+    // puts the bar at the margin from the window and 16.84 px over the card.
     const room = { left: 0, right: 372 };
-    expect(withinRoom(50, 372.66, room, 8)).toBe(8);
-    expect(withinRoom(-50, 372.66, room, 8)).toBe(8);
+    expect(withinRoom(50, 380.84, room, 8)).toBe(8);
+    expect(withinRoom(-50, 380.84, room, 8)).toBe(8);
     // What that overhang is, stated as the number the manual pass looks for.
-    expect(8 + 372.66 - room.right).toBeCloseTo(8.66, 2);
+    expect(8 + 380.84 - room.right).toBeCloseTo(16.84, 2);
   });
 
   it('spills right rather than left because of the order of the two bounds', () => {
@@ -91,9 +91,9 @@ describe('withinRoom keeps a surface inside the room it is given', () => {
     // other owner option — the surface pinned to the right edge and hanging off
     // the left of the window, where its first button cannot be pressed.
     const room = { left: 0, right: 372 };
-    const swapped = Math.min(room.right - 372.66 - 8, Math.max(50, room.left + 8));
-    expect(swapped).toBeCloseTo(-8.66, 2);
-    expect(withinRoom(50, 372.66, room, 8)).toBe(8);
+    const swapped = Math.min(room.right - 380.84 - 8, Math.max(50, room.left + 8));
+    expect(swapped).toBeCloseTo(-16.84, 2);
+    expect(withinRoom(50, 380.84, room, 8)).toBe(8);
   });
 
   it('is never wrong-way-round about a room with a left edge away from zero', () => {

@@ -97,6 +97,26 @@ function forgetUndoHistory(editor: Editor): void {
   view.updateState(view.state.reconfigure({ plugins: withHistory }));
 }
 
+let replacing = false;
+
+/**
+ * Whether the transaction being handled right now is a whole-document
+ * replacement rather than an edit (#418, point f).
+ *
+ * **This is the one address that can answer it**, for the reason R-C16 already
+ * rests on: every route that puts a document on screen reaches
+ * `replaceDocument`, and `src/app/document-load-routes.test.ts` enumerates them
+ * one by one. A caller that wants to tell a load from a keystroke has nowhere
+ * else to ask, and a flag set at a second address would go stale the day a
+ * ninth route is added.
+ *
+ * `setContent` dispatches synchronously, so the flag is true for exactly the
+ * transactions that replacement produces and for no others.
+ */
+export function isReplacingDocument(): boolean {
+  return replacing;
+}
+
 /**
  * Replace the whole document with `markdown`, and forget the undo
  * history that belonged to the document before it (R-C16).
@@ -150,26 +170,6 @@ function forgetUndoHistory(editor: Editor): void {
  * fenced block still keeps its newlines through ProseMirror's own `pre`
  * rule.
  */
-let replacing = false;
-
-/**
- * Whether the transaction being handled right now is a whole-document
- * replacement rather than an edit (#418, point f).
- *
- * **This is the one address that can answer it**, for the reason R-C16 already
- * rests on: every route that puts a document on screen reaches
- * `replaceDocument`, and `src/app/document-load-routes.test.ts` enumerates them
- * one by one. A caller that wants to tell a load from a keystroke has nowhere
- * else to ask, and a flag set at a second address would go stale the day a
- * ninth route is added.
- *
- * `setContent` dispatches synchronously, so the flag is true for exactly the
- * transactions that replacement produces and for no others.
- */
-export function isReplacingDocument(): boolean {
-  return replacing;
-}
-
 export function replaceDocument(editor: Editor, markdown: string): void {
   replacing = true;
   try {

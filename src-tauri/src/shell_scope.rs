@@ -1,8 +1,8 @@
 //! The shell open scope against the cases in `shell-open-cases.json` (#448).
 //!
-//! tauri-plugin-shell 2.3.5 compiles `plugins.shell.open` as `^{scope}$`
-//! (`scope.rs:96`) and matches the raw string the frontend hands it
-//! (`scope.rs:210`). This compiles it the same way, with the same `regex`
+//! tauri-plugin-shell 2.4.0, the version in `Cargo.lock`, compiles
+//! `plugins.shell.open` as `^{scope}$` (`lib.rs:186`) and matches the raw
+//! string the frontend hands it (`scope.rs:212`). This compiles it the same way, with the same `regex`
 //! crate the plugin resolves to in `Cargo.lock`, so a case that passes here
 //! is a string the plugin admits. What the frontend hands for a link is
 //! asserted in `src/app/link-open.test.ts` over the same file, which is what

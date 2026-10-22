@@ -318,14 +318,6 @@ export async function handleImageFile(
   // svg inserted here drew as the placeholder immediately, not only after
   // a reopen. The name is the source of the type at both call sites, so
   // paste and drop, which carry a `File` typed by the browser, land on the
-  // same answer as the picker.
-  //
-  // The blob is built from the bytes rather than from `file`, so the type
-  // the picker put on the `File` does not survive on its own (#248) — an
-  // svg inserted here drew as the placeholder immediately, not only after
-  // a reopen. The name is the source of the type at both call sites, so
-  // paste and drop, which carry a `File` typed by the browser, land on the
-  // same answer as the picker.
   const displayUrl = URL.createObjectURL(
     new Blob([data.slice().buffer as ArrayBuffer], { type: displayMimeFromName(filename) }),
   );

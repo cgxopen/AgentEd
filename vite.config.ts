@@ -83,7 +83,9 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
-    chunkSizeWarningLimit: 3000, // gpt-tokenizer cl100k_base is ~2 MB; leave headroom
+    // gpt-tokenizer cl100k_base is a chunk of 974210 bytes, measured at
+    // #650; the limit leaves headroom above it.
+    chunkSizeWarningLimit: 3000,
   },
   test: {
     environment: 'happy-dom',
