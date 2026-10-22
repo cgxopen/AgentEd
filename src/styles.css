@@ -2946,9 +2946,9 @@ button.indicator-search:hover {
 }
 /* The Mode and Palette sections are told apart by their labels and by this
  * space, which is the 9 px the 1 px line and its margins took until #375.
- * Since #391 the Mode note sits between them, hidden in every palette with a
- * dark version, so the label follows the note as often as an option. */
-.appearance-option + .appearance-section-label,
+ * Since #391 the Mode note sits between them in every palette: hidden where
+ * the palette has a dark version, but still in the popover, so the Palette
+ * label always follows the note and never an option (#650). */
 .appearance-note + .appearance-section-label {
   margin-top: 9px;
 }
