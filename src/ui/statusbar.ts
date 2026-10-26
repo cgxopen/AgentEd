@@ -13,9 +13,9 @@ async function loadEncoder(): Promise<void> {
   encoderLoading = true;
   try {
     // gpt-tokenizer ships per-encoding entry points so only the
-    // cl100k_base BPE data lands in the Vite bundle (974210 bytes in
-    // `dist`, measured at #650, instead of js-tiktoken's all-encodings
-    // ~5.4 MB).
+    // cl100k_base BPE data lands in the Vite bundle (1025153 bytes in
+    // `dist` with gpt-tokenizer 4.1.0, measured at #652, instead of
+    // js-tiktoken's all-encodings ~5.4 MB).
     const tokenizer = await import('gpt-tokenizer/encoding/cl100k_base');
     encoder = { encode: tokenizer.encode };
   } catch (e) {

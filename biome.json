@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -15,7 +15,10 @@
       "!node_modules/**",
       "!tests/openclaw_skills/**",
       "!tests/anthropic_skills/**",
-      "!src/editor/vendor/**"
+      "!src/editor/vendor/**",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml"
     ]
   },
   "formatter": {
