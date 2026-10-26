@@ -83,8 +83,8 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
-    // gpt-tokenizer cl100k_base is a chunk of 974210 bytes, measured at
-    // #650; the limit leaves headroom above it.
+    // gpt-tokenizer 4.1.0 cl100k_base is a chunk of 1025153 bytes,
+    // measured at #652; the limit leaves headroom above it.
     chunkSizeWarningLimit: 3000,
   },
   test: {
