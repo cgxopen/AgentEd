@@ -12,7 +12,7 @@ body:
     attributes:
       label: Version and build
       description: In AgentEd, open the menu (the three lines at the left of the header), then Help, then About AgentEd, and copy what it shows.
-      placeholder: 0.2.0, build 1a2b3c4
+      placeholder: 1.0.0, build 1a2b3c4
     validations:
       required: true
   - type: dropdown

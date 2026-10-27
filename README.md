@@ -15,13 +15,13 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 
 <div align="center">
 
-[![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/cgxone) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
+[![Ko-fi](https://img.shields.io/badge/Support_on-Ko--fi-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/agentedapp) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE) [![Tauri](https://img.shields.io/badge/Tauri-2.0-FFC131?logo=tauri)](https://tauri.app/)
 
 </div>
 
 <div align="center">
 
-[Website](https://agentedapp.com/) · [Windows preview](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.6) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
+[Website](https://agentedapp.com/) · [Download](https://github.com/cgxopen/AgentEd/releases/latest) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
 
 </div>
 
@@ -45,22 +45,22 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 ## Download and get started
 
-The current test build is **v0.2.0-preview.6, for Windows x64, for macOS on Apple Silicon and, experimentally, for 64-bit x86 Linux**, prepared before the public launch. It is a pre-release and may be replaced.
+The current release is **1.0.0, for Windows x64, for macOS on Apple Silicon (preview) and, experimentally, for 64-bit x86 Linux**.
 
-[**Download the Windows preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.6/AgentEd_0.2.0_x64-setup.exe) · [**Download the macOS preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.6/AgentEd_0.2.0_aarch64.dmg) · [**Download the Linux preview**](https://github.com/cgxopen/AgentEd/releases/download/v0.2.0-preview.6/AgentEd_0.2.0_amd64.deb) · [Release notes and SHA-256 checksums](https://github.com/cgxopen/AgentEd/releases/tag/v0.2.0-preview.6)
+[**Download the latest release**](https://github.com/cgxopen/AgentEd/releases/latest), with the installers for the three platforms, the release notes and the SHA-256 checksums. Earlier releases are on the [releases page](https://github.com/cgxopen/AgentEd/releases).
 
 On macOS, the first launch takes a few extra steps; see [macOS installation](#macos-installation) below.
 
 The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
 
 1. Download the installer from the release page.
-2. Install AgentEd. This preview is unsigned; see [Windows installation](#windows-installation) below if Windows displays a warning.
+2. Install AgentEd. The installer is unsigned; see [Windows installation](#windows-installation) below if Windows displays a warning.
 3. Open an existing Markdown file or create a new document.
 4. Save it to a folder on your computer.
 
 [Read the full quick start](https://agentedapp.com/quick-start.html).
 
-**Platforms:** Windows is the primary preview platform. Releases contain a Windows installer, from v0.2.0-preview.4 a macOS preview for Apple Silicon as a `.dmg`, and from v0.2.0-preview.6 an experimental Linux package as a `.deb`, tested on Ubuntu 24.04; see [Linux installation](#linux-installation).
+**Platforms:** Windows is the primary platform. A release contains a Windows installer, a macOS preview for Apple Silicon as a `.dmg`, and an experimental Linux package as a `.deb`, tested on Ubuntu 24.04; see [Linux installation](#linux-installation).
 
 ## Features
 
@@ -99,7 +99,7 @@ When sharing a document that uses local images, include its referenced `assets/`
 
 ## Windows installation
 
-This preview is not digitally signed. Windows may display **Windows protected your PC** or **Unknown publisher** when you open the installer.
+The installer is not digitally signed. Windows may display **Windows protected your PC** or **Unknown publisher** when you open the installer.
 
 Download from the official release linked above and check the filename and version. The release also provides SHA-256 checksums for checking that your download matches the published file.
 
@@ -111,7 +111,7 @@ Signing is planned for a future release. [Read the installation help](https://ag
 
 ## macOS installation
 
-The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with v0.2.0-preview.4 on macOS 26.6:
+The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with 1.0.0 on macOS 26.6 and 27:
 
 1. Open the `.dmg` and drag **AgentEd** onto **Applications**, then start it from **Applications** rather than from the disk image.
 2. macOS shows **“AgentEd” Not Opened**. Click **Done**.
@@ -119,7 +119,7 @@ The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized 
 4. In the dialog that follows, click **Open Anyway**. The highlighted button in that dialog is **Move to Trash** (**Move to Bin** in British English), which deletes the application.
 5. Enter your password. AgentEd opens, and from then on it opens without asking.
 
-macOS asks again each time AgentEd is installed anew: every new installation opens only after steps 2 to 5 are repeated once for it.
+macOS asks again each time AgentEd is installed anew, a reinstall of the same build included: every new installation opens only after steps 2 to 5 are repeated once for it.
 
 The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
 
@@ -181,7 +181,7 @@ Honest edges, documented rather than discovered:
 
 ## Project status
 
-AgentEd is in active development. The preview focuses on visual editing of local Markdown files, with Windows as the primary platform.
+AgentEd is in active development. The 1.0 line focuses on visual editing of local Markdown files, with Windows as the primary platform.
 
 The product definition and documented exceptions live in [REQUIREMENTS.md](REQUIREMENTS.md).
 
@@ -208,9 +208,9 @@ Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) fir
 
 ## Support AgentEd
 
-AgentEd is free. If it is useful to you, you can support it on [Ko-fi](https://ko-fi.com/cgxone).
+AgentEd is free. If it is useful to you, you can support it on [Ko-fi](https://ko-fi.com/agentedapp).
 
-Support goes to CGX Consulting SRL, the company that publishes AgentEd, and is spent on maintaining and developing AgentEd, for example:
+Support goes to the author, who publishes AgentEd in his own name, and is spent on maintaining and developing AgentEd, for example:
 
 - fixing reported bugs;
 - testing on Linux;
@@ -229,9 +229,7 @@ The MIT license covers the code, not the AgentEd name or logo: a fork is welcome
 
 ## Author and contact
 
-AgentEd is a project by **CGXC —** [**CGX Consulting SRL**](https://cgxconsulting.com/).
-
-Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For other enquiries, email [contact@cgxconsulting.com](mailto:contact@cgxconsulting.com) or reach out on [X](https://x.com/CatalinG_Vasile).
+Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For other enquiries, email [contact@agentedapp.com](mailto:contact@agentedapp.com) or reach out on [X](https://x.com/CatalinG_Vasile).
 
 ## History
 
