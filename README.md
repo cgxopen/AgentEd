@@ -7,7 +7,7 @@
 
 **A visual Markdown editor with YAML frontmatter editing and live token estimates.**
 
-Write notes, project briefs, and AI instructions with familiar formatting controls. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required.
+Create and refine notes, AI instructions, project context, and knowledge documents with intuitive visual editing. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required.
 
 <div align="center">
 
