@@ -293,7 +293,7 @@ Built by [Cătălin Vasile](https://github.com/catge) using Claude Code.
 
 For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For security vulnerabilities, follow [SECURITY.md](SECURITY.md) rather than opening a public issue.
 
-For other enquiries, email [contact@agentedapp.com](mailto:contact@agentedapp.com) or reach out on [X](https://x.com/CatalinG_Vasile).
+For other enquiries, email [contact@agentedapp.com](mailto:contact@agentedapp.com).
 
 ## History
 
