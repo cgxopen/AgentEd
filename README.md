@@ -45,7 +45,7 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 ## Download and get started
 
-The current release is **1.0.0, for Windows x64, for macOS on Apple Silicon (preview) and, experimentally, for 64-bit x86 Linux**.
+The current release is **1.0.0, for Windows x64, for macOS on Apple Silicon and, experimentally, for 64-bit x86 Linux**.
 
 [**Download the latest release**](https://github.com/cgxopen/AgentEd/releases/latest), with the installers for the three platforms, the release notes and the SHA-256 checksums. Earlier releases are on the [releases page](https://github.com/cgxopen/AgentEd/releases).
 
@@ -60,7 +60,7 @@ The Windows installer is in the **~3 MB class**. This refers to the installer do
 
 [Read the full quick start](https://agentedapp.com/quick-start.html).
 
-**Platforms:** Windows is the primary platform. A release contains a Windows installer, a macOS preview for Apple Silicon as a `.dmg`, and an experimental Linux package as a `.deb`, tested on Ubuntu 24.04; see [Linux installation](#linux-installation).
+**Platforms:** Windows is the primary platform. A release contains a Windows installer, a macOS build for Apple Silicon as a `.dmg`, and an experimental Linux package as a `.deb`, tested on Ubuntu 24.04; see [Linux installation](#linux-installation).
 
 ## Features
 
@@ -111,7 +111,7 @@ Signing is planned for a future release. [Read the installation help](https://ag
 
 ## macOS installation
 
-The macOS preview is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with 1.0.0 on macOS 26.6 and 27:
+The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with 1.0.0 on macOS 26.6 and 27:
 
 1. Open the `.dmg` and drag **AgentEd** onto **Applications**, then start it from **Applications** rather than from the disk image.
 2. macOS shows **“AgentEd” Not Opened**. Click **Done**.
