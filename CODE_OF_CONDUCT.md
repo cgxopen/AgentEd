@@ -11,7 +11,7 @@ AgentEd adopts the [Contributor Covenant, version 2.1](https://www.contributor-c
 
 ## Reporting
 
-If someone breaks this code, report it privately to the maintainer at **contact@cgxconsulting.com**. Every report is read, and the name of the person reporting is kept confidential.
+If someone breaks this code, report it privately to the maintainer at **contact@agentedapp.com**. Every report is read, and the name of the person reporting is kept confidential.
 
 AgentEd has one maintainer. If a report concerns the maintainer, use the **Report content** option GitHub offers on every comment, issue and pull request.
 
