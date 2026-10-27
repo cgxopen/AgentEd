@@ -67,7 +67,7 @@ AgentEd is released under the MIT licence in [LICENSE](LICENSE). By opening a pu
 
 ## Money given to the project
 
-The author, who publishes AgentEd in his own name, receives any money given to the project, through sponsorship or otherwise, and spends it on maintaining and developing AgentEd. Contributions are voluntary and unpaid: making one gives no share of that money and no claim to payment. If a piece of work is ever paid for, that is agreed in writing before the work starts.
+The author, who publishes AgentEd in his own name, receives any money given to the project, through sponsorship or otherwise, and spends it on maintaining and developing AgentEd. Contributions are voluntary and unpaid: making one gives no share of that money and no claim to payment. If a piece of work is ever paid for, that is agreed in writing before the work starts. A company supporting the project may be acknowledged on the website by agreement; acknowledgement gives no say over the product.
 
 ## Working with AI agents
 

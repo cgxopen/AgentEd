@@ -273,9 +273,10 @@ AgentEd is free and open source. If it makes your work easier, you can support i
 Support goes to the author, who publishes AgentEd in his own name, and **helps fund ongoing development and maintenance**, including:
 
 - fixing bugs and improving the editing experience;
-- testing and maintaining Windows, macOS, and Linux builds;
-- Apple Developer Program membership for signing and notarizing macOS releases;
-- documentation and new features within the project’s scope.
+- developing new features while keeping the editor simple;
+- testing and maintaining releases across supported platforms, and the signing of installers where a platform offers it;
+- writing clearer documentation and practical examples;
+- covering hosting, infrastructure, and development tools.
 
 Contributions are optional. How money given to the project is handled is described in [CONTRIBUTING.md](CONTRIBUTING.md#money-given-to-the-project).
 
