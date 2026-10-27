@@ -8,9 +8,16 @@ Changes that have landed but are not yet in a release wait under **Unreleased**.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-27
+
+First public release.
+
 ### Added
 
-- First public release. What AgentEd does is described in the [README](README.md), and what it promises in [REQUIREMENTS.md](REQUIREMENTS.md).
+- A WYSIWYG markdown editor for Windows, with a macOS preview for Apple Silicon and an experimental Linux package. What AgentEd does is described in the [README](README.md), and what it promises in [REQUIREMENTS.md](REQUIREMENTS.md).
+- Files are opened and saved as plain, portable markdown, and a file saved without edits is written back as it was, with the exceptions REQUIREMENTS.md records.
+- A live token count beside the word and character counts.
+- No account, no cloud, no telemetry: AgentEd makes no network calls of its own.
 
 <!--
 Sections used below a version, only when they have something in them:

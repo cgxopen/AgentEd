@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import packageJson from '../../package.json?raw';
+import cargoToml from '../../src-tauri/Cargo.toml?raw';
+import tauriConf from '../../src-tauri/tauri.conf.json?raw';
 import { BUILD_INFO, describeBuildInfo, formatBuildInfo, readBuildInfo } from './build-info';
 
 describe('readBuildInfo', () => {
@@ -62,5 +65,24 @@ describe('BUILD_INFO — the values Vite baked in', () => {
 
   it('agrees with itself about where it came from', () => {
     expect(BUILD_INFO.fromCi).toBe(BUILD_INFO.commit !== 'dev');
+  });
+});
+
+/**
+ * The version lives in three files, each read by a different consumer (#655):
+ * About reads `package.json` through `vite.config.ts`, the installer file name
+ * reads `tauri.conf.json`, and the crate reads `Cargo.toml`. A bump that moves
+ * one of them alone ships a build whose About, installer and binary disagree.
+ */
+describe('the version, in the three files that carry it (#655)', () => {
+  it('is the same in package.json, tauri.conf.json and Cargo.toml', () => {
+    const cargo = /^\[package\][^[]*?^version = "([^"]+)"$/m.exec(cargoToml);
+    expect({
+      'tauri.conf.json': JSON.parse(tauriConf).version,
+      'Cargo.toml': cargo?.[1],
+    }).toEqual({
+      'tauri.conf.json': JSON.parse(packageJson).version,
+      'Cargo.toml': JSON.parse(packageJson).version,
+    });
   });
 });
