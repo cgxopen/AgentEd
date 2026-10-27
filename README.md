@@ -23,7 +23,7 @@ Create and refine notes, AI instructions, project context, and knowledge documen
 
 <div align="center">
 
-[Website](https://agentedapp.com/) · [Download](https://github.com/cgxopen/AgentEd/releases/latest) · [Quick start](https://agentedapp.com/quick-start.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
+[Website](https://agentedapp.com/) · [Download](https://github.com/cgxopen/AgentEd/releases/latest) · [Installation help](https://agentedapp.com/installation-help.html) · [Feedback](https://github.com/cgxopen/AgentEd/issues)
 
 </div>
 
@@ -71,8 +71,6 @@ The **Windows installer is under 5 MB**. This refers to the installer download, 
 **The Windows installer is not digitally signed, and the macOS app is not notarized by Apple. Security warnings may appear during installation or first launch.** See [Installation](#installation) below or the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
 AgentEd is free and open source, built by one person. If it makes your work easier, [support its development on Ko-fi](https://ko-fi.com/agentedapp) — see [Support AgentEd](#support-agented) below.
-
-[Read the full quick start](https://agentedapp.com/quick-start.html).
 
 ## Features
 
