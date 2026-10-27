@@ -5,11 +5,13 @@
   </picture>
 </p>
 
-Turn notes, project briefs, and AI instructions into clear Markdown files. Edit visually, keep your files, and see a live token estimate as you write.
+**A visual Markdown editor with YAML frontmatter editing and live token estimates.**
+
+Write notes, project briefs, and AI instructions with familiar formatting controls. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required.
 
 <div align="center">
 
-**Free · Open source · Local files · No account · No telemetry · Windows installer under 3 MB**
+**Free · Open source · Local files · No account · No telemetry · Windows installer under 5 MB**
 
 </div>
 
@@ -26,41 +28,49 @@ Turn notes, project briefs, and AI instructions into clear Markdown files. Edit 
 </div>
 
 <p align="center">
-  <img src="docs/images/project-brief.gif" alt="AgentEd editing project-brief.md: a line becomes a heading from the floating toolbar, checklist items are ticked, the YAML metadata panel opens, and the menu shows Insert.">
+  <img src="docs/images/project-brief.gif" alt="AgentEd editing a project brief: visual formatting, checklist items, YAML frontmatter, and a live token estimate.">
 </p>
 
 [**See AgentEd in action · 1 minute**](https://agentedapp.com/#demo)
+
+[Download](#download-and-get-started) · [Features](#features) · [Installation](#installation) · [Keyboard shortcuts](#keyboard-shortcuts) · [Known limitations](#known-limitations) · [Build from source](#building-from-source) · [Contributing](#contributing)
 
 ## Why AgentEd?
 
 Markdown is a plain-text format for headings, lists, links, and more. You may have encountered it while working with AI assistants. AgentEd lets you edit these files visually, without memorising the formatting syntax.
 
 - **Focus on your words.** Format documents with visual controls and see the result as you write.
-- **Private by design.** No account, no telemetry, no built-in cloud service. Your documents stay on your computer, and AgentEd makes no network calls of its own, which matters when your instructions carry project or client details. On Windows, the web runtime underneath connects on its own; [SECURITY.md](SECURITY.md) says when.
-- **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files.
+- **Private by design.** No account, no telemetry, no built-in cloud service. Your documents stay on your computer, and AgentEd makes no network calls of its own. On Windows, the underlying web runtime makes some connections independently; [SECURITY.md](SECURITY.md) explains when.
+- **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files, with YAML frontmatter and a live token estimate.
 - **Keep your files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault or creating an account.
-- **Read as well as write.** Open a `.md` file and it reads like a finished document; start typing when you want to change it.
+- **Read as well as write.** Open a Markdown file to read it as a formatted document; start typing when you want to edit it.
 
 AgentEd helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
 
 ## Download and get started
 
-The current release is **1.0.0, for Windows x64, for macOS on Apple Silicon and, experimentally, for 64-bit x86 Linux**.
+**AgentEd 1.0.0** is available for Windows x64 and macOS on Apple Silicon, with an experimental package for Linux x86-64.
 
-[**Download the latest release**](https://github.com/cgxopen/AgentEd/releases/latest), with the installers for the three platforms, the release notes and the SHA-256 checksums. Earlier releases are on the [releases page](https://github.com/cgxopen/AgentEd/releases).
+[**Download the latest release**](https://github.com/cgxopen/AgentEd/releases/latest) for installers, release notes, and SHA-256 checksums. Earlier versions are on the [releases page](https://github.com/cgxopen/AgentEd/releases).
 
-On macOS, the first launch takes a few extra steps; see [macOS installation](#macos-installation) below.
+| Platform | Installer for 1.0.0 | Status |
+|---|---|---|
+| Windows x64 | `AgentEd_1.0.0_x64-setup.exe` | Release |
+| macOS, Apple Silicon | `AgentEd_1.0.0_aarch64.dmg` | Release |
+| Linux x86-64 | `AgentEd_1.0.0_amd64.deb` | Experimental |
 
-The Windows installer is in the **~3 MB class**. This refers to the installer download, not the application's total installed footprint or any required runtime.
+Windows is the primary development and testing platform. The macOS build is for Apple Silicon Macs; Intel-based Macs are not supported. The Linux package has been tested on Ubuntu 24.04 with GNOME and Wayland.
 
-1. Download the installer from the release page.
-2. Install AgentEd. The installer is unsigned; see [Windows installation](#windows-installation) below if Windows displays a warning.
+The **Windows installer is under 5 MB**. This refers to the installer download, not the total installed footprint or any required runtime.
+
+1. Download the installer for your platform.
+2. Install AgentEd using the instructions below.
 3. Open an existing Markdown file or create a new document.
 4. Save it to a folder on your computer.
 
-[Read the full quick start](https://agentedapp.com/quick-start.html).
+**The Windows installer is not digitally signed, and the macOS app is not notarized by Apple. Security warnings may appear during installation or first launch.** See [Installation](#installation) below or the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
-**Platforms:** Windows is the primary platform. A release contains a Windows installer, a macOS build for Apple Silicon as a `.dmg`, and an experimental Linux package as a `.deb`, tested on Ubuntu 24.04; see [Linux installation](#linux-installation).
+[Read the full quick start](https://agentedapp.com/quick-start.html).
 
 ## Features
 
@@ -69,10 +79,10 @@ The Windows installer is in the **~3 MB class**. This refers to the installer do
 - **Images:** paste, drop, or insert images into a local `assets/` folder beside your document; add image descriptions for accessibility.
 - **Code blocks:** select a language, copy a block with its Copy button, or use a plain-text block with soft wrapping.
 - **Footnotes:** insert a reference and its note together, then hover over the reference to read it.
-- **Document metadata and templates:** edit YAML front matter in the **Metadata** panel; start with a blank document or one with metadata.
-- **Live counts:** tokens, words, and characters in the header. Token counting runs offline using `gpt-tokenizer` with `cl100k_base`; other models, chat formatting, and attachments can produce different totals.
+- **YAML frontmatter and templates:** edit document metadata in the **Metadata** panel; start with a blank document or one with metadata.
+- **Live estimates and counts:** see a token estimate alongside word and character counts. Token counting runs offline using `gpt-tokenizer` with `cl100k_base`; other models, chat formatting, and attachments can produce different totals.
 - **Find and replace:** match case, whole words, or regular expressions.
-- **Files panel:** browse the document's adjacent file structure in a side panel.
+- **Files panel:** browse the document’s adjacent file structure in a side panel.
 - **Appearance:** light, dark, automatic mode, and curated palettes.
 - **Multiple windows:** work with one document in each independent window.
 - **Spell check:** optional and off by default.
@@ -84,7 +94,7 @@ The Windows installer is in the **~3 MB class**. This refers to the installer do
 Write goals, preferences, and boundaries in Markdown, with YAML metadata alongside the document.
 
 <p align="center">
-  <img src="docs/images/assistant.png" alt="AgentEd showing reusable workshop assistant instructions, an expanded YAML metadata panel and the heading formatting toolbar.">
+  <img src="docs/images/assistant.png" alt="AgentEd showing reusable workshop assistant instructions, an expanded YAML metadata panel, and the heading formatting toolbar.">
 </p>
 
 ### Explain with images and tables
@@ -92,59 +102,99 @@ Write goals, preferences, and boundaries in Markdown, with YAML metadata alongsi
 Combine written instructions, illustrations, and practical details in one document.
 
 <p align="center">
-  <img src="docs/images/guide-frame.png" alt="AgentEd showing a natural-light guide with a camera photograph and a session table.">
+  <img src="docs/images/guide-frame.png" alt="AgentEd showing an illustrated natural-light photography guide with a photograph and a session table.">
 </p>
 
 When sharing a document that uses local images, include its referenced `assets/` folder so the images remain available.
 
-## Windows installation
+## Installation
 
-The installer is not digitally signed. Windows may display **Windows protected your PC** or **Unknown publisher** when you open the installer.
+Download from the official release linked above and check the filename and version. Each release provides SHA-256 checksums for verifying that your download matches the published file. A matching checksum does not by itself establish that software is safe.
 
-Download from the official release linked above and check the filename and version. The release also provides SHA-256 checksums for checking that your download matches the published file.
+The steps below apply to warnings about an unrecognised or unverified application. If your security software identifies a specific threat, stop and report the exact message and release version.
 
-If you have verified the source and choose to continue, select **More info**, then **Run anyway**, if Windows offers that option. An unknown publisher label does not verify the developer's identity. Managed computers or other Windows settings may prevent installation.
+### Windows installation
 
-Do not disable antivirus protection or SmartScreen. If your antivirus reports a specific threat, stop and report the exact message and release version.
+<details>
+<summary><strong>Show Windows installation steps</strong></summary>
 
-Signing is planned for a future release. [Read the installation help](https://agentedapp.com/installation-help.html).
+Run `AgentEd_1.0.0_x64-setup.exe`.
 
-## macOS installation
+The installer is not digitally signed. If Microsoft Defender SmartScreen displays **Windows protected your PC**, and you have verified the source and choose to continue, select **More info → Run anyway**, if that option is available.
 
-The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with 1.0.0 on macOS 26.6 and 27:
+**Unknown publisher** may also appear in a separate Windows permission prompt, including User Account Control (UAC). This is not the SmartScreen dialog and does not have the same buttons. It means Windows cannot verify the publisher’s identity.
 
-1. Open the `.dmg` and drag **AgentEd** onto **Applications**, then start it from **Applications** rather than from the disk image.
-2. macOS shows **“AgentEd” Not Opened**. Click **Done**.
-3. Open **System Settings**, then **Privacy & Security**, and scroll to **Security**. Next to the line **“AgentEd” was blocked to protect your Mac**, click **Open Anyway**.
-4. In the dialog that follows, click **Open Anyway**. The highlighted button in that dialog is **Move to Trash** (**Move to Bin** in British English), which deletes the application.
-5. Enter your password. AgentEd opens, and from then on it opens without asking.
+Managed computers or other Windows security settings may prevent installation. Do not disable antivirus protection or SmartScreen to proceed.
 
-macOS asks again each time AgentEd is installed anew, a reinstall of the same build included: every new installation opens only after steps 2 to 5 are repeated once for it.
+Signing is planned for a future release. See the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
-The **Open Anyway** button is offered for about an hour after the first attempt. As on Windows, download from the official release and check the SHA-256 checksum before you continue.
+</details>
 
-On macOS, a document opened from Finder opens in a window of its own, and **File**, **New Window** (Cmd+Shift+N) opens an empty one. The shortcut hints in the menus name Command, as the table below does.
+### macOS installation
 
-## Linux installation
+<details>
+<summary><strong>Show macOS installation steps</strong></summary>
 
-Linux builds are **experimental**. They were tested on Ubuntu 24.04 (GNOME, Wayland) in a VirtualBox virtual machine, and on no other distribution.
+The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with AgentEd 1.0.0 on macOS 26.6 and 27.
 
-The release contains a `.deb` package for 64-bit x86 systems. It needs **glibc 2.34** or later and **WebKitGTK 4.1**. The package declares both, so the package manager installs WebKitGTK if it is missing and refuses a system whose glibc is older. Download the package from the release page, check its SHA-256 checksum, then install it from the folder you saved it to:
+1. Open `AgentEd_1.0.0_aarch64.dmg` and drag **AgentEd** into **Applications**. Launch it from Applications, not from the disk image.
+2. macOS displays **“AgentEd” Not Opened** because it cannot verify the app. Click **Done**.
+3. Open **System Settings → Privacy & Security**, then scroll to **Security**. Find the message saying AgentEd was blocked and click **Open Anyway**.
+4. In the dialog that follows, click **Open Anyway**. Do not choose **Move to Trash** (**Move to Bin** in British English), the highlighted button, which removes the application.
+5. Enter your password. After approval, this copy of AgentEd opens without repeating these steps.
+
+macOS asks again after replacing or reinstalling AgentEd, every time, with the same steps.
+
+The **Open Anyway** option is available for about an hour after the blocked attempt.
+
+These instructions apply to the unverified-app warning, not to a warning that identifies malware or says the app will damage your computer.
+
+On macOS, a document opened from Finder opens in a window of its own. **File → New Window** (`Cmd+Shift+N`) opens an empty window.
+
+See the illustrated [installation guide](https://agentedapp.com/installation-help.html).
+
+</details>
+
+### Linux installation
+
+<details>
+<summary><strong>Show Linux installation and removal steps</strong></summary>
+
+Linux builds are **experimental**. They have been tested on Ubuntu 24.04 with GNOME and Wayland in a VirtualBox virtual machine, and on no other distribution.
+
+The `.deb` package is for x86-64 systems. It requires **glibc 2.34 or later** and **WebKitGTK 4.1**. APT checks the declared dependencies and installs missing packages when they are available from your configured repositories.
+
+Download the package, check its SHA-256 checksum, then run this command from the folder containing it:
 
 ```sh
-sudo apt install ./AgentEd_*_amd64.deb
+sudo apt install ./AgentEd_1.0.0_amd64.deb
 ```
 
-AgentEd then appears among your applications. On a stock Ubuntu it also becomes the application that opens Markdown files, since no other installed application declares them; choose another one with **Open With** in the Files app if you prefer. Each file you open gets a window of its own, and a file AgentEd does not open, such as a `.txt` file, says why.
+AgentEd then appears among your applications. On the tested stock Ubuntu setup, it also becomes the application used to open Markdown files. You can choose another application using **Open With** in Files.
 
-To remove AgentEd, run `sudo apt remove agent-ed`. Your documents are not touched, and the settings AgentEd keeps for itself stay in `~/.local/share/com.agentedapp.editor` and `~/.config/com.agentedapp.editor`; delete those two folders too if you want nothing left behind.
+Each file you open gets a window of its own. If AgentEd cannot open a file type, such as `.txt`, it explains why.
+
+To remove AgentEd:
+
+```sh
+sudo apt remove agent-ed
+```
+
+Your documents are not touched. AgentEd’s settings remain in:
+
+- `~/.local/share/com.agentedapp.editor`
+- `~/.config/com.agentedapp.editor`
+
+You can remove those folders separately if you also want to delete the application’s saved settings.
+
+</details>
 
 ## Keyboard shortcuts
 
 | Windows | macOS | Action |
 |---------|-------|--------|
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | `Cmd+B` / `Cmd+I` / `Cmd+U` | Bold / Italic / Underline |
-| `Ctrl+K` | `Cmd+K` | Insert link (or edit / remove the link at the caret) |
+| `Ctrl+K` | `Cmd+K` | Insert link, or edit/remove the link at the caret |
 | `Ctrl` + click | `Cmd` + click | Open a link in the system browser |
 | `Ctrl+E` | `Cmd+E` | Inline code |
 | `Ctrl+Shift+K` | `Cmd+Shift+K` | Code block |
@@ -153,41 +203,45 @@ To remove AgentEd, run `sudo apt remove agent-ed`. Your documents are not touche
 | `Ctrl+Shift+S` | `Cmd+Shift+S` | Strikethrough |
 | `Ctrl+Z` / `Ctrl+Y` | `Cmd+Z` / `Cmd+Shift+Z` or `Cmd+Y` | Undo / Redo |
 | `Ctrl+A` | `Cmd+A` | Select all |
-| `Ctrl+S` | `Cmd+S` | Save (Save As is in the File menu) |
+| `Ctrl+S` | `Cmd+S` | Save; Save As is in the File menu |
 | `Ctrl+O` | `Cmd+O` | Open |
-| `Ctrl+V` / `Ctrl+Shift+V` | `Cmd+V` / `Cmd+Shift+V` | Paste (reads markdown) / Paste as plain text |
-| `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+Option+F` | Find / Replace (on a Mac `Cmd+H` hides AgentEd, as in every Mac app) |
-| `Ctrl+Alt+F` | `Cmd+Option+R` | Footnote (Insert → Footnote does the same) |
-| `Ctrl+Shift+E` | `Cmd+Shift+E` | Files panel (open / close) |
+| `Ctrl+V` / `Ctrl+Shift+V` | `Cmd+V` / `Cmd+Shift+V` | Paste, interpreting Markdown / Paste as plain text |
+| `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+Option+F` | Find / Replace |
+| `Ctrl+Alt+F` | `Cmd+Option+R` | Insert footnote |
+| `Ctrl+Shift+E` | `Cmd+Shift+E` | Open/close the Files panel |
 | `F3` | `Fn+F3` | Find next |
 | `Shift+F3` | `Fn+Shift+F3` | Find previous |
 | `Shift+Enter` | `Shift+Enter` | Line break inside a paragraph |
-| `Tab` / `Shift+Tab` | `Tab` / `Shift+Tab` | Indent / dedent in lists; move between table cells |
+| `Tab` / `Shift+Tab` | `Tab` / `Shift+Tab` | Indent/dedent in lists; move between table cells |
 
----
+On macOS, `Cmd+H` hides AgentEd rather than opening Replace.
 
 ## Known limitations
 
-Honest edges, documented rather than discovered:
+Known limitations in this release:
 
-- **Line breaks inside a paragraph** are made with `Shift+Enter` or `Ctrl+Enter`. There is no button or menu entry for one.
-- **A file that begins with a line of three hyphens** and has another such line further down opens with everything between them as metadata — the panel at the top — rather than as text. AgentEd never writes a file in this shape itself, so this concerns files written by hand or by another tool. Where the second line of hyphens sits inside a code block, the file opens without that block and the text after it shows as code; saving loses no bytes, but the file keeps opening this way.
-- **Paste as plain text** in the right-click menu behaves like an ordinary paste — Windows hands the page the same content either way, so AgentEd cannot tell them apart. For a literal paste, use `Ctrl+Shift+V`.
-- **Spell check works in one language at a time**, and on Windows that language is the first one in the Windows preferred-languages list (Settings, Language) when the checker has a dictionary for it, and the Windows display language otherwise; the list is read when AgentEd starts, so a change there applies once every AgentEd window has been closed and AgentEd opened again.
-- **Linux was tested in one place only**: Ubuntu 24.04 with GNOME on Wayland, in a virtual machine with 3D acceleration off. Other desktops such as KDE or Xfce, an X11 session and a machine with 3D acceleration on were not tried, and no `.rpm` package is published.
-- **Insert → Metadata** is not part of undo: `Ctrl+Z` does not remove the block it adds. Deleting every field in the panel removes the block as if it had never been there.
+- **Line breaks inside a paragraph:** use `Shift+Enter`. There is no toolbar button or menu entry for this action.
+- **Opening `---` delimiters:** when a file starts with `---` and contains another such line later, AgentEd interprets the content between them as metadata. Some files created by hand or other tools may therefore display incorrectly, including when the closing delimiter is inside a code block. See [REQUIREMENTS.md](REQUIREMENTS.md) for the documented cases.
+- **Windows right-click paste:** **Paste as plain text** in the context menu behaves like an ordinary paste. Use `Ctrl+Shift+V` for a literal plain-text paste.
+- **Spell check:** one language at a time. On Windows, it uses the first preferred language for which a dictionary is available, or falls back to the Windows display language. Changes to the preferred language list take effect after all AgentEd windows have been closed and the application restarted.
+- **Linux coverage:** testing was limited to Ubuntu 24.04 with GNOME on Wayland in a virtual machine with 3D acceleration off. Other distributions, desktop environments, X11, and configurations with 3D acceleration have not been tested. No `.rpm` package is published.
+- **Inserting metadata:** **Insert → Metadata** is not part of undo. Deleting every field in the panel removes the metadata block.
 
----
+Further format behaviour and exceptions are documented in [REQUIREMENTS.md](REQUIREMENTS.md).
 
 ## Project status
 
-AgentEd is in active development. The 1.0 line focuses on visual editing of local Markdown files, with Windows as the primary platform.
+AgentEd is in active development. The 1.0 line focuses on visual editing of local Markdown files.
+
+Windows and macOS releases are available, with Windows as the primary development and testing platform. Linux builds remain experimental.
 
 The product definition and documented exceptions live in [REQUIREMENTS.md](REQUIREMENTS.md).
 
 ## Building from source
 
-You need Node.js 22.12 or later in the 22 line, 24, or 26 and later, as the `engines` field in `package.json` states (CI runs Node.js 24); the odd-numbered lines are not supported. You also need the Rust toolchain (via [rustup](https://rustup.rs/)) and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+**Node.js 24 is recommended and is used in CI.** See the `engines` field in [package.json](package.json) for the accepted version range.
+
+You also need the Rust toolchain, available through [rustup](https://rustup.rs/), and the [Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```sh
 git clone https://github.com/cgxopen/AgentEd.git
@@ -196,30 +250,36 @@ npm install
 npm run tauri dev
 ```
 
-The Tauri CLI is included in the project's development dependencies.
+The Tauri CLI is included in the project’s development dependencies.
 
-Production build: `npm run tauri build`
+For a production build:
 
-Before opening a pull request, run the [verification checklist](CONTRIBUTING.md#verification-checklist-before-a-pull-request) in CONTRIBUTING.md: the linters, the type check, the tests and the web build.
+```sh
+npm run tauri build
+```
+
+Before opening a pull request, run the [verification checklist](CONTRIBUTING.md#verification-checklist-before-a-pull-request): the linters, type check, tests, and web build.
 
 ## Contributing
 
-Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first. For larger changes, open an issue to discuss direction. Everything in this repository — code, docs, commits, PRs, issues — is in English.
+Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) first. For larger changes, open an issue to discuss the direction before starting work.
+
+Everything in this repository — code, documentation, commits, pull requests, and issues — is in English.
 
 ## Support AgentEd
 
-AgentEd is free. If it is useful to you, you can support it on [Ko-fi](https://ko-fi.com/agentedapp).
+AgentEd is free and open source. If it makes your work easier, you can support its development on [Ko-fi](https://ko-fi.com/agentedapp).
 
-Support goes to the author, who publishes AgentEd in his own name, and is spent on maintaining and developing AgentEd, for example:
+Support goes to the author, who publishes AgentEd in his own name, and **helps fund ongoing development and maintenance**, including:
 
-- fixing reported bugs;
-- testing on Linux;
-- a macOS build, which needs an Apple developer certificate paid every year;
-- new features, within what [REQUIREMENTS.md](REQUIREMENTS.md) sets out.
+- fixing bugs and improving the editing experience;
+- testing and maintaining Windows, macOS, and Linux builds;
+- Apple Developer Program membership for signing and notarizing macOS releases;
+- documentation and new features within the project’s scope.
 
-How money given to the project is handled is set out in [CONTRIBUTING.md](CONTRIBUTING.md#money-given-to-the-project).
+Contributions are optional. How money given to the project is handled is described in [CONTRIBUTING.md](CONTRIBUTING.md#money-given-to-the-project).
 
-AgentEd itself does not collect, store, or process any payment information. All contributions are handled entirely by Ko-fi under its own [terms and privacy policy](https://more.ko-fi.com/privacy).
+The AgentEd application does not collect or process payment information. Contributions are processed through Ko-fi and its payment providers under their applicable policies. See [Ko-fi’s privacy policy](https://more.ko-fi.com/privacy).
 
 ## License
 
@@ -229,7 +289,11 @@ The MIT license covers the code, not the AgentEd name or logo: a fork is welcome
 
 ## Author and contact
 
-Built by [Cătălin Vasile](https://github.com/catge) using Claude Code. For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For other enquiries, email [contact@agentedapp.com](mailto:contact@agentedapp.com) or reach out on [X](https://x.com/CatalinG_Vasile).
+Built by [Cătălin Vasile](https://github.com/catge) using Claude Code.
+
+For bugs and feature requests, [open an issue](https://github.com/cgxopen/AgentEd/issues). For security vulnerabilities, follow [SECURITY.md](SECURITY.md) rather than opening a public issue.
+
+For other enquiries, email [contact@agentedapp.com](mailto:contact@agentedapp.com) or reach out on [X](https://x.com/CatalinG_Vasile).
 
 ## History
 
