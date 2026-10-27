@@ -70,6 +70,8 @@ The **Windows installer is under 5 MB**. This refers to the installer download, 
 
 **The Windows installer is not digitally signed, and the macOS app is not notarized by Apple. Security warnings may appear during installation or first launch.** See [Installation](#installation) below or the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
+AgentEd is free and open source, built by one person. If it makes your work easier, [support its development on Ko-fi](https://ko-fi.com/agentedapp) — see [Support AgentEd](#support-agented) below.
+
 [Read the full quick start](https://agentedapp.com/quick-start.html).
 
 ## Features
