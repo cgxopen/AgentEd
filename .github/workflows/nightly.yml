@@ -24,6 +24,15 @@ concurrency:
   group: nightly-${{ github.ref }}
   cancel-in-progress: true
 
+# The token every job of this file runs with, unless the job declares its
+# own block (#661): contents read, and every scope not named here none,
+# save metadata, which GitHub always grants read. A job-level block
+# replaces this one rather than adding to it, so `guard` below, which
+# declares actions read for its call on the runs of this workflow, keeps
+# exactly what it declares.
+permissions:
+  contents: read
+
 jobs:
   guard:
     name: Activity guard + matrix
