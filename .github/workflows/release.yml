@@ -6,7 +6,7 @@ name: Release
 # queue time is covered by none of them.
 #
 # The numbers were first transcribed from a job of the same shape -
-# `nightly.yml` builds Windows with no cargo cache, exactly as this does, and
+# `scheduled.yml` builds Windows with no cargo cache, exactly as this does, and
 # its Windows job took 708 seconds on run 34037705792. Three tags have since
 # been built here, and measured against them:
 #
@@ -33,14 +33,14 @@ jobs:
     strategy:
       fail-fast: false
       # A release builds Windows, macOS and, since #550, Linux, labelled
-      # experimental: the deb alone, on ubuntu-22.04 as nightly builds it, so
+      # experimental: the deb alone, on ubuntu-22.04 as the scheduled build builds it, so
       # the glibc the binary needs is that of 22.04 and the floor the deb
       # declares holds (checked below). No rpm by owner decision 4 on #550:
-      # nobody has installed one on an rpm distribution. Nightly keeps
+      # nobody has installed one on an rpm distribution. The scheduled build keeps
       # building it, with the same desktop entry and floor.
       #
       # macOS is Apple Silicon alone, ad-hoc signed over the whole bundle, by
-      # owner decision on #538, whose step zero measured it on nightly runs:
+      # owner decision on #538, whose step zero measured it on scheduled runs:
       # - macos-latest is Apple Silicon and with no --target builds aarch64
       #   only, a 3.5 MB .dmg, the class of the Windows installer, in about
       #   three minutes. Intel and universal builds were measured and left
@@ -67,7 +67,7 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     # Above a fully cold healthy run by a wide margin: the same job in
-    # `nightly.yml`, which also builds with no cargo cache, took 708 seconds.
+    # `scheduled.yml`, then `nightly.yml`, which also builds with no cargo cache, took 708 seconds.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -117,7 +117,7 @@ jobs:
         # The action runs the frontend build and the Rust build and then
         # uploads the assets, so this is the compile step and the widest
         # ceiling in the file. 45, as the same build carries in
-        # `nightly.yml`; the upload it adds is a few megabytes.
+        # `scheduled.yml`; the upload it adds is a few megabytes.
         timeout-minutes: 45
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -33,7 +33,7 @@ const host = process.env.TAURI_DEV_HOST;
 // AGENTED_BUILD_COMMIT, or `dev`. **There is deliberately no fallback to
 // `GITHUB_SHA`.** It used to be the middle rung, on the reasoning that a CI
 // build without the variable may as well name the commit it is running on.
-// That is true of a push, of nightly and of a release, and false on a
+// That is true of a push, of a scheduled build and of a release, and false on a
 // `pull_request` event, where `GITHUB_SHA` is the ephemeral merge commit and
 // not the head the pull request page shows: a consumer that lost its `env:`
 // line did not fall through to an honest `dev` but baked seven characters
@@ -48,7 +48,7 @@ const host = process.env.TAURI_DEV_HOST;
 //
 // So every workflow that builds the application passes the value it means:
 // `ci.yml` passes the pull-request head its `changes` job computes, and
-// `nightly.yml` and `release.yml` pass `github.sha`, which on their events is
+// `scheduled.yml` and `release.yml` pass `github.sha`, which on their events is
 // the commit anyone means. The contract is asserted across all three in
 // `.github/workflows/ci.test.ts` — a workflow that forgets the line is a red
 // test rather than a wrong build.

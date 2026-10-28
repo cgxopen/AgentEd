@@ -15,8 +15,8 @@ import VITE_CONFIG from '../../vite.config.ts?raw';
 // asking for a file's bytes, so the test needs no filesystem access and no
 // dependency to reach them.
 import CI from './ci.yml?raw';
-import NIGHTLY from './nightly.yml?raw';
 import RELEASE from './release.yml?raw';
+import SCHEDULED from './scheduled.yml?raw';
 
 /**
  * What CI promises, pinned as text.
@@ -222,7 +222,7 @@ describe('the cargo caches are keyed on what each half depends on (#53)', () => 
 describe('nothing runs unbounded (#47)', () => {
   for (const [label, source] of [
     ['ci.yml', CI],
-    ['nightly.yml', NIGHTLY],
+    ['scheduled.yml', SCHEDULED],
     ['release.yml', RELEASE],
   ] as const) {
     it(`${label}: every job carries a ceiling`, () => {
@@ -265,18 +265,18 @@ describe('nothing runs unbounded (#47)', () => {
       const step = source.slice(from, end + 'exit 1'.length);
       return step.slice(step.indexOf('run: |'));
     };
-    expect(loop(NIGHTLY), 'nightly.yml apt loop differs from ci.yml').toBe(loop(CI));
+    expect(loop(SCHEDULED), 'scheduled.yml apt loop differs from ci.yml').toBe(loop(CI));
     expect(loop(RELEASE), 'release.yml apt loop differs from ci.yml').toBe(loop(CI));
   });
 });
 
-describe('nightly.yml runs weekly, and can still be asked for by hand', () => {
+describe('scheduled.yml runs weekly, and can still be asked for by hand', () => {
   it('is scheduled once a week', () => {
-    expect(NIGHTLY).toContain("- cron: '0 3 * * 1'");
+    expect(SCHEDULED).toContain("- cron: '0 3 * * 1'");
   });
 
   it('keeps workflow_dispatch', () => {
-    expect(NIGHTLY).toMatch(/^ {2}workflow_dispatch:$/m);
+    expect(SCHEDULED).toMatch(/^ {2}workflow_dispatch:$/m);
   });
 });
 
@@ -291,7 +291,7 @@ describe('no job runs on a label that moves under it (#591)', () => {
    */
   it.each([
     ['ci.yml', CI],
-    ['nightly.yml', NIGHTLY],
+    ['scheduled.yml', SCHEDULED],
     ['release.yml', RELEASE],
   ] as const)('%s: no job runs on ubuntu-latest', (_label, source) => {
     const withoutComments = source
@@ -329,9 +329,9 @@ describe('the build matrix says which targets exist at all (#8)', () => {
    * would build against a newer glibc than the floor the deb declares. The
    * floor check below would catch the second; nothing would catch the first.
    */
-  it('builds Linux on every scheduled nightly, not on request', () => {
-    expect(NIGHTLY).toContain('"platform\\":\\"ubuntu-22.04\\"');
-    expect(NIGHTLY).not.toContain('inputs.include_linux');
+  it('builds Linux on every scheduled build, not on request', () => {
+    expect(SCHEDULED).toContain('"platform\\":\\"ubuntu-22.04\\"');
+    expect(SCHEDULED).not.toContain('inputs.include_linux');
   });
 
   it('builds macOS in the release for Apple Silicon alone, ad-hoc signed (#538)', () => {
@@ -379,13 +379,13 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     expect(linux).toContain("            target: ''\n");
   });
 
-  it('asks nightly Linux for the deb and the rpm', () => {
-    // The release asks the deb alone (the row above); nightly keeps the rpm,
+  it('asks the scheduled Linux build for the deb and the rpm', () => {
+    // The release asks the deb alone (the row above); the scheduled build keeps the rpm,
     // with the same desktop entry and floor, so a later Fedora test needs
     // no code (#550, owner decision 4).
     //
     // AppImage is out for what it costs, not because it breaks — it builds
-    // on the runner. So dropping this flag would leave nightly **green** and
+    // on the runner. So dropping this flag would leave the scheduled build **green** and
     // quietly restore a 194 MB weekly artifact in place of an 8 MB one,
     // which is the silent-regression shape the rest of this file exists for.
     // The reason is written where the flag is.
@@ -395,8 +395,8 @@ describe('the build matrix says which targets exist at all (#8)', () => {
     // prose: it survives the flag being deleted from the configuration, and
     // this assertion then guards nothing. Measured, not feared — it happened
     // to the first draft of this test.
-    const linuxEntry = NIGHTLY.match(/^ *entries=.*ubuntu-22\.04.*$/m)?.[0];
-    expect(linuxEntry, 'no Linux entry in the nightly matrix').toBeDefined();
+    const linuxEntry = SCHEDULED.match(/^ *entries=.*ubuntu-22\.04.*$/m)?.[0];
+    expect(linuxEntry, 'no Linux entry in the scheduled matrix').toBeDefined();
     expect(linuxEntry).toContain('--bundles deb,rpm');
   });
 });
@@ -421,7 +421,7 @@ describe('every Linux bundle is checked against the glibc floor it declares (#55
       ?.split('\n\n')[0];
 
   it.each([
-    ['nightly.yml', NIGHTLY, 'Build the bundles'],
+    ['scheduled.yml', SCHEDULED, 'Build the bundles'],
     ['release.yml', RELEASE, 'tauri-apps/tauri-action@'],
   ] as const)(
     '%s: after the build, on the Linux line, with its own ceiling',
@@ -440,11 +440,11 @@ describe('every Linux bundle is checked against the glibc floor it declares (#55
   );
 
   it('is the same step, byte for byte, in both files', () => {
-    expect(check(RELEASE)).toBe(check(NIGHTLY));
+    expect(check(RELEASE)).toBe(check(SCHEDULED));
   });
 
   it('holds the floor the deb and the rpm declare', () => {
-    const floor = check(NIGHTLY)?.match(/^ {10}GLIBC_FLOOR: '([0-9.]+)'$/m)?.[1];
+    const floor = check(SCHEDULED)?.match(/^ {10}GLIBC_FLOOR: '([0-9.]+)'$/m)?.[1];
     expect(floor).toBe('2.34');
     const linux = JSON.parse(TAURI_LINUX_CONF).bundle.linux;
     expect(linux.deb.depends).toContain(`libc6 (>= ${floor})`);
@@ -567,7 +567,7 @@ describe('the documents the round-trip guard reads can start the job that runs i
  *
  * `vite.config.ts` used to carry a middle rung — `AGENTED_BUILD_COMMIT`, then
  * `GITHUB_SHA`, then `dev` — so a build step that lost its `env:` line still
- * produced seven plausible characters. On a push, in nightly and in a release
+ * produced seven plausible characters. On a push, in a scheduled build and in a release
  * those characters are right. On a `pull_request` event `GITHUB_SHA` is the
  * ephemeral merge commit, so they matched nothing anyone could see, and the
  * three-places-one-value rule that every manual pass in this project rests on
@@ -616,8 +616,8 @@ describe('every workflow that builds the application names its commit (#41)', ()
       count: 2,
     },
     {
-      file: 'nightly.yml',
-      source: NIGHTLY,
+      file: 'scheduled.yml',
+      source: SCHEDULED,
       // The tail is optional on purpose. What this pattern is for is
       // *which step*, and the step now carries a per-platform bundle list
       // (#8); asserting the arguments here would make an unrelated change to
@@ -672,7 +672,7 @@ describe('every workflow that builds the application names its commit (#41)', ()
       //
       // Measured: with `ci.yml`'s two lines, deleting one leaves this half
       // green and only "complete" red, which is the separation. With the one
-      // line `nightly.yml` and `release.yml` each carry, deleting it trips
+      // line `scheduled.yml` and `release.yml` each carry, deleting it trips
       // this lower bound as well — *no line* and *the pattern found nothing*
       // are the same observation when there is only one, and the guard on the
       // guard is worth more than the separation in that case.
@@ -713,7 +713,7 @@ describe('a build whose tool download fails once is tried once more (#501)', () 
   // announced, and a second attempt whose failure is the step's failure.
   it.each([
     ['ci.yml', CI, 'Build the installer'],
-    ['nightly.yml', NIGHTLY, 'Build the bundles'],
+    ['scheduled.yml', SCHEDULED, 'Build the bundles'],
   ])('%s: the build step retries once and fails on a second failure', (_file, source, name) => {
     const step = steps(source).find((s) => s.startsWith(`name: ${name}\n`));
     expect(step, `no step named ${name}`).toBeDefined();
@@ -761,7 +761,7 @@ describe('every workflow says what its token may do, at the top (#661)', () => {
   // level; the top-level key is what keeps a job read-only if it changes.
   it.each([
     ['ci.yml', CI],
-    ['nightly.yml', NIGHTLY],
+    ['scheduled.yml', SCHEDULED],
     ['release.yml', RELEASE],
   ])('%s declares top-level permissions', (_file, source) => {
     expect(topLevelPermissions(source).length).toBeGreaterThan(0);
@@ -772,7 +772,7 @@ describe('every workflow says what its token may do, at the top (#661)', () => {
   // at most at the top; a job that needs more declares it on itself.
   it.each([
     ['ci.yml', CI],
-    ['nightly.yml', NIGHTLY],
+    ['scheduled.yml', SCHEDULED],
   ])('%s grants nothing above read at the top', (_file, source) => {
     const grants = topLevelPermissions(source);
     expect(grants.length, 'no top-level permissions').toBeGreaterThan(0);
