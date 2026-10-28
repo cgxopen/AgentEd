@@ -73,9 +73,18 @@ function expressionsAfter(source: string, pattern: RegExp): string[] {
   return found;
 }
 
-/** Every step of a workflow, as text — steps start at six spaces in all three files. */
+/**
+ * Every step of a workflow, as text — steps start at six spaces in every file.
+ * Read from the `jobs:` key on: a list under `on:` sits at six spaces too, the
+ * tags of release.yml, and was read as a step until #672, with the comment
+ * that followed it.
+ */
 function steps(source: string): string[] {
-  return source.split(/^ {6}- /m).slice(1);
+  const from = source.search(/^jobs:$/m);
+  return source
+    .slice(from === -1 ? 0 : from)
+    .split(/^ {6}- /m)
+    .slice(1);
 }
 
 /** Job blocks, keyed by job id — everything from `  <id>:` to the next one. */
@@ -778,19 +787,26 @@ describe('every workflow says what its token may do, at the top (#661)', () => {
     expect(topLevelPermissions(source).length).toBeGreaterThan(0);
   });
 
-  // Write stays where it is needed, in release.yml, which creates the
-  // release. Every other file grants read at most at the top; a job that
-  // needs more declares it on itself, as Scorecard does in security.yml.
-  it.each(WORKFLOWS.filter(([file]) => file !== 'release.yml'))(
-    '%s grants nothing above read at the top',
-    (_file, source) => {
-      const grants = topLevelPermissions(source);
-      expect(grants.length, 'no top-level permissions').toBeGreaterThan(0);
-      for (const grant of grants) {
-        expect(grant).toMatch(/^(read-all|\{\}|[a-z-]+: (read|none))$/);
-      }
-    },
-  );
+  // Every file grants read at most at the top, release.yml included since
+  // #672; a job that needs more declares it on itself, as the two jobs of
+  // release.yml that write to the release do, and as Scorecard does in
+  // security.yml.
+  it.each(WORKFLOWS)('%s grants nothing above read at the top', (_file, source) => {
+    const grants = topLevelPermissions(source);
+    expect(grants.length, 'no top-level permissions').toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toMatch(/^(read-all|\{\}|[a-z-]+: (read|none))$/);
+    }
+  });
+
+  it('release.yml grants write to the two jobs that write to the release, and to no other (#672)', () => {
+    // build-and-draft creates the draft and uploads its assets through
+    // tauri-action; curate-assets deletes and uploads assets with gh release.
+    const writing = [...jobs(RELEASE)]
+      .filter(([, block]) => /^ {6}[a-z-]+: write$/m.test(block))
+      .map(([id]) => id);
+    expect(writing).toEqual(['build-and-draft', 'curate-assets']);
+  });
 });
 
 describe('security.yml reports advisories and never blocks (#668)', () => {
