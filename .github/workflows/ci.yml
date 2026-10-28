@@ -370,6 +370,18 @@ jobs:
             ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-
       - run: npm ci
         timeout-minutes: 10
+      # Measurement for #659, not the fix: lists the installers the build
+      # cache restored into the bundle folder, before this build writes any.
+      - name: List the restored bundle folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle=src-tauri/target/release/bundle
+          if [ -d "$bundle" ]; then
+            find "$bundle" -maxdepth 2 -type f \( -name '*.exe' -o -name '*.msi' \) -exec ls -l {} +
+          else
+            echo "No $bundle folder was restored."
+          fi
       # Once more if the first attempt fails (#501). `tauri build` downloads
       # the bundler tools from GitHub on every run, since a fresh runner has
       # none: WiX and NSIS, and nsis_tauri_utils.dll for the installer. One of
