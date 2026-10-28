@@ -20,7 +20,7 @@ import { addBrSpellingRules } from './br-spelling';
 import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { keepingSpansOfSpaces } from './code-span-spaces';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
-import { literalAmpersands } from './destination';
+import { inlineDestination } from './destination';
 import { keptDestination, type ReadLink } from './destination-spelling';
 import { addEmphasisBesideStrongRule } from './emphasis-beside-strong';
 import { addEmphasisDelimiterRules } from './emphasis-delimiter';
@@ -295,10 +295,12 @@ if (!builtinHeading) {
  */
 turndown.remove(['style', 'script', 'title', 'noscript']);
 
-// A link as turndown writes it, with one difference: an ampersand in the
-// destination that would begin a character reference is written as `&amp;`, so
-// the next reader does not decode it into another address (#447, see
-// `destination.ts`). Everything else is turndown's own `inlineLink`, restated
+// A link as turndown writes it, with two differences, both in
+// `inlineDestination` of `destination.ts`: an ampersand in the destination
+// that would begin a character reference is written as `&amp;`, so the next
+// reader does not decode it into another address (#447), and a backslash is
+// escaped as well as the parentheses, so it is not read as their escape
+// (#664). Everything else is turndown's own `inlineLink`, restated
 // because a rule cannot be adjusted in place: parentheses escaped, and the
 // title with its newlines collapsed the way turndown collapses them, in the
 // delimiter the file used since #562 (`link-title.ts`).
@@ -306,7 +308,7 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
   filter: (node) => node.nodeName === 'A' && Boolean((node as HTMLElement).getAttribute('href')),
   replacement: (content, node) => {
     const element = node as HTMLElement;
-    const href = literalAmpersands(element.getAttribute('href') ?? '').replace(/([()])/g, '\\$1');
+    const href = inlineDestination(element.getAttribute('href') ?? '');
     // A link the file wrote as a reference, while its label resolves (#570).
     const reference = referenceSpelling(element, content, writesAsLabel(content), false);
     if (reference !== null) return `${linkStart()}${reference}`;

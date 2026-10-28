@@ -2,7 +2,7 @@ import { isAllowedUri } from '@tiptap/extension-link';
 import { marked, type Tokens } from 'marked';
 import type TurndownService from 'turndown';
 import { isRelativeLinkAddress } from '../link-url';
-import { literalAmpersands } from './destination';
+import { angleDestination, inlineDestination } from './destination';
 import { linkStart } from './link-start';
 import {
   referenceAttribute,
@@ -98,8 +98,8 @@ function isInlineSpelling(raw: string): boolean {
  */
 function inlineBytes(token: Tokens.Link): string {
   const href = /[\s<>]/.test(token.href)
-    ? `<${token.href}>`
-    : literalAmpersands(token.href).replace(/([()])/g, '\\$1');
+    ? angleDestination(token.href)
+    : inlineDestination(token.href);
   const title = token.title ? ` "${token.title.replace(/["\\]/g, '\\$&')}"` : '';
   return `[${token.text}](${href}${title})`;
 }
@@ -212,7 +212,7 @@ function insideBrackets(raw: string, content: string): string | null {
   const link = marked.Lexer.lexInline(raw)[0] as Tokens.Link | undefined;
   if (link?.type !== 'link') return null;
   if (raw.startsWith('<')) {
-    return `[${content}](${literalAmpersands(link.href).replace(/([()])/g, '\\$1')})`;
+    return `[${content}](${inlineDestination(link.href)})`;
   }
   const close = 1 + link.text.length;
   return raw[close] === ']' ? `[${content}]${raw.slice(close + 1)}` : null;
