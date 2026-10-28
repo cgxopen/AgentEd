@@ -731,3 +731,53 @@ describe('a build whose tool download fails once is tried once more (#501)', () 
     expect(lines[first]).toBe(`if ${lines[first + 2]}; then exit 0; fi`);
   });
 });
+
+/**
+ * The grants of the top-level `permissions` key, one `scope: level` string
+ * each, or the scalar written on the key line itself (`read-all`, `{}`).
+ * Empty when the file has no top-level key. Top-level keys sit at column
+ * zero and their entries at two spaces; comment lines inside are skipped.
+ */
+function topLevelPermissions(source: string): string[] {
+  const lines = source.split('\n');
+  const start = lines.findIndex((line) => /^permissions:/.test(line));
+  if (start === -1) return [];
+  const scalar = lines[start].replace(/^permissions:/, '').trim();
+  if (scalar !== '') return [scalar];
+  const grants: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (/^\s*#/.test(line)) continue;
+    const entry = line.match(/^ {2}([a-z-]+:\s*\S+)\s*$/);
+    if (!entry) break;
+    grants.push(entry[1].replace(/:\s+/, ': '));
+  }
+  return grants;
+}
+
+describe('every workflow says what its token may do, at the top (#661)', () => {
+  // A job with no `permissions` key of its own runs with the token the file
+  // declares at the top, and with the repository default when the file
+  // declares none. The default is read-only today, set at the organization
+  // level; the top-level key is what keeps a job read-only if it changes.
+  it.each([
+    ['ci.yml', CI],
+    ['nightly.yml', NIGHTLY],
+    ['release.yml', RELEASE],
+  ])('%s declares top-level permissions', (_file, source) => {
+    expect(topLevelPermissions(source).length).toBeGreaterThan(0);
+  });
+
+  // Write stays where it is needed, in release.yml, which creates the
+  // release. The two files that only build and upload artifacts grant read
+  // at most at the top; a job that needs more declares it on itself.
+  it.each([
+    ['ci.yml', CI],
+    ['nightly.yml', NIGHTLY],
+  ])('%s grants nothing above read at the top', (_file, source) => {
+    const grants = topLevelPermissions(source);
+    expect(grants.length, 'no top-level permissions').toBeGreaterThan(0);
+    for (const grant of grants) {
+      expect(grant).toMatch(/^(read-all|\{\}|[a-z-]+: (read|none))$/);
+    }
+  });
+});

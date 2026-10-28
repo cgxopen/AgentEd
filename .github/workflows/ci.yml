@@ -21,6 +21,15 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# The token every job of this file runs with, unless the job declares its
+# own block (#661): contents read, and every scope not named here none,
+# save metadata, which GitHub always grants read. A job-level block
+# replaces this one rather than adding to it, so `changes` below, which
+# declares contents read and pull-requests read for the path filter, keeps
+# exactly what it declares.
+permissions:
+  contents: read
+
 jobs:
   changes:
     name: Detect changed paths
