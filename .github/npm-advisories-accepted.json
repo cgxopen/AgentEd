@@ -1,0 +1,10 @@
+{
+  "about": "npm advisories accepted by owner decision, each with its reason. Read by .github/workflows/npm-advisories.mjs in security.yml (#668). An advisory not listed here is reported, and so is one listed here that npm audit no longer reports.",
+  "accepted": [
+    {
+      "id": "GHSA-cp6q-959q-f8rh",
+      "package": "@tiptap/core",
+      "reason": "A false range: the locked 2.27.3 holds the backport of the mergeAttributes repair, decided on #493 and pinned by src/editor/merge-attributes.test.ts; the advisory names 3.30.4 alone as fixed. Owner decision 1 of 2026-10-28 on #668."
+    }
+  ]
+}

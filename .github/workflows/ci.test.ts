@@ -15,8 +15,27 @@ import VITE_CONFIG from '../../vite.config.ts?raw';
 // asking for a file's bytes, so the test needs no filesystem access and no
 // dependency to reach them.
 import CI from './ci.yml?raw';
+import { toReport } from './npm-advisories.mjs';
 import RELEASE from './release.yml?raw';
 import SCHEDULED from './scheduled.yml?raw';
+
+/**
+ * Every workflow file of this folder, read as text (#668). The rows that hold
+ * for every workflow read this list rather than a list written by hand, so a
+ * new file is checked without anyone adding it here: `import.meta.glob` is
+ * Vite's own way of asking for the files a pattern matches, so no filesystem
+ * access and no dependency are needed. A workflow file ends in `.yml` here; a
+ * `.yaml` one would be met by neither this list nor the convention.
+ *
+ * Measured on #668: the module cache of Vitest in `node_modules/.vitest-cache`
+ * keeps the list a run found, and a file added afterwards does not refresh it,
+ * so a local run with a warm cache can miss a new workflow until that folder
+ * is cleared. CI installs `node_modules` afresh on every run and reads the
+ * folder as it is.
+ */
+const WORKFLOWS: ReadonlyArray<readonly [string, string]> = Object.entries(
+  import.meta.glob<string>('./*.yml', { query: '?raw', import: 'default', eager: true }),
+).map(([path, source]) => [path.replace(/^\.\//, ''), source] as const);
 
 /**
  * What CI promises, pinned as text.
@@ -220,11 +239,11 @@ describe('the cargo caches are keyed on what each half depends on (#53)', () => 
 });
 
 describe('nothing runs unbounded (#47)', () => {
-  for (const [label, source] of [
-    ['ci.yml', CI],
-    ['scheduled.yml', SCHEDULED],
-    ['release.yml', RELEASE],
-  ] as const) {
+  it('reads every workflow file of the folder', () => {
+    expect(WORKFLOWS.length).toBeGreaterThanOrEqual(4);
+  });
+
+  for (const [label, source] of WORKFLOWS) {
     it(`${label}: every job carries a ceiling`, () => {
       for (const [id, block] of jobs(source)) {
         expect(block, `job ${id} has no timeout-minutes`).toMatch(/^ {4}timeout-minutes: \d+$/m);
@@ -289,11 +308,7 @@ describe('no job runs on a label that moves under it (#591)', () => {
    * the label; what is left is every `runs-on`, every matrix entry and every
    * JSON matrix a script builds.
    */
-  it.each([
-    ['ci.yml', CI],
-    ['scheduled.yml', SCHEDULED],
-    ['release.yml', RELEASE],
-  ] as const)('%s: no job runs on ubuntu-latest', (_label, source) => {
+  it.each(WORKFLOWS)('%s: no job runs on ubuntu-latest', (_label, source) => {
     const withoutComments = source
       .split('\n')
       .filter((line) => !/^\s*#/.test(line))
@@ -759,25 +774,62 @@ describe('every workflow says what its token may do, at the top (#661)', () => {
   // declares at the top, and with the repository default when the file
   // declares none. The default is read-only today, set at the organization
   // level; the top-level key is what keeps a job read-only if it changes.
-  it.each([
-    ['ci.yml', CI],
-    ['scheduled.yml', SCHEDULED],
-    ['release.yml', RELEASE],
-  ])('%s declares top-level permissions', (_file, source) => {
+  it.each(WORKFLOWS)('%s declares top-level permissions', (_file, source) => {
     expect(topLevelPermissions(source).length).toBeGreaterThan(0);
   });
 
   // Write stays where it is needed, in release.yml, which creates the
-  // release. The two files that only build and upload artifacts grant read
-  // at most at the top; a job that needs more declares it on itself.
-  it.each([
-    ['ci.yml', CI],
-    ['scheduled.yml', SCHEDULED],
-  ])('%s grants nothing above read at the top', (_file, source) => {
-    const grants = topLevelPermissions(source);
-    expect(grants.length, 'no top-level permissions').toBeGreaterThan(0);
-    for (const grant of grants) {
-      expect(grant).toMatch(/^(read-all|\{\}|[a-z-]+: (read|none))$/);
-    }
+  // release. Every other file grants read at most at the top; a job that
+  // needs more declares it on itself, as Scorecard does in security.yml.
+  it.each(WORKFLOWS.filter(([file]) => file !== 'release.yml'))(
+    '%s grants nothing above read at the top',
+    (_file, source) => {
+      const grants = topLevelPermissions(source);
+      expect(grants.length, 'no top-level permissions').toBeGreaterThan(0);
+      for (const grant of grants) {
+        expect(grant).toMatch(/^(read-all|\{\}|[a-z-]+: (read|none))$/);
+      }
+    },
+  );
+});
+
+describe('security.yml reports advisories and never blocks (#668)', () => {
+  const SECURITY = WORKFLOWS.find(([file]) => file === 'security.yml')?.[1] ?? '';
+
+  it('runs on its schedule and by hand, never on a pull request or a push', () => {
+    expect(SECURITY).toContain("- cron: '0 4 * * 1'");
+    expect(SECURITY).toMatch(/^ {2}workflow_dispatch:$/m);
+    expect(SECURITY).not.toMatch(/^ {2}(pull_request|push):/m);
+  });
+
+  it('gives write scopes to the Scorecard job alone', () => {
+    const scoped = [...jobs(SECURITY)].filter(([, block]) => /^ {6}[a-z-]+: write$/m.test(block));
+    expect(scoped.map(([id]) => id)).toEqual(['scorecard']);
+  });
+
+  /** An `npm audit --json` report naming one advisory against one package. */
+  const audit = (id: string, name: string) => ({
+    vulnerabilities: {
+      [name]: {
+        via: [
+          { name, title: 't', severity: 'moderate', url: `https://github.com/advisories/${id}` },
+        ],
+      },
+      dependent: { via: [name] },
+    },
+  });
+  const accepted = { accepted: [{ id: 'GHSA-aaaa-bbbb-cccc', reason: 'r' }] };
+
+  it('leaves an accepted npm advisory silent', () => {
+    const result = toReport(audit('GHSA-aaaa-bbbb-cccc', 'p'), accepted);
+    expect(result.reported).toEqual([]);
+    expect(result.accepted).toEqual(['GHSA-aaaa-bbbb-cccc']);
+    expect(result.stale).toEqual([]);
+  });
+
+  it('reports a new npm advisory, and an accepted one npm no longer reports', () => {
+    const result = toReport(audit('GHSA-dddd-eeee-ffff', 'q'), accepted);
+    expect(result.reported.map((advisory) => advisory.id)).toEqual(['GHSA-dddd-eeee-ffff']);
+    expect(result.stale).toEqual(['GHSA-aaaa-bbbb-cccc']);
   });
 });
