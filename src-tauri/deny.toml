@@ -7,12 +7,12 @@
 # never to make the check pass. The review of 2026-08-20 (#20, section C)
 # found nothing incompatible in what is listed here.
 #
-# Only licences and sources are checked. Advisories are not: the RustSec
-# database changes with no commit here, and on 2026-10-05 it marked six
-# shipped crates unmaintained (fxhash and five of the unic family), so the
-# check would turn main red on its own. They wait for after publication, with
-# #19. Bans are not checked either: without a policy on duplicates they would
-# report and decide nothing.
+# CI checks licences and sources alone. Advisories are checked by the weekly
+# security.yml (#668), which reports and never fails a pull request or main:
+# the RustSec database changes with no commit here, and on 2026-10-05 it
+# marked six shipped crates unmaintained (fxhash and five of the unic family),
+# which would have turned main red on its own. Bans are not checked: without a
+# policy on duplicates they would report and decide nothing.
 
 [graph]
 # What the bundles ship, one target for each notices file the generator writes
@@ -60,3 +60,25 @@ exceptions = [
 # Crates come from crates.io and from nowhere else.
 unknown-registry = "deny"
 unknown-git = "deny"
+
+[advisories]
+# Read by security.yml alone (#668). Unmaintained and unsound advisories are
+# reported for every crate of the graph, so cargo-deny sees what cargo audit
+# sees (owner decision 3 of 2026-10-28 on #668).
+unmaintained = "all"
+unsound = "all"
+# Each advisory below was accepted by owner decision 1 of 2026-10-28 on #668,
+# with its reason. An advisory not listed here is reported, and so is one
+# listed here that no crate of the graph meets any more.
+ignore = [
+  # quick-xml 0.38.4, reached through plist and tauri-utils, which read the
+  # XML of the application and not the documents a person opens (a reading);
+  # until the next update of Tauri.
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml through plist and tauri-utils reads the XML of the application, not of a document; until the next update of Tauri (#668)" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml through plist and tauri-utils reads the XML of the application, not of a document; until the next update of Tauri (#668)" },
+  # glib 0.18.5, Linux alone: no crate of that graph calls array_iter_str, the
+  # reading of #550; Dependabot alert 27 was dismissed with the same reason.
+  { id = "RUSTSEC-2024-0429", reason = "glib on Linux alone; no crate of the graph calls array_iter_str, the reading of #550 (#668)" },
+  # proc-macro-error, unmaintained, runs at compile time alone.
+  { id = "RUSTSEC-2024-0370", reason = "proc-macro-error is unmaintained and runs at compile time alone (#668)" },
+]

@@ -1,0 +1,153 @@
+name: Security checks
+
+# Dependency advisories and OpenSSF Scorecard, once a week (#668).
+#
+# Separate from ci.yml on purpose: an advisory database changes with no commit
+# here, and a new advisory must never turn a pull request or main red. Every
+# finding is written as a warning on the run and the run stays green; AMP reads
+# it and the owner decides. What has been decided is written where each check
+# reads it: the Rust advisories in src-tauri/deny.toml, the npm ones in
+# .github/npm-advisories-accepted.json, each with its reason.
+on:
+  schedule:
+    # Mondays, 04:00 UTC, an hour after scheduled.yml.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only for every job that declares nothing (#661). Scorecard declares on
+# its own job the two scopes it writes with; when it publishes, it refuses a
+# workflow that grants write at this level, or that sets env or defaults here.
+permissions:
+  contents: read
+
+jobs:
+  npm-advisories:
+    name: npm advisories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        timeout-minutes: 10
+        with:
+          node-version: 24
+
+      # The whole graph, dev dependencies included: what ships is the
+      # production part, and the notices files name it, but a tool of the
+      # build is worth knowing about too. npm audit exits 1 when it finds
+      # anything, so the exit is not the result; the report is.
+      - name: Read the npm advisories
+        timeout-minutes: 5
+        run: |
+          set -uo pipefail
+          npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
+          node .github/workflows/npm-advisories.mjs "$RUNNER_TEMP/npm-audit.json" .github/npm-advisories-accepted.json
+
+  rust-advisories:
+    name: Rust advisories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          persist-credentials: false
+
+      # The same pinned binary as the licence check of ci.yml, its checksum
+      # checked before it runs.
+      - name: Install cargo-deny
+        timeout-minutes: 5
+        env:
+          DENY_VERSION: 0.20.2
+          DENY_SHA256: 9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f
+        run: |
+          set -euo pipefail
+          archive="cargo-deny-${DENY_VERSION}-x86_64-unknown-linux-musl"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$archive.tar.gz" \
+            "https://github.com/EmbarkStudios/cargo-deny/releases/download/${DENY_VERSION}/$archive.tar.gz"
+          echo "${DENY_SHA256}  $RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/$archive" >> "$GITHUB_PATH"
+
+      # The shipped graph as deny.toml reads it: the three targets, no dev
+      # dependencies, unmaintained and unsound advisories included, the
+      # accepted ones left out with their reasons. A failure of the check is
+      # a finding, written as one warning per advisory, and the step stays
+      # green. A run that could not check at all, the database not fetched,
+      # says so in the same way, so it is not mistaken for a clean one.
+      - name: Read the Rust advisories
+        timeout-minutes: 10
+        working-directory: src-tauri
+        run: |
+          set -uo pipefail
+          if cargo-deny --locked check advisories 2> "$RUNNER_TEMP/deny.log"; then
+            cat "$RUNNER_TEMP/deny.log"
+            # An accepted advisory no crate meets any more is a warning of
+            # cargo-deny, not a failure; it is raised here so it shows.
+            grep -E '^warning\[' "$RUNNER_TEMP/deny.log" | while read -r line; do
+              echo "::warning title=Rust advisories::${line}"
+            done
+            echo "Rust advisories: none reported."
+            exit 0
+          fi
+          cat "$RUNNER_TEMP/deny.log"
+          ids=$(grep -o 'RUSTSEC-[0-9]\{4\}-[0-9]\{4\}' "$RUNNER_TEMP/deny.log" | sort -u || true)
+          if [ -z "$ids" ]; then
+            echo "::warning title=Rust advisories::cargo-deny failed without naming an advisory; the log above says why."
+            exit 0
+          fi
+          for id in $ids; do
+            echo "::warning title=Rust advisory ${id}::reported by cargo-deny over the shipped graph; https://rustsec.org/advisories/${id}"
+          done
+          echo "Rust advisories: $(wc -w <<< "$ids") reported."
+
+  scorecard:
+    name: OpenSSF Scorecard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # What the action needs, on its job alone: write security events to upload
+    # its findings to code scanning, and an id token to publish its score. Both
+    # are used on main only; a run on another branch only reads.
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      id-token: write
+    # When it publishes, Scorecard accepts only these actions in its job, and
+    # no env, defaults, container or services.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        timeout-minutes: 10
+        with:
+          results_file: scorecard.sarif
+          results_format: sarif
+          publish_results: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Keep the results on the run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        timeout-minutes: 5
+        with:
+          name: scorecard-${{ github.sha }}
+          path: scorecard.sarif
+          retention-days: 7
+
+      - name: Upload the results to code scanning
+        if: github.ref == 'refs/heads/main'
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        timeout-minutes: 5
+        with:
+          sarif_file: scorecard.sarif
