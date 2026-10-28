@@ -1,3 +1,5 @@
+import { pipeEndsCell } from './table-cells';
+
 /**
  * How a table was spelled in the file it came from (#93).
  *
@@ -113,19 +115,15 @@ const SEPARATOR = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
 
 /**
  * Split one table row into the raw text between its pipes — the padding is
- * the point, so nothing is trimmed. A `\|` is content, not a boundary.
+ * the point, so nothing is trimmed. A `\|` is content, not a boundary, by the
+ * rule the table tokenizer of `table-cells.ts` splits a row with (#665).
  */
 function splitRow(line: string): string[] {
   const text = line.trim();
   const cells: string[] = [];
   let current = '';
   for (let i = 0; i < text.length; i++) {
-    if (text[i] === '\\' && text[i + 1] === '|') {
-      current += '\\|';
-      i++;
-      continue;
-    }
-    if (text[i] === '|') {
+    if (pipeEndsCell(text, i)) {
       cells.push(current);
       current = '';
       continue;
