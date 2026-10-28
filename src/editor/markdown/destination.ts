@@ -30,3 +30,39 @@ export function literalAmpersands(destination: string): string {
     '&amp;',
   );
 }
+
+/**
+ * A destination written between the parentheses of an inline link (#664):
+ * each ampersand as `literalAmpersands` writes it, then each backslash and
+ * each parenthesis escaped with a backslash.
+ *
+ * The backslash is escaped because a reader takes a backslash before a
+ * parenthesis as an escape. Written with the parentheses escaped alone, an
+ * address holding `x\(y` became `x\\(y`, which a reader takes as a literal
+ * backslash followed by an opening parenthesis that is not escaped: GitHub
+ * read no link there, and `x\)y` was read as the address `x\` followed by
+ * text. Escaped as well, the backslash is read back as itself, by `marked`
+ * and by cmark-gfm, and the address is the one the editor held.
+ *
+ * Only what the editor writes from an href goes through here. A destination
+ * the file wrote and the editor keeps as bytes, carried by
+ * `destination-spelling.ts`, is not respelled.
+ */
+export function inlineDestination(href: string): string {
+  return literalAmpersands(href).replace(/[\\()]/g, '\\$&');
+}
+
+/**
+ * A destination written between angle brackets, the form a destination
+ * holding white space or an angle bracket needs (#664): each backslash and
+ * each angle bracket escaped with a backslash.
+ *
+ * Inside the brackets a reader still takes a backslash before punctuation as
+ * an escape, so `x y\(z` written bare came back `x y(z`, the backslash gone,
+ * and an angle bracket written bare ended the destination early or made it no
+ * destination at all. Measured on #664 with `marked` and cmark-gfm, on a kept
+ * reference link whose label stopped resolving.
+ */
+export function angleDestination(href: string): string {
+  return `<${href.replace(/[\\<>]/g, '\\$&')}>`;
+}
