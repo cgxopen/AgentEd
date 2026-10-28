@@ -1,3 +1,5 @@
+import { inertTemplate } from './inert-html';
+
 /**
  * Which `<ul>` is a task list, said in the one spelling TipTap reads (#110).
  *
@@ -85,17 +87,15 @@ function splitMixedList(list: Element, items: readonly Element[]): void {
 /**
  * Mark every task list in `html` so TipTap parses it as one.
  *
- * Runs after the checkbox rewrite in `parse.ts` and before sanitization, on
- * the same detached container the table-style pass uses. The scan is bounded
+ * Runs after the checkbox rewrite in `parse.ts` and before sanitization, in
+ * the inert template of `inert-html.ts`, as that rewrite does. The scan is bounded
  * by the number of `<ul>` elements the parsed document has: the list is taken
  * as a snapshot first, and an item is only ever moved between lists, so no
  * list is visited twice and nothing is created that is then re-scanned.
  */
 export function markTaskLists(html: string): string {
-  const container = document.createElement('div');
-  container.innerHTML = html;
-
-  const lists = Array.from(container.querySelectorAll('ul'));
+  const template = inertTemplate(html);
+  const lists = Array.from(template.content.querySelectorAll('ul'));
   if (lists.length === 0) return html;
 
   let changed = false;
@@ -111,5 +111,5 @@ export function markTaskLists(html: string): string {
     }
   }
 
-  return changed ? container.innerHTML : html;
+  return changed ? template.innerHTML : html;
 }

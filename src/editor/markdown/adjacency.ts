@@ -38,6 +38,7 @@
  * the parse keeps raw HTML, which is a file and never a paste.
  */
 import type { Token, TokenizerAndRendererExtension } from 'marked';
+import { inertTemplate } from './inert-html';
 
 /** The attribute a block written directly under another carries. */
 export const ADJACENT_ATTRIBUTE = 'data-adjacent';
@@ -157,9 +158,8 @@ const isBlock = (node: Node | null): node is Element =>
  */
 export function moveAdjacencyMarks(html: string): string {
   if (!html.includes(MARK_ELEMENT)) return html;
-  const container = document.createElement('div');
-  container.innerHTML = html;
-  for (const mark of Array.from(container.querySelectorAll(MARK_ELEMENT))) {
+  const template = inertTemplate(html);
+  for (const mark of Array.from(template.content.querySelectorAll(MARK_ELEMENT))) {
     let below = mark.nextSibling;
     while (below !== null && below.nodeType === Node.TEXT_NODE && !below.textContent?.trim()) {
       below = below.nextSibling;
@@ -171,7 +171,7 @@ export function moveAdjacencyMarks(html: string): string {
     }
     mark.remove();
   }
-  return container.innerHTML;
+  return template.innerHTML;
 }
 
 /** The inline run from `first` to the next block, wrapped in a flagged paragraph. */

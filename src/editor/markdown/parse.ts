@@ -33,6 +33,7 @@ import {
   joinWrappers,
   wrapperBlock,
 } from './html-wrapper';
+import { inertTemplate } from './inert-html';
 import { keptLink } from './kept-link';
 import { keepInsideBlock, keptRawHtmlCarrier, markKeptRawHtml } from './kept-raw-html';
 import { placeLinks, withLinkPlace } from './link-place';
@@ -645,9 +646,8 @@ interface DefinitionLexer {
 
 /** The text a reader sees of a label: its inline markup taken off. */
 export function labelText(label: string): string {
-  const box = document.createElement('div');
-  box.innerHTML = marked.parseInline(label, { async: false }) as string;
-  return box.textContent ?? '';
+  const box = inertTemplate(marked.parseInline(label, { async: false }) as string);
+  return box.content.textContent ?? '';
 }
 
 /** The link HTML of `marked` with the spelling of a reference, where the file wrote one (#570). */
@@ -802,8 +802,8 @@ function dropLeadingSpace(holder: Element): void {
 }
 
 export function rewriteCheckboxes(html: string): string {
-  const container = document.createElement('div');
-  container.innerHTML = html;
+  const template = inertTemplate(html);
+  const container = template.content;
 
   // The two shapes `marked` writes a task marker in. A **tight** list puts the
   // checkbox directly in the item; a **loose** one — blank lines between the
@@ -846,5 +846,5 @@ export function rewriteCheckboxes(html: string): string {
     // this pipeline cannot produce — is left exactly as it was.
   }
 
-  return container.innerHTML;
+  return template.innerHTML;
 }
