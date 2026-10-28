@@ -370,6 +370,26 @@ jobs:
             ${{ runner.os }}-cargo-target-${{ steps.toolchain.outputs.cachekey }}-
       - run: npm ci
         timeout-minutes: 10
+      # The build cache above restores all of `src-tauri/target`, and with it
+      # the installers an earlier run left in the bundle folder, under their
+      # own version in the file name. The upload below takes every
+      # `*-setup.exe` there, so after a version change the artifact carried
+      # the old installer beside the new one (#659). This lists what was
+      # restored, for the log, and removes the folder, so the upload sees only
+      # what this build writes. It does not change the cache entries already
+      # saved: they still hold the old files, which this step removes on
+      # every run.
+      - name: Remove the bundle folder the cache restored
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle=src-tauri/target/release/bundle
+          if [ -d "$bundle" ]; then
+            find "$bundle" -maxdepth 2 -type f \( -name '*.exe' -o -name '*.msi' \) -exec ls -l {} +
+            rm -rf "$bundle"
+          else
+            echo "No $bundle folder was restored."
+          fi
       # Once more if the first attempt fails (#501). `tauri build` downloads
       # the bundler tools from GitHub on every run, since a fresh runner has
       # none: WiX and NSIS, and nsis_tauri_utils.dll for the installer. One of
