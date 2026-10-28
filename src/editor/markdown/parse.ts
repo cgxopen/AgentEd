@@ -48,6 +48,7 @@ import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference'
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { spacerAttribute } from './spacer-paragraph';
 import { stampedFromTheFile } from './stamped-attributes';
+import { gfmTableExtension } from './table-cells';
 import { isWholeHtmlTable, stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
 import { filterTags, holdsFilteredTag, keptBlock } from './tag-filter';
@@ -67,6 +68,11 @@ marked.setOptions({
 // `url` inline tokenizer leaves those URLs as text; explicit links —
 // "[text](url)" and "<url>" — are matched by other tokenizers and still parse.
 marked.use({ tokenizer: { url: () => undefined } });
+
+// A table row is split into cells by the GFM rule, a pipe with a backslash
+// right before it being content, where `marked` counts the backslashes (#665).
+// See `table-cells.ts`.
+marked.use(gfmTableExtension);
 
 // A line opening an HTML block with an end tag ends a list item, as CommonMark
 // reads it (#604): `</details>` under a list closes the `details`.
