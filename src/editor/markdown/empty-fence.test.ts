@@ -37,12 +37,15 @@ describe('an empty fenced block survives the save (#94)', () => {
   });
 
   it('keeps a fence around a blank line, told apart by a stamp (#625)', () => {
-    // ```⏎⏎``` and ```⏎``` are read by `marked` as the *same*
-    // `<pre><code>\n</code></pre>`; the parse stamps the first from the raw
-    // of its token, and the blank rule writes its line back.
+    // ```⏎⏎``` and ```⏎``` are read by `marked` as the *same* empty token;
+    // the parse stamps the first from the raw of its token and keeps its line
+    // ending, and since #675 holds the second empty, where both used to be
+    // drawn as one line ending. Rewritten by #675: this row pinned the two
+    // shapes as one HTML apart from the stamp.
     expect(markdownToHtml('```\n\n```')).toBe(
-      markdownToHtml('```\n```').replace('<pre>', '<pre data-fence-blank-line="">'),
+      '<pre data-fence-blank-line=""><code>\n</code></pre>\n',
     );
+    expect(markdownToHtml('```\n```')).toBe('<pre><code></code></pre>\n');
     expect(roundtrip('```\n\n```')).toBe('```\n\n```');
     expect(roundtrip('```js\n\n```')).toBe('```js\n\n```');
   });

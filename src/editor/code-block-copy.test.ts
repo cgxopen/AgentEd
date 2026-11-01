@@ -226,7 +226,16 @@ describe('a click copies the text of the block, read from the model', () => {
   it('an empty fence copies exactly what the model holds', async () => {
     // Owner decision, 2026-09-06: the model text verbatim, trailing newline
     // and all, rather than a trim that would make the copy edit what it copies.
-    expect(await copiedFrom('```ts\n```')).toBe('\n');
+    // Rewritten by #675: a fence of none is held empty since then, so the
+    // fence holding one line ending is the one around a blank line.
+    expect(await copiedFrom('```ts\n\n```')).toBe('\n');
+  });
+
+  it('an opened fence of none holds nothing, and the click says so (#675)', async () => {
+    const editor = open('```ts\n```');
+    await click(buttons(editor)[0]);
+    expect(copyTextMock).not.toHaveBeenCalled();
+    expect(showToastMock.mock.calls.at(-1)?.[0]).toContain('empty');
   });
 
   it('the label of the block is measurably absent from what was copied', async () => {
@@ -316,8 +325,8 @@ describe('the click gives feedback and moves no caret', () => {
 
   it('a block with no text at all says so rather than reporting a failure', async () => {
     const editor = open('```ts\n```');
-    // A fence opened from a file holds a newline; this is the model a block
-    // built in the editor can reach, and `copyText` refuses the empty string.
+    // The model a block built in the editor holds, and since #675 a fence of
+    // none opened from a file too; `copyText` refuses the empty string.
     editor.editor.commands.selectAll();
     editor.editor.commands.deleteSelection();
     editor.setMarkdown('');

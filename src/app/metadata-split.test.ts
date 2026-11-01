@@ -338,8 +338,9 @@ describe('what #304 does not reach, pinned so that a change to it is announced',
       '<hr>\n<p>Intro</p>\n<pre><code>---\n</code></pre>\n<p>After</p>\n',
     );
     expect(markdownToHtml(first.written)).toBe(
-      // The fence the first save leaves is directly under the paragraph (#568).
-      '<hr>\n<p>Intro</p>\n<pre><code>---\n</code></pre>\n<p>After</p>\n<pre data-adjacent=""><code>\n</code></pre>\n',
+      // The fence the first save leaves is directly under the paragraph (#568);
+      // it is a fence of none, held empty since #675, which rewrote this row.
+      '<hr>\n<p>Intro</p>\n<pre><code>---\n</code></pre>\n<p>After</p>\n<pre data-adjacent=""><code></code></pre>\n',
     );
   });
 

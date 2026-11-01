@@ -1,3 +1,4 @@
+import { closeHistory } from '@tiptap/pm/history';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildDocument } from '../app/editor-document';
 import { AppState } from '../app/state';
@@ -241,16 +242,19 @@ describe('an edit of the block (#625)', () => {
     return found.join(' ');
   }
 
-  it('a split at its start makes it the second half, which carries nothing (#594)', async () => {
+  it('a split at its start makes it the second half, which carries no stamp and keeps its line (#594, #675)', async () => {
     // `splitBlock` copies every attribute through `tr.split`; the plugin of
     // #594 clears the flag off the second half as it clears the opener (#573).
+    // Since #675 the writer does not read the flag: the block still holds its
+    // one line ending, drawn as a line, and is written with it. Rewritten by
+    // #675: this row pinned the fence of none, the line lost.
     let held = '';
     const saved = await openAndSave(TEXT, (instance) => {
       instance.editor.chain().setTextSelection(insideFirstBlock(instance)).splitBlock().run();
       held = flags(instance);
     });
     expect(held).toBe('false');
-    expect(saved).toBe('a\n\n```js\n```\n\nb\n');
+    expect(saved).toBe(TEXT);
   });
 
   it('a split at its end leaves it whole, and it keeps the line', async () => {
@@ -307,5 +311,131 @@ describe('a block the editor makes is written with nothing between its fences (R
     const { view } = instance.editor;
     view.someProp('handlePaste', (handler) => handler(view, event, view.state.selection.content()));
     expect(instance.getMarkdown()).toBe('```\n```\n\nafterstart');
+  });
+});
+
+/**
+ * #675: one Enter in a block the editor makes is written as the line it draws.
+ *
+ * On `44ccc48` that Enter left the block holding one line ending, the same as
+ * an opened fence of none, and both were written as the fence of none: the
+ * line drawn was lost. An opened fence of none is now held empty, so a lone
+ * line ending is only ever a line given to the block, and the writer writes it
+ * as one blank line, stamped or not. Each block is saved and saved again.
+ */
+describe('one Enter in a block the editor makes is written as the line it draws (#675)', () => {
+  const MAKERS: Array<[string, (instance: EditorInstance) => void, string]> = [
+    ['the backtick input rule', (instance) => typeText(instance, '``` '), '```'],
+    [
+      'the backtick input rule, with a language',
+      (instance) => typeText(instance, '```js '),
+      '```js',
+    ],
+    ['the tilde input rule', (instance) => typeText(instance, '~~~ '), '```'],
+    ['the tilde input rule, with a language', (instance) => typeText(instance, '~~~py '), '```py'],
+    ['Insert Code Block', (instance) => insertCodeBlock(instance.editor), '```'],
+    [
+      'Ctrl+Alt+C',
+      (instance) => pressKey(instance, { key: 'c', code: 'KeyC', ctrlKey: true, altKey: true }),
+      '```',
+    ],
+  ];
+  const enter = (instance: EditorInstance) => pressKey(instance, { key: 'Enter' });
+
+  async function madeAndSaved(
+    make: (instance: EditorInstance) => void,
+    then: (instance: EditorInstance) => void,
+  ): Promise<string> {
+    const once = await openAndSave('', (instance) => {
+      make(instance);
+      // A pause after the block is made, so undo takes back the Enter alone.
+      instance.editor.view.dispatch(closeHistory(instance.editor.state.tr));
+      then(instance);
+    });
+    expect(await openAndSave(once), 'the second save').toBe(once);
+    return once;
+  }
+
+  it.each(MAKERS)('%s, Enter once, writes one blank line', async (_route, make, opener) => {
+    expect(await madeAndSaved(make, enter)).toBe(`${opener}\n\n\`\`\``);
+  });
+
+  it.each(MAKERS)('%s, Enter twice, writes two blank lines', async (_route, make, opener) => {
+    const twice = (instance: EditorInstance) => {
+      enter(instance);
+      enter(instance);
+    };
+    expect(await madeAndSaved(make, twice)).toBe(`${opener}\n\n\n\`\`\``);
+  });
+
+  it.each(MAKERS)('%s, Enter then undo, writes the fence of none', async (_route, make, opener) => {
+    const undo = (instance: EditorInstance) => {
+      enter(instance);
+      instance.editor.commands.undo();
+    };
+    expect(await madeAndSaved(make, undo)).toBe(`${opener}\n\`\`\``);
+  });
+
+  it.each(MAKERS)(
+    '%s, Enter then Backspace, writes the fence of none',
+    async (_route, make, opener) => {
+      const back = (instance: EditorInstance) => {
+        enter(instance);
+        deleteBeside(instance, 'before');
+      };
+      expect(await madeAndSaved(make, back)).toBe(`${opener}\n\`\`\``);
+    },
+  );
+
+  it('in a quote, Enter once writes one blank line, as at the top level', async () => {
+    const quoted = (instance: EditorInstance) => typeText(instance, '> ``` ');
+    expect(await madeAndSaved(quoted, enter)).toBe('> ```\n> \n> ```');
+  });
+});
+
+describe('an opened fence of none is held empty (#675)', () => {
+  /** What the first code block holds. */
+  function heldText(instance: EditorInstance): string {
+    let text: string | null = null;
+    instance.editor.state.doc.descendants((node) => {
+      if (text === null && node.type.name === 'codeBlock') text = node.textContent;
+    });
+    return text ?? 'no code block';
+  }
+
+  it.each([
+    ['at the top level', '```\n```\n'],
+    ['with a language', '```js\n```\n'],
+    ['in a quote', '> ```\n> ```\n'],
+    ['in a list item', '- a\n\n  ```\n  ```\n'],
+  ])('%s, held empty and written as it was', async (_shape, text) => {
+    let held = '';
+    const saved = await openAndSave(text, (instance) => {
+      held = heldText(instance);
+    });
+    expect(held).toBe('');
+    await holds(saved);
+    expect(saved).toBe(text);
+  });
+
+  it.each([
+    ['at the top level', '```\n```\n', '```\n\n```\n'],
+    ['with a language', '```js\n```\n', '```js\n\n```\n'],
+    ['in a quote', '> ```\n> ```\n', '> ```\n> \n> ```\n'],
+  ])('%s, Enter once writes one blank line', async (_shape, text, expected) => {
+    const saved = await openAndSave(text, (instance) => {
+      instance.editor.commands.setTextSelection(insideFirstBlock(instance));
+      pressKey(instance, { key: 'Enter' });
+    });
+    expect(saved).toBe(expected);
+    await holds(saved);
+  });
+
+  it('a fence around one blank line still holds its line ending', async () => {
+    let held = '';
+    await openAndSave('```\n\n```\n', (instance) => {
+      held = heldText(instance);
+    });
+    expect(held).toBe('\n');
   });
 });
