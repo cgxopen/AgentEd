@@ -47,6 +47,7 @@ import {
   KEPT_HTML_SOURCE,
 } from './kept-html-table';
 import { isRelativeLinkAddress } from './link-url';
+import { enterGivingWayInCode } from './list-enter-in-code';
 import { LongRun } from './long-run';
 import { autolinkMarkAttribute } from './markdown/angle-autolink';
 import {
@@ -323,10 +324,12 @@ const MarkdownComment = TipTapNode.create({
  *    a horizontal rule as an item's whole body both round-trip; an image cannot
  *    arise, because `image` is an `inline` node and `block+` cannot hold one
  *    bare. Enter, Backspace, Tab and Shift-Tab were measured in every position
- *    before and after and none moved — Backspace is worth naming, because it is
- *    not this extension's: it comes from TipTap core's `Keymap`, whose chain is
- *    `undoInputRule → clearNodes → deleteSelection → joinBackward →
- *    selectNodeBackward`.
+ *    of a paragraph before and after and none moved — Backspace is worth
+ *    naming, because it is not this extension's: it comes from TipTap core's
+ *    `Keymap`, whose chain is `undoInputRule → clearNodes → deleteSelection →
+ *    joinBackward → selectNodeBackward`. That measure did not reach a code
+ *    block in an item, where Enter split the item until #679: the Enter of
+ *    this node now gives way there (`list-enter-in-code.ts`).
  *
  * **It has a second half, and they are load-bearing together.** `parse.ts` must
  * mark a task list as one (`markTaskLists`), because an unmarked one left an
@@ -624,7 +627,16 @@ function starterKitWithLocalSchemaRules() {
             },
           });
         }
-        if (extension.name === 'listItem') return extension.extend({ content: 'block+' });
+        // An item may begin with a block (#110), and its Enter gives way in a
+        // code block so the code block takes the key (#679).
+        if (extension.name === 'listItem') {
+          return extension.extend({
+            content: 'block+',
+            addKeyboardShortcuts() {
+              return enterGivingWayInCode(this.parent?.() ?? {});
+            },
+          });
+        }
         // The fence input rules, widened to every language CommonMark admits
         // (#237). Extended off the kit rather than imported, for the reason
         // the comment above gives; `code-block-input-rules.ts` carries the
@@ -734,6 +746,10 @@ const TaskListWithSpacing = TaskList.extend({
 const TaskItemHoldingABlock = TaskItem.extend({
   content() {
     return this.options.nested ? 'block+' : 'paragraph+';
+  },
+  // Its Enter gives way in a code block, as the list item's does (#679).
+  addKeyboardShortcuts() {
+    return enterGivingWayInCode(this.parent?.() ?? {});
   },
 }).configure({ nested: true });
 
