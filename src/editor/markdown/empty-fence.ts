@@ -47,8 +47,10 @@ import type { BlankReplacement, Options } from 'turndown';
 /**
  * Set on the `pre` of an empty fence the file wrote around one blank line
  * (#625). Stamped only where the parse keeps raw HTML, which is a file and
- * never a paste, the route of `fence-spelling.ts`, so a block the editor
- * makes carries none and is written with nothing between its fences (R-C15).
+ * never a paste, the route of `fence-spelling.ts`. Since #675 the writer
+ * does not read it: a block holding one line ending is written with its
+ * blank line whatever made it, and the stamp is what tells the parse to
+ * hold that line ending rather than nothing (`holdingWhatTheFileHolds`).
  */
 export const EMPTY_FENCE_LINE_ATTRIBUTE = 'data-fence-blank-line';
 
@@ -87,19 +89,40 @@ export function emptyFenceLineNodeAttribute() {
   };
 }
 
+/** The `code` of an empty fenced block as `marked` draws it: one line ending. */
+const ONE_LINE_ENDING_CODE = />\n<\/code><\/pre>/;
+
+/**
+ * The HTML of a fenced block, with an empty fence of none held empty (#675).
+ *
+ * `marked` draws every fenced block with a line ending at the end of its
+ * code, so a fence of none came in as `<pre><code>\n</code></pre>` and the
+ * editor held one line ending: drawn as two lines, written as none, and the
+ * same text one Enter gives a block the editor makes. Held empty, it is drawn
+ * as the one line a block the editor makes is drawn with, and a lone line
+ * ending in the document is only ever a line someone gave the block, which
+ * the writer then writes. A fence around one blank line is stamped (`blank`
+ * is the attribute) and keeps its line ending; a fence with code has text and
+ * is left as `marked` drew it.
+ */
+export function holdingWhatTheFileHolds(html: string, text: string, blank: string): string {
+  if (text !== '' || blank !== '') return html;
+  return html.replace(ONE_LINE_ENDING_CODE, '></code></pre>');
+}
+
 /** The node attribute at the value a block the editor makes holds. */
 export const EMPTY_FENCE_LINE_UNSET: Readonly<Record<string, false>> = { fenceBlankLine: false };
 
 /**
- * Whether the block is written with its blank line: stamped, and holding
- * exactly the one line ending the editor holds for an empty fence. A
- * character typed and deleted leaves that; Enter adds a line, which is then
- * content, and deleting the line ending leaves the fence of none the block
- * now draws.
+ * Whether the block is written with one blank line: it holds exactly one line
+ * ending, stamped or not (#675). An opened fence around one blank line holds
+ * that from the parse; a block the editor makes, or an opened fence of none,
+ * holds it after one Enter, and the line drawn is the line written. A
+ * character typed and deleted leaves it; deleting the line ending leaves the
+ * fence of none the block then draws.
  */
 function holdsItsBlankLine(node: Node): boolean {
-  const element = node as HTMLElement;
-  return element.hasAttribute(EMPTY_FENCE_LINE_ATTRIBUTE) && element.textContent === '\n';
+  return (node as HTMLElement).textContent === '\n';
 }
 
 /** The language, as turndown's own fenced rule reads it off the `<code>`. */
@@ -140,8 +163,8 @@ function isFencedBlock(node: Node, options: Options): boolean {
  * This is turndown's own `fencedCodeBlock` shape with **one line omitted**:
  * for empty content its rule writes ```` ```⏎⏎``` ````, a fence around a
  * blank line, where the file had ```` ```⏎``` ```` — so delegating to it
- * would respell the very bytes this fix exists to keep; a block stamped as
- * holding one blank line is written with it (#625). Everything else
+ * would respell the very bytes this fix exists to keep; a block holding one
+ * line ending is written with its blank line (#625, #675). Everything else
  * follows it, deliberately: the same `options.fence`, the same
  * `language-(\S+)` reading of the class, and the same single trailing newline
  * stripped from the content, which is the parser's rather than the file's.
@@ -175,11 +198,12 @@ function fenceFor(node: Node, options: Options): string {
  *
  * **A fence around one blank line is told apart by a carrier (#625).**
  * `marked` hands ```` ```⏎⏎``` ```` and ```` ```⏎``` ```` over as one empty
- * code token, and the editor holds both as the same `\n`; only the raw of the
- * token still holds the blank line. So the parse stamps the `pre` of the first
- * from that raw, `fenceFor` writes the line back while the block still holds
- * exactly what it opened with, and an edit that leaves it otherwise writes
- * what the block then holds. See `emptyFenceLineAttribute` below.
+ * code token, drawn alike as one line ending; only the raw of the token
+ * still holds the blank line. So the parse stamps the `pre` of the first from
+ * that raw, and since #675 holds the second empty, so the editor holds one
+ * line ending for the first and nothing for the second, and `fenceFor`
+ * writes what the block holds. See `emptyFenceLineAttribute` and
+ * `holdingWhatTheFileHolds` above.
  *
  * ── The container, and why one condition is the whole of #104 ──
  *
