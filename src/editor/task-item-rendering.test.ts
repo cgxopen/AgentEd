@@ -192,3 +192,58 @@ describe('a task item renders as a checkbox beside a content wrapper (#164)', ()
     expect(item?.children[1].firstElementChild?.nodeName).toBe(expected);
   });
 });
+
+/**
+ * The content wrapper takes the free width of the row (#682).
+ *
+ * The width itself is layout, which nothing in this repository can draw; it
+ * was measured in Chromium and is verified by the owner pass. What is
+ * asserted here are the two halves this harness can see, joined: the rule is
+ * read out of `src/styles.css` by what it declares, and its selector is
+ * matched against the wrapper the editor actually renders. Either alone would
+ * pass with the defect present: a declaration on a selector that matches
+ * nothing, or a selector that matches with nothing behind it.
+ */
+function wrapperWidthRule(): { selector: string; grows: boolean; floor: string } {
+  const row = taskItemRowSelector();
+  // Comments go first, so a selector is never read together with the comment above it.
+  const uncommented = STYLES.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = Array.from(uncommented.matchAll(/([^{}]+)\{([^}]*)\}/g));
+  const found = rules.find(
+    ([, selector, body]) =>
+      selector.trim().startsWith(row) &&
+      /(^|;|\s)min-width\s*:/.test(body) &&
+      /(^|;|\s)flex\s*:/.test(body),
+  );
+  if (!found) {
+    throw new Error(
+      'src/styles.css has no rule under the task item row declaring both `flex` and `min-width` ' +
+        '(#682): the content wrapper is sized to its content again.',
+    );
+  }
+  const [, selector, body] = found;
+  const flex = body.match(/(?:^|;|\s)flex\s*:\s*([^;]+)/)?.[1].trim() ?? '';
+  const floor = body.match(/(?:^|;|\s)min-width\s*:\s*([^;]+)/)?.[1].trim() ?? '';
+  return { selector: selector.trim(), grows: Number.parseFloat(flex.split(/\s+/)[0]) > 0, floor };
+}
+
+describe('the content wrapper of a task item takes the free width of the row (#682)', () => {
+  it('declares a flex that grows, and no floor under the content', () => {
+    const rule = wrapperWidthRule();
+    expect(rule.grows, `flex of ${rule.selector}`).toBe(true);
+    expect(Number.parseFloat(rule.floor), `min-width of ${rule.selector}`).toBe(0);
+  });
+
+  it.each(DOCUMENTS)(
+    'reaches the content wrapper of every task item, and nothing else, for %s',
+    (_label, markdown) => {
+      const dom = render(markdown);
+      const { selector } = wrapperWidthRule();
+      const reached = Array.from(dom.querySelectorAll(selector));
+      const wrappers = Array.from(dom.querySelectorAll('li'))
+        .filter(isTaskItem)
+        .map((item) => item.children[1]);
+      expect(reached).toEqual(wrappers);
+    },
+  );
+});

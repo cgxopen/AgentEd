@@ -1540,6 +1540,34 @@ button.indicator-search:hover {
 }
 
 /*
+ * The content wrapper takes the free width of the row (#682).
+ *
+ * A flex item is sized to its content unless something gives it the free
+ * space, and nothing did: measured in Chromium at 1024 px, a short code block
+ * in a task item was 49 px wide, a table 161, a horizontal rule 36 and a
+ * paragraph 94, where in a bullet item each spans the 696 px of its column.
+ * `flex: 1` gives the wrapper the free width of the row, so every block in it
+ * is drawn as wide as in a bullet item.
+ *
+ * `min-width: 0` is the other half, and the measure that needed it was the
+ * worse one. A flex item cannot shrink below its content by default, so a
+ * code line with a language, which scrolls inside its block rather than
+ * wrapping, pushed the wrapper to 1111 px: past the column, and the window
+ * scrolled sideways. With the floor at 0 the block keeps the width of the row
+ * and scrolls inside, as it does in a bullet item. `flex: 1` alone was
+ * measured too, and leaves that line as it was.
+ *
+ * Neither moves the checkbox: the label and its margin, and the first-block
+ * rule below, are as #164 left them, and the offset of the checkbox from a
+ * paragraph, a heading, a code block or a rule as the first block measured
+ * the same before and after.
+ */
+.tiptap ul[data-type="taskList"] > li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
  * The item's first block starts at the top of the row, beside the checkbox.
  *
  * #164's second member. A flex item opens its own block formatting context, so
