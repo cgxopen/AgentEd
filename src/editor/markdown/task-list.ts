@@ -50,6 +50,37 @@ function isTaskItem(element: Element): boolean {
 }
 
 /**
+ * Drop the empty paragraph a loose task item opens with, when a block follows
+ * it (#686).
+ *
+ * **Where it comes from: the checkbox rewrite of `parse.ts`.** In a loose list
+ * `marked` writes an item that opens with a block, a heading or a code block
+ * for instance, as a paragraph holding only the checkbox and its space, then
+ * the block: `<p><input> </p><h2>H</h2>`. The rewrite takes the checkbox and
+ * the space out, as it must, and the paragraph is left with nothing in it. The
+ * editor held it, drew it as an empty line beside the checkbox with the block
+ * below it, and the first Backspace at the start of the block removed it and
+ * nothing else. A tight item puts the checkbox straight in the `<li>`, so it
+ * never had one.
+ *
+ * **Removed here rather than there**, by owner decision on #686: the shape of a
+ * task item has lived in this file since #110, the pass that already tidies
+ * what the rewrite leaves, and `parse.ts` is over the module size guideline.
+ * The step zero measured both places and could not tell them apart.
+ *
+ * Nothing written depends on it: the writer skips a block that writes nothing,
+ * measured on #686 with the paragraph deleted by hand from every shape. An
+ * item with nothing after its paragraph, `- [ ] ` alone in a loose list, keeps
+ * it, since that paragraph is the whole of the item.
+ */
+function dropEmptyOpeningParagraph(item: Element): void {
+  const first = item.firstElementChild;
+  if (first?.tagName !== 'P' || first.nextElementSibling === null) return;
+  if (first.children.length > 0 || (first.textContent ?? '').trim() !== '') return;
+  item.removeChild(first);
+}
+
+/**
  * Regroup one list's direct items into consecutive runs of a single kind,
  * each in its own `<ul>`, and mark the task-item runs.
  *
@@ -104,6 +135,7 @@ export function markTaskLists(html: string): string {
     if (items.length === 0 || !items.some(isTaskItem)) continue;
 
     changed = true;
+    for (const item of items) if (isTaskItem(item)) dropEmptyOpeningParagraph(item);
     if (items.every(isTaskItem)) {
       list.setAttribute('data-type', TASK_LIST_TYPE);
     } else {
