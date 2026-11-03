@@ -23,7 +23,7 @@
     "check:fix": "biome check --write src .github"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.2",
+    "@biomejs/biome": "2.6.4",
     "@tauri-apps/cli": "^2.12.1",
     "@types/dompurify": "^3.2.0",
     "@vitest/ui": "^5.0.5",
