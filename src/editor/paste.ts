@@ -13,6 +13,7 @@ import { showToast } from '../ui/toast';
 import { carriesThisWindowsToken, clipboardSerializerWithToken } from './clipboard-token';
 import { isSingleUrl } from './link-url';
 import { markdownToHtml } from './markdown/parse';
+import { pastedCheckboxesAsTaskItems } from './markdown/pasted-checkboxes';
 import { htmlToMarkdown } from './markdown/serialize';
 import { withoutStampedAttributes } from './markdown/stamped-attributes';
 import { withPastedReferences } from './reference-paste';
@@ -112,7 +113,10 @@ export function isPlainPasteShortcut(event: KeyboardEvent): boolean {
 export function cleanPastedHtml(html: string): string {
   // A paste keeps no raw HTML as bytes: what the page showed as text is not
   // markup (#563 review).
-  return markdownToHtml(htmlToMarkdown(withoutStampedAttributes(html)), { keepRawHtml: false });
+  // A checkbox opening a list item becomes a task item before turndown, which
+  // writes nothing for an input (#689).
+  const withTaskItems = pastedCheckboxesAsTaskItems(withoutStampedAttributes(html));
+  return markdownToHtml(htmlToMarkdown(withTaskItems), { keepRawHtml: false });
 }
 
 /**
