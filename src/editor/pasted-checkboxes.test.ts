@@ -129,6 +129,38 @@ describe('a task list pasted as HTML arrives as a task list (#689)', () => {
   });
 });
 
+describe('the enabled task list GitHub draws for an editor of the page (#689, second head)', () => {
+  // The list part of the clipboard the owner captured from Edge on Windows,
+  // with the inline styles cut to one declaration and the icon path to one
+  // segment: two of the five items open with a drag handle, a span holding an
+  // icon and no text, and the first head read it as the first node.
+  const S = 'box-sizing: border-box;';
+  const box = (label: string, ticked: boolean) =>
+    `<input type="checkbox" id="" class="task-list-item-checkbox" aria-label="${label}"${ticked ? ' checked=""' : ''} style="${S}">`;
+  const handle = `<span class="handle" style="${S}"><svg class="drag-handle" aria-hidden="true" width="16" height="16"><path d="M10 13a1 1 0 100-2z"></path></svg></span>`;
+  const captured =
+    `<ul class="contains-task-list" style="${S}">` +
+    `<li class="task-list-item enabled" draggable="false" style="${S}">${box('Incomplete task', false)} an unticked item</li>` +
+    `<li class="task-list-item enabled" style="${S}">${handle}${box('Completed task', true)} a ticked item</li>` +
+    `<li class="task-list-item enabled hovered" draggable="false" style="${S}">${handle}${box('Incomplete task', false)} an item holding a nested list` +
+    `<ul class="contains-task-list" style="${S}">` +
+    `<li class="task-list-item enabled" style="${S}">${box('Completed task', true)} a ticked nested item</li>` +
+    `<li class="task-list-item enabled" style="${S}">${box('Incomplete task', false)} an unticked nested item</li>` +
+    '</ul></li></ul>';
+
+  it('arrives with every box, its tick and its nesting', async () => {
+    expect(await pasted(captured)).toBe(
+      '- [ ] an unticked item\n- [x] a ticked item\n- [ ] an item holding a nested list\n  - [x] a ticked nested item\n  - [ ] an unticked nested item',
+    );
+  });
+
+  it('a checkbox after text in its item stays as it was, handle or not', async () => {
+    expect(await pasted(`<ul><li>${handle}see ${box('x', true)} here</li></ul>`)).toBe(
+      '- see here',
+    );
+  });
+});
+
 describe('what the change leaves as it was (#689)', () => {
   it.each([
     [

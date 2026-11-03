@@ -23,7 +23,8 @@ import { markTaskLists } from './task-list';
  * #447 keeps on purpose, so this lets in nothing that was kept out.
  *
  * Only the first node of an item of a `ul`, or of the item's first paragraph,
- * is read. A checkbox inside the text of an item, one in an ordered list,
+ * is read, an element with no text and no input before it aside; that element
+ * stays where it is, and only the input goes. A checkbox inside the text of an item, one in an ordered list,
  * which `task-list.ts` leaves as it is on purpose, an input of another type,
  * and a checkbox outside a list are left exactly as they were. A page that
  * nests the input in a `label` or a `span` is not read either: that is a
@@ -31,10 +32,23 @@ import { markTaskLists } from './task-list';
  * the two attributes.
  */
 
-/** The first node of an element, a run of white space aside. */
+/** An element that says nothing: no text, and no input inside it. */
+function isSilentElement(node: ChildNode): boolean {
+  if (!(node instanceof Element) || node.tagName === 'INPUT') return false;
+  return (node.textContent ?? '').trim() === '' && node.querySelector('input') === null;
+}
+
+/**
+ * The first node of an element, a run of white space and a silent element
+ * aside. The second is the drag handle GitHub draws before the checkbox of an
+ * item when the reader can edit the page, `span class=handle` holding an
+ * icon and no text, captured from Edge on Windows in the owner pass of #689:
+ * read as the first node, it hid the checkbox of every item that carried one.
+ */
 function firstNode(element: Element): ChildNode | null {
   for (const child of Array.from(element.childNodes)) {
     if (child.nodeType === Node.TEXT_NODE && (child.textContent ?? '').trim() === '') continue;
+    if (isSilentElement(child)) continue;
     return child;
   }
   return null;
