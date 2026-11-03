@@ -1056,13 +1056,25 @@ button.indicator-search:hover {
  * is a consequence rather than a second change: `toolbarTop` puts the bar
  * below whenever `selectionTop` does not clear the header by the bar and its
  * gap, which is what every scrolled selection already met. The owner took the
- * space over the side the bar lands on. */
+ * space over the side the bar lands on.
+ *
+ * **The document is not stretched to the height of this box** (#685). As a
+ * flex row its child took `align-items: stretch`, so `.tiptap` was exactly the
+ * height of the content box, 676 px at 1024x768, and a longer document ran
+ * out of it. The bottom padding sits after the child's box, not after what
+ * overflows it, so it never showed: scrolled to its end, the last block met
+ * the bottom edge at 0 px, whatever block it was. Aligned to the start, the
+ * child is as tall as the document, and the padding follows it: measured in
+ * Chromium, 48 px under the last block, which is these 40 and the 8 px bottom
+ * margin of the block itself. `min-height: 100%` on `.tiptap` still makes a
+ * short document fill the box, and the top and the sides do not move. */
 #editor {
   flex: 1;
   overflow-y: auto;
   padding: 8px 40px 40px;
   display: flex;
   justify-content: center;
+  align-items: flex-start;
 }
 
 /* On the page colour, as the header and the search panel are (#374, owner
