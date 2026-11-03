@@ -16,6 +16,7 @@ import { markdownToHtml } from './markdown/parse';
 import { pastedCheckboxesAsTaskItems } from './markdown/pasted-checkboxes';
 import { htmlToMarkdown } from './markdown/serialize';
 import { withoutStampedAttributes } from './markdown/stamped-attributes';
+import { replaceSelectionWithPaste, withListEdgesWhole } from './pasted-list-edges';
 import { withPastedReferences } from './reference-paste';
 
 /**
@@ -323,15 +324,17 @@ function placedOverSelectedCells(view: EditorView, slice: Slice): boolean {
 }
 
 function insertParsedHtml(view: EditorView, event: ClipboardEvent, html: string): void {
-  const slice = withPastedReferences(parseSlice(view, html), view.state);
+  const parsed = withPastedReferences(parseSlice(view, html), view.state);
+  // A list at an edge of the copy arrives whole rather than joined to the
+  // text at the caret (#690).
+  const listed = withListEdgesWhole(parsed);
+  const slice = listed ?? parsed;
   if (placedAsCells(view, event, slice)) return;
   if (placedOverSelectedCells(view, withoutTheTrailingMerge(slice))) return;
-  view.dispatch(
-    view.state.tr
-      .replaceSelection(withoutTheTrailingMerge(slice))
-      .setMeta('preventAutolink', true)
-      .scrollIntoView(),
-  );
+  const tr = view.state.tr;
+  if (listed !== null) replaceSelectionWithPaste(tr, withoutTheTrailingMerge(slice));
+  else tr.replaceSelection(withoutTheTrailingMerge(slice));
+  view.dispatch(tr.setMeta('preventAutolink', true).scrollIntoView());
 }
 
 /**
