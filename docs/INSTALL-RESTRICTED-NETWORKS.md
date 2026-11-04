@@ -163,3 +163,18 @@ On Linux, `sudo apt remove agent-ed` leaves the two settings folders above (the 
 | Tauri capabilities, what the page may ask of the system | [src-tauri/capabilities/](../src-tauri/capabilities/) |
 | Product requirements, Q3 network and Q5 supportability | [REQUIREMENTS.md](../REQUIREMENTS.md) |
 | Which commit a build comes from | **☰ → Help → About AgentEd** shows the version and the build commit, with **Copy** (Q5). Measured in the virtual machine: `Version 1.0.0`, `Build 881ea3a`. The CI artifact and the release are built from that commit |
+
+## Known limits
+
+| limit | status |
+| --- | --- |
+| **The Windows installer is not digitally signed.** SmartScreen and code-signing policies treat it as from an unknown publisher; the [README](../README.md#windows-installation) gives the steps | measured: the PE security directory of `AgentEd_1.0.0_x64-setup.exe` is empty, no Authenticode signature |
+| **It installs per user, under `%LOCALAPPDATA%\AgentEd`**, the default of the Tauri installer; there is no per-machine option in 1.0.0 | measured |
+| **AppLocker or Windows Defender Application Control rules that block programs in user profiles may stop AgentEd, whatever the network** | READING, not measured |
+| **Windows 11** | not tested |
+| **A standard user, and the UAC prompt** | not tested; the measurements ran as a local administrator |
+| **A network behind a proxy** | not tested |
+| **Group policies for WebView2** | not tested |
+| **A launch with the runtime destinations dropped by a firewall** | not measured, see part 1 |
+
+A per-machine install option would be a change to the installer, and its own issue.
