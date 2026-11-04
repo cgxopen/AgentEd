@@ -10,6 +10,7 @@ import {
 import type { EditorView } from '@tiptap/pm/view';
 import { isModHeld } from '../ui/chord-label';
 import { showToast } from '../ui/toast';
+import { isAgentEdCopy, wordsOfCopy } from './clipboard-text';
 import { carriesThisWindowsToken, clipboardSerializerWithToken } from './clipboard-token';
 import { isSingleUrl } from './link-url';
 import { markdownToHtml } from './markdown/parse';
@@ -379,6 +380,26 @@ function insertCleanedHtml(view: EditorView, event: ClipboardEvent, html: string
   insertParsedHtml(view, event, cleanPastedHtml(html));
 }
 
+/**
+ * What a paste into a fenced block inserts: the plain text, or for a copy from
+ * AgentEd its words (#697, owner decision 3 of 2026-11-04).
+ *
+ * The plain text of an AgentEd copy is markdown, so taken as characters a bold
+ * word would arrive in the block with its asterisks. Its words are recomputed
+ * from the HTML flavour and are what `main` inserted. The copy attribute, with
+ * any value, decides words over characters and nothing else (#447): the words
+ * go in as text, so nothing of the HTML reaches the document by this route.
+ * Ctrl+Shift+V is not answered here: the paste it raises carries no HTML in
+ * Chromium, and it inserts the characters on the clipboard by owner decision.
+ */
+function codeBlockText(view: EditorView, text: string, html: string): string {
+  if (html === '' || !isAgentEdCopy(html)) return text;
+  const words = wordsOfCopy(view, html);
+  if (words !== null) return words;
+  console.error('[agented] the clipboard reader of ProseMirror is missing: pasting the plain text');
+  return text;
+}
+
 function pasteLiterally(view: EditorView, text: string): boolean {
   if (!text) return false;
   insertLiteralText(view, text);
@@ -472,8 +493,12 @@ export function createPastePlugin(storage: PredictablePasteStorage, schema: Sche
 
         // Ctrl+Shift+V, or a fenced block where markdown means nothing and
         // newlines are content: the characters go in exactly as they stand.
+        // Ctrl+Shift+V inserts the characters on the clipboard, after a copy
+        // from AgentEd its markdown (#697, owner decision (c)); a paste into a
+        // fenced block of a copy from AgentEd inserts its words.
         if (forcePlain || isCodeBlockSelection(view)) {
-          if (!pasteLiterally(view, text)) return false;
+          const literal = forcePlain ? text : codeBlockText(view, text, html);
+          if (!pasteLiterally(view, literal)) return false;
           event.preventDefault();
           return true;
         }

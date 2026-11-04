@@ -1,4 +1,4 @@
-import { type Editor, getHTMLFromFragment } from '@tiptap/core';
+import { getHTMLFromFragment } from '@tiptap/core';
 import type { Node as ProseMirrorNode, Schema } from '@tiptap/pm/model';
 import { EditorState } from '@tiptap/pm/state';
 import { fixTables } from '@tiptap/pm/tables';
@@ -62,12 +62,18 @@ export const HTML_BLOCK_SOURCE = 'htmlBlockSource';
 /** The paragraph attribute the serializer writes from (#461). Never parsed. */
 export const KEPT_HTML_BLOCK_SOURCE = 'keptHtmlBlockSource';
 
+/** What `htmlForSave` reads: an editor, or a state with its schema (#697). */
+export interface SaveSource {
+  readonly state: EditorState;
+  readonly schema: Schema;
+}
+
 /**
  * The document as HTML for the serializer, with each unedited raw HTML table
  * and each unedited raw HTML block of the GFM tag filter marked to be kept.
  */
-export function htmlForSave(editor: Editor): string {
-  const { state, schema } = editor;
+export function htmlForSave(source: SaveSource): string {
+  const { state, schema } = source;
   const tr = state.tr;
   let kept = 0;
   state.doc.forEach((node, offset) => {

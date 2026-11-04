@@ -1,3 +1,4 @@
+import { getTextBetween, getTextSerializersFromSchema } from '@tiptap/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   cleanPastedHtml,
@@ -611,6 +612,110 @@ describe('predictable paste', () => {
       expect(saved).not.toContain('note');
       expect(saved).toContain('before');
       expect(saved).toContain('after');
+    });
+  });
+
+  describe('a copy from AgentEd: Ctrl+V into a code block gives the words, Ctrl+Shift+V the characters (#697)', () => {
+    const SOURCE =
+      '# A heading\n\nWords with a **bold** word and a [link](https://example.com/a).\n\n- first item\n- second item\n\n```\ncode\n```';
+
+    /**
+     * Both flavours of a copy from a document, the plain text the markdown of
+     * #697, and the words TipTap writes for the same selection, the plain text
+     * of every copy on `main`.
+     */
+    function copyFrom(
+      markdown: string,
+      from: string,
+      to: string,
+    ): { text: string; html: string; words: string } {
+      const source = editorWith(markdown);
+      const at = (needle: string) => {
+        let found = -1;
+        source.editor.state.doc.descendants((node, pos) => {
+          if (found < 0 && node.isText && node.text?.includes(needle)) {
+            found = pos + node.text.indexOf(needle);
+          }
+        });
+        return found;
+      };
+      source.editor.commands.setTextSelection({ from: at(from), to: at(to) + to.length });
+      const { view, state, schema } = source.editor;
+      const { dom, text } = view.serializeForClipboard(state.selection.content());
+      const words = getTextBetween(
+        state.doc,
+        { from: state.selection.from, to: state.selection.to },
+        { textSerializers: getTextSerializersFromSchema(schema) },
+      );
+      source.destroy();
+      return { text, html: dom.innerHTML, words };
+    }
+
+    function intoCodeBlock(clipboard: Clipboard): string {
+      const editor = editorWith('```\ncode\n```');
+      caretAfter(editor, 'code');
+      paste(editor, clipboard);
+      return editor.editor.state.doc.firstChild?.textContent ?? '';
+    }
+
+    it('the plain text of the copy is its markdown', () => {
+      expect(copyFrom(SOURCE, 'bold', 'bold').text).toBe('**bold**');
+    });
+
+    it('Ctrl+V into a code block inserts the words of a bold word', () => {
+      expect(intoCodeBlock(copyFrom(SOURCE, 'bold', 'bold'))).toBe('codebold\n');
+    });
+
+    it('Ctrl+V into a code block inserts the words of a heading, a paragraph and a list', () => {
+      const clipboard = copyFrom(SOURCE, 'A heading', 'second item');
+      expect(clipboard.text).toContain('# A heading');
+      expect(clipboard.words).toBe(
+        'A heading\n\nWords with a bold word and a link.\n\n\n\n\n\nfirst item\n\n\n\nsecond item',
+      );
+      expect(intoCodeBlock(clipboard)).toBe(`code${clipboard.words}\n`);
+    });
+
+    it('a copy from another window, its token unknown here, gives the words too', () => {
+      const clipboard = copyFrom(SOURCE, 'bold', 'bold');
+      const html = clipboard.html.replace(
+        /data-agented-copy="[0-9a-f]+"/,
+        'data-agented-copy="0000"',
+      );
+      expect(intoCodeBlock({ text: clipboard.text, html })).toBe('codebold\n');
+    });
+
+    it('HTML without the copy attribute is pasted into a code block as its plain text', () => {
+      expect(intoCodeBlock({ text: '**bold**', html: '<p><strong>bold</strong></p>' })).toBe(
+        'code**bold**\n',
+      );
+    });
+
+    it('Ctrl+Shift+V inserts the markdown as characters, the paste carrying the plain text alone', () => {
+      const { text } = copyFrom(SOURCE, 'bold', 'bold');
+      const editor = editorWith('start');
+      caretAfter(editor, 'start');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text });
+      expect(editor.editor.getText()).toBe('start**bold**');
+      expect(editor.getMarkdown()).toBe('start\\*\\*bold\\*\\*');
+    });
+
+    it('Ctrl+Shift+V inserts the characters even where a platform hands it the HTML', () => {
+      const clipboard = copyFrom(SOURCE, 'bold', 'bold');
+      const editor = editorWith('start');
+      caretAfter(editor, 'start');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, clipboard);
+      expect(editor.editor.getText()).toBe('start**bold**');
+    });
+
+    it('Ctrl+Shift+V into a code block inserts the characters', () => {
+      const { text } = copyFrom(SOURCE, 'bold', 'bold');
+      const editor = editorWith('```\ncode\n```');
+      caretAfter(editor, 'code');
+      storageOf(editor).plainPasteRequestedAt = Date.now();
+      paste(editor, { text });
+      expect(editor.editor.state.doc.firstChild?.textContent).toBe('code**bold**\n');
     });
   });
 
