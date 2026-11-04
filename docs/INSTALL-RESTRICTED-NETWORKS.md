@@ -6,7 +6,7 @@ This page is for teams that bring software into a closed network after a securit
 
 ## 1. What AgentEd does on the network
 
-**AgentEd makes no network calls of its own**: no telemetry, no update check, no account, nothing sent anywhere. Every feature works with the machine offline ([REQUIREMENTS.md](../REQUIREMENTS.md), Q3). In the Windows measurements, `agented.exe` opened no outbound connection in any run.
+**AgentEd makes no network calls of its own**: no telemetry, no update check, no account, nothing sent anywhere. Every feature works with the machine offline ([REQUIREMENTS.md](../REQUIREMENTS.md), Q3). In the Windows measurements, `agented.exe` opened no outbound connection in any run whose connection audit covered it (rounds 2 to 4 of #693).
 
 AgentEd draws its window with the web runtime the operating system provides, and that runtime has behaviour of its own, which AgentEd cannot turn off.
 
@@ -16,7 +16,7 @@ The runtime runs as `msedgewebview2.exe` processes started by AgentEd; Task Mana
 
 | network the machine has | what `msedgewebview2.exe` opened |
 | --- | --- |
-| **No network adapter** | **Nothing**: no outbound attempt, allowed or blocked, over three launches |
+| **No network adapter** | **Nothing**: no outbound attempt, allowed or blocked, in one launch |
 | **An internal DNS resolver** | **UDP 53 to that resolver**, its own queries; **TCP 443** to Microsoft addresses; once **UDP 443** to a Microsoft address |
 | **A public DNS resolver** (here Google Public DNS, `8.8.8.8`) | **UDP 53 to that resolver**; **TCP 443 to the same provider** (`8.8.4.4` and its IPv6 address); **TCP 443** to Microsoft addresses |
 
@@ -24,13 +24,13 @@ What a firewall team should know:
 
 - **The runtime sends its own DNS queries** to the resolver the system was given, rather than through the DNS client of Windows. Names blocked in the Windows DNS cache or by its client settings do not describe what the runtime resolves.
 - **With a public resolver it also opens HTTPS to that DNS provider.** READING, not measured: the runtime upgrades to DNS over HTTPS when the system resolver is a provider it knows. With an internal resolver it reached no public DNS provider.
-- **The runtime reaches two names: `config.edge.skype.com` and `edge.microsoft.com`, on TCP 443.** Found in a capture of its DNS queries, one launch on an internal resolver: its TCP 443 connections went to answers of exactly those two names, and to nothing else. **Their addresses change from launch to launch** (for example `150.171.22.17`, `150.171.27.11`, `150.171.28.11`, `52.123.244.15`, and several IPv6 addresses in `2620:1ec::` and `2603:1063::`), behind Microsoft traffic-manager names, and one launch also sent UDP 443 to such an address. **Write rules by name, or by process, protocol and port: TCP and UDP 443 from `msedgewebview2.exe`**; not by a list of addresses.
+- **The runtime reaches two names: `config.edge.skype.com` and `edge.microsoft.com`, on TCP 443.** Found in a capture of its DNS queries, in one launch on an internal resolver: its TCP 443 connections in that launch went to answers of exactly those two names, and to nothing else. **Their addresses change from launch to launch** (for example `150.171.22.17`, `150.171.27.11`, `150.171.28.11`, and several IPv6 addresses in `2620:1ec::` and `2603:1063::`), behind Microsoft traffic-manager names. **Another launch, with no capture, also reached `52.123.244.15` on TCP 443 and once on UDP 443**; its name is not known, and it may be a third destination. **Write rules by process, protocol and port: TCP and UDP 443 from `msedgewebview2.exe`**, or by name for the two names found; not by a list of addresses.
 - **The runtime reads the Windows hosts file.** With both names pointed at an address that never answers, it asked neither of them on the wire and tried that address instead.
 - **Names Windows itself asks are not AgentEd.** In the same captures, `v10.events.data.microsoft.com` and `ctldl.windowsupdate.com` were asked by `svchost.exe`, joined to the process by source port; `msedge.b.tlu.dl.delivery.mp.microsoft.com` was asked too, by a process not joined, READING Edge Update. `msedgewebview2.exe` connected to none of their answers.
 - **The runtime does not reach its names at every launch.** READING, from one launch of each case: a launch some minutes after another that had reached the names made no attempt at all, and a launch right after one that could not reach them tried again. It appears to try until it succeeds, then not for a while; how long was not measured.
 - **The runtime also looks up the host name of a link** in the open document when the pointer enters it, and connects at mousedown, before any click (Q3, measured on an earlier build).
 - **AgentEd opens in about 1 to 2.5 seconds in the virtual machine, online and with no network adapter** (window visible after 1.0 to 2.5 s online and 1.9 s offline). This is a reading of one virtual machine, not a figure for physical hardware.
-- **Blocking the two names did not stop the launch, and did not visibly slow it.** With both names sent to an address that never answers, so that the attempts waited unanswered as behind a dropping firewall (a connection there timed out after 21 s), the window was visible after **2.6 s** on the first launch and **1.5 s** on the next, against 1.2 to 2.5 s on an open network. One launch of each: within the spread of the open launches, not a measured absence of delay.
+- **Blocking the two names did not stop the launch, and did not visibly slow it.** With both names sent to an address that never answers, so that the attempts waited unanswered as behind a dropping firewall (a connection there timed out after 21 s), the window was visible after **2.6 s** on the first launch and **1.5 s** on the next, against 1.0 to 2.5 s on an open network. One launch of each: within the spread of the open launches, not a measured absence of delay.
 
 ### Linux: WebKitGTK
 
@@ -44,9 +44,9 @@ What a firewall team should know:
 
 ### Windows: the WebView2 Evergreen Runtime
 
-AgentEd needs the **Microsoft Edge WebView2 Runtime**, which it does not bundle. Windows 11 includes it. Windows 10 may not have it.
+AgentEd needs the **Microsoft Edge WebView2 Runtime**, which it does not bundle. Windows 11 includes it, according to the Microsoft [distribution documentation for WebView2](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution); not tested here. Windows 10 may not have it.
 
-**Check whether a machine has it.** The installer of AgentEd looks for the value `pv` in these keys, in this order; a version means the runtime is present:
+**Check whether a machine has it.** The installer of AgentEd looks for the value `pv` in these keys, in this order, as read in the installer template (the order is not measured); a version means the runtime is present:
 
 ```
 HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}
@@ -71,7 +71,7 @@ Read from the release package with `dpkg-deb -I` (measured on the DEV server):
 Depends: libc6 (>= 2.34), libwebkit2gtk-4.1-0, libgtk-3-0
 ```
 
-Place these packages, and what they depend on, in your internal mirror; `apt` then resolves them. The package runs no install scripts of its own: it holds only its files and their checksums. It installs `/usr/bin/agented`, `/usr/lib/AgentEd/THIRD-PARTY-NOTICES.txt`, `/usr/share/applications/AgentEd.desktop` (which declares `text/markdown`) and three icons under `/usr/share/icons/hicolor`.
+Place these packages, and what they depend on, in your internal mirror; READING, not run here: `apt` then resolves them from it. The package runs no install scripts of its own: it holds only its files and their checksums. It installs `/usr/bin/agented`, `/usr/lib/AgentEd/THIRD-PARTY-NOTICES.txt`, `/usr/share/applications/AgentEd.desktop` (which declares `text/markdown`) and three icons under `/usr/share/icons/hicolor`.
 
 ### macOS: nothing to bring in
 
@@ -86,9 +86,9 @@ The system web view is part of macOS. The build is for Apple Silicon and is not 
 - **Without the runtime and without network, the AgentEd installer stops** and installs nothing. Measured: it tries to download the WebView2 bootstrapper from Microsoft, fails with `Error: Downloading WebView2 Failed - resolving hostname`, and shows `Installation Aborted` with **`Failed to install WebView2! The app can't run without it. Try restarting the installer.`** Exit code 2. Nothing of AgentEd is left on disk or in the registry.
 - **With the runtime present**, it installs with no network. Measured: exit code 0, and AgentEd opened offline.
 
-**Per user, no administrator rights expected.** The installer installs for the current user into `%LOCALAPPDATA%\AgentEd`. In the measurements, run by a local administrator, no UAC prompt appeared. READING from the installer template: it asks for user-level rights only, so a standard user should see no UAC prompt either; **not measured with a standard user**. A per-machine install is not offered in 1.0.0.
+**Per user, no administrator rights expected.** The installer installs for the current user into `%LOCALAPPDATA%\AgentEd`. Every measured install ran from an elevated PowerShell, so no UAC prompt could appear, and none did; that says nothing about a standard user. READING from the installer template: it asks for user-level rights only, so a standard user should see no UAC prompt either; **not measured with a standard user**. A per-machine install is not offered in 1.0.0.
 
-**Silent install for distribution tools: `/S`.** Measured: `AgentEd_1.0.0_x64-setup.exe /S` does not wait for the network. Without the runtime it exited with **code 2 after 2.2 seconds** and installed nothing, so check for the runtime first. With the runtime present, a silent install was not measured; the interactive install succeeded. READING from the template: in silent mode the desktop shortcut is always created, and `/NS` skips shortcuts; `/D=<folder>` chooses the folder.
+**Silent install for distribution tools: `/S`.** Measured with no network: without the runtime, `AgentEd_1.0.0_x64-setup.exe /S` exited with **code 2 after 2.2 seconds** and installed nothing, since the lookup of the download fails at once. Behind a firewall that drops the download instead, the installer may wait; **not measured**. Check for the runtime first. With the runtime present, a silent install was not measured; the interactive install succeeded. READING from the template: in silent mode the desktop shortcut is always created, and `/NS` skips shortcuts; `/D=<folder>` chooses the folder.
 
 **What the installer writes**, measured, as a diff of the machine before and after:
 
