@@ -7,11 +7,11 @@
 
 **A visual Markdown editor with YAML frontmatter editing and live token estimates.**
 
-Create and refine notes, AI instructions, project context, and knowledge documents with intuitive visual editing. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required.
+Create and refine notes, AI instructions, project context, and knowledge documents with intuitive visual editing. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required. It works fully offline, and [a guide](docs/INSTALL-RESTRICTED-NETWORKS.md) covers installing it in closed or offline networks.
 
 <div align="center">
 
-**Free · Open source · Local files · No account · No telemetry · Windows installer under 5 MB**
+**Free · Open source · Local files · Works offline · No account · No telemetry · Windows installer under 5 MB**
 
 </div>
 
