@@ -111,6 +111,8 @@ When sharing a document that uses local images, include its referenced `assets/`
 
 Download from the official release linked above and check the filename and version. Each release provides SHA-256 checksums for verifying that your download matches the published file. A matching checksum does not by itself establish that software is safe.
 
+Installing in a closed network, with no internet or behind a strict firewall, is described in [Installing in restricted and offline networks](docs/INSTALL-RESTRICTED-NETWORKS.md): what to bring in, in what order, what the installer writes and what stays after.
+
 The steps below apply to warnings about an unrecognised or unverified application. If your security software identifies a specific threat, stop and report the exact message and release version.
 
 ### Windows installation
@@ -234,6 +236,8 @@ Further format behaviour and exceptions are documented in [REQUIREMENTS.md](REQU
 AgentEd is in active development. The 1.0 line focuses on visual editing of local Markdown files.
 
 Windows and macOS releases are available, with Windows as the primary development and testing platform. Linux builds remain experimental.
+
+What comes next is listed in [#674](https://github.com/cgxopen/AgentEd/issues/674), the candidates for 1.1.
 
 The product definition and documented exceptions live in [REQUIREMENTS.md](REQUIREMENTS.md).
 
