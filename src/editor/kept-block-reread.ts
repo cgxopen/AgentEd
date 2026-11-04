@@ -47,8 +47,7 @@ function definitionsOf(doc: ProseMirrorNode): Definition[] {
   const found: Definition[] = [];
   doc.descendants((node) => {
     if (node.type.name !== 'footnoteDefinition') return;
-    // A footnote definition carries `null` here, a reference one its indentation.
-    if (typeof node.attrs.referenceIndent !== 'string') return false;
+    if (!isReferenceDefinition(node)) return false;
     const text = node.textBetween(0, node.content.size, '\n', (leaf) =>
       leaf.type.name === 'hardBreak' ? '\n' : '',
     );
@@ -57,6 +56,16 @@ function definitionsOf(doc: ProseMirrorNode): Definition[] {
     return false;
   });
   return found;
+}
+
+/**
+ * Whether a node is a reference definition, which a re-read reads the bytes
+ * with: a footnote definition carries `null` in `referenceIndent`, a
+ * reference one its indentation. Exported for `centred-blocks.ts`, whose
+ * cache of re-reads holds while these nodes are the same (#699).
+ */
+export function isReferenceDefinition(node: ProseMirrorNode): boolean {
+  return node.type.name === 'footnoteDefinition' && typeof node.attrs.referenceIndent === 'string';
 }
 
 /** Bytes read again as a load reads them, with what they need of the document. */

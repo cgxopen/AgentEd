@@ -190,24 +190,41 @@ export function uneditedRegions(
 ): { from: number; to: number; source: string }[] {
   const found: { from: number; to: number; source: string }[] = [];
   doc.descendants((node, pos, parent, index) => {
-    const source = node.attrs[HTML_BLOCK_SOURCE];
-    // Every block whose bytes read back as several blocks, a `details`, a raw
-    // `dl` (#604), and since #572 any wrapper and any stamped raw block
-    // (owner decision 1 of 2026-10-18, K9 of the step zero): each is written
-    // back as its bytes while the blocks it became are unedited.
-    if (typeof source !== 'string' || parent === null) return;
-    const reread = read(source);
-    if (reread.childCount < 2) return;
-    let size = 0;
-    for (let i = 0; i < reread.childCount; i++) {
-      const block = parent.maybeChild(index + i);
-      const want = reread.child(i);
-      if (!block || block.type !== want.type || !block.content.eq(want.content)) return;
-      if (block.attrs.level !== want.attrs.level) return;
-      size += block.nodeSize;
-    }
-    found.push({ from: pos, to: pos + size, source });
+    if (parent === null) return;
+    const size = uneditedRegionSize(node, parent, index, read);
+    if (size === null) return;
+    found.push({ from: pos, to: pos + size, source: node.attrs[HTML_BLOCK_SOURCE] });
     return false;
   });
   return found;
+}
+
+/**
+ * The size of the unedited region a block opens, the child `index` of
+ * `parent`, or `null` when it opens none. Asked of one block, so that what is
+ * drawn of a kept block can ask what the save asks (#699).
+ */
+export function uneditedRegionSize(
+  node: ProseMirrorNode,
+  parent: ProseMirrorNode,
+  index: number,
+  read: Reread,
+): number | null {
+  const source = node.attrs[HTML_BLOCK_SOURCE];
+  // Every block whose bytes read back as several blocks, a `details`, a raw
+  // `dl` (#604), and since #572 any wrapper and any stamped raw block
+  // (owner decision 1 of 2026-10-18, K9 of the step zero): each is written
+  // back as its bytes while the blocks it became are unedited.
+  if (typeof source !== 'string') return null;
+  const reread = read(source);
+  if (reread.childCount < 2) return null;
+  let size = 0;
+  for (let i = 0; i < reread.childCount; i++) {
+    const block = parent.maybeChild(index + i);
+    const want = reread.child(i);
+    if (!block || block.type !== want.type || !block.content.eq(want.content)) return null;
+    if (block.attrs.level !== want.attrs.level) return null;
+    size += block.nodeSize;
+  }
+  return size;
 }
