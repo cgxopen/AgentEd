@@ -24,10 +24,13 @@ What a firewall team should know:
 
 - **The runtime sends its own DNS queries** to the resolver the system was given, rather than through the DNS client of Windows. Names blocked in the Windows DNS cache or by its client settings do not describe what the runtime resolves.
 - **With a public resolver it also opens HTTPS to that DNS provider.** READING, not measured: the runtime upgrades to DNS over HTTPS when the system resolver is a provider it knows. With an internal resolver it reached no public DNS provider.
-- **The Microsoft addresses change from launch to launch** (for example `150.171.22.17`, `150.171.27.11`, `150.171.28.11`, `52.123.244.15`, and several IPv6 addresses in `2620:1ec::` and `2603:1063::`). **Describe the destinations by process, protocol and port: TCP 443 and UDP 443 from `msedgewebview2.exe`**, not by a list of addresses. The host names were not captured.
+- **The runtime reaches two names: `config.edge.skype.com` and `edge.microsoft.com`, on TCP 443.** Found in a capture of its DNS queries, one launch on an internal resolver: its TCP 443 connections went to answers of exactly those two names, and to nothing else. **Their addresses change from launch to launch** (for example `150.171.22.17`, `150.171.27.11`, `150.171.28.11`, `52.123.244.15`, and several IPv6 addresses in `2620:1ec::` and `2603:1063::`), behind Microsoft traffic-manager names, and one launch also sent UDP 443 to such an address. **Write rules by name, or by process, protocol and port: TCP and UDP 443 from `msedgewebview2.exe`**; not by a list of addresses.
+- **The runtime reads the Windows hosts file.** With both names pointed at an address that never answers, it asked neither of them on the wire and tried that address instead.
+- **Names Windows itself asks are not AgentEd.** In the same captures, `v10.events.data.microsoft.com` and `ctldl.windowsupdate.com` were asked by `svchost.exe`, joined to the process by source port; `msedge.b.tlu.dl.delivery.mp.microsoft.com` was asked too, by a process not joined, READING Edge Update. `msedgewebview2.exe` connected to none of their answers.
+- **The runtime does not reach its names at every launch.** READING, from one launch of each case: a launch some minutes after another that had reached the names made no attempt at all, and a launch right after one that could not reach them tried again. It appears to try until it succeeds, then not for a while; how long was not measured.
 - **The runtime also looks up the host name of a link** in the open document when the pointer enters it, and connects at mousedown, before any click (Q3, measured on an earlier build).
 - **AgentEd opens in about 1 to 2.5 seconds in the virtual machine, online and with no network adapter** (window visible after 1.0 to 2.5 s online and 1.9 s offline). This is a reading of one virtual machine, not a figure for physical hardware.
-- **Not measured: a launch with the Microsoft destinations dropped by a network firewall**, where connections wait and time out rather than fail at once. The attempt made in the virtual machine did not produce a drop.
+- **Blocking the two names did not stop the launch, and did not visibly slow it.** With both names sent to an address that never answers, so that the attempts waited unanswered as behind a dropping firewall (a connection there timed out after 21 s), the window was visible after **2.6 s** on the first launch and **1.5 s** on the next, against 1.2 to 2.5 s on an open network. One launch of each: within the spread of the open launches, not a measured absence of delay.
 
 ### Linux: WebKitGTK
 
@@ -175,6 +178,6 @@ On Linux, `sudo apt remove agent-ed` leaves the two settings folders above (the 
 | **A standard user, and the UAC prompt** | not tested; the measurements ran as a local administrator |
 | **A network behind a proxy** | not tested |
 | **Group policies for WebView2** | not tested |
-| **A launch with the runtime destinations dropped by a firewall** | not measured, see part 1 |
+| **A launch with the runtime destinations dropped** | measured in one launch of each kind, with the hosts file standing in for a dropping firewall, see part 1; a real network firewall was not tested |
 
 A per-machine install option would be a change to the installer, and its own issue.
