@@ -20,12 +20,14 @@ import Underline from '@tiptap/extension-underline';
 import type { Schema, TagParseRule } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import { AdjacentBlocks } from './adjacent-blocks';
+import { ClipboardMarkdown } from './clipboard-text';
 import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
 import { CodeBlockLanguage } from './code-block-language';
 import { codeInputRule } from './code-input-rule';
 import { codeSpanTextRule } from './code-span-spacing';
 import { replaceDocument } from './document-load';
+import { markdownOf } from './document-markdown';
 import { FootnoteHover } from './footnote-hover';
 import { HistoryStaysWithFocus } from './history-focus';
 import {
@@ -42,7 +44,6 @@ import { FootnoteShortcut } from './insert-footnote';
 import {
   HTML_BLOCK_SOURCE,
   HTML_SOURCE,
-  htmlForSave,
   KEPT_HTML_BLOCK_SOURCE,
   KEPT_HTML_SOURCE,
 } from './kept-html-table';
@@ -87,7 +88,6 @@ import {
 } from './markdown/list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceMarkAttribute } from './markdown/reference';
-import { htmlToMarkdown } from './markdown/serialize';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
 import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './markdown/tag-filter';
@@ -1003,6 +1003,8 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     // Registered after ImageDrop so a pasted image is still handled as an
     // image; this takes over everything else the clipboard carries (R-C13).
     PredictablePaste,
+    // The plain text of a copy is the markdown the file would hold (#697).
+    ClipboardMarkdown,
     // A paragraph inserted mid-list must not restart the numbering (R-C1).
     OrderedListContinuity,
     CodeBlockLanguage,
@@ -1047,9 +1049,10 @@ export function createEditor(
     },
   });
 
-  // `htmlForSave` is `editor.getHTML()` with each unedited raw HTML table
-  // marked to be written as its own bytes (#283).
-  const getMarkdown = () => htmlToMarkdown(htmlForSave(editor), { keepHtmlTables: true });
+  // `markdownOf` writes `editor.getHTML()` with each unedited raw HTML table
+  // marked to be written as its own bytes (#283), and is the same function
+  // the plain text of a copy is written by (#697).
+  const getMarkdown = () => markdownOf(editor.state);
 
   // Every route that replaces the whole document goes through this one
   // function, which also forgets the undo history the previous document
