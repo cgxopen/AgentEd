@@ -2128,6 +2128,17 @@ button.indicator-search:hover {
   outline-offset: 2px;
 }
 
+/*
+ * A block the file centres with its HTML, `align="center"` on a wrapper or a
+ * heading, or a `center` (#699): the class comes from a decoration in
+ * `centred-blocks.ts`, drawn only while the save keeps the wrapper, so it
+ * never reaches the file or the clipboard. An image is drawn inline-block, so
+ * the centring of the line centres it.
+ */
+.tiptap .html-centred {
+  text-align: center;
+}
+
 /* ── Resize handles (#27) ── */
 
 /*
@@ -2148,17 +2159,6 @@ button.indicator-search:hover {
  * the outline sit on the picture. It costs 8 px less space under every image,
  * accepted by the owner on 2026-09-26.
  */
-/*
- * A block the file centres with its HTML, `align="center"` on a wrapper or a
- * heading, or a `center` (#699): the class comes from a decoration in
- * `centred-blocks.ts`, drawn only while the save keeps the wrapper, so it
- * never reaches the file or the clipboard. An image is drawn inline-block, so
- * the centring of the line centres it.
- */
-.tiptap .html-centred {
-  text-align: center;
-}
-
 .tiptap .image-resize {
   position: relative;
   display: inline-block;
