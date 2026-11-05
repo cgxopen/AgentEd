@@ -60,7 +60,7 @@ Paste an image, drag it onto the document, or choose **Insert, Image**.
 
 Although Markdown files prepared strictly for text LLMs rarely require images, visual assets are indispensable for standard software documentation, project overviews, and architecture graphs. Organizing them cleanly in an `assets` subfolder ensures standard repo hygiene: documents stay self-contained for human readers, while keeping image binaries isolated from text prompts.
 
-AgentEd saves referenced images into a local `assets` folder beside your file. The first time, it asks before it uses that folder, and the folder and its images are written when you save the document. Remember to include this folder when sharing or versioning the document.
+AgentEd saves referenced images into a local `assets` folder beside your file. The first time, if there is no `assets` folder yet, it asks before creating one, and the folder and its images are written when you save the document. Remember to include this folder when sharing or versioning the document.
 
 Select an image to resize it by dragging a corner, or choose **Image description** on the toolbar or in the **Edit** menu to manage alternative text.
 
@@ -68,7 +68,7 @@ Select an image to resize it by dragging a corner, or choose **Image description
 
 Some Markdown files start with a structured block of fields at the top, commonly known as frontmatter. While traditionally used for blog posts, documentation, and digital gardens (titles, authors, tags), frontmatter is now critical in AI workflows — storing metadata for RAG indexing, agent routing, status flags (`draft`, `verified`), and document scopes.
 
-AgentEd parses this block into a dedicated Metadata panel above the document, making it easy to inspect, verify, and edit structured attributes without syntax errors.
+AgentEd shows this block in a dedicated Metadata panel above the document, where you can inspect and edit it apart from the body. The panel does not check what you type, so keep to the form the block already has.
 
 To add a metadata block to a document, choose **Insert, Metadata**.
 
@@ -78,13 +78,13 @@ Press **Ctrl+F** to find text in the document, and **Ctrl+H** to find and replac
 
 ## Counts and badges in the header
 
-The header at the top of the window shows counts for the document: an estimate of its tokens, the number a language model would count, and its words and characters. They change as you type. Point at any of them for details.
+The header at the top of the window shows counts for the document: an estimate of its tokens, the number a language model would count, and its words and characters. They change as you type. Point at the token count for details.
 
-Badges appear beside them when they apply: **Metadata** when the document has a metadata block, and **Images** when it uses images. Click **Images** to see the images of the document. In a narrow window, some of these move into the list behind the three dots.
+Badges appear beside them when they apply: **Metadata** when the document has a metadata block, and **Images** when it uses images. Click **Images** for a summary of the images the document uses. In a narrow window, some of these move into the list behind the three dots.
 
 ## The files panel
 
-When your document has an `assets` folder beside it, the files panel can show it. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**.
+When your document uses images from an `assets` folder beside it, the files panel can show that folder. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**.
 
 ## Appearance
 
@@ -96,12 +96,12 @@ Spell check is off at first. Turn it on in the **Edit** menu, under **Spell chec
 
 ## More than one document
 
-Each document opens in a window of its own. Open another document from your file manager and it gets its own window, with its own history of changes.
+A document you open from your file manager gets a window of its own, with its own history of changes. **File, Open** opens a document in the window you are in, after asking about any unsaved changes.
 
 ## When a file changes outside AgentEd
 
 If another program changes a file while you have it open, AgentEd notices when you save and asks what to do: reload the file from disk, overwrite it with your version, or save your version somewhere else. It never overwrites a changed file without asking.
 
-## Keeping your file as it was
+## How AgentEd writes your file
 
-AgentEd is careful not to change what you did not edit. If you open a file and save it without changes, the file stays exactly as it was. Some rare constructions are written differently after you edit them; they are listed in the requirements of the project.
+AgentEd writes ordinary markdown. When you save, it may write some parts of a file in its own standard form, even where you changed nothing, such as the indentation of a list. The cases are listed in the requirements of the project.
