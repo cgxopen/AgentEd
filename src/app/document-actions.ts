@@ -8,6 +8,7 @@ import {
   saveDocument,
 } from '../formats/index';
 import { OpenCutError } from '../formats/types';
+import { HELP_TITLES, type HelpId, helpMarkdown } from '../help/index';
 import { NotUtf8Error } from '../platform/decode';
 import { getPlatformIO } from '../platform/index';
 import { basename, dirname } from '../platform/paths';
@@ -28,6 +29,8 @@ import type { SidebarRedraw } from './sidebar-sync';
 export interface DocumentActions {
   handleNew(): Promise<void>;
   handleNewFromTemplate(templateId: TemplateId): Promise<void>;
+  /** Put a help into this window at start (#701). */
+  openHelp(id: HelpId): void;
   handleOpen(): Promise<void>;
   handleSave(): Promise<void>;
   handleSaveAs(): Promise<void>;
@@ -429,6 +432,23 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     ctx.state.refreshModified();
   }
 
+  /**
+   * Put a help into this window, which was opened for it (#701): its text,
+   * bundled in the page, under its name, with no file and **not marked**,
+   * since nothing in it is the person's yet. An edit marks it as any edit
+   * does, and Save asks where, as for any document with no file. Asked only
+   * at start, in a window of its own, so no document leaves and no gate is
+   * asked.
+   */
+  function openHelp(id: HelpId): void {
+    clearDocumentForReplacement();
+    ctx.setMarkdown(helpMarkdown(id));
+    ctx.state.untitledName = HELP_TITLES[id];
+    ctx.setFilename(HELP_TITLES[id]);
+    ctx.statusbar.refresh();
+    ctx.state.markSaved(ctx.state.frontmatter);
+  }
+
   async function handleClose(): Promise<void> {
     if (ctx.state.isSaving) return;
     if (!(await discardCurrentDocument('close'))) return;
@@ -538,6 +558,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
   return {
     handleNew,
     handleNewFromTemplate,
+    openHelp,
     handleOpen,
     handleSave,
     handleSaveAs,

@@ -72,6 +72,16 @@ export class AppState {
   knownDiskText: string | null = null;
 
   /**
+   * The name a document with no file is shown under, or `null` for
+   * Untitled: a help opened in its window (#701). Read only while `filePath`
+   * is `null`, by the unsaved-changes question and by the report a macOS
+   * window makes, so a help is never taken for an empty Untitled that a
+   * document from Finder may replace. `resetDocument` clears it; a route that
+   * gives the document a file sets `filePath`, after which it is not read.
+   */
+  untitledName: string | null = null;
+
+  /**
    * How this document's text is written back: line terminator and
    * final newline (#79). They belong to the **content**, not to the
    * path — which is what separates them from `knownDiskText` above.
@@ -313,5 +323,6 @@ export class AppState {
     // File then Open inheriting a folder from the one before it.
     this.sidebarRootFromClick = null;
     this.referencesImage = false;
+    this.untitledName = null;
   }
 }

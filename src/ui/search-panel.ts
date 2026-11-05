@@ -1,4 +1,15 @@
 import { isModHeld } from './chord-label';
+
+/**
+ * Replace All from the Replace field: Ctrl+Enter, or Cmd+Enter where `Mod` is
+ * Command. Exported for the list of shortcuts (#701).
+ */
+export function isReplaceAllChord(
+  e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey'>,
+  command?: boolean,
+): boolean {
+  return e.key === 'Enter' && isModHeld(e, command);
+}
 export type SearchPanelMode = 'find' | 'replace';
 
 export interface SearchPanelCallbacks {
@@ -88,7 +99,7 @@ export function setupSearchPanel(root: HTMLElement, callbacks: SearchPanelCallba
   });
 
   replaceInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && isModHeld(e)) {
+    if (isReplaceAllChord(e)) {
       e.preventDefault();
       callbacks.onReplaceAll();
       return;

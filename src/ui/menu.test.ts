@@ -86,6 +86,8 @@ function callbacks(): MenuCallbacks {
     onAddColumnAfter: vi.fn(),
     onDeleteColumn: vi.fn(),
     onDeleteTable: vi.fn(),
+    onKeyboardShortcuts: vi.fn(),
+    onUserGuide: vi.fn(),
     onAbout: vi.fn(),
   };
 }
@@ -210,6 +212,8 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-table', 'Add Column After', 'menu-table-add-column-after', 'onAddColumnAfter'],
   ['menu-panel-table', 'Delete Column', 'menu-table-delete-column', 'onDeleteColumn'],
   ['menu-panel-table', 'Delete Table', 'menu-table-delete-table', 'onDeleteTable'],
+  ['menu-panel-help', 'Keyboard Shortcuts', 'menu-help-shortcuts', 'onKeyboardShortcuts'],
+  ['menu-panel-help', 'User Guide', 'menu-help-guide', 'onUserGuide'],
   ['menu-panel-help', 'About AgentEd', 'menu-about', 'onAbout'],
 ];
 

@@ -203,20 +203,27 @@ You can remove those folders separately if you also want to delete the applicati
 | `Ctrl+Alt+1` … `Ctrl+Alt+6` | `Cmd+Option+1` … `Cmd+Option+6` | Heading level 1–6 |
 | `Ctrl+Alt+0` | `Cmd+Option+0` | Body text |
 | `Ctrl+Shift+S` | `Cmd+Shift+S` | Strikethrough |
-| `Ctrl+Z` / `Ctrl+Y` | `Cmd+Z` / `Cmd+Shift+Z` or `Cmd+Y` | Undo / Redo |
+| `Ctrl+Shift+B` | `Cmd+Shift+B` | Blockquote |
+| `Ctrl+Shift+8` | `Cmd+Shift+8` | Bullet list |
+| `Ctrl+Shift+7` | `Cmd+Shift+7` | Numbered list |
+| `Ctrl+Z` / `Ctrl+Y` or `Ctrl+Shift+Z` | `Cmd+Z` / `Cmd+Y` or `Cmd+Shift+Z` | Undo / Redo |
 | `Ctrl+A` | `Cmd+A` | Select all |
 | `Ctrl+S` | `Cmd+S` | Save; Save As is in the File menu |
 | `Ctrl+O` | `Cmd+O` | Open |
+| `Ctrl+C` / `Ctrl+X` | `Cmd+C` / `Cmd+X` | Copy / Cut |
 | `Ctrl+V` / `Ctrl+Shift+V` | `Cmd+V` / `Cmd+Shift+V` | Paste, interpreting Markdown / Paste as plain text |
 | `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+Option+F` | Find / Replace |
+| `Ctrl+Enter` in the Replace field | `Cmd+Enter` in the Replace field | Replace All |
 | `Ctrl+Alt+F` | `Cmd+Option+R` | Insert footnote |
 | `Ctrl+Shift+E` | `Cmd+Shift+E` | Open/close the Files panel |
 | `F3` | `Fn+F3` | Find next |
 | `Shift+F3` | `Fn+Shift+F3` | Find previous |
-| `Shift+Enter` | `Shift+Enter` | Line break inside a paragraph |
+| `Shift+Enter` or `Ctrl+Enter` | `Shift+Enter` or `Cmd+Enter` | Line break inside a paragraph |
 | `Tab` / `Shift+Tab` | `Tab` / `Shift+Tab` | Indent/dedent in lists; move between table cells |
 
 On macOS, `Cmd+H` hides AgentEd rather than opening Replace.
+
+The same list opens inside AgentEd from **Help → Keyboard Shortcuts**, in a window of its own, written for the keys of your platform.
 
 ## Known limitations
 

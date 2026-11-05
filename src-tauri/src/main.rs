@@ -6,6 +6,7 @@ mod browser_args;
 #[cfg(any(target_os = "macos", test))]
 mod document_windows;
 mod file_open;
+mod help_window;
 #[cfg(target_os = "macos")]
 mod macos_paste;
 #[cfg(target_os = "macos")]
@@ -22,7 +23,9 @@ mod window_background;
 mod window_shown;
 
 fn main() {
-    let builder = tauri::Builder::default().manage(file_open::PendingOpen::default());
+    let builder = tauri::Builder::default()
+        .manage(file_open::PendingOpen::default())
+        .manage(help_window::HelpWindows::default());
     // Managed here rather than in `setup`: on macOS the document of a cold
     // start arrives as `RunEvent::Opened` before `setup` runs, measured on
     // a macOS runner on #559 - opened at 0 ms, setup done at 81 ms - and a
@@ -37,6 +40,8 @@ fn main() {
     #[cfg(not(target_os = "macos"))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
+        help_window::open_help_window,
+        help_window::take_launch_help,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour
@@ -45,6 +50,8 @@ fn main() {
     #[cfg(target_os = "macos")]
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
+        help_window::open_help_window,
+        help_window::take_launch_help,
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
         title_bar::title_bar_overlay,
@@ -92,6 +99,9 @@ fn main() {
             if let Some(path) = file_open::extract_file_arg(&args) {
                 file_open::deliver(app.handle(), path);
             }
+            // A process started for the help holds it for its page (#701).
+            #[cfg(not(target_os = "macos"))]
+            help_window::install(app, &args);
 
             Ok(())
         })
