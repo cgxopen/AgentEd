@@ -20,6 +20,7 @@ import Underline from '@tiptap/extension-underline';
 import type { Schema, TagParseRule } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
 import { AdjacentBlocks } from './adjacent-blocks';
+import { CentredBlocks } from './centred-blocks';
 import { ClipboardMarkdown } from './clipboard-text';
 import { CodeBlockCopy } from './code-block-copy';
 import { codeBlockInputRules } from './code-block-input-rules';
@@ -1005,6 +1006,9 @@ function buildExtensions(images: ImageInsertWiring | undefined): AnyExtension[] 
     PredictablePaste,
     // The plain text of a copy is the markdown the file would hold (#697).
     ClipboardMarkdown,
+    // A block the file centres with its HTML is drawn centred while the save
+    // keeps its bytes (#699).
+    CentredBlocks,
     // A paragraph inserted mid-list must not restart the numbering (R-C1).
     OrderedListContinuity,
     CodeBlockLanguage,
