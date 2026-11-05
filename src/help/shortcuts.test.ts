@@ -7,6 +7,8 @@ import { isPlainPasteShortcut } from '../editor/paste';
 import { createEditor } from '../editor/setup';
 import { chordLabel, isModHeld } from '../ui/chord-label';
 import { isReplaceAllChord } from '../ui/search-panel';
+import guide from './guide.md?raw';
+import { guideChords, guideMarkdown, helpMarkdown } from './index';
 import { MAC_NOTE, macCell, SHORTCUTS, type Shortcut, shortcutsMarkdown } from './shortcuts';
 
 vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
@@ -222,5 +224,59 @@ describe('the list of keyboard shortcuts (#701)', () => {
     expect(mac).toContain('| `Cmd+Enter` in the Replace field | Replace All |');
     expect(mac).toContain(MAC_NOTE);
     expect(windows.split('\n').filter((l) => l.startsWith('| `')).length).toBe(SHORTCUTS.length);
+  });
+});
+
+/**
+ * The chords the guide names that nothing answers: each must be a chord of the
+ * list, or a binding of the editor keymap, so the guide cannot name a chord
+ * that does nothing (#701, owner decision 4).
+ */
+function unanswered(text: string): string[] {
+  const listed = new Set(SHORTCUTS.flatMap((row) => chordsOf(row.win)).map(normal));
+  const keymap = new Set(editorKeymap().map(normal));
+  return guideChords(text).filter(
+    (chord) => !listed.has(normal(chord)) && !keymap.has(normal(chord)),
+  );
+}
+
+describe('the chords the User Guide names (#701, owner decision 4)', () => {
+  it('names chords, every one of them in bold, where the help finds them', () => {
+    expect(guideChords(guide)).toContain('Ctrl+S');
+    expect(guideChords(guide)).toContain('Ctrl');
+    const outside = guide.replace(/`[^`]*`|\*\*[^*]+\*\*/g, '');
+    expect(outside).not.toMatch(/\b(Ctrl|Cmd|Alt|Option)\b|\bShift\+|\bF\d\b/);
+  });
+
+  it('every chord it names is a chord of the list or answered by the keymap', () => {
+    expect(unanswered(guide)).toEqual([]);
+  });
+
+  it('a chord nobody binds, put into the guide, is caught', () => {
+    expect(unanswered(`${guide}\nPress **Ctrl+J** to do nothing.\n`)).toEqual(['Ctrl+J']);
+  });
+
+  it('opens as written on Windows, and in the macOS form on a Mac', () => {
+    expect(guideMarkdown(false)).toBe(guide);
+    const mac = guideMarkdown(true);
+    for (const chord of [
+      '**Cmd+S**',
+      '**Cmd+O**',
+      '**Cmd+Shift+E**',
+      '**Cmd+Option+F**',
+      '**Fn+F3**',
+      '**Fn+Shift+F3**',
+    ]) {
+      expect(mac).toContain(chord);
+    }
+    expect(mac).toContain('hold **Cmd** and click it');
+    expect(mac).not.toMatch(/\bCtrl\b/);
+    expect(mac.replace(/`[^`]*`|\*\*[^*]+\*\*/g, '')).toBe(
+      guide.replace(/`[^`]*`|\*\*[^*]+\*\*/g, ''),
+    );
+  });
+
+  it('is what Help, User Guide opens, in the form of the platform it runs on', () => {
+    expect(helpMarkdown('guide')).toBe(guideMarkdown());
   });
 });
