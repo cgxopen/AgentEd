@@ -1,3 +1,4 @@
+import { type HelpId, helpIdFrom } from '../help/ids';
 import { isTauri } from './detect';
 import type { PlatformIO, TitleBarOverlay, WindowControls } from './types';
 
@@ -125,6 +126,43 @@ export async function keepPageColour(colour: string): Promise<void> {
   const { invoke } = await import('@tauri-apps/api/core');
   await invoke('keep_page_colour', { colour });
 }
+
+/**
+ * Open a help in a window of its own (#701, owner decision): the document
+ * in front of the person is not touched and no question is asked.
+ *
+ * **Which window that is depends on the platform**, so `isTauri` answers the
+ * question it owns here. On the desktop the process opens it,
+ * `open_help_window` in `src-tauri/src/help_window.rs`: a second AgentEd
+ * process on Windows and Linux, a new window of this one on macOS. The web
+ * build has no process to ask, and opens the page again in a new tab, with
+ * the help named in its query, which `takeLaunchHelp` reads there. The tab is
+ * opened before any `await`, while the click that asked still counts as one.
+ */
+export async function openHelpWindow(id: HelpId): Promise<void> {
+  if (!isTauri) {
+    const opened = window.open(`${location.pathname}?${HELP_QUERY}=${id}`, '_blank');
+    if (opened === null) throw new Error('the browser did not open a new tab');
+    return;
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('open_help_window', { name: id });
+}
+
+/**
+ * The help this window was opened for, or `null` for any other window. Asked
+ * once, at start: the process hands it over once, and a web tab reads its
+ * query. A word that names no help is `null`, so a hand-made query opens an
+ * empty window as any other launch does.
+ */
+export async function takeLaunchHelp(): Promise<HelpId | null> {
+  if (!isTauri) return helpIdFrom(new URLSearchParams(location.search).get(HELP_QUERY));
+  const { invoke } = await import('@tauri-apps/api/core');
+  return helpIdFrom(await invoke<string | null>('take_launch_help'));
+}
+
+/** The query word a web tab of the help carries. */
+const HELP_QUERY = 'help';
 
 /** The name every desktop bundle installs its third-party notices under (#475, #540). */
 export const THIRD_PARTY_NOTICES_FILE = 'THIRD-PARTY-NOTICES.txt';

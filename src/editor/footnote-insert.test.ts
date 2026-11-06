@@ -404,6 +404,8 @@ describe('the routes reach the one command (#409)', () => {
       onDeleteTable: vi.fn(),
       onTableShapeColumn: vi.fn(),
       onTableShapeTable: vi.fn(),
+      onKeyboardShortcuts: vi.fn(),
+      onUserGuide: vi.fn(),
       onAbout: vi.fn(),
       ...footnoteMenuCallbacks(instance.editor),
     };

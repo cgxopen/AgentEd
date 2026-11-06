@@ -33,7 +33,7 @@ export function setupWindowReports(
     reportWindowState({
       title: name,
       unsaved: state.modified,
-      untouched: state.filePath === null && !state.modified,
+      untouched: state.filePath === null && !state.modified && state.untitledName === null,
     }).catch((e: unknown) => {
       console.error('[window-reports] report failed:', e);
       if (failed) return;

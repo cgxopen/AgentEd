@@ -51,6 +51,23 @@ export interface SearchManagerDeps {
 }
 
 /**
+ * The Find chord, once the key of the chord is held: Ctrl+F, or Cmd+F where
+ * `Mod` is Command, with neither Shift nor Alt. Exported, as the Replace
+ * chord below is, so the list of shortcuts asks it (#701).
+ */
+export function isFindChord(e: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'altKey'>): boolean {
+  return !e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F');
+}
+
+/**
+ * F3 or Shift+F3, which need no modifier: the next match, or the previous
+ * one with Shift. Exported for the list of shortcuts (#701).
+ */
+export function isFindStepChord(e: Pick<KeyboardEvent, 'key'>): boolean {
+  return e.key === 'F3';
+}
+
+/**
  * The Replace chord, once the key of the chord is held: Ctrl+H where `Mod` is
  * Ctrl, Option+Cmd+F where it is Command (#630). On a Mac Cmd+H is Hide in the
  * application menu, measured to hide AgentEd once the page leaves it, and
@@ -257,7 +274,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
         // open, and with it closed whenever its find field holds text, which
         // opens it again (#384). Closing clears the engine, so the field is
         // what is read, not the engine's last query.
-        if (e.key === 'F3') {
+        if (isFindStepChord(e)) {
           if (!panel.isOpen() && !panel.getQuery()) return;
           e.preventDefault();
           if (e.shiftKey) manager.findPrevious();
@@ -266,7 +283,7 @@ export function createSearchManager(deps: SearchManagerDeps): SearchManager {
         }
         // Command alone on a Mac, Ctrl or Command elsewhere (#627).
         if (!isModHeld(e)) return;
-        if (!e.shiftKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
+        if (isFindChord(e)) {
           e.preventDefault();
           manager.openFind();
           return;

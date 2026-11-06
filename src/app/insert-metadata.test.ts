@@ -221,6 +221,8 @@ function spies(): MenuCallbacks {
     onAddColumnAfter: vi.fn(),
     onDeleteColumn: vi.fn(),
     onDeleteTable: vi.fn(),
+    onKeyboardShortcuts: vi.fn(),
+    onUserGuide: vi.fn(),
     onAbout: vi.fn(),
   };
 }

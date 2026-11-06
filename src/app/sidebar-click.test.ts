@@ -10,6 +10,7 @@ function makeDocActions(): DocumentActions {
   return {
     handleNew: vi.fn(async () => {}),
     handleNewFromTemplate: vi.fn(async () => {}),
+    openHelp: vi.fn(),
     handleOpen: vi.fn(async () => {}),
     handleSave: vi.fn(async () => {}),
     handleSaveAs: vi.fn(async () => {}),

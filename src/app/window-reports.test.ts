@@ -64,6 +64,15 @@ describe('what a window reports once it is one of several (#559)', () => {
     expect(reports.at(-1)?.unsaved).toBe(true);
   });
 
+  it('a help, named and not edited, is not untouched, so Finder gives it no document (#701)', async () => {
+    const { state, rename } = wire();
+    for (const start of starters) start();
+    state.untitledName = 'User Guide';
+    rename('User Guide');
+    await vi.waitFor(() => expect(reports).toHaveLength(2));
+    expect(reports[1]).toEqual({ title: 'User Guide', unsaved: false, untouched: false });
+  });
+
   it('a failed report is shown once, not on every keystroke', async () => {
     const { state, showFailure } = wire();
     for (const start of starters) start();

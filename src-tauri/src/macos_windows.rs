@@ -127,6 +127,18 @@ pub fn new_window(app: &AppHandle) {
     }
 }
 
+/// A new window holding the help (#701), held for its page before the
+/// window exists, so the page finds it when it asks.
+pub fn new_help_window(app: &AppHandle, help: crate::help_window::Help) -> Result<(), String> {
+    let label = registry(app)
+        .next_label()
+        .ok_or("the bound on windows opened is reached")?;
+    app.state::<crate::help_window::HelpWindows>()
+        .hold(&label, help);
+    build(app, &label);
+    Ok(())
+}
+
 /// Build the window `label` from the description of `main`. It is in the
 /// registry before it exists, so nothing it raises finds it missing.
 fn build(app: &AppHandle, label: &str) {

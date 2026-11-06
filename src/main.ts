@@ -32,12 +32,15 @@ import { type PredictablePasteStorage, requestPlainPaste } from './editor/paste'
 import { selectAllMenuCallbacks } from './editor/select-all-route';
 import { createEditor } from './editor/setup';
 import { tableShapeAvailability, tableShapeMenuCallbacks } from './editor/table-shape';
+import type { HelpId } from './help/ids';
 import { isTauri } from './platform/detect';
 import {
   getPlatformIO,
+  openHelpWindow,
   ownWindowFrame,
   requestFolderAccess,
   showWindowOnceThemed,
+  takeLaunchHelp,
   titleBarOverlay,
 } from './platform/index';
 import { listenForPlainPasteRequest } from './platform/plain-paste';
@@ -318,6 +321,13 @@ void getPlatformIO()
   })
   .catch(console.error);
 
+/** Help, Keyboard Shortcuts and Help, User Guide: a window of its own (#701). */
+function openHelp(id: HelpId): void {
+  openHelpWindow(id).catch((e: unknown) =>
+    ctx.reporter.dialog('The help window did not open.', e, 'Help'),
+  );
+}
+
 setupMenu(
   {
     onNew: () => {
@@ -373,6 +383,8 @@ setupMenu(
         report: reportImageInsert,
       }).catch(console.error);
     },
+    onKeyboardShortcuts: () => openHelp('shortcuts'),
+    onUserGuide: () => openHelp('guide'),
     onAbout: () => {
       void showAboutDialog().catch(console.error);
     },
@@ -453,6 +465,12 @@ setupWindowReports(ctx.state, header.onFilenameChange, (e) => {
   );
 });
 setupFileAssociation(docActions.openFilePath, ctx.reporter);
+// A window opened for a help puts it in, once, at start (#701).
+takeLaunchHelp()
+  .then((id) => {
+    if (id) docActions.openHelp(id);
+  })
+  .catch((e: unknown) => ctx.reporter.dialog('The help did not open in this window.', e, 'Help'));
 // Paste and Match Style chosen from the macOS Edit menu (#558). Asked of the
 // platform name because the question is whether a desktop menu bar exists to
 // send it; the web build has none, as `file-association.ts` asks for its event.

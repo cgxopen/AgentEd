@@ -38,6 +38,10 @@ export interface MenuCallbacks {
   onAddColumnAfter: () => void;
   onDeleteColumn: () => void;
   onDeleteTable: () => void;
+  /** Help, Keyboard Shortcuts: the list, in a window of its own (#701). */
+  onKeyboardShortcuts: () => void;
+  /** Help, User Guide: the guide, in a window of its own (#701). */
+  onUserGuide: () => void;
   onAbout: () => void;
 }
 
@@ -313,6 +317,8 @@ export function setupMenu(
   bind('menu-table-add-column-after', callbacks.onAddColumnAfter);
   bind('menu-table-delete-column', callbacks.onDeleteColumn);
   bind('menu-table-delete-table', callbacks.onDeleteTable);
+  bind('menu-help-shortcuts', callbacks.onKeyboardShortcuts);
+  bind('menu-help-guide', callbacks.onUserGuide);
   bind('menu-about', callbacks.onAbout);
 
   // **The one entry that leaves the menu open** (#360, owner decision of

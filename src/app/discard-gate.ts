@@ -22,7 +22,9 @@ export function createDiscardGate(
   return async function discardCurrentDocument(action: DiscardAction): Promise<boolean> {
     if (!ctx.state.modified) return true;
 
-    const filename = ctx.state.filePath ? basename(ctx.state.filePath) : 'untitled document';
+    const filename = ctx.state.filePath
+      ? basename(ctx.state.filePath)
+      : (ctx.state.untitledName ?? 'untitled document');
     const actionLabel = {
       new: 'creating a new document',
       open: 'opening another document',
