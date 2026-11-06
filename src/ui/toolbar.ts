@@ -3,8 +3,9 @@ import { AllSelection } from '@tiptap/pm/state';
 import { canMakeLink } from '../app/link-dialog';
 import { hasImageSelected } from '../editor/image-description';
 import { toggleCodeBlock } from '../editor/insert-code-block';
-import { canInsertFootnote, FOOTNOTE_SHORTCUT, insertFootnote } from '../editor/insert-footnote';
+import { canInsertFootnote, insertFootnote } from '../editor/insert-footnote';
 import { hasNodeSelection } from '../editor/node-selection';
+import { chordFor } from '../help/shortcuts';
 import { chordLabel } from './chord-label';
 import { editorRoom, withinRoom } from './editor-room';
 import {
@@ -224,10 +225,28 @@ function linkSymbol(): SVGSVGElement {
   return svg;
 }
 
+/**
+ * A tooltip: the name of the control, and the chord the list of #701 gives
+ * `action`, in the form of the platform (#702). A control whose action the
+ * list gives no chord reads its name alone.
+ */
+function titled(name: string, action: string = name): string {
+  const chord = chordFor(action);
+  return chord === undefined ? name : chordLabel(`${name} (${chord})`);
+}
+
+/** The tooltip of a control for a run of actions: the chords of its two ends. */
+function titledRun(name: string, first: string, last: string): string {
+  const from = chordFor(first);
+  const to = chordFor(last);
+  if (from === undefined || to === undefined) return name;
+  return chordLabel(`${name} (${from} … ${to})`);
+}
+
 const buttons: ToolbarEntry[] = [
   {
     label: 'B',
-    title: chordLabel('Bold (Ctrl+B)'),
+    title: titled('Bold'),
     action: (e) => {
       e.chain().focus().toggleBold().run();
     },
@@ -235,7 +254,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: 'I',
-    title: chordLabel('Italic (Ctrl+I)'),
+    title: titled('Italic'),
     action: (e) => {
       e.chain().focus().toggleItalic().run();
     },
@@ -243,7 +262,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: 'U',
-    title: chordLabel('Underline (Ctrl+U)'),
+    title: titled('Underline'),
     action: (e) => {
       e.chain().focus().toggleUnderline().run();
     },
@@ -251,7 +270,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: 'S',
-    title: 'Strikethrough',
+    title: titled('Strikethrough'),
     action: (e) => {
       e.chain().focus().toggleStrike().run();
     },
@@ -260,7 +279,7 @@ const buttons: ToolbarEntry[] = [
   {
     // Links are made here or with Ctrl+K — the editor never invents one (#37).
     label: '',
-    title: chordLabel('Link (Ctrl+K)'),
+    title: titled('Link', 'Insert link, or edit/remove the link at the caret'),
     icon: linkSymbol,
     action: (_e, handlers) => {
       handlers.onLink();
@@ -278,7 +297,7 @@ const buttons: ToolbarEntry[] = [
     // wrong turn — the owner went looking for a code block, found the button
     // labelled for code, and got an inline span.
     label: '<>',
-    title: chordLabel('Inline code (Ctrl+E)'),
+    title: titled('Inline code'),
     action: (e) => {
       e.chain().focus().toggleCode().run();
     },
@@ -299,7 +318,7 @@ const buttons: ToolbarEntry[] = [
     // caret the user starts a new block with — that route is the Edit menu and
     // the shortcut, and without them this issue would still be open.
     label: '```',
-    title: chordLabel('Code block (Ctrl+Shift+K)'),
+    title: titled('Code block'),
     // The button toggles, and says so by lighting up inside a fence (#279).
     action: toggleCodeBlock,
     isActive: (e) => e.isActive('codeBlock'),
@@ -319,7 +338,7 @@ const buttons: ToolbarEntry[] = [
     // `Ctrl+Alt+6` or from the menu. Recorded on the issue as a surface limit.
     kind: 'levels',
     label: 'H',
-    title: 'Heading level',
+    title: titledRun('Heading level', 'Heading level 1', 'Heading level 6'),
     labelFor: (e) => {
       const level = headingLevelAt(e);
       return level === null ? 'H' : `H${level}`;
@@ -341,7 +360,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: '\u2022',
-    title: 'Bullet list',
+    title: titled('Bullet list'),
     action: (e) => {
       e.chain().focus().toggleBulletList().run();
     },
@@ -349,7 +368,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: '1.',
-    title: 'Ordered list',
+    title: titled('Ordered list', 'Numbered list'),
     action: (e) => {
       e.chain().focus().toggleOrderedList().run();
     },
@@ -357,7 +376,7 @@ const buttons: ToolbarEntry[] = [
   },
   {
     label: '\u201C',
-    title: 'Blockquote',
+    title: titled('Blockquote'),
     action: (e) => {
       e.chain().focus().toggleBlockquote().run();
     },
@@ -379,7 +398,7 @@ const buttons: ToolbarEntry[] = [
     // this cannot act in is answered the way #291 answered it, by not
     // drawing the control at all.
     label: '',
-    title: `Footnote (${chordLabel(FOOTNOTE_SHORTCUT.chord)})`,
+    title: titled('Footnote', 'Insert footnote'),
     icon: footnoteSymbol,
     appliesTo: (e) => canInsertFootnote(e),
     action: (e) => {

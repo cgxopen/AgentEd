@@ -198,9 +198,11 @@ export const FOOTNOTE_SHORTCUT = {
   binding: 'Mod-Alt-f',
   macBinding: 'Mod-Alt-r',
   /**
-   * What a person reads, in the menu tooltip and on the toolbar button, in the
-   * Windows spelling every label is written in; `chordLabel` spells it
-   * Cmd+Option+R on a Mac, through `MAC_CHORDS`.
+   * What a person reads, in the Windows spelling every label is written in:
+   * `menu-shortcut-tooltips.test.ts` holds the tooltip of the menu entry in
+   * `index.html` to it. `chordLabel` spells it Cmd+Option+R on a Mac,
+   * through `MAC_CHORDS`. The toolbar button reads the chord of the list
+   * (`help/shortcuts.ts`, #702), which the test of #701 holds to this binding.
    */
   chord: 'Ctrl+Alt+F',
 } as const;

@@ -28,6 +28,8 @@
  * lives only while the list is open.
  */
 
+import { chordFor } from '../help/shortcuts';
+import { chordLabel } from './chord-label';
 import { editorRoom, withinRoom } from './editor-room';
 import { POPOVER_MARGIN, popoverPlacement } from './popover-placement';
 
@@ -65,6 +67,16 @@ export const HEADING_CHOICES: ReadonlyArray<HeadingChoice> = [
   { label: 'Heading 6', level: 6 },
   { label: 'Body text', level: null },
 ];
+
+/**
+ * The tooltip of a row: its label and the chord the list of #701 gives its
+ * action, in the form of the platform (#702). The chord toggles a heading
+ * where the row sets it; the tooltip names the chord, not that difference.
+ */
+export function choiceTitle(choice: HeadingChoice): string {
+  const chord = chordFor(choice.level === null ? 'Body text' : `Heading level ${choice.level}`);
+  return chord === undefined ? choice.label : chordLabel(`${choice.label} (${chord})`);
+}
 
 export interface HeadingLevelsOptions {
   /** The control the list hangs off, and the toolbar it sits in. */
@@ -179,6 +191,7 @@ export function openHeadingLevels(options: HeadingLevelsOptions): HeadingLevels 
     row.type = 'button';
     row.className = HEADING_LEVEL_OPTION_CLASS;
     row.textContent = choice.label;
+    row.title = choiceTitle(choice);
     row.setAttribute('role', 'menuitem');
     if (choice.level === options.current) row.setAttribute('aria-current', 'true');
     // `preventDefault` for the same reason the toolbar buttons do it: the
