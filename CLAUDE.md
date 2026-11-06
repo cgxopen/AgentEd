@@ -23,7 +23,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 - **R-C3 No silent writes**: the editor never writes to disk without an explicit user save decision; every destructive path — including window close and app quit — goes through the unsaved-changes gate.
 - **R-C14 No silent overwrite**: before every save, compare on-disk state (mtime/hash); on external change the user chooses reload / overwrite / save-as. Never write lock files next to user documents.
 - **Q1 Size budget**: Windows installer stays in the ~3 MB class. **No new runtime dependency without explicit owner approval** — state the size impact in the PR.
-- **Q3 Offline**: AgentEd makes no network calls of its own. What the embedded web runtime underneath does is not in its control — on Windows, WebView2 reaches two Microsoft destinations over three connections at launch, on a schedule of its own, and speculatively looks up the hostname of a link when the pointer enters it, before any click. Neither can be turned off from here; the second was measured rather than assumed. Q3 in REQUIREMENTS carries the figures and the builds.
+- **Q3 Offline**: AgentEd makes no network calls of its own. What the embedded web runtime underneath does is not in its control — on Windows, WebView2 reaches two Microsoft destinations over three connections when it starts, though not necessarily at every launch, and speculatively looks up the hostname of a link when the pointer enters it, before any click. Neither can be turned off from here; the second was measured rather than assumed. Q3 in REQUIREMENTS carries the figures and the builds.
 
 ## Design rules
 
