@@ -10,7 +10,7 @@ Changes that have landed but are not yet in a release wait under **Unreleased**.
 
 ## [1.0.1] - 2026-11-06
 
-Repairs found after 1.0.0, a document for closed networks, and three candidates of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674)) that are already done. 1.1.0 comes with the rest of that list.
+Repairs found after 1.0.0, and four candidates of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674)) that are already done: the help, the plain text of a copy, the centred block and a document for closed networks. 1.1.0 comes with the rest of that list.
 
 ### Added
 
