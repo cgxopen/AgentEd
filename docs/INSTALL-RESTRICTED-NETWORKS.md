@@ -2,6 +2,13 @@
 
 This page is for teams that bring software into a closed network after a security review: what AgentEd needs, where to get it, in what order to install it, what the installer writes, and what stays after. It describes **AgentEd 1.0.0** (`v1.0.0`, commit `881ea3a`).
 
+**For 1.0.1** (`v1.0.1`, commit `93edabc`), what changed for this page since `v1.0.0`, each point read from `git diff v1.0.0 v1.0.1`:
+
+- **No runtime dependency changed.** In `package-lock.json` only the version of AgentEd itself and the development tool Biome move, 2.6.2 to 2.6.4, with its platform packages; in `src-tauri/Cargo.lock` only the version of AgentEd moves.
+- **`src-tauri/tauri.conf.json` changes the version alone**, so the installer is built from the same configuration.
+- **Help opens its windows, new since 1.0.0** ([#701](https://github.com/cgxopen/AgentEd/issues/701)). From the code, `src-tauri/src/help_window.rs` and `src-tauri/src/macos_windows.rs`: on Windows and Linux a help window is a second process of the same executable, started with one fixed argument, `--agented-help=shortcuts` or `--agented-help=guide`; on macOS it is a new window of the running process. The help text is bundled in the application, so no file is read or written to show it; the help window is otherwise an AgentEd window like any other, with the same settings as the rest. READING, not measured: an application control policy that allows the AgentEd executable allows the help too, since it starts no other program.
+- **Measured on 1.0.1 itself**, by the owner on 2026-11-06: installed on Windows, upgraded from 1.0.0 with apt on Ubuntu, and opened on macOS 27; About read `Version 1.0.1`, `Build 93edabc` on all three. Nothing else on this page was measured again; every other measurement below is of 1.0.0.
+
 **How to read it.** Every statement about behaviour names where it was measured. The Windows measurements were made on 2026-11-04 in a VirtualBox 7.2.20 virtual machine running **Windows 10 Enterprise LTSC 10.0.19044**, installed with no network, as a user who is a local administrator, with the **WebView2 Runtime 156.0.4314.58**. The full records, with the scripts used, are on [issue #693](https://github.com/cgxopen/AgentEd/issues/693). Where something was read in source code rather than measured, or not measured at all, this page says so.
 
 ## 1. What AgentEd does on the network
@@ -107,9 +114,9 @@ The last page also has **Run AgentEd** ticked by default; the first launch creat
 
 Each release publishes a `.sha256` file beside every asset and a combined `SHA256SUMS.txt`. Compare the hash of your download with the published line:
 
-- Windows PowerShell: `Get-FileHash AgentEd_1.0.0_x64-setup.exe -Algorithm SHA256`
-- macOS: `shasum -a 256 AgentEd_1.0.0_aarch64.dmg`
-- Linux: `sha256sum AgentEd_1.0.0_amd64.deb`
+- Windows PowerShell: `Get-FileHash AgentEd_1.0.1_x64-setup.exe -Algorithm SHA256`
+- macOS: `shasum -a 256 AgentEd_1.0.1_aarch64.dmg`
+- Linux: `sha256sum AgentEd_1.0.1_amd64.deb`
 
 Measured for 1.0.0: the Windows installer is 2756410 bytes with SHA-256 `5fe981d3467105134eb02f911da4d52e810eb01305cf8a15be4fef40434a27e2`; the deb is 3537674 bytes with `481a4800fc5d261c5d061345c2b3d00c8339ee2d4152321a37a980cc5c1a40c4`; both equal their lines in `SHA256SUMS.txt`. The checksums are not signed with a published key, and the Windows installer is not digitally signed: a matching checksum shows the file is the one published, not that it is safe.
 

@@ -49,15 +49,15 @@ AgentEd helps you prepare documents for use with AI tools; it does not include a
 
 ## Download and get started
 
-**AgentEd 1.0.0** is available for Windows x64 and macOS on Apple Silicon, with an experimental package for Linux x86-64.
+**AgentEd 1.0.1** is available for Windows x64 and macOS on Apple Silicon, with an experimental package for Linux x86-64.
 
 [**Download the latest release**](https://github.com/cgxopen/AgentEd/releases/latest) for installers, release notes, and SHA-256 checksums. Earlier versions are on the [releases page](https://github.com/cgxopen/AgentEd/releases).
 
-| Platform | Installer for 1.0.0 | Status |
+| Platform | Installer for 1.0.1 | Status |
 |---|---|---|
-| Windows x64 | `AgentEd_1.0.0_x64-setup.exe` | Release |
-| macOS, Apple Silicon | `AgentEd_1.0.0_aarch64.dmg` | Release |
-| Linux x86-64 | `AgentEd_1.0.0_amd64.deb` | Experimental |
+| Windows x64 | `AgentEd_1.0.1_x64-setup.exe` | Release |
+| macOS, Apple Silicon | `AgentEd_1.0.1_aarch64.dmg` | Release |
+| Linux x86-64 | `AgentEd_1.0.1_amd64.deb` | Experimental |
 
 Windows is the primary development and testing platform. The macOS build is for Apple Silicon Macs; Intel-based Macs are not supported. The Linux package has been tested on Ubuntu 24.04 with GNOME and Wayland.
 
@@ -120,7 +120,7 @@ The steps below apply to warnings about an unrecognised or unverified applicatio
 <details>
 <summary><strong>Show Windows installation steps</strong></summary>
 
-Run `AgentEd_1.0.0_x64-setup.exe`.
+Run `AgentEd_1.0.1_x64-setup.exe`.
 
 The installer is not digitally signed. If Microsoft Defender SmartScreen displays **Windows protected your PC**, and you have verified the source and choose to continue, select **More info → Run anyway**, if that option is available.
 
@@ -137,9 +137,9 @@ Signing is planned for a future release. See the illustrated [installation guide
 <details>
 <summary><strong>Show macOS installation steps</strong></summary>
 
-The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with AgentEd 1.0.0 on macOS 26.6 and 27.
+The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with AgentEd 1.0.0 on macOS 26.6 and 27, and with AgentEd 1.0.1 on macOS 27 on an Apple M2 on 2026-11-06.
 
-1. Open `AgentEd_1.0.0_aarch64.dmg` and drag **AgentEd** into **Applications**. Launch it from Applications, not from the disk image.
+1. Open `AgentEd_1.0.1_aarch64.dmg` and drag **AgentEd** into **Applications**. Launch it from Applications, not from the disk image.
 2. macOS displays **“AgentEd” Not Opened** because it cannot verify the app. Click **Done**.
 3. Open **System Settings → Privacy & Security**, then scroll to **Security**. Find the message saying AgentEd was blocked and click **Open Anyway**.
 4. In the dialog that follows, click **Open Anyway**. Do not choose **Move to Trash** (**Move to Bin** in British English), the highlighted button, which removes the application.
@@ -169,7 +169,7 @@ The `.deb` package is for x86-64 systems. It requires **glibc 2.34 or later** an
 Download the package, check its SHA-256 checksum, then run this command from the folder containing it:
 
 ```sh
-sudo apt install ./AgentEd_1.0.0_amd64.deb
+sudo apt install ./AgentEd_1.0.1_amd64.deb
 ```
 
 AgentEd then appears among your applications. On the tested stock Ubuntu setup, it also becomes the application used to open Markdown files. You can choose another application using **Open With** in Files.
