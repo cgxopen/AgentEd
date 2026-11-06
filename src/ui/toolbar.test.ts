@@ -248,7 +248,7 @@ describe('floating toolbar — one heading control for six levels (#267)', () =>
     // the reason the control went into the array instead of beside it.
     const levels = shippedButtons.filter((b) => !isActionEntry(b));
     expect(levels).toHaveLength(1);
-    expect(levels[0].title).toBe('Heading level');
+    expect(levels[0].title).toBe('Heading level (Ctrl+Alt+1 … Ctrl+Alt+6)');
 
     for (const gone of ['Heading 1', 'Heading 2', 'Heading 3']) {
       expect(shippedButtons.find((b) => b.title === gone)).toBeUndefined();
