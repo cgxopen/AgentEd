@@ -42,7 +42,7 @@ export async function showAboutDialog(
     : '';
   const choice = await showConfirmDialog({
     title: 'About AgentEd',
-    message: `${describeBuildInfo(info)}\n\nWYSIWYG markdown editor — plain files, offline, no account.\n\nFree and open source, under the MIT License.${noticesLine}`,
+    message: `${describeBuildInfo(info)}\n\nVisual Markdown editor — plain files, offline, no account.\n\nFree and open source, under the MIT License.${noticesLine}`,
     actions: [
       { label: 'Copy', value: 'copy', variant: 'primary' },
       ...(notices ? [{ label: NOTICES_LABEL, value: 'notices' as const }] : []),

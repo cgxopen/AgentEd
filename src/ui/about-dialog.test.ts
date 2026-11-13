@@ -106,7 +106,7 @@ describe('showAboutDialog', () => {
   // The licence line of #716, in the words of the owner. Written out here rather
   // than imported, so that a change of wording in the dialog turns these red.
   const LICENCE = 'Free and open source, under the MIT License.';
-  const TAGLINE = 'WYSIWYG markdown editor — plain files, offline, no account.';
+  const TAGLINE = 'Visual Markdown editor — plain files, offline, no account.';
   const NOTICES_LINE = 'AgentEd includes software by others, under their own licences.';
 
   /** The paragraphs of the message, in order, as the dialog draws them (pre-wrap). */
