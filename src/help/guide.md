@@ -29,7 +29,7 @@ Some Markdown files start with a structured block of fields at the top, commonly
 
 AgentEd shows this block in a dedicated Metadata panel above the document, where you can inspect and edit it apart from the body. The block is edited as raw YAML text, without validation, so make sure it stays valid YAML in the format your project expects.
 
-To add a metadata block to a document, choose **Insert → Metadata**.
+To add a metadata block to a document, choose **Insert → Metadata**, then **Document** for the usual fields (title, description, author, date and tags), or **Agent instructions** for `name` and `description` alone, the two fields that agent instruction files and skills require. For a skill, `name` must be the name of the folder the file is in, and the file must be named `SKILL.md`; AgentEd checks neither.
 
 ## Counts and badges in the header
 
