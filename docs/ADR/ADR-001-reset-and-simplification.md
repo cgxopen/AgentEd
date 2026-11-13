@@ -8,7 +8,7 @@
 
 By mid-2026, AgentEd v0.1.0 had grown a substantial machinery layer around its editor core: a Profile Registry with five auto-detected validation profiles (Claude SKILL, OpenClaw SKILL, AgentSkills v1, llms.txt, plain), frontmatter auto-injection, profile-driven structured-layout detection, and skill-oriented templates — documented across 34 ADRs and a 46 KB architecture document. ADR-034 had already repositioned the product identity toward "markdown editor first", but the machinery remained in the codebase and the documentation still carried its full weight.
 
-The owner decided to go one step further before the public launch: re-center the product on the **easy-to-use WYSIWYG markdown editor**, physically remove the skill/validation machinery, and revisit it (together with newer ideas such as an OKF profile) in a deliberate post-public phase. The owner also wanted the public repository to start with a clean history.
+The owner decided to go one step further before the public launch: re-center the product on the **easy-to-use visual Markdown editor**, physically remove the skill/validation machinery, and revisit it (together with newer ideas such as an OKF profile) in a deliberate post-public phase. The owner also wanted the public repository to start with a clean history.
 
 ## Decision
 
