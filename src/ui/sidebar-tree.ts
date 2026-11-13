@@ -27,6 +27,33 @@ export type OnFileClick = (absPath: string, rootPath: string) => void;
  */
 export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
 
+/**
+ * Whether an entry is hidden from the tree until the person asks to see it
+ * (#717): a name that starts with a dot, a file or a folder, at any depth. A
+ * `.DS_Store` that Finder leaves in `assets/` is the case the issue names.
+ */
+export function isHiddenName(name: string): boolean {
+  return name.startsWith('.');
+}
+
+/** The class of a tree row that is hidden until Show (#717). */
+export const HIDDEN_ENTRY_CLASS = 'sidebar-hidden-entry';
+
+/**
+ * How many entries the tree hides (#717): each hidden entry counts as one,
+ * and a hidden folder counts as one whatever it holds, so nothing below a
+ * hidden folder is counted. Bounded by the tree, which the walk bounds in
+ * depth (`MAX_LIST_DEPTH` in `app/sidebar-sync.ts`).
+ */
+export function countHidden(nodes: readonly TreeNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    if (isHiddenName(node.name)) count += 1;
+    else count += countHidden(node.children);
+  }
+  return count;
+}
+
 function fileIcon(name: string, isDir: boolean): string {
   if (isDir) return '\u{1F4C1}';
   if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(name)) return '\u{1F5BC}';
@@ -99,6 +126,14 @@ export function renderTreeRecursive(
 
   for (const node of nodes) {
     const li = document.createElement('li');
+    // **The one place a dot entry is hidden, for both platforms** (#717): every
+    // tree is drawn here, from what the walk read. The row is drawn and hidden
+    // rather than left out, so Show reveals it without reading the folder
+    // again, and the grey of #380 reaches it like any other row.
+    if (isHiddenName(node.name)) {
+      li.classList.add(HIDDEN_ENTRY_CLASS);
+      li.hidden = true;
+    }
 
     if (node.kind === 'directory') {
       renderFolderNode(li, node, onClick, rootPath, depth, opensNonMarkdown);

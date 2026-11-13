@@ -1,5 +1,7 @@
 import {
   buildTree,
+  countHidden,
+  HIDDEN_ENTRY_CLASS,
   markUnused,
   NON_MARKDOWN_REASON,
   type OnFileClick,
@@ -162,6 +164,20 @@ export const NO_FOLDER_ACCESS_OFFER =
   'AgentEd has not been given access to a folder, so it cannot see what is beside this ' +
   'document. Choose one.';
 
+/**
+ * The words of the line under a tree that hides something (#717), the owner
+ * choice shown on a preview on 2026-11-13: **2 hidden files · Show**, **1
+ * hidden file · Show**, and Hide once they are shown.
+ */
+export function hiddenCountText(count: number): string {
+  return `${count} hidden file${count === 1 ? '' : 's'}`;
+}
+export const SHOW_HIDDEN = 'Show';
+export const HIDE_HIDDEN = 'Hide';
+
+/** The class of that line, drawn only when the tree hides something. */
+export const HIDDEN_LINE_CLASS = 'sidebar-hidden-line';
+
 export function setupSidebar(): Sidebar {
   const panel = document.getElementById('sidebar')!;
   const treeEl = document.getElementById('sidebar-tree')!;
@@ -179,6 +195,15 @@ export function setupSidebar(): Sidebar {
    */
   let generation = 0;
   let closedByHand = false;
+  /**
+   * Whether the hidden entries are shown (#717), and for which root. The
+   * choice lasts while the panel shows that folder: a redraw of the same root,
+   * a save for instance, keeps it, and a new root, a hidden panel or any other
+   * answer forgets it. Held here and nowhere else, so it is never remembered
+   * across launches.
+   */
+  let showHidden = false;
+  let shownRoot: string | null = null;
 
   /** Empty the panel for the next thing drawn in it, and count that. */
   function clear(): void {
@@ -219,6 +244,38 @@ export function setupSidebar(): Sidebar {
   function hidePanel(): void {
     setVisible(false);
     clear();
+    shownRoot = null;
+  }
+
+  /** Show or hide every row drawn hidden, as the choice says. */
+  function applyHidden(): void {
+    for (const row of treeEl.querySelectorAll<HTMLElement>(`.${HIDDEN_ENTRY_CLASS}`)) {
+      row.hidden = !showHidden;
+    }
+  }
+
+  /**
+   * The line under the tree, only when the tree hides something (#717). Show
+   * and Hide turn the rows already drawn on and off: nothing is read again and
+   * nothing is drawn again, so a folder opened stays open and the grey of #380
+   * stays where it was.
+   */
+  function appendHiddenLine(count: number): void {
+    if (count === 0) return;
+    const line = document.createElement('div');
+    line.className = HIDDEN_LINE_CLASS;
+    const text = document.createElement('span');
+    text.textContent = `${hiddenCountText(count)} · `;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = showHidden ? HIDE_HIDDEN : SHOW_HIDDEN;
+    button.addEventListener('click', () => {
+      showHidden = !showHidden;
+      button.textContent = showHidden ? HIDE_HIDDEN : SHOW_HIDDEN;
+      applyHidden();
+    });
+    line.append(text, button);
+    treeEl.appendChild(line);
   }
 
   function showTree(
@@ -240,6 +297,10 @@ export function setupSidebar(): Sidebar {
       0,
       opensNonMarkdown,
     );
+    if (rootPath !== shownRoot) showHidden = false;
+    shownRoot = rootPath;
+    applyHidden();
+    appendHiddenLine(countHidden(nodes));
     setVisible(true);
   }
 
@@ -299,6 +360,7 @@ export function setupSidebar(): Sidebar {
   /** One of the two answers that are a sentence and nothing else. */
   function showNote(text: string): void {
     clear();
+    shownRoot = null;
     const note = document.createElement('div');
     note.className = 'sidebar-note';
     note.textContent = text;
@@ -319,6 +381,7 @@ export function setupSidebar(): Sidebar {
    */
   function showAccessOffer(): void {
     clear();
+    shownRoot = null;
     const offer = document.createElement('button');
     offer.type = 'button';
     offer.className = 'sidebar-access-offer';

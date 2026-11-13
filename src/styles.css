@@ -2802,6 +2802,29 @@ button.indicator-search:hover {
   color: var(--muted);
 }
 
+/* The line under a tree that hides entries whose name starts with a dot
+   (#717), drawn only when there are some: the count in the muted colour of the
+   note above, and Show or Hide as a text button in the link colour of the
+   editor, the one thing on the line that takes a click. */
+.sidebar-hidden-line {
+  padding: 8px 12px 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sidebar-hidden-line button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sidebar-hidden-line button:hover {
+  text-decoration: underline;
+}
+
 /* The mark an open by hand holds while the folder is read (#354). It is
    in the panel from the first frame and seen only from 200 ms: the delay is
    the owner decision of 2026-09-18, so a folder of ordinary size is drawn
