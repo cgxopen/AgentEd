@@ -37,7 +37,7 @@ First public release.
 
 ### Added
 
-- A WYSIWYG markdown editor for Windows, with a macOS preview for Apple Silicon and an experimental Linux package. What AgentEd does is described in the [README](README.md), and what it promises in [REQUIREMENTS.md](REQUIREMENTS.md).
+- A visual Markdown editor for Windows, with a macOS preview for Apple Silicon and an experimental Linux package. What AgentEd does is described in the [README](README.md), and what it promises in [REQUIREMENTS.md](REQUIREMENTS.md).
 - Files are opened and saved as plain, portable markdown, and a file saved without edits is written back as it was, with the exceptions REQUIREMENTS.md records.
 - A live token count beside the word and character counts.
 - No account, no cloud, no telemetry: AgentEd makes no network calls of its own.
