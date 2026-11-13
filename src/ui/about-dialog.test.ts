@@ -103,6 +103,53 @@ describe('showAboutDialog', () => {
     await pending;
   });
 
+  // The licence line of #716, in the words of the owner. Written out here rather
+  // than imported, so that a change of wording in the dialog turns these red.
+  const LICENCE = 'Free and open source, under the MIT License.';
+  const TAGLINE = 'WYSIWYG markdown editor — plain files, offline, no account.';
+  const NOTICES_LINE = 'AgentEd includes software by others, under their own licences.';
+
+  /** The paragraphs of the message, in order, as the dialog draws them (pre-wrap). */
+  function paragraphs(): string[] {
+    const message = dialog().querySelector('.dialog-message');
+    if (!message) throw new Error('the About dialog has no message');
+    return (message.textContent ?? '').split('\n\n');
+  }
+
+  it('names the licence after the description and before the notices line (#716)', async () => {
+    const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt');
+    const drawn = paragraphs();
+    button('Close').click();
+    await pending;
+    expect(drawn).toEqual(['Version 0.2.0\nBuild a1b2c3d', TAGLINE, LICENCE, NOTICES_LINE]);
+  });
+
+  it('names the licence on a build with no notices, such as the web build (#716)', async () => {
+    const pending = showAboutDialog(CI_BUILD, null);
+    const drawn = paragraphs();
+    button('Close').click();
+    await pending;
+    expect(drawn).toEqual(['Version 0.2.0\nBuild a1b2c3d', TAGLINE, LICENCE]);
+  });
+
+  it('names the licence on a local build too (#716)', async () => {
+    const pending = showAboutDialog(LOCAL_BUILD, null);
+    const drawn = paragraphs();
+    button('Close').click();
+    await pending;
+    expect(drawn.slice(1)).toEqual([TAGLINE, LICENCE]);
+  });
+
+  it('copies the build alone, not the licence line, on a build with notices (#716)', async () => {
+    const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt');
+    button('Copy').click();
+    await pending;
+
+    expect(copyTextMock).toHaveBeenCalledTimes(1);
+    expect(copyTextMock).toHaveBeenCalledWith('AgentEd 0.2.0 (a1b2c3d)');
+    expect(showToastMock).toHaveBeenCalledWith('Copied: AgentEd 0.2.0 (a1b2c3d)', 'info');
+  });
+
   it('opens the notices through the platform, and says nothing when they open', async () => {
     const open = vi.fn().mockResolvedValue('opened');
     const pending = showAboutDialog(CI_BUILD, 'THIRD-PARTY-NOTICES.txt', open);
