@@ -19,7 +19,7 @@ Four more candidates of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/
 
 ### Changed
 
-- The files panel and the Images popover leave out the files a system leaves in a folder, such as `.DS_Store`, `Thumbs.db` and `desktop.ini`, and other files whose names start with a dot. Folders whose names start with a dot are hidden: a line at the bottom of the panel says how many, and Show lists them ([#720](https://github.com/cgxopen/AgentEd/pull/720), [#722](https://github.com/cgxopen/AgentEd/pull/722)).
+- The files panel and the Images popover leave out what a system or Git leaves in a folder, such as `.DS_Store`, `Thumbs.db`, `desktop.ini` and the `.git` folder, and other files whose names start with a dot. Other folders whose names start with a dot are hidden: a line at the bottom of the panel says how many, and Show lists them ([#720](https://github.com/cgxopen/AgentEd/pull/720), [#722](https://github.com/cgxopen/AgentEd/pull/722)).
 
 ## [1.0.1] - 2026-11-06
 
