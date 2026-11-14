@@ -8,6 +8,19 @@ Changes that have landed but are not yet in a release wait under **Unreleased**.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-11-14
+
+Four more candidates of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674)) that are done: a metadata block for agent instructions, the licence in About, and a files panel without the files a system leaves behind. 1.1.0 comes with the rest of that list.
+
+### Added
+
+- Insert, Metadata offers Agent instructions beside Document: a block with `name` and `description`, the two fields that agent instruction files and skills require. AgentEd fills nothing in and checks nothing ([#719](https://github.com/cgxopen/AgentEd/pull/719)).
+- About says that AgentEd is free and open source, under the MIT License, and calls it a visual Markdown editor ([#718](https://github.com/cgxopen/AgentEd/pull/718)).
+
+### Changed
+
+- The files panel and the Images popover leave out what a system or Git leaves in a folder, such as `.DS_Store`, `Thumbs.db`, `desktop.ini` and the `.git` folder, and other files whose names start with a dot. Other folders whose names start with a dot are hidden: a line at the bottom of the panel says how many, and Show lists them ([#720](https://github.com/cgxopen/AgentEd/pull/720), [#722](https://github.com/cgxopen/AgentEd/pull/722)).
+
 ## [1.0.1] - 2026-11-06
 
 Repairs found after 1.0.0, and four candidates of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674)) that are already done: the help, the plain text of a copy, the centred block and a document for closed networks. 1.1.0 comes with the rest of that list.
