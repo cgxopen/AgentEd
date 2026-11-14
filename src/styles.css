@@ -802,11 +802,12 @@ html:not([data-theme-applied]) body {
 
 /* Open Recent opens the recent files list as a card beside the menu (#381,
  * owner decision of 2026-09-19): the card of the menu itself, 8 px like every
- * floating surface, placed by `ui/menu-recent.ts`. Fixed rather than absolute,
+ * floating surface, placed by `ui/menu-side-card.ts`, which the Metadata card
+ * of #715 shares. Fixed rather than absolute,
  * because the menu scrolls inside itself and would clip anything absolute; no
  * rule on `#menu-dropdown` sets a transform, which would catch it again. Its
  * rows are menu rows, so they take the menu row rules, hover included. */
-#menu-dropdown .menu-recent {
+#menu-dropdown .menu-side-card {
   position: fixed;
   z-index: 101;
   width: 280px;
@@ -2799,6 +2800,29 @@ button.indicator-search:hover {
   font-size: 13px;
   line-height: 1.45;
   color: var(--muted);
+}
+
+/* The line under a tree that hides entries whose name starts with a dot
+   (#717), drawn only when there are some: the count in the muted colour of the
+   note above, and Show or Hide as a text button in the link colour of the
+   editor, the one thing on the line that takes a click. */
+.sidebar-hidden-line {
+  padding: 8px 12px 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sidebar-hidden-line button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sidebar-hidden-line button:hover {
+  text-decoration: underline;
 }
 
 /* The mark an open by hand holds while the folder is read (#354). It is

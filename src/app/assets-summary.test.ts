@@ -247,3 +247,53 @@ describe('the sentence the popover shows', () => {
     }
   });
 });
+
+describe('what the files panel leaves out is not counted (#721)', () => {
+  function photoDocument() {
+    const editor = editorWith('# T\n\n![a](blob:photo)\n');
+    registerImage('blob:photo', {
+      relativePath: 'assets/photo.png',
+      data: new Uint8Array(),
+      filename: 'photo.png',
+    });
+    return editor;
+  }
+
+  it('the owner pass: system files, a dot file and dot folders leave nothing else', async () => {
+    const summary = await summariseAssets(
+      photoDocument().editor,
+      DOC,
+      io({
+        presence: 'present',
+        entries: ['photo.png', '.DS_Store', 'Thumbs.db', 'desktop.ini', '._photo.png', '.gitkeep'],
+        dirs: ['.git', '.github'],
+      }),
+    );
+    expect(describeAssets(summary)).toBe(
+      '1 image used by this document · assets/ holds nothing else',
+    );
+  });
+
+  it('every system file of the list, in either letter case, is not counted', async () => {
+    const summary = await summariseAssets(
+      photoDocument().editor,
+      DOC,
+      io({
+        presence: 'present',
+        entries: ['photo.png', '.ds_store', 'THUMBS.DB', 'EHThumbs.db', 'Desktop.INI'],
+      }),
+    );
+    expect(summary.folder).toEqual({ kind: 'counted', otherFiles: 0 });
+  });
+
+  it('a file the panel lists is still counted beside them', async () => {
+    const summary = await summariseAssets(
+      photoDocument().editor,
+      DOC,
+      io({ presence: 'present', entries: ['photo.png', 'other.png', '.DS_Store', '.gitignore'] }),
+    );
+    expect(describeAssets(summary)).toBe(
+      '1 image used by this document · assets/ holds 1 more file',
+    );
+  });
+});

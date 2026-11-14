@@ -23,6 +23,10 @@ export const NOTICES_FAILED_MESSAGE =
  * handling, Escape, Tab trap and styling already exist there, and an About box
  * has nothing to add to them.
  *
+ * Every build, the web build included, names the licence of AgentEd itself in
+ * one static line, in the words of the owner (#716). Copy does not take it:
+ * what Copy puts on the clipboard is the build, for a report, and nothing else.
+ *
  * On a build that installs third-party notices (#475) it offers to open them
  * with the default application of the system (#549), rather than saying where
  * the file is: on macOS it sits inside the `.app`, where Finder does not look.
@@ -38,7 +42,7 @@ export async function showAboutDialog(
     : '';
   const choice = await showConfirmDialog({
     title: 'About AgentEd',
-    message: `${describeBuildInfo(info)}\n\nWYSIWYG markdown editor — plain files, offline, no account.${noticesLine}`,
+    message: `${describeBuildInfo(info)}\n\nVisual Markdown editor — plain files, offline, no account.\n\nFree and open source, under the MIT License.${noticesLine}`,
     actions: [
       { label: 'Copy', value: 'copy', variant: 'primary' },
       ...(notices ? [{ label: NOTICES_LABEL, value: 'notices' as const }] : []),

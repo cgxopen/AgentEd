@@ -29,7 +29,7 @@ Some Markdown files start with a structured block of fields at the top, commonly
 
 AgentEd shows this block in a dedicated Metadata panel above the document, where you can inspect and edit it apart from the body. The block is edited as raw YAML text, without validation, so make sure it stays valid YAML in the format your project expects.
 
-To add a metadata block to a document, choose **Insert → Metadata**.
+To add a metadata block to a document, choose **Insert → Metadata**, then **Document** for the usual fields (title, description, author, date and tags), or **Agent instructions** for `name` and `description` alone, the two fields that agent instruction files and skills require. For a skill, `name` must be the name of the folder the file is in, and the file must be named `SKILL.md`; AgentEd checks neither.
 
 ## Counts and badges in the header
 
@@ -84,7 +84,7 @@ Press **Ctrl+F** to find text in the document, and **Ctrl+H** to find and replac
 
 ## The files panel
 
-When your document uses images from an `assets` folder beside it, the files panel can show that folder. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**.
+When your document uses images from an `assets` folder beside it, the files panel can show that folder. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**. Files that your system leaves in a folder, such as `.DS_Store` or `Thumbs.db`, and other files whose names start with a dot are not listed. Folders whose names start with a dot are hidden; when there are some, a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**.
 
 ## Appearance
 

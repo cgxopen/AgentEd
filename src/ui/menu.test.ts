@@ -203,7 +203,9 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-insert', 'Checklist', 'menu-insert-checklist', 'onInsertChecklist'],
   ['menu-panel-insert', 'Footnote', 'menu-insert-footnote', 'onInsertFootnote'],
   ['menu-panel-insert', 'Horizontal Rule', 'menu-insert-horizontal-rule', 'onInsertHorizontalRule'],
-  ['menu-panel-insert', 'Metadata', 'menu-insert-metadata', 'onInsertMetadata'],
+  // Opens the card of the two blocks and runs nothing; its rows are in
+  // `menu-metadata.test.ts` (#715).
+  ['menu-panel-insert', 'Metadata', 'menu-insert-metadata', null],
   ['menu-panel-insert', 'Emoji', 'menu-insert-emoji', 'onInsertEmoji'],
   ['menu-panel-table', 'Add Row Above', 'menu-table-add-row-above', 'onAddRowAbove'],
   ['menu-panel-table', 'Add Row Below', 'menu-table-add-row-below', 'onAddRowBelow'],
@@ -253,9 +255,10 @@ describe('every entry runs its own command, reached the way a person reaches it 
   it('has a row for every entry the page renders, and a row for every handler', () => {
     expect(renderedEntries().map((entry) => entry.id)).toEqual(ENTRIES.map(([, , id]) => id));
     const fromEntries = ENTRIES.flatMap(([, , , handler]) => (handler === null ? [] : [handler]));
-    // The two the recent files card calls, pinned in `menu-recent.test.ts`.
-    const fromRecentCard = ['onOpenRecentFile', 'onClearRecentFiles'];
-    expect([...fromEntries, ...fromRecentCard].sort()).toEqual(Object.keys(callbacks()).sort());
+    // The two the recent files card calls, pinned in `menu-recent.test.ts`, and
+    // the one the metadata card calls, pinned in `menu-metadata.test.ts`.
+    const fromCards = ['onOpenRecentFile', 'onClearRecentFiles', 'onInsertMetadata'];
+    expect([...fromEntries, ...fromCards].sort()).toEqual(Object.keys(callbacks()).sort());
   });
 
   it.each(ENTRIES)(
@@ -277,9 +280,9 @@ describe('every entry runs its own command, reached the way a person reaches it 
       }
       // Every entry closes the menu before its command, except spell check, which
       // leaves it open so its new state is seen (#360, owner decision), and Open
-      // Recent, which opens its card beside it (#381).
+      // Recent and Metadata, which open their cards beside it (#381, #715).
       expect(isShown(element('menu-dropdown'))).toBe(
-        id === 'menu-spellcheck' || id === 'menu-open-recent',
+        id === 'menu-spellcheck' || id === 'menu-open-recent' || id === 'menu-insert-metadata',
       );
     },
   );

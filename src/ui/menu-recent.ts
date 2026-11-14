@@ -8,11 +8,12 @@
  * have opened a file since. Each entry shows the file name and, on its right,
  * enough of the folder to tell it from the others; the whole path is on hover.
  *
- * It is the one card of the menu that stands beside it, so it is also the one
- * the keyboard enters and leaves sideways: the arrow right, or Enter, from Open
- * Recent goes in; the arrow left, or Escape, comes back to it.
+ * The card stands beside the menu, and the keyboard enters and leaves it
+ * sideways; how it is placed, entered and left is `menu-side-card.ts`, which it
+ * shares with the Metadata card since #715.
  */
 import { basename, dirname, normalize } from '../platform/paths';
+import { installSideCard, type SideCard } from './menu-side-card';
 
 export interface RecentMenuOptions {
   readonly trigger: HTMLButtonElement;
@@ -25,10 +26,7 @@ export interface RecentMenuOptions {
   readonly closeMenu: () => void;
 }
 
-export interface RecentMenu {
-  /** Hide the card, if it is shown. */
-  hide(): void;
-}
+export type RecentMenu = SideCard;
 
 /** The id of the card, which the entry names in `aria-controls`. */
 export const RECENT_MENU_ID = 'menu-recent';
@@ -88,29 +86,17 @@ function entry(label: string, folder: string, title: string): HTMLButtonElement 
 }
 
 export function installRecentMenu(options: RecentMenuOptions): RecentMenu {
-  const { trigger, dropdown } = options;
-  let card: HTMLElement | null = null;
-
-  function hide(): void {
-    card?.remove();
-    card = null;
-    trigger.setAttribute('aria-expanded', 'false');
-  }
-
-  function build(paths: readonly string[]): HTMLElement {
-    const group = document.createElement('div');
-    group.id = RECENT_MENU_ID;
-    group.className = 'menu-recent';
-    group.setAttribute('role', 'group');
-    group.setAttribute('aria-label', 'Recent files');
+  function rows(): HTMLButtonElement[] {
+    const paths = options.read();
+    if (paths.length === 0) return [];
     const labels = recentLabels(paths);
-    paths.forEach((path, i) => {
+    const buttons = paths.map((path, i) => {
       const button = entry(labels[i].name, labels[i].folder, path);
       button.addEventListener('click', () => {
         options.closeMenu();
         options.onOpen(path);
       });
-      group.appendChild(button);
+      return button;
     });
     const clear = entry('Clear recent files', '', '');
     clear.id = 'menu-recent-clear';
@@ -118,69 +104,15 @@ export function installRecentMenu(options: RecentMenuOptions): RecentMenu {
       options.closeMenu();
       options.onClear();
     });
-    group.appendChild(clear);
-    group.addEventListener('keydown', onCardKey);
-    return group;
+    return [...buttons, clear];
   }
 
-  /** Beside the menu, level with the entry, and never past the window or over the header. */
-  function place(group: HTMLElement): void {
-    const menu = dropdown.getBoundingClientRect();
-    const at = trigger.getBoundingClientRect();
-    const floor = dropdown.offsetParent?.getBoundingClientRect().bottom ?? menu.top;
-    group.style.left = `${menu.right + 4}px`;
-    group.style.maxHeight = `${window.innerHeight - floor - 8}px`;
-    const height = group.getBoundingClientRect().height;
-    group.style.top = `${Math.max(floor, Math.min(at.top - 5, window.innerHeight - height - 8))}px`;
-  }
-
-  function show(focusFirst: boolean): void {
-    if (card === null) {
-      const paths = options.read();
-      if (paths.length === 0) return;
-      card = build(paths);
-      dropdown.appendChild(card);
-      place(card);
-      trigger.setAttribute('aria-expanded', 'true');
-    }
-    if (focusFirst) card.querySelector<HTMLElement>('button')?.focus();
-  }
-
-  function onCardKey(e: KeyboardEvent): void {
-    if (card === null) return;
-    const buttons = [...card.querySelectorAll<HTMLElement>('button')];
-    const at = buttons.indexOf(document.activeElement as HTMLElement);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      buttons[(at + step + buttons.length) % buttons.length]?.focus();
-    } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
-      // Escape leaves the card rather than the menu, so it stops here.
-      e.preventDefault();
-      e.stopPropagation();
-      hide();
-      trigger.focus();
-    }
-  }
-
-  // A click from the keyboard carries no pointer, and moves focus into the card.
-  trigger.addEventListener('click', (e) => {
-    if (card === null) show(e.detail === 0);
-    else hide();
+  return installSideCard({
+    trigger: options.trigger,
+    dropdown: options.dropdown,
+    id: RECENT_MENU_ID,
+    label: 'Recent files',
+    className: 'menu-recent',
+    rows,
   });
-  trigger.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowRight') return;
-    e.preventDefault();
-    show(true);
-  });
-  trigger.addEventListener('pointerenter', () => show(false));
-  // Pointing at any other row of the menu puts the card away.
-  dropdown.addEventListener('pointerover', (e) => {
-    const target = e.target as Node | null;
-    if (card === null || target === null) return;
-    if (trigger.contains(target) || card.contains(target)) return;
-    if ((target as Element).closest?.('button')) hide();
-  });
-
-  return { hide };
 }

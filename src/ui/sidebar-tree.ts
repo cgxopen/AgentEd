@@ -6,6 +6,7 @@
  * tree, stays in `sidebar.ts`.
  */
 import { isMarkdownPath, joinPath } from '../platform/paths';
+import { entryVisibility } from './entry-visibility';
 
 export interface TreeNode {
   name: string;
@@ -26,6 +27,31 @@ export type OnFileClick = (absPath: string, rootPath: string) => void;
  * a copy of it (#50).
  */
 export const NON_MARKDOWN_REASON = 'Only markdown files open from this tree in the browser.';
+
+/** What a node of the tree is to the person (#721), by `entry-visibility.ts`. */
+function visibilityOf(node: TreeNode) {
+  return entryVisibility(node.name, node.kind === 'directory');
+}
+
+/** The class of a tree row that is hidden until Show (#717). */
+export const HIDDEN_ENTRY_CLASS = 'sidebar-hidden-entry';
+
+/**
+ * How many folders the tree hides until Show (#717, #721): each folder whose
+ * name starts with a dot counts as one, whatever it holds, and nothing below it
+ * is counted; what is left out is not counted, and nothing below it either.
+ * Bounded by the tree, which the walk bounds in depth (`MAX_LIST_DEPTH` in
+ * `app/sidebar-sync.ts`).
+ */
+export function countHidden(nodes: readonly TreeNode[]): number {
+  let count = 0;
+  for (const node of nodes) {
+    const visibility = visibilityOf(node);
+    if (visibility === 'counted') count += 1;
+    else if (visibility === 'shown') count += countHidden(node.children);
+  }
+  return count;
+}
 
 function fileIcon(name: string, isDir: boolean): string {
   if (isDir) return '\u{1F4C1}';
@@ -98,7 +124,19 @@ export function renderTreeRecursive(
   ul.className = depth > 0 ? 'sidebar-tree-children collapsed' : 'sidebar-tree-children';
 
   for (const node of nodes) {
+    // **The one place the tree decides a row, for both platforms** (#717,
+    // #721): every tree is drawn here, from what the walk read. A system file,
+    // `.git` or a dot file is not drawn at all, nor anything below it. A dot
+    // folder is drawn and hidden rather than left out, so Show reveals it
+    // without reading the folder again, and the grey of #380 reaches its files
+    // like any other row.
+    const visibility = visibilityOf(node);
+    if (visibility === 'left-out') continue;
     const li = document.createElement('li');
+    if (visibility === 'counted') {
+      li.classList.add(HIDDEN_ENTRY_CLASS);
+      li.hidden = true;
+    }
 
     if (node.kind === 'directory') {
       renderFolderNode(li, node, onClick, rootPath, depth, opensNonMarkdown);

@@ -1,6 +1,6 @@
 import { splitFrontmatter } from '../formats/frontmatter';
 import { basename, stripExtension } from '../platform/paths';
-import { getTemplate } from '../templates';
+import { AGENT_INSTRUCTIONS_SEED, getTemplate, type MetadataBlockKind } from '../templates';
 import type { FrontmatterPanel } from '../ui/frontmatter-panel';
 import type { AppState } from './state';
 
@@ -21,6 +21,11 @@ import type { AppState } from './state';
  * dropped a block whose text was empty. #304 made an empty block a block, so it
  * now reaches the file; the route still writes the template block, as #297
  * decided.
+ *
+ * **Two blocks since #715**, both chosen by the person from the menu: Document,
+ * the template block above, and Agent instructions, read from its seed beside
+ * the templates. Nothing here looks at the file name to choose one, and the
+ * panel checks neither: the choice is an explicit command, not a detection.
  */
 
 /**
@@ -46,6 +51,17 @@ function templateBlock(): string {
   return block;
 }
 
+/**
+ * The Agent instructions block (#715), `name:` and `description:` with no value.
+ * `name` is not taken from the file name, unlike the title of the document
+ * block: a skill file is named `SKILL.md`, and its name is its folder.
+ */
+function agentBlock(): string {
+  const block = splitFrontmatter(AGENT_INSTRUCTIONS_SEED).raw;
+  if (block === null) throw new Error('the Agent instructions seed no longer holds a block');
+  return block;
+}
+
 /** Words YAML reads as a boolean or as null rather than as text. */
 const YAML_RESERVED = /^(true|false|yes|no|on|off|y|n|null|~)$/i;
 
@@ -66,11 +82,16 @@ export function yamlTitle(name: string): string {
 }
 
 /**
- * The block Insert Metadata writes for a document at `filePath`: the template
- * block, with the title taken from the file name when there is one. A name with
- * nothing left once the extension is gone keeps the template title.
+ * The block Insert Metadata writes for a document at `filePath`. For Document,
+ * the template block, with the title taken from the file name when there is
+ * one; a name with nothing left once the extension is gone keeps the template
+ * title. For Agent instructions, the seed block as it is, whatever the file.
  */
-export function metadataBlockFor(filePath: string | null): string {
+export function metadataBlockFor(
+  filePath: string | null,
+  kind: MetadataBlockKind = 'document',
+): string {
+  if (kind === 'agent') return agentBlock();
   const block = templateBlock();
   const name = filePath === null ? '' : stripExtension(basename(filePath));
   if (name === '') return block;
@@ -82,12 +103,17 @@ export function metadataBlockFor(filePath: string | null): string {
 /**
  * Gives the document its block when it has none, and in either case shows the
  * panel with focus in its field. **A document that already has a block is left
- * exactly as it is** (owner decision (c) on #297): the entry stays active and
- * opens the panel, and it changes nothing in the document.
+ * exactly as it is** (owner decision (c) on #297), whichever block was asked
+ * for: the entries stay active and open the panel, and change nothing in the
+ * document.
  */
-export function insertMetadata(state: AppState, panel: FrontmatterPanel): void {
+export function insertMetadata(
+  state: AppState,
+  panel: FrontmatterPanel,
+  kind: MetadataBlockKind = 'document',
+): void {
   if (state.frontmatter === null) {
-    state.frontmatter = metadataBlockFor(state.filePath);
+    state.frontmatter = metadataBlockFor(state.filePath, kind);
     panel.refresh();
     // Asked rather than set (#441). A block added is always a difference,
     // and deleting it again by hand clears the mark, since this is outside
@@ -98,7 +124,7 @@ export function insertMetadata(state: AppState, panel: FrontmatterPanel): void {
 }
 
 export interface MetadataMenuCallbacks {
-  readonly onInsertMetadata: () => void;
+  readonly onInsertMetadata: (kind: MetadataBlockKind) => void;
 }
 
 /**
@@ -109,5 +135,5 @@ export function metadataMenuCallbacks(
   state: AppState,
   panel: FrontmatterPanel,
 ): MetadataMenuCallbacks {
-  return { onInsertMetadata: () => insertMetadata(state, panel) };
+  return { onInsertMetadata: (kind) => insertMetadata(state, panel, kind) };
 }

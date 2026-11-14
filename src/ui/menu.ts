@@ -1,4 +1,6 @@
+import type { MetadataBlockKind } from '../templates';
 import { installHoverSwitch } from './menu-hover';
+import { installMetadataMenu } from './menu-metadata';
 import { installRecentMenu } from './menu-recent';
 
 export interface MenuCallbacks {
@@ -27,7 +29,8 @@ export interface MenuCallbacks {
   onInsertChecklist: () => void;
   onInsertFootnote: () => void;
   onInsertHorizontalRule: () => void;
-  onInsertMetadata: () => void;
+  /** Insert, Metadata: the block chosen in its card, Document or Agent instructions (#715). */
+  onInsertMetadata: (kind: MetadataBlockKind) => void;
   onInsertEmoji: () => void;
   onImageDescription: () => void;
   onToggleSpellcheck: () => void;
@@ -165,6 +168,7 @@ export function setupMenu(
   /** Opens the one panel given and folds every other, or folds them all for null. */
   function unfold(open: HTMLElement | null): void {
     recent.hide();
+    metadata.hide();
     for (const section of sections) {
       section.panel.hidden = section.panel !== open;
       section.header.setAttribute('aria-expanded', String(section.panel === open));
@@ -210,6 +214,12 @@ export function setupMenu(
     onClear: callbacks.onClearRecentFiles,
     closeMenu: () => close(),
   });
+  const metadata = installMetadataMenu({
+    trigger: required('menu-insert-metadata') as HTMLButtonElement,
+    dropdown,
+    onChoose: callbacks.onInsertMetadata,
+    closeMenu: () => close(),
+  });
 
   function refreshEntries(): void {
     const { canUndo, canRedo } = readHistory();
@@ -244,6 +254,7 @@ export function setupMenu(
     const focusWasInside = dropdown.contains(document.activeElement);
     hover.cancel();
     recent.hide();
+    metadata.hide();
     dropdown.classList.add('hidden');
     unfold(null);
     syncExpanded();
@@ -308,7 +319,6 @@ export function setupMenu(
   bind('menu-insert-checklist', callbacks.onInsertChecklist);
   bind('menu-insert-footnote', callbacks.onInsertFootnote);
   bind('menu-insert-horizontal-rule', callbacks.onInsertHorizontalRule);
-  bind('menu-insert-metadata', callbacks.onInsertMetadata);
   bind('menu-insert-emoji', callbacks.onInsertEmoji);
   bind('menu-table-add-row-above', callbacks.onAddRowAbove);
   bind('menu-table-add-row-below', callbacks.onAddRowBelow);

@@ -1,3 +1,4 @@
+import agentInstructionsBody from './agent-instructions.md?raw';
 import blankBody from './blank.md?raw';
 import blankFrontmatterBody from './blank-frontmatter.md?raw';
 
@@ -51,6 +52,22 @@ export const TEMPLATES: readonly Template[] = [
     body: blankFrontmatterBody,
   },
 ];
+
+/**
+ * The two blocks Insert → Metadata offers (#715): **Document**, the block of the
+ * Document with Metadata template, and **Agent instructions**, `name` and
+ * `description` and nothing else, the minimum the formats of agent files share.
+ */
+export type MetadataBlockKind = 'document' | 'agent';
+
+/**
+ * The seed of the Agent instructions block (#715). **A seed here and not a card**:
+ * every entry of `TEMPLATES` is a card of the gallery, and New from Template keeps
+ * its two, so this seed sits beside them, read the way the template block is read,
+ * through `splitFrontmatter`, rather than restated as a string in the route.
+ * `name` is empty on purpose: for a skill it is carried by the folder, not the file.
+ */
+export const AGENT_INSTRUCTIONS_SEED: string = agentInstructionsBody;
 
 /**
  * Look up a template by id. Returns `undefined` for an unknown id so

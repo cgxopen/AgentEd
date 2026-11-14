@@ -15,7 +15,13 @@ import { clearImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import { splitFrontmatter } from '../formats/frontmatter';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
-import { getTemplate, type Template } from '../templates';
+import {
+  AGENT_INSTRUCTIONS_SEED,
+  getTemplate,
+  type MetadataBlockKind,
+  TEMPLATES,
+  type Template,
+} from '../templates';
 import {
   type FrontmatterPanel,
   setupFrontmatterPanel,
@@ -260,10 +266,12 @@ function mount(filePath: string | null, frontmatter: string | null): Mounted {
   };
 }
 
-function chooseInsertMetadata(): void {
+/** Insert, Metadata, then a row of its card (#715): Document unless told otherwise. */
+function chooseInsertMetadata(kind: MetadataBlockKind = 'document'): void {
   (document.getElementById('menu-toggle') as HTMLElement).click();
   (document.getElementById('menu-section-insert') as HTMLElement).click();
   (document.getElementById('menu-insert-metadata') as HTMLElement).click();
+  (document.getElementById(`menu-insert-metadata-${kind}`) as HTMLElement).click();
 }
 
 describe('choosing Insert Metadata from the menu', () => {
@@ -356,13 +364,16 @@ function makeActions(state: AppState, panel: FrontmatterPanel): DocumentActions 
 }
 
 /** Open the file, choose the route, save; then open what was written and save it again unedited. */
-async function routeThenSaveTwice(text: string): Promise<{ first: string; second: string }> {
+async function routeThenSaveTwice(
+  text: string,
+  kind: MetadataBlockKind = 'document',
+): Promise<{ first: string; second: string }> {
   disk.set(PATH, text);
   const state = new AppState();
   const panel = panelStub();
   const actions = makeActions(state, panel);
   await actions.openFilePath(PATH);
-  metadataMenuCallbacks(state, panel).onInsertMetadata();
+  metadataMenuCallbacks(state, panel).onInsertMetadata(kind);
   await actions.handleSave();
   const first = disk.get(PATH) ?? '';
 
@@ -395,6 +406,70 @@ describe('a document that had no block, saved after the route, holds still on th
     ['an empty document', '', `---\n${block}\n---`],
   ])('%s', async (_shape, text, expected) => {
     const { first, second } = await routeThenSaveTwice(text);
+
+    expect(first).toBe(expected);
+    expect(second).toBe(first);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The Agent instructions block (#715)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('the Agent instructions block (#715)', () => {
+  const AGENT_BLOCK = 'name:\ndescription:';
+
+  it('is name and description between the fences and nothing else, with no trailing space', () => {
+    expect(AGENT_INSTRUCTIONS_SEED).toBe('---\nname:\ndescription:\n---\n');
+    expect(metadataBlockFor(PATH, 'agent')).toBe(AGENT_BLOCK);
+  });
+
+  it.each([
+    ['a skill file', '/project/.claude/skills/pdf-tools/SKILL.md'],
+    ['an ordinary file', PATH],
+    ['a Windows path', 'C:/Users/me/agents/reviewer.md'],
+    ['no file yet', null],
+  ])('takes nothing from the file name: %s', (_case, path) => {
+    expect(metadataBlockFor(path, 'agent')).toBe(AGENT_BLOCK);
+  });
+
+  it('is not a card: New from Template keeps its two', () => {
+    expect(TEMPLATES.map((template) => template.id)).toEqual(['blank', 'blank-frontmatter']);
+    expect(TEMPLATES.some((template) => template.body.includes('name:'))).toBe(false);
+  });
+
+  it('chosen from the menu, gives a document with no block the block, marks it modified, and opens the panel on it', () => {
+    // R-C18: the block with an empty name is a difference from the file, so
+    // the document is marked modified, as the Document block marks it.
+    const m = mount('/project/.claude/skills/pdf-tools/SKILL.md', null);
+
+    chooseInsertMetadata('agent');
+
+    expect(m.state.frontmatter).toBe(AGENT_BLOCK);
+    expect(m.state.modified).toBe(true);
+    expect(m.textarea.value).toBe(AGENT_BLOCK);
+    expect(m.details.classList.contains('hidden')).toBe(false);
+    expect(m.details.open).toBe(true);
+    expect(document.activeElement).toBe(m.textarea);
+  });
+
+  it('chosen from the menu, changes nothing in a document that already has a block', () => {
+    const existing = 'title: Kept\nauthor: someone';
+    const m = mount(PATH, existing);
+
+    chooseInsertMetadata('agent');
+
+    expect(m.state.frontmatter).toBe(existing);
+    expect(m.state.modified).toBe(false);
+    expect(m.details.open).toBe(true);
+  });
+
+  it.each([
+    ['LF', '# Title\n\nPara\n', `${lf(AGENT_BLOCK)}# Title\n\nPara\n`],
+    ['CRLF', '# Title\r\n\r\nPara\r\n', `${crlf(AGENT_BLOCK)}# Title\r\n\r\nPara\r\n`],
+    ['an empty document', '', `---\n${AGENT_BLOCK}\n---`],
+  ])('saved after the route, holds still on the next save: %s', async (_shape, text, expected) => {
+    const { first, second } = await routeThenSaveTwice(text, 'agent');
 
     expect(first).toBe(expected);
     expect(second).toBe(first);
