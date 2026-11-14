@@ -1,17 +1,17 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.png">
-    <img src="docs/images/banner-light.png" alt="AgentEd — A comfortable visual Markdown editor">
+    <img src="docs/images/banner-light.png" alt="AgentEd — Your visual Markdown editor">
   </picture>
 </p>
 
 **A visual Markdown editor with YAML frontmatter editing and live token estimates.**
 
-Create and refine notes, AI instructions, project context, and knowledge documents with intuitive visual editing. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required. It works fully offline, and [a guide](docs/INSTALL-RESTRICTED-NETWORKS.md) covers installing it in closed or offline networks.
+Create and refine notes, AI instructions, project context, and knowledge documents with visual editing. Open and save ordinary `.md` files in your own folders — no vault to set up, no account required. It works fully offline, and [a guide](docs/INSTALL-RESTRICTED-NETWORKS.md) covers installing it in closed or offline networks.
 
 <div align="center">
 
-**Free · Open source · Local files · Works offline · No account · No telemetry · Windows installer under 5 MB**
+**Free · Open source · Local files · Works offline · No account · No telemetry · Installer under 5 MB**
 
 </div>
 
@@ -28,7 +28,7 @@ Create and refine notes, AI instructions, project context, and knowledge documen
 </div>
 
 <p align="center">
-  <img src="docs/images/project-brief.gif" alt="AgentEd editing a project brief: visual formatting, checklist items, YAML frontmatter, and a live token estimate.">
+  <img src="docs/images/claude-md.gif" width="700" alt="AgentEd editing CLAUDE.md, with a sentence made bold from the floating toolbar and another typed while the token estimate updates; then a YAML value of SKILL.md changed in the Metadata panel; then AGENTS.md with its tasks ticked, a diagram inserted from the Insert menu and listed in the Files panel under assets, and the appearance menu open.">
 </p>
 
 [**See AgentEd in action · 1 minute**](https://agentedapp.com/#demo)
@@ -39,29 +39,29 @@ Create and refine notes, AI instructions, project context, and knowledge documen
 
 Markdown is a plain-text format for headings, lists, links, and more. You may have encountered it while working with AI assistants. AgentEd lets you edit these files visually, without memorising the formatting syntax.
 
-- **Focus on your words.** Format documents with visual controls and see the result as you write.
-- **Private by design.** No account, no telemetry, no built-in cloud service. Your documents stay on your computer, and AgentEd makes no network calls of its own. On Windows, the underlying web runtime makes some connections independently; [SECURITY.md](SECURITY.md) explains when.
-- **Prepare clearer AI instructions.** Keep project context, goals, preferences, and boundaries in reusable Markdown files, with YAML frontmatter and a live token estimate.
-- **Keep your files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault or creating an account.
-- **Read as well as write.** Open a Markdown file to read it as a formatted document; start typing when you want to edit it.
+- **Edit AI instructions as documents.** Write and revise `CLAUDE.md`, `AGENTS.md`, and project notes with visual formatting, YAML frontmatter editing, and a live token estimate.
+- **Keep local Markdown files.** Open and save ordinary `.md` files in folders you choose, without setting up a vault.
+- **Choose what to do with external changes.** If another program changes a file while it is open, AgentEd checks when you save and asks whether to reload, overwrite, or save elsewhere.
+- **Work offline.** No account, no telemetry, and no built-in cloud service. Every feature works offline, and AgentEd makes no network calls of its own. On Windows, the underlying web runtime makes some connections independently; [SECURITY.md](SECURITY.md) explains when.
+- **Read and write without the syntax.** Open any Markdown file to read it as a formatted document; format with visual controls or Markdown shortcuts and see the result as you write.
 
-AgentEd helps you prepare documents for use with AI tools; it does not include an AI chat or run agents.
+AgentEd helps you prepare documents for use with AI tools. **It does not include an AI chat or run agents.**
 
 ## Download and get started
 
-**AgentEd 1.0.1** is available for Windows x64 and macOS on Apple Silicon, with an experimental package for Linux x86-64.
+**AgentEd 1.0.2** is available for Windows x64 and macOS on Apple Silicon, with an experimental package for Linux x86-64.
 
 [**Download the latest release**](https://github.com/cgxopen/AgentEd/releases/latest) for installers, release notes, and SHA-256 checksums. Earlier versions are on the [releases page](https://github.com/cgxopen/AgentEd/releases).
 
-| Platform | Installer for 1.0.1 | Status |
+| Platform | Installer for 1.0.2 | Status |
 |---|---|---|
-| Windows x64 | `AgentEd_1.0.1_x64-setup.exe` | Release |
-| macOS, Apple Silicon | `AgentEd_1.0.1_aarch64.dmg` | Release |
-| Linux x86-64 | `AgentEd_1.0.1_amd64.deb` | Experimental |
+| Windows x64 | `AgentEd_1.0.2_x64-setup.exe` | Release |
+| macOS, Apple Silicon | `AgentEd_1.0.2_aarch64.dmg` | Release |
+| Linux x86-64 | `AgentEd_1.0.2_amd64.deb` | Experimental |
 
 Windows is the primary development and testing platform. The macOS build is for Apple Silicon Macs; Intel-based Macs are not supported. The Linux package has been tested on Ubuntu 24.04 with GNOME and Wayland.
 
-The **Windows installer is under 5 MB**. This refers to the installer download, not the total installed footprint or any required runtime.
+**Each installer is under 5 MB**. This refers to the installer download, not the total installed footprint or any required runtime.
 
 1. Download the installer for your platform.
 2. Install AgentEd using the instructions below.
@@ -70,7 +70,7 @@ The **Windows installer is under 5 MB**. This refers to the installer download, 
 
 **The Windows installer is not digitally signed, and the macOS app is not notarized by Apple. Security warnings may appear during installation or first launch.** See [Installation](#installation) below or the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
-AgentEd is free and open source, built by one person. If it makes your work easier, [support its development on Ko-fi](https://ko-fi.com/agentedapp) — see [Support AgentEd](#support-agented) below.
+AgentEd is free and open source. If it makes your work easier, [support its development on Ko-fi](https://ko-fi.com/agentedapp) — see [Support AgentEd](#support-agented) below.
 
 ## Features
 
@@ -89,20 +89,20 @@ AgentEd is free and open source, built by one person. If it makes your work easi
 
 ## For AI instructions and everyday notes
 
-### Keep reusable AI instructions together
+### Edit AI instructions as documents
 
-Write goals, preferences, and boundaries in Markdown, with YAML metadata alongside the document.
+Open `CLAUDE.md`, `AGENTS.md`, and project notes as formatted documents. Select text to format headings, lists, and inline code with the floating toolbar. Save the result as ordinary Markdown.
 
 <p align="center">
-  <img src="docs/images/assistant.png" alt="AgentEd showing reusable workshop assistant instructions, an expanded YAML metadata panel, and the heading formatting toolbar.">
+  <img src="docs/images/claude-md.png" alt="AgentEd showing CLAUDE.md, with a heading selected and the floating toolbar’s heading menu open.">
 </p>
 
-### Explain with images and tables
+### Keep checklists and images together
 
-Combine written instructions, illustrations, and practical details in one document.
+Tick tasks in `AGENTS.md` and add a diagram for the people who read the file alongside the agent. Pasted images are written to the adjacent `assets/` folder when you save.
 
 <p align="center">
-  <img src="docs/images/guide-frame.png" alt="AgentEd showing an illustrated natural-light photography guide with a photograph and a session table.">
+  <img src="docs/images/agents-checklist-diagram.png" alt="AgentEd showing AGENTS.md with checked and unchecked tasks, a workflow diagram, and the Files panel listing assets/diagram.png.">
 </p>
 
 When sharing a document that uses local images, include its referenced `assets/` folder so the images remain available.
@@ -120,7 +120,7 @@ The steps below apply to warnings about an unrecognised or unverified applicatio
 <details>
 <summary><strong>Show Windows installation steps</strong></summary>
 
-Run `AgentEd_1.0.1_x64-setup.exe`.
+Run `AgentEd_1.0.2_x64-setup.exe`.
 
 The installer is not digitally signed. If Microsoft Defender SmartScreen displays **Windows protected your PC**, and you have verified the source and choose to continue, select **More info → Run anyway**, if that option is available.
 
@@ -128,7 +128,7 @@ The installer is not digitally signed. If Microsoft Defender SmartScreen display
 
 Managed computers or other Windows security settings may prevent installation. Do not disable antivirus protection or SmartScreen to proceed.
 
-Signing is planned for a future release. See the illustrated [installation guide](https://agentedapp.com/installation-help.html).
+See the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
 </details>
 
@@ -137,9 +137,9 @@ Signing is planned for a future release. See the illustrated [installation guide
 <details>
 <summary><strong>Show macOS installation steps</strong></summary>
 
-The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with AgentEd 1.0.0 on macOS 26.6 and 27, and with AgentEd 1.0.1 on macOS 27 on an Apple M2 on 2026-11-06.
+The macOS build is for Apple Silicon Macs (M1 and later). It is not notarized by Apple, so macOS blocks it the first time it opens. These steps were checked with AgentEd 1.0.0 on macOS 26.6 and 27, and with AgentEd 1.0.1 on 2026-11-06 and AgentEd 1.0.2 on 2026-11-14, each on macOS 27 on an Apple M2.
 
-1. Open `AgentEd_1.0.1_aarch64.dmg` and drag **AgentEd** into **Applications**. Launch it from Applications, not from the disk image.
+1. Open `AgentEd_1.0.2_aarch64.dmg` and drag **AgentEd** into **Applications**. Launch it from Applications, not from the disk image.
 2. macOS displays **“AgentEd” Not Opened** because it cannot verify the app. Click **Done**.
 3. Open **System Settings → Privacy & Security**, then scroll to **Security**. Find the message saying AgentEd was blocked and click **Open Anyway**.
 4. In the dialog that follows, click **Open Anyway**. Do not choose **Move to Trash** (**Move to Bin** in British English), the highlighted button, which removes the application.
@@ -169,7 +169,7 @@ The `.deb` package is for x86-64 systems. It requires **glibc 2.34 or later** an
 Download the package, check its SHA-256 checksum, then run this command from the folder containing it:
 
 ```sh
-sudo apt install ./AgentEd_1.0.1_amd64.deb
+sudo apt install ./AgentEd_1.0.2_amd64.deb
 ```
 
 AgentEd then appears among your applications. On the tested stock Ubuntu setup, it also becomes the application used to open Markdown files. You can choose another application using **Open With** in Files.
