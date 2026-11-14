@@ -165,12 +165,13 @@ export const NO_FOLDER_ACCESS_OFFER =
   'document. Choose one.';
 
 /**
- * The words of the line under a tree that hides something (#717), the owner
- * choice shown on a preview on 2026-11-13: **2 hidden files · Show**, **1
- * hidden file · Show**, and Hide once they are shown.
+ * The words of the line under a tree that hides a dot folder (#717, #721):
+ * **1 hidden folder · Show**, **2 hidden folders · Show**, and Hide once they
+ * are shown. Only folders are counted since #721; the words are proposed on its
+ * pull request for the owner to approve.
  */
 export function hiddenCountText(count: number): string {
-  return `${count} hidden file${count === 1 ? '' : 's'}`;
+  return `${count} hidden folder${count === 1 ? '' : 's'}`;
 }
 export const SHOW_HIDDEN = 'Show';
 export const HIDE_HIDDEN = 'Hide';

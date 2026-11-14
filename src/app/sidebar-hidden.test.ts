@@ -1,6 +1,7 @@
 /**
- * #717 — the files panel hides entries whose name starts with a dot, and a line
- * under the tree shows them on request.
+ * #717 and #721 — what the files panel draws of a folder: system files and dot
+ * files left out without a word, dot folders drawn hidden and counted, with a
+ * line under the tree that shows them on request.
  *
  * Driven through the real `setupSidebar` and the real `refreshSidebar`, over a
  * disk in memory whose `listDir` is counted, so the rows hold what the person
@@ -10,6 +11,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FileEntry, PlatformIO } from '../platform/types';
+import { entryVisibility } from '../ui/entry-visibility';
 import {
   buildTree,
   HIDDEN_LINE_CLASS,
@@ -19,7 +21,7 @@ import {
   type Sidebar,
   setupSidebar,
 } from '../ui/sidebar';
-import { countHidden, HIDDEN_ENTRY_CLASS, isHiddenName } from '../ui/sidebar-tree';
+import { countHidden, HIDDEN_ENTRY_CLASS } from '../ui/sidebar-tree';
 import { refreshSidebar } from './sidebar-sync';
 import { AppState } from './state';
 
@@ -53,10 +55,31 @@ function io(disk: Disk): PlatformIO & { listDir: ReturnType<typeof vi.fn> } {
   };
 }
 
-/** The owner pass of the brief: an image used, a dot file, and a dot folder of two files. */
+/** The system names of the issue, as a folder holds them. */
+const SYSTEM_FILES = ['.DS_Store', 'Thumbs.db', 'ehthumbs.db', 'desktop.ini'];
+const SYSTEM_FOLDERS = [
+  '.Spotlight-V100',
+  '.Trashes',
+  '.fseventsd',
+  '$RECYCLE.BIN',
+  'System Volume Information',
+  '.git',
+];
+
+/** The owner pass of the brief: the image used, the system files, a dot file, `.git` and `.github`. */
 const OWNER_PASS: Disk = {
-  '/proj/assets': ['photo.png', '.hidden.txt', '.cache/'],
-  '/proj/assets/.cache': ['one.bin', 'two.bin'],
+  '/proj/assets': [
+    'photo.png',
+    '.DS_Store',
+    'Thumbs.db',
+    'desktop.ini',
+    '._photo.png',
+    '.gitkeep',
+    '.git/',
+    '.github/',
+  ],
+  '/proj/assets/.git': ['HEAD', 'config'],
+  '/proj/assets/.github': ['ci.yml', 'README.md'],
 };
 
 function mountPanel(): Sidebar {
@@ -77,84 +100,147 @@ async function open(disk: Disk, filePath = '/proj/doc.md') {
 const tree = () => document.getElementById('sidebar-tree') as HTMLElement;
 const line = () => tree().querySelector<HTMLElement>(`.${HIDDEN_LINE_CLASS}`);
 const lineButton = () => line()?.querySelector('button') as HTMLButtonElement;
+const nameOf = (row: Element) => (row.textContent ?? '').replace(/^\S+\s/, '');
+
+/** Every row drawn, hidden or not, in page order: what was left out is in none. */
+function drawn(): string[] {
+  return [...tree().querySelectorAll('.sidebar-file-entry, .sidebar-folder-toggle')].map(nameOf);
+}
 
 /**
- * The names of the rows not hidden by the dot rule, in page order, a folder
- * followed by what it holds. A folded folder still holds its rows: folding is
- * the person closing a folder, not this rule hiding it.
+ * The rows not hidden by Show and Hide, in page order, a folder followed by
+ * what it holds. A folded folder still holds its rows: folding is the person
+ * closing a folder, not this rule hiding it.
  */
 function seen(): string[] {
   return [...tree().querySelectorAll<HTMLElement>('.sidebar-file-entry, .sidebar-folder-toggle')]
     .filter((row) => !row.closest('li[hidden]'))
-    .map((row) => (row.textContent ?? '').replace(/^\S+\s/, ''));
+    .map(nameOf);
 }
 
 afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('which names are hidden (#717)', () => {
-  it('a name that starts with a dot, and no other', () => {
-    expect(['.DS_Store', '.hidden.txt', '.cache', '.git'].map(isHiddenName)).toEqual([
-      true,
-      true,
-      true,
-      true,
-    ]);
-    expect(['photo.png', 'a.b.png', 'notes.md', 'x.'].map(isHiddenName)).toEqual([
-      false,
-      false,
-      false,
-      false,
-    ]);
+describe('what a name is (#721)', () => {
+  it.each([...SYSTEM_FILES, ...SYSTEM_FOLDERS])('%s is left out, in either letter case', (name) => {
+    for (const spelled of [name, name.toUpperCase(), name.toLowerCase()]) {
+      expect(entryVisibility(spelled, false)).toBe('left-out');
+      expect(entryVisibility(spelled, true)).toBe('left-out');
+    }
   });
 
-  it('counts a hidden folder as one, whatever it holds, and nothing inside it', () => {
+  it('a name starting with ._ is left out, file or folder', () => {
+    expect(entryVisibility('._photo.png', false)).toBe('left-out');
+    expect(entryVisibility('._PHOTO.PNG', false)).toBe('left-out');
+    expect(entryVisibility('._folder', true)).toBe('left-out');
+  });
+
+  it('any other dot file is left out, and a dot folder is counted', () => {
+    for (const name of ['.gitkeep', '.gitignore', '.hidden.txt', '.cursorrules']) {
+      expect(entryVisibility(name, false)).toBe('left-out');
+    }
+    for (const name of ['.github', '.cache', '.cursor', '.vscode']) {
+      expect(entryVisibility(name, true)).toBe('counted');
+    }
+  });
+
+  it('everything else is shown', () => {
+    for (const [name, isDirectory] of [
+      ['photo.png', false],
+      ['notes.md', false],
+      ['Thumbs.db.bak', false],
+      ['images', true],
+      ['x.', false],
+    ] as const) {
+      expect(entryVisibility(name, isDirectory)).toBe('shown');
+    }
+  });
+
+  it('counts a dot folder as one, whatever it holds, and nothing left out', () => {
     const nodes = buildTree([
       { path: 'photo.png', kind: 'file' },
-      { path: '.hidden.txt', kind: 'file' },
+      { path: '.DS_Store', kind: 'file' },
+      { path: '.gitkeep', kind: 'file' },
+      { path: '.git', kind: 'directory' },
+      { path: '.git/.inner', kind: 'directory' },
       { path: '.cache', kind: 'directory' },
-      { path: '.cache/one.bin', kind: 'file' },
-      { path: '.cache/.inner', kind: 'file' },
+      { path: '.cache/.nested', kind: 'directory' },
       { path: 'deep', kind: 'directory' },
+      { path: 'deep/.thumbs', kind: 'directory' },
       { path: 'deep/.DS_Store', kind: 'file' },
-      { path: 'deep/shown.png', kind: 'file' },
     ]);
-    expect(countHidden(nodes)).toBe(3);
+    expect(countHidden(nodes)).toBe(2);
   });
 });
 
-describe('the panel hides dot entries and says how many (#717)', () => {
-  it('hides a dot file and a dot folder at the root, and what the folder holds', async () => {
+describe('the panel leaves system files and dot files out, and counts dot folders (#721)', () => {
+  it('the owner pass: only the image, and 1 hidden folder · Show', async () => {
     await open(OWNER_PASS);
     expect(seen()).toEqual(['photo.png']);
-    expect(tree().querySelectorAll(`li.${HIDDEN_ENTRY_CLASS}`)).toHaveLength(2);
+    expect(drawn()).toEqual(['.github', 'ci.yml', 'README.md', 'photo.png']);
+    expect(tree().querySelectorAll(`li.${HIDDEN_ENTRY_CLASS}`)).toHaveLength(1);
+    expect(line()?.textContent).toBe('1 hidden folder · Show');
   });
 
-  it('hides a dot file and a dot folder deeper down too', async () => {
+  it('says 2 hidden folders for two', async () => {
+    await open({
+      '/proj/assets': ['photo.png', '.github/', '.cache/'],
+      '/proj/assets/.github': ['ci.yml'],
+      '/proj/assets/.cache': ['one.bin'],
+    });
+    expect(line()?.textContent).toBe(`${hiddenCountText(2)} · ${SHOW_HIDDEN}`);
+    expect(line()?.textContent).toBe('2 hidden folders · Show');
+  });
+
+  it('draws no line when only left-out names are there', async () => {
+    await open({
+      '/proj/assets': ['photo.png', ...SYSTEM_FILES, '._photo.png', '.gitkeep', '.git/'],
+      '/proj/assets/.git': ['HEAD'],
+    });
+    expect(line()).toBeNull();
+    expect(drawn()).toEqual(['photo.png']);
+  });
+
+  it('leaves every system name out at the root, in any letter case, folders with what they hold', async () => {
+    const names = [
+      ...SYSTEM_FILES.map((n) => n.toUpperCase()),
+      ...SYSTEM_FOLDERS.map((n) => `${n.toLowerCase()}/`),
+    ];
+    const disk: Disk = { '/proj/assets': ['photo.png', ...names] };
+    for (const folder of SYSTEM_FOLDERS)
+      disk[`/proj/assets/${folder.toLowerCase()}`] = ['inside.txt'];
+    await open(disk);
+    expect(drawn()).toEqual(['photo.png']);
+    expect(line()).toBeNull();
+  });
+
+  it('leaves .git out with what it holds, Show or not', async () => {
+    await open(OWNER_PASS);
+    lineButton().click();
+    expect(drawn()).not.toContain('.git');
+    expect(drawn()).not.toContain('HEAD');
+    expect(drawn()).not.toContain('config');
+  });
+
+  it('leaves a dot file out deeper down, and counts a dot folder deeper down', async () => {
     await open({
       '/proj/assets': ['photo.png', 'icons/'],
-      '/proj/assets/icons': ['star.svg', '.DS_Store', '.thumbs/'],
+      '/proj/assets/icons': ['star.svg', '.DS_Store', '.gitkeep', '.thumbs/'],
       '/proj/assets/icons/.thumbs': ['star.png'],
     });
     expect(seen()).toEqual(['icons', 'star.svg', 'photo.png']);
-    expect(line()?.textContent).toBe(`${hiddenCountText(2)} · ${SHOW_HIDDEN}`);
+    expect(drawn()).toEqual(['icons', '.thumbs', 'star.png', 'star.svg', 'photo.png']);
+    expect(line()?.textContent).toBe('1 hidden folder · Show');
   });
 
-  it('says 2 hidden files when a dot file and a dot folder of two files are hidden', async () => {
-    await open(OWNER_PASS);
-    expect(line()?.textContent).toBe('2 hidden files · Show');
-  });
-
-  it('says 1 hidden file for one', async () => {
-    await open({ '/proj/assets': ['photo.png', '.DS_Store'] });
-    expect(line()?.textContent).toBe('1 hidden file · Show');
-  });
-
-  it('draws no line when nothing is hidden', async () => {
-    await open({ '/proj/assets': ['photo.png', 'notes.md'] });
-    expect(line()).toBeNull();
-    expect(seen()).toEqual(['notes.md', 'photo.png']);
+  it('leaves a dot file out inside a shown dot folder', async () => {
+    await open({
+      '/proj/assets': ['photo.png', '.github/'],
+      '/proj/assets/.github': ['ci.yml', '.hidden.yml', '.DS_Store'],
+    });
+    lineButton().click();
+    expect(seen()).toEqual(['.github', 'ci.yml', 'photo.png']);
   });
 
   it('puts the line after the tree, as the last thing in the panel', async () => {
@@ -163,17 +249,17 @@ describe('the panel hides dot entries and says how many (#717)', () => {
   });
 });
 
-describe('Show and Hide (#717)', () => {
-  it('Show reveals them in place and the line says Hide; Hide puts them back', async () => {
+describe('Show and Hide, as since #717', () => {
+  it('Show reveals .github with its two files and nothing else; Hide puts it back', async () => {
     await open(OWNER_PASS);
 
     lineButton().click();
-    expect(seen()).toEqual(['.cache', 'one.bin', 'two.bin', '.hidden.txt', 'photo.png']);
-    expect(line()?.textContent).toBe(`2 hidden files · ${HIDE_HIDDEN}`);
+    expect(seen()).toEqual(['.github', 'ci.yml', 'README.md', 'photo.png']);
+    expect(line()?.textContent).toBe(`1 hidden folder · ${HIDE_HIDDEN}`);
 
     lineButton().click();
     expect(seen()).toEqual(['photo.png']);
-    expect(line()?.textContent).toBe('2 hidden files · Show');
+    expect(line()?.textContent).toBe('1 hidden folder · Show');
   });
 
   it('reads nothing from the disk, and draws nothing again', async () => {
@@ -194,14 +280,15 @@ describe('Show and Hide (#717)', () => {
 
     await refreshSidebar(state, sidebar, fs, 'same-document');
 
-    expect(seen()).toEqual(['.cache', 'one.bin', 'two.bin', '.hidden.txt', 'photo.png']);
+    expect(seen()).toEqual(['.github', 'ci.yml', 'README.md', 'photo.png']);
     expect(lineButton().textContent).toBe(HIDE_HIDDEN);
   });
 
   it('forgets the choice on a new root', async () => {
     const disk: Disk = {
       ...OWNER_PASS,
-      '/other/assets': ['pic.png', '.DS_Store'],
+      '/other/assets': ['pic.png', '.cache/'],
+      '/other/assets/.cache': ['one.bin'],
     };
     const { sidebar, state, fs } = await open(disk);
     lineButton().click();
@@ -224,24 +311,32 @@ describe('Show and Hide (#717)', () => {
   });
 });
 
-describe('the grey of #380 is untouched by hiding (#717)', () => {
+describe('the grey of #380 is untouched (#721)', () => {
   /** Unused: every file but the image the document references. */
   const unused = (path: string) => path !== '/proj/assets/photo.png';
-  const greyed = () =>
-    [...tree().querySelectorAll<HTMLElement>('.sidebar-file-unused')].map((row) =>
-      (row.textContent ?? '').replace(/^\S+\s/, ''),
-    );
+  const greyed = () => [...tree().querySelectorAll('.sidebar-file-unused')].map(nameOf);
 
-  it('marks the visible files as before, and the hidden ones like any other row', async () => {
+  it('the image used stays ungreyed, and the files of a shown dot folder are greyed', async () => {
     const { sidebar } = await open(OWNER_PASS);
     sidebar.markUnused(unused);
 
     const photo = tree().querySelector<HTMLElement>('[data-path="/proj/assets/photo.png"]');
     expect(photo?.classList.contains('sidebar-file-unused')).toBe(false);
-    expect(greyed()).toEqual(['one.bin', 'two.bin', '.hidden.txt']);
+    expect(greyed()).toEqual(['ci.yml', 'README.md']);
 
     lineButton().click();
     expect(photo?.classList.contains('sidebar-file-unused')).toBe(false);
-    expect(greyed()).toEqual(['one.bin', 'two.bin', '.hidden.txt']);
+    expect(greyed()).toEqual(['ci.yml', 'README.md']);
+  });
+});
+
+describe('a file the document uses whose name starts with a dot (#721, stop 3, for the owner)', () => {
+  it('is left out of the panel like any other dot file, today', async () => {
+    // The document references `assets/.logo.png`. The rule is by name, so the
+    // panel does not list it, though the document shows it. Pinned as the rule
+    // stands, and reported on the pull request for the owner to decide.
+    await open({ '/proj/assets': ['photo.png', '.logo.png'] });
+    expect(drawn()).toEqual(['photo.png']);
+    expect(line()).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import {
   pathKey,
 } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
+import { entryVisibility } from '../ui/entry-visibility';
 
 /**
  * What the «Images» popover of R-C12 says, gathered on click.
@@ -145,7 +146,15 @@ function countOtherFiles(
   entries: ReadonlyArray<{ name: string; isDirectory: boolean }>,
   unused: (path: string) => boolean,
 ): number {
-  return entries.filter((entry) => !entry.isDirectory && unused(joinPath(dir, entry.name))).length;
+  // What the files panel would not list is not counted either (#721): a file a
+  // system leaves, such as `.DS_Store` or `Thumbs.db`, and any other dot file.
+  // The one answer both use is `entryVisibility`.
+  return entries.filter(
+    (entry) =>
+      !entry.isDirectory &&
+      entryVisibility(entry.name, false) === 'shown' &&
+      unused(joinPath(dir, entry.name)),
+  ).length;
 }
 
 /**

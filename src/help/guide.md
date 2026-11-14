@@ -84,7 +84,7 @@ Press **Ctrl+F** to find text in the document, and **Ctrl+H** to find and replac
 
 ## The files panel
 
-When your document uses images from an `assets` folder beside it, the files panel can show that folder. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**. Files and folders whose names start with a dot, such as `.DS_Store`, are hidden; when there are some, a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**.
+When your document uses images from an `assets` folder beside it, the files panel can show that folder. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**. Files that your system leaves in a folder, such as `.DS_Store` or `Thumbs.db`, and other files whose names start with a dot are not listed. Folders whose names start with a dot are hidden; when there are some, a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**.
 
 ## Appearance
 
