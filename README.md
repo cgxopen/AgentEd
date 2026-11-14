@@ -11,7 +11,7 @@ Create and refine notes, AI instructions, project context, and knowledge documen
 
 <div align="center">
 
-**Free · Open source · Local files · Works offline · No account · No telemetry · Windows installer under 5 MB**
+**Free · Open source · Local files · Works offline · No account · No telemetry · Installer under 5 MB**
 
 </div>
 
@@ -61,7 +61,7 @@ AgentEd helps you prepare documents for use with AI tools. **It does not include
 
 Windows is the primary development and testing platform. The macOS build is for Apple Silicon Macs; Intel-based Macs are not supported. The Linux package has been tested on Ubuntu 24.04 with GNOME and Wayland.
 
-The **Windows installer is under 5 MB**. This refers to the installer download, not the total installed footprint or any required runtime.
+**Each installer is under 5 MB**. This refers to the installer download, not the total installed footprint or any required runtime.
 
 1. Download the installer for your platform.
 2. Install AgentEd using the instructions below.
@@ -97,9 +97,9 @@ Open `CLAUDE.md`, `AGENTS.md`, and project notes as formatted documents. Select 
   <img src="docs/images/claude-md.png" alt="AgentEd showing CLAUDE.md, with a heading selected and the floating toolbar’s heading menu open.">
 </p>
 
-### Keep checklists and diagrams together
+### Keep checklists and images together
 
-Tick tasks in `AGENTS.md` and include a diagram alongside the instructions. Pasted images are written to the adjacent `assets/` folder when you save.
+Tick tasks in `AGENTS.md` and add a diagram for the people who read the file alongside the agent. Pasted images are written to the adjacent `assets/` folder when you save.
 
 <p align="center">
   <img src="docs/images/agents-checklist-diagram.png" alt="AgentEd showing AGENTS.md with checked and unchecked tasks, a workflow diagram, and the Files panel listing assets/diagram.png.">
