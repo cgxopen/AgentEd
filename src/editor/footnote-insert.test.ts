@@ -377,6 +377,8 @@ describe('the routes reach the one command (#409)', () => {
       onClearRecentFiles: vi.fn(),
       onSave: vi.fn(),
       onSaveAs: vi.fn(),
+      onExportPdf: vi.fn(),
+      onPrint: vi.fn(),
       onClose: vi.fn(),
       onFind: vi.fn(),
       onReplace: vi.fn(),

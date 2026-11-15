@@ -194,8 +194,14 @@ export interface PlatformIO {
    * cancelled). **Picking a destination writes nothing** — R-C3 allows a
    * write only from an explicit save decision, and the caller performs it
    * through `saveFile`. Choosing an existing file must never truncate it.
+   * `defaultPath`, where the platform takes one, is the name proposed in the
+   * dialog (#725, the `.pdf` of Export to PDF).
    */
-  pickSavePath(filterName?: string, extensions?: string[]): Promise<string | null>;
+  pickSavePath(
+    filterName?: string,
+    extensions?: string[],
+    defaultPath?: string,
+  ): Promise<string | null>;
   /**
    * Route window close / app quit through `guard` (R-C3). Called once at
    * startup. Platforms that cannot intercept the close asynchronously fall

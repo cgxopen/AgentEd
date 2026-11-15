@@ -201,6 +201,8 @@ function spies(): MenuCallbacks {
     onClearRecentFiles: vi.fn(),
     onSave: vi.fn(),
     onSaveAs: vi.fn(),
+    onExportPdf: vi.fn(),
+    onPrint: vi.fn(),
     onClose: vi.fn(),
     onFind: vi.fn(),
     onReplace: vi.fn(),
@@ -340,7 +342,12 @@ describe('choosing Insert Metadata from the menu', () => {
 
 /** A panel that records being revealed; the save flow needs refresh and setVisible too. */
 function panelStub(): FrontmatterPanel {
-  return { refresh: vi.fn(), setVisible: vi.fn(), reveal: vi.fn() };
+  return {
+    refresh: vi.fn(),
+    setVisible: vi.fn(),
+    reveal: vi.fn(),
+    openForPrint: vi.fn(() => () => {}),
+  };
 }
 
 function makeActions(state: AppState, panel: FrontmatterPanel): DocumentActions {

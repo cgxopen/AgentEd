@@ -51,6 +51,7 @@ import { type MenuCallbacks, setupMenu } from './menu';
 const CHORDS: ReadonlyMap<string, string> = new Map([
   ['menu-open', 'Ctrl+O'],
   ['menu-save', 'Ctrl+S'],
+  ['menu-print', 'Ctrl+P'],
   ['menu-find', 'Ctrl+F'],
   ['menu-replace', 'Ctrl+H'],
   ['menu-find-next', 'F3'],

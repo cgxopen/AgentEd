@@ -15,6 +15,7 @@ mod macos_quit;
 mod macos_windows;
 #[cfg(windows)]
 mod main_window;
+mod print_export;
 #[cfg(test)]
 mod shell_scope;
 mod title_bar;
@@ -42,6 +43,7 @@ fn main() {
         file_open::take_pending_file_open,
         help_window::open_help_window,
         help_window::take_launch_help,
+        print_export::export_pdf,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour
@@ -54,6 +56,7 @@ fn main() {
         help_window::take_launch_help,
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
+        print_export::export_pdf,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour

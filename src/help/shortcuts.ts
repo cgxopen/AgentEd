@@ -39,6 +39,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { win: '`Ctrl+A`', action: 'Select all' },
   { win: '`Ctrl+S`', action: 'Save; Save As is in the File menu' },
   { win: '`Ctrl+O`', action: 'Open' },
+  { win: '`Ctrl+P`', action: 'Print; Export to PDF is in the File menu' },
   { win: '`Ctrl+C` / `Ctrl+X`', action: 'Copy / Cut' },
   {
     win: '`Ctrl+V` / `Ctrl+Shift+V`',

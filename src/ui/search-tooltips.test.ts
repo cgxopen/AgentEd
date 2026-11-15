@@ -78,6 +78,7 @@ describe('every other tooltip is unchanged (#352)', () => {
       ['sidebar-toggle', 'Files panel (Ctrl+Shift+E)'],
       ['menu-open', 'Ctrl+O'],
       ['menu-save', 'Ctrl+S'],
+      ['menu-print', 'Ctrl+P'],
       ['menu-find', 'Ctrl+F'],
       ['menu-replace', 'Ctrl+H'],
       ['menu-find-next', 'F3'],

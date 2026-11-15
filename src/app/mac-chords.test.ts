@@ -81,6 +81,7 @@ const handlers: KeyboardHandlers = {
   onLink: vi.fn(),
   onCodeBlock: vi.fn(),
   onToggleSidebar: vi.fn(),
+  onPrint: vi.fn(),
 };
 const replaceAll = vi.fn();
 const openExternal = vi.fn<(url: string) => Promise<void>>();
@@ -152,6 +153,7 @@ describe.each(PLATFORMS)('the chords of ours on $name', (platform) => {
   const GLOBAL = [
     { chord: 'S', init: { key: 's', code: 'KeyS' }, handler: 'onSave' },
     { chord: 'O', init: { key: 'o', code: 'KeyO' }, handler: 'onOpen' },
+    { chord: 'P', init: { key: 'p', code: 'KeyP' }, handler: 'onPrint' },
     { chord: 'K', init: { key: 'k', code: 'KeyK' }, handler: 'onLink' },
     { chord: 'Shift+K', init: { key: 'K', code: 'KeyK', shiftKey: true }, handler: 'onCodeBlock' },
     {

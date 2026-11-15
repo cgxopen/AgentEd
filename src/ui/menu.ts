@@ -12,6 +12,10 @@ export interface MenuCallbacks {
   onClearRecentFiles: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** File, Export to PDF: a save dialog of ours, then the PDF written directly (#725). */
+  onExportPdf: () => void;
+  /** File, Print: the print dialog of the system, also Ctrl+P (#725). */
+  onPrint: () => void;
   onClose: () => void;
   onFind: () => void;
   onReplace: () => void;
@@ -303,6 +307,8 @@ export function setupMenu(
   bind('menu-open', callbacks.onOpen);
   bind('menu-save', callbacks.onSave);
   bind('menu-save-as', callbacks.onSaveAs);
+  bind('menu-export-pdf', callbacks.onExportPdf);
+  bind('menu-print', callbacks.onPrint);
   bind('menu-close', callbacks.onClose);
   bind('menu-find', callbacks.onFind);
   bind('menu-replace', callbacks.onReplace);

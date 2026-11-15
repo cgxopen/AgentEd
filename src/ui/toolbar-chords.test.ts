@@ -226,6 +226,7 @@ function answeredByListener(chord: string): boolean {
     onLink: count,
     onCodeBlock: count,
     onToggleSidebar: count,
+    onPrint: count,
   });
   vi.mocked(document.addEventListener).mockRestore();
   document.dispatchEvent(keydown(chord));

@@ -100,9 +100,18 @@ function markedCells(editor: EditorInstance): string[] {
  * The body is what follows the opening brace, so a comment written above a
  * rule belongs to neither half and cannot be mistaken for a declaration.
  */
+/**
+ * The screen part of the stylesheet. The print block of #725 hides the caret
+ * on paper for every element, ungated, which is right there: it is no
+ * selection suppression, since nothing is selected on a printed page, and it
+ * never applies on screen. This reader knows no at-rules, so the block is
+ * taken out before it reads.
+ */
+const screenCss = stylesCss.replace(/@media print \{[\s\S]*?\n\}\n/, '');
+
 function allRules(): Array<{ selector: string; body: string }> {
   const rules: Array<{ selector: string; body: string }> = [];
-  for (const block of stylesCss.split('}')) {
+  for (const block of screenCss.split('}')) {
     const brace = block.lastIndexOf('{');
     if (brace === -1) continue;
     const selector =

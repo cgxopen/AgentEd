@@ -7,6 +7,14 @@ export interface FrontmatterPanel {
   setVisible(visible: boolean): void;
   /** Show the panel, expand it, and put focus in its field (#297). */
   reveal(): void;
+  /**
+   * Open the block for a print or an export and size its field to its text,
+   * since no print rule can open a `details` element (#725). Answers the
+   * function that gives the block back the state it had. Neither touches the
+   * text, the editor, the undo history or the unsaved marker: no `input`
+   * event is raised.
+   */
+  openForPrint(): () => void;
 }
 
 /**
@@ -30,7 +38,12 @@ export function setupFrontmatterPanel(state: AppState): FrontmatterPanel {
   const textareaEl = document.getElementById('frontmatter-input') as HTMLTextAreaElement | null;
   if (!detailsEl || !textareaEl) {
     // Defensive: tests / partial mounts get a no-op handle.
-    return { refresh: () => {}, setVisible: () => {}, reveal: () => {} };
+    return {
+      refresh: () => {},
+      setVisible: () => {},
+      reveal: () => {},
+      openForPrint: () => () => {},
+    };
   }
   const details = detailsEl;
   const textarea = textareaEl;
@@ -56,5 +69,17 @@ export function setupFrontmatterPanel(state: AppState): FrontmatterPanel {
     textarea.focus();
   }
 
-  return { refresh, setVisible, reveal };
+  function openForPrint(): () => void {
+    const wasOpen = details.open;
+    const height = textarea.style.height;
+    details.open = true;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    return () => {
+      details.open = wasOpen;
+      textarea.style.height = height;
+    };
+  }
+
+  return { refresh, setVisible, reveal, openForPrint };
 }
