@@ -18,7 +18,9 @@ pub enum Paper {
 }
 
 impl Paper {
-    /// Width and height in millimetres.
+    /// Width and height in millimetres, for the platforms that take a size;
+    /// GTK takes the paper by its name instead.
+    #[cfg(any(windows, target_os = "macos"))]
     fn size_mm(self) -> (f64, f64) {
         match self {
             Paper::A4 => (210.0, 297.0),
