@@ -68,12 +68,12 @@ const FIXTURE = [
 let instance: EditorInstance;
 
 beforeAll(() => {
+  // The page from #app up to the module script that follows it, which the
+  // test does not load.
   const open = shippedPage.indexOf('<div id="app"');
-  const close = shippedPage.lastIndexOf('</body>');
-  if (open < 0 || close < 0) throw new Error('index.html no longer has #app inside its body');
-  document.body.innerHTML = shippedPage
-    .slice(open, close)
-    .replace(/<script[\s\S]*?<\/script>/g, '');
+  const close = shippedPage.indexOf('<script', open);
+  if (open < 0 || close < 0) throw new Error('index.html no longer has #app before its script');
+  document.body.innerHTML = shippedPage.slice(open, close);
   instance = createEditor(element('#editor') as HTMLElement);
   instance.setMarkdown(FIXTURE);
 });
