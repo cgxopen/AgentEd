@@ -40,19 +40,22 @@ const MARGIN_MM: f64 = 15.0;
 
 /// What the export reports back to the page: the paper it used, or why it
 /// failed, in words the page shows in a dialog.
-type Outcome = Result<(), String>;
+type Outcome = Result<Paper, String>;
 
 /// File, Export to PDF. Answers the name of the paper used once the file is
 /// written, or the reason it was not.
+///
+/// The paper is read inside the closure `with_webview` runs on the main
+/// thread: GTK may be called from no other, and a call from the thread of
+/// this command panicked on the Linux runner, measured on the pull request.
 #[tauri::command]
 pub async fn export_pdf(window: tauri::WebviewWindow, path: String) -> Result<String, String> {
-    let paper = system_paper();
     let (tx, mut rx) = tauri::async_runtime::channel::<Outcome>(1);
     window
-        .with_webview(move |webview| start(webview, &path, paper, tx))
+        .with_webview(move |webview| start(webview, &path, system_paper(), tx))
         .map_err(|e| format!("The window could not be reached: {e}"))?;
     match rx.recv().await {
-        Some(Ok(())) => Ok(paper.name().to_string()),
+        Some(Ok(paper)) => Ok(paper.name().to_string()),
         Some(Err(reason)) => Err(reason),
         None => Err("The export ended without a result.".to_string()),
     }
@@ -128,7 +131,7 @@ fn start(
             let handler = PrintToPdfCompletedHandler::create(Box::new(move |result, success| {
                 let outcome = match result {
                     Err(e) => Err(format!("The PDF could not be written: {e}")),
-                    Ok(()) if success => Ok(()),
+                    Ok(()) if success => Ok(paper),
                     Ok(()) => Err("The PDF could not be written.".to_string()),
                 };
                 finish(&done, outcome);
@@ -282,9 +285,12 @@ mod macos {
             return;
         }
         // SAFETY: `run` leaked this box for exactly one call.
-        let tx = unsafe { Box::from_raw(context.cast::<tauri::async_runtime::Sender<Outcome>>()) };
+        let boxed = unsafe {
+            Box::from_raw(context.cast::<(tauri::async_runtime::Sender<Outcome>, Paper)>())
+        };
+        let (tx, paper) = *boxed;
         let outcome = if success.as_bool() {
-            Ok(())
+            Ok(paper)
         } else {
             Err("The PDF could not be written.".to_string())
         };
@@ -339,7 +345,7 @@ mod macos {
             let bounds: Rect = msg_send![webview, bounds];
             let _: () = msg_send![view, setFrame: bounds];
             let window: *mut AnyObject = msg_send![webview, window];
-            let context = Box::into_raw(Box::new(tx)).cast::<c_void>();
+            let context = Box::into_raw(Box::new((tx, paper))).cast::<c_void>();
             let _: () = msg_send![
                 operation,
                 runOperationModalForWindow: window,
@@ -408,7 +414,7 @@ fn start(
         finish(&failed, Err(format!("The PDF could not be written: {e}")))
     });
     operation.connect_finished(move |_| {
-        finish(&tx, Ok(()));
+        finish(&tx, Ok(paper));
         held.borrow_mut().take();
     });
     operation.print();
