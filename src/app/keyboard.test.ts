@@ -16,8 +16,32 @@ beforeEach(() => {
     onLink: vi.fn(),
     onCodeBlock: vi.fn(),
     onToggleSidebar: vi.fn(),
+    onPrint: vi.fn(),
   };
   setupKeyboard(handlers);
+});
+
+describe('Ctrl+P prints (#725)', () => {
+  it('fires on Ctrl+P and claims the key, so WebView2 does not open its own dialog too', () => {
+    const event = press({ key: 'p', code: 'KeyP', ctrlKey: true });
+    expect(handlers.onPrint).toHaveBeenCalledTimes(1);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('fires on a layout that reports another character for the P key', () => {
+    press({ key: 'п', code: 'KeyP', ctrlKey: true });
+    expect(handlers.onPrint).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['Ctrl+Shift+P', { key: 'P', code: 'KeyP', ctrlKey: true, shiftKey: true }],
+    ['Ctrl+Alt+P', { key: 'p', code: 'KeyP', ctrlKey: true, altKey: true }],
+    ['P alone', { key: 'p', code: 'KeyP' }],
+  ])('leaves %s alone', (_name, init) => {
+    const event = press(init);
+    expect(handlers.onPrint).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
 });
 
 describe('Ctrl+K opens the link dialog', () => {

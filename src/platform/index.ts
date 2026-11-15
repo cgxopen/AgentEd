@@ -197,3 +197,40 @@ export async function openThirdPartyNotices(): Promise<'opened' | 'missing' | 'n
   const { openResourceWithSystem } = await import('./tauri');
   return await openResourceWithSystem(name);
 }
+
+/**
+ * File, Print (#725): the print dialog of the system, through `window.print()`.
+ * The same call on every platform and in the web build. On macOS Tauri routes
+ * it to the process, which answers only with `core:webview:allow-print`,
+ * granted to the main window and the document windows; the other platforms
+ * run it in the web view itself.
+ *
+ * **Nothing here may wait for the dialog**: on Windows the call returns only
+ * when the dialog closes, on macOS it returns at once, and on Linux it returns
+ * at once and `afterprint` never fires (measured on the step zero of #725).
+ */
+export function printDocument(): void {
+  window.print();
+}
+
+/**
+ * Whether File, Export to PDF can write a file. The export lives in the
+ * process, `src-tauri/src/print_export.rs`; the web build has no process and
+ * no browser call that writes a PDF to a path, so it answers no, and its
+ * Export entry prints instead (#725). `isTauri` is the only answer available:
+ * the day a browser can write a PDF, the capability answers here instead.
+ */
+export function canExportPdf(): boolean {
+  return isTauri;
+}
+
+/**
+ * File, Export to PDF (#725): the document written to `path`, chosen by the
+ * person in the save dialog, with no system dialog. Resolves with the paper
+ * used, `A4` or `Letter`, once the file is written; rejects with the reason
+ * otherwise, in words a dialog can show.
+ */
+export async function exportPdf(path: string): Promise<string> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  return await invoke<string>('export_pdf', { path });
+}

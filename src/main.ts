@@ -15,6 +15,7 @@ import { type LinkDialog, linkAvailability, setupLinkDialog } from './app/link-d
 import { installLinkOpener } from './app/link-open';
 import { insertMedia } from './app/media-picker';
 import { setupPageColour } from './app/page-colour';
+import { exportWithMetadataOpen, printWithMetadataOpen } from './app/print-export';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
 import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
@@ -328,6 +329,13 @@ function openHelp(id: HelpId): void {
   );
 }
 
+// File, Print and File, Export to PDF (#725), and Ctrl+P.
+const printDeps = {
+  panel: ctx.frontmatterPanel,
+  reporter: ctx.reporter,
+  filePath: () => ctx.state.filePath,
+};
+
 setupMenu(
   {
     onNew: () => {
@@ -353,6 +361,10 @@ setupMenu(
     onSaveAs: () => {
       void docActions.handleSaveAs().catch(console.error);
     },
+    onExportPdf: () => {
+      void exportWithMetadataOpen(printDeps).catch(console.error);
+    },
+    onPrint: () => printWithMetadataOpen(printDeps),
     onClose: () => {
       void docActions.handleClose().catch(console.error);
     },
@@ -448,6 +460,7 @@ setupKeyboard({
     void docActions.handleOpen().catch(console.error);
   },
   onLink: () => linkDialog.open(),
+  onPrint: () => printWithMetadataOpen(printDeps),
   onToggleSidebar: () => {
     ctx.sidebar.toggle();
   },

@@ -24,6 +24,10 @@ tauri-plugin-shell = "2"
 # build already compiles these features, so no crate or feature is added.
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Globalization", "Win32_System_Registry", "Win32_UI_WindowsAndMessaging"] }
+# #725: File, Export to PDF through ICoreWebView2_7::PrintToPdf. The
+# webview2-com Tauri already ships on Windows, at the version in Cargo.lock,
+# so no crate is added (owner decision of 2026-11-15 on #725).
+webview2-com = "0.39"
 
 # #539: every quit on macOS through the unsaved-changes gate, by a method
 # added to the app delegate tao registers. A direct runtime dependency,
@@ -31,6 +35,14 @@ windows = { version = "0.62", features = ["Win32_Foundation", "Win32_Globalizati
 # on macOS, at the version in Cargo.lock, so no crate is added.
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
+
+# #725: File, Export to PDF through a WebKitPrintOperation printed to the
+# Print to File backend. The webkit2gtk and gtk Tauri already ships on Linux,
+# at the versions in Cargo.lock, so no crate is added (owner decision of
+# 2026-11-15 on #725).
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = "2.0"
+gtk = "0.18"
 
 # #448: the shell open scope is tested with the regex crate the shell plugin
 # itself compiles it with, already in Cargo.lock. Tests only; nothing ships.

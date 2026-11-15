@@ -8,11 +8,13 @@ export interface KeyboardHandlers {
   onCodeBlock: () => void;
   /** Open the files panel, or close it (#347). */
   onToggleSidebar: () => void;
+  /** File, Print (#725). */
+  onPrint: () => void;
 }
 
 /**
- * Global Ctrl/Cmd shortcuts: S (save), O (open), K (link), Shift+K (code
- * block), Shift+E (the files panel). The key is Command alone on a Mac and Ctrl
+ * Global Ctrl/Cmd shortcuts: S (save), O (open), P (print), K (link),
+ * Shift+K (code block), Shift+E (the files panel). The key is Command alone on a Mac and Ctrl
  * or Command elsewhere, by `isModHeld` (#627).
  *
  * **Save As has no chord** (owner decision of 2026-09-18). The save branch
@@ -42,6 +44,15 @@ export function setupKeyboard(handlers: KeyboardHandlers): void {
     if (e.key === 'o') {
       e.preventDefault();
       handlers.onOpen();
+      return;
+    }
+    // Ctrl+P, Command+P on a Mac (#725). Taken with no Shift and no Alt, so
+    // Ctrl+Shift+P, which the WebView2 print dialog names for the dialog of
+    // the system, is left as it was. `preventDefault` keeps the print dialog
+    // WebView2 opens by itself on Ctrl+P from opening a second time.
+    if (!e.shiftKey && !e.altKey && (e.key === 'p' || e.code === 'KeyP')) {
+      e.preventDefault();
+      handlers.onPrint();
       return;
     }
     // `e.key` is the uppercase letter when Shift is held, so both spellings are

@@ -121,6 +121,7 @@ function answeredByListener(chord: string, row: Shortcut): boolean {
     onLink: spy('link'),
     onCodeBlock: spy('code block'),
     onToggleSidebar: spy('files panel'),
+    onPrint: spy('print'),
   });
   vi.mocked(document.addEventListener).mockRestore();
   document.dispatchEvent(event);

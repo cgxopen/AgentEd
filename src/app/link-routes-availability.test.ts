@@ -40,6 +40,7 @@ beforeAll(() => {
     onLink: () => dialog?.open(),
     onCodeBlock: vi.fn(),
     onToggleSidebar: vi.fn(),
+    onPrint: vi.fn(),
   });
 });
 

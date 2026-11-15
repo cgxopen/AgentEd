@@ -3309,3 +3309,124 @@ button.document-badge:active {
     transition: none;
   }
 }
+
+/* ── Print and Export to PDF (#725) ──
+ *
+ * What reaches the page is the document alone, whichever route sends it: the
+ * print dialog of File, Print, or File, Export to PDF, which writes the file
+ * with no dialog. Both obey these rules; measured on the step zeros of #725
+ * on Windows, macOS and Linux. Without them each engine printed the window as
+ * it stood: one page, the header and the files panel, the document cut where
+ * the screen cut it.
+ *
+ * - **The document flows over pages**: the containers that hold the editor in
+ *   a window of fixed height with a scroll of its own give up their height
+ *   and their overflow.
+ * - **The chrome is hidden**: the header and its menus and popovers, the files
+ *   panel, the search panel, the floating toolbar and every button inside the
+ *   document, the Copy buttons and the language buttons among them.
+ * - **Dark text on white, whatever the palette on screen** (owner decision of
+ *   2026-11-15): engines that print backgrounds and engines that do not give
+ *   the same page.
+ * - **No caret**, which macOS and Windows printed.
+ * - **The metadata field without its scroll bar or arrows**, which Windows and
+ *   Linux printed; its height is set to its text by the code that opens the
+ *   block before printing, `openForPrint`, since no rule can open a details
+ *   element.
+ * - **A heading kept with what follows** where the engine honours it; macOS
+ *   left one at the foot of a page on the step zero.
+ *
+ * The page size, the margins and the headers and footers are not set here:
+ * Export sets them in `src-tauri/src/print_export.rs`, and the print dialog
+ * leaves them to the person. On Windows the dialog adds the date, the title
+ * and the address of the page, and no rule measured removes them.
+ *
+ * `!important` throughout, which no screen rule of this file uses: the page
+ * must win over every rule of the screen, ids and classes alike, and only in
+ * print. */
+/* biome-ignore-start lint/complexity/noImportantStyles: print rules must override every screen rule */
+@media print {
+  html,
+  body,
+  #app,
+  #main-area,
+  #editor-stack,
+  #editor {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  #menubar,
+  #menu-dropdown,
+  #overflow-popover,
+  #assets-popover,
+  #appearance-popover,
+  #sidebar,
+  #search-panel,
+  .floating-toolbar,
+  .language-popover,
+  #editor button {
+    display: none !important;
+  }
+
+  #editor {
+    padding: 0 !important;
+  }
+
+  * {
+    color: #1a1a1a !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    caret-color: transparent !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  table,
+  th,
+  td,
+  pre,
+  #frontmatter-panel,
+  #frontmatter-input {
+    border-color: #999 !important;
+  }
+
+  pre {
+    white-space: pre-wrap !important;
+    overflow: visible !important;
+    border: 1px solid #999 !important;
+  }
+
+  #frontmatter-input {
+    overflow: hidden !important;
+    resize: none !important;
+    scrollbar-width: none !important;
+  }
+
+  #frontmatter-input::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+  }
+
+  img {
+    max-width: 100% !important;
+    break-inside: avoid;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: print rules must override every screen rule */

@@ -102,6 +102,16 @@ A document you open from your file manager gets a window of its own, with its ow
 
 If another program changes a file while you have it open, AgentEd notices when you save and asks what to do: reload the file from disk, overwrite it with your version, or save your version somewhere else. It never overwrites a changed file without asking.
 
+## Printing and exporting to PDF
+
+**File, Export to PDF** saves the document as a PDF file. Choose where to save it, and AgentEd writes the file; no print window opens. The page size follows your system, A4 or Letter.
+
+**File, Print** (**Ctrl+P**) opens the print window of your system, to print on paper or to save a PDF from there.
+
+Both print the document alone, in dark text on white, with its metadata shown. Pages may break in other places than you see on screen.
+
+On Windows, the print window adds the date, the title and the address of the page at the top and bottom of each page. To leave them out, untick **Headers and footers** under **More settings** in that window. Export to PDF never adds them.
+
 ## How AgentEd writes your file
 
 AgentEd writes ordinary markdown. When you save, it may write some parts of a file in its own standard form, even where you changed nothing, such as the indentation of a list. What it writes is standard CommonMark and GitHub Flavored Markdown.

@@ -210,6 +210,7 @@ You can remove those folders separately if you also want to delete the applicati
 | `Ctrl+A` | `Cmd+A` | Select all |
 | `Ctrl+S` | `Cmd+S` | Save; Save As is in the File menu |
 | `Ctrl+O` | `Cmd+O` | Open |
+| `Ctrl+P` | `Cmd+P` | Print; Export to PDF is in the File menu |
 | `Ctrl+C` / `Ctrl+X` | `Cmd+C` / `Cmd+X` | Copy / Cut |
 | `Ctrl+V` / `Ctrl+Shift+V` | `Cmd+V` / `Cmd+Shift+V` | Paste, interpreting Markdown / Paste as plain text |
 | `Ctrl+F` / `Ctrl+H` | `Cmd+F` / `Cmd+Option+F` | Find / Replace |

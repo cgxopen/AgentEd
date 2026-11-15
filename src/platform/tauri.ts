@@ -110,10 +110,14 @@ export class TauriIO implements PlatformIO {
     }
   }
 
-  async pickSavePath(filterName = 'Markdown', extensions = ['md']): Promise<string | null> {
+  async pickSavePath(
+    filterName = 'Markdown',
+    extensions = ['md'],
+    defaultPath?: string,
+  ): Promise<string | null> {
     // Destination only — nothing is written here. The document reaches disk
     // through saveFile(), once the user has actually decided to save.
-    return await save({ filters: [{ name: filterName, extensions }] });
+    return await save({ filters: [{ name: filterName, extensions }], defaultPath });
   }
 
   /**
