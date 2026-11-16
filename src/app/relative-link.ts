@@ -17,8 +17,7 @@ export const RELATIVE_LINK_MESSAGES: Readonly<Record<LinkRefusal, string>> = {
   'no-document':
     'Save this document first: a relative link is followed from the folder of the document.',
   folder: 'This link names a folder; AgentEd opens markdown files.',
-  'above-root':
-    'This link points above the folder the document is in, beyond its drive, so it is not followed.',
+  'above-root': 'This link goes above the top folder of the disk, so it is not followed.',
 };
 
 export function missingTargetMessage(path: string): string {

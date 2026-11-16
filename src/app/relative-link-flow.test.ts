@@ -252,7 +252,7 @@ describe('what a relative link that is not followed says (#727)', () => {
     ['rooted', RELATIVE_LINK_MESSAGES.rooted],
     ['folder', RELATIVE_LINK_MESSAGES.folder],
     ['gone', missingTargetMessage('/notes/docs/gone.md')],
-    ['above', RELATIVE_LINK_MESSAGES['above-root']],
+    ['above', 'This link goes above the top folder of the disk, so it is not followed.'],
   ])('%s', async (label, message) => {
     await ctrlClick(label);
     expect(toasts).toEqual([message]);
