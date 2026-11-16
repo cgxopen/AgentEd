@@ -7,7 +7,6 @@ mod browser_args;
 mod document_windows;
 mod file_open;
 mod help_window;
-mod measure_727;
 #[cfg(target_os = "macos")]
 mod macos_paste;
 #[cfg(target_os = "macos")]
@@ -45,7 +44,6 @@ fn main() {
         help_window::open_help_window,
         help_window::take_launch_help,
         print_export::export_pdf,
-        measure_727::measure_log,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour
@@ -59,7 +57,6 @@ fn main() {
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
         print_export::export_pdf,
-        measure_727::measure_log,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour
@@ -108,9 +105,6 @@ fn main() {
             // A process started for the help holds it for its page (#701).
             #[cfg(not(target_os = "macos"))]
             help_window::install(app, &args);
-
-            // Throwaway, measure/727 only.
-            measure_727::install(app);
 
             Ok(())
         })
