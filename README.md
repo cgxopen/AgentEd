@@ -59,6 +59,15 @@ AgentEd helps you prepare documents for use with AI tools. **It does not include
 | macOS, Apple Silicon | `AgentEd_1.0.2_aarch64.dmg` | Release |
 | Linux x86-64 | `AgentEd_1.0.2_amd64.deb` | Experimental |
 
+**The Windows installer is not digitally signed, and the macOS app is not notarized by Apple. Security warnings may appear during installation or first launch.**
+
+**First launch**
+
+- **macOS**: macOS shows **“AgentEd” Not Opened**. Click **Done**, open **System Settings → Privacy & Security**, and click **Open Anyway** — available for about an hour after the blocked attempt. Do not choose **Move to Trash**.
+- **Windows**: if SmartScreen shows **Windows protected your PC** and you have verified the source, select **More info → Run anyway**.
+
+Full steps: [Installation](#installation), or the illustrated [installation guide](https://agentedapp.com/installation-help.html).
+
 Windows is the primary development and testing platform. The macOS build is for Apple Silicon Macs; Intel-based Macs are not supported. The Linux package has been tested on Ubuntu 24.04 with GNOME and Wayland.
 
 **Each installer is under 5 MB**. This refers to the installer download, not the total installed footprint or any required runtime.
@@ -67,8 +76,6 @@ Windows is the primary development and testing platform. The macOS build is for 
 2. Install AgentEd using the instructions below.
 3. Open an existing Markdown file or create a new document.
 4. Save it to a folder on your computer.
-
-**The Windows installer is not digitally signed, and the macOS app is not notarized by Apple. Security warnings may appear during installation or first launch.** See [Installation](#installation) below or the illustrated [installation guide](https://agentedapp.com/installation-help.html).
 
 AgentEd is free and open source. If it makes your work easier, [support its development on Ko-fi](https://ko-fi.com/agentedapp) — see [Support AgentEd](#support-agented) below.
 
