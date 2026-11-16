@@ -198,7 +198,7 @@ const WHERE_THE_LINE_WAS: ReadonlyArray<readonly [string, string]> = [
   // since #391: the pair on each side of it is read.
   ['appearance popover', '.appearance-mode + .appearance-note'],
   ['appearance popover', '.appearance-note + .appearance-section-label'],
-  ['images popover', '.cluster-popover-header'],
+  ['images popover', '.header-popover-heading'],
 ];
 
 describe('no line inside a floating surface (#375)', () => {

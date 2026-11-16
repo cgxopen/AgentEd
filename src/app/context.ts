@@ -49,6 +49,13 @@ export interface AppContext {
   refreshSidebar: (redraw?: SidebarRedraw) => Promise<void>;
   setFilename: (name: string | null, fullPath?: string | null) => void;
   updateCloseEnabled: () => void;
+  /**
+   * Check the links of the document on screen (#729): at open, by the
+   * transaction of a document arriving, and after each save that wrote, from
+   * `document-actions.ts`. Absent where no header is built, as in the harnesses
+   * that test the actions alone.
+   */
+  checkLinks?: () => void;
 }
 
 /**

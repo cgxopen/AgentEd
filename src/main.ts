@@ -13,6 +13,7 @@ import { metadataMenuCallbacks } from './app/insert-metadata';
 import { setupKeyboard } from './app/keyboard';
 import { type LinkDialog, linkAvailability, setupLinkDialog } from './app/link-dialog';
 import { installLinkOpener } from './app/link-open';
+import { checkOnArrival, createLinksReport } from './app/links-report';
 import { insertMedia } from './app/media-picker';
 import { setupPageColour } from './app/page-colour';
 import { exportWithMetadataOpen, printWithMetadataOpen } from './app/print-export';
@@ -55,6 +56,7 @@ import { documentReferencesImage, setupDocumentBadges } from './ui/document-badg
 import { emojiMenuCallbacks } from './ui/emoji-palette';
 import { setupFrontmatterPanel, shouldShowFrontmatterPanel } from './ui/frontmatter-panel';
 import { watchHeaderRoom } from './ui/header-room';
+import { setupLinksPopover } from './ui/links-popover';
 import { setupMenu } from './ui/menu';
 import { setupSidebar } from './ui/sidebar';
 import { setupSpellcheckToggle, setupStatusbar, spellcheckMenuCallbacks } from './ui/statusbar';
@@ -200,9 +202,25 @@ ctx.assetsPopover = setupAssetsPopover({
     return summariseAssets(editor, ctx.state.filePath, io);
   },
 });
+const linksPopover = setupLinksPopover({ onJump: (link) => linksReport.jump(link) });
 const documentBadges = setupDocumentBadges(editor, {
   onImagesToggle: () => ctx.assetsPopover.toggle(),
+  onLinksToggle: () => linksPopover.toggle(),
 });
+// The broken link check of #729, at open and at save; see `links-report.ts`.
+const linksReport = createLinksReport({
+  editor,
+  documentPath: () => ctx.state.filePath,
+  io: getPlatformIO,
+  refreshBadge: (broken) => documentBadges.refreshLinks(broken),
+  popover: linksPopover,
+});
+ctx.checkLinks = () => {
+  void linksReport.run().catch((e: unknown) => {
+    console.error('[main] the links of the document could not be checked:', e);
+  });
+};
+checkOnArrival(editor, () => ctx.checkLinks?.());
 // `transaction` rather than `update`, and it is not a preference (#196):
 // `update` is not emitted for a transaction carrying `preventUpdate`, and
 // `setContent` sets exactly that — so a badge wired to `update` would have
@@ -262,13 +280,14 @@ documentBadges.refreshImages();
 // SearchManager owns the inline search panel + the vendor extension
 // wrapper. We construct it here (before docActions) so its keyboard
 // listeners install during Phase 8 and the panel root in index.html is
-// already in the DOM. The `onOpen` hook closes the «Images» popover so
-// only one floating surface is visible at a time.
+// already in the DOM. The `onOpen` hook closes the «Images» popover and the
+// «Links» list so only one floating surface is visible at a time.
 ctx.searchManager = createSearchManager({
   editor,
   panelRoot: document.getElementById('search-panel')!,
   onOpen: () => {
     if (ctx.assetsPopover?.isOpen()) ctx.assetsPopover.close();
+    if (linksPopover.isOpen()) linksPopover.close();
   },
 });
 ctx.searchManager.installKeyboardListeners();

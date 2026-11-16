@@ -358,7 +358,8 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     }
     ctx.state.isSaving = true;
     try {
-      await persistDocument();
+      // A save that wrote is the second moment the links are checked (#729).
+      if (await persistDocument()) ctx.checkLinks?.();
       // A save is not an act that asks for the panel (#387, owner decision).
       await ctx.refreshSidebar('same-document');
     } finally {
@@ -374,8 +375,9 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
       if (!path) return;
       // A document written under a new name is one the person now has, so it
       // enters the recent list as an open does (#381, owner decision).
-      if ((await persistDocument()) && (await getPlatformIO()).pathsOutliveSession) {
-        recordRecentFile(path);
+      if (await persistDocument()) {
+        ctx.checkLinks?.();
+        if ((await getPlatformIO()).pathsOutliveSession) recordRecentFile(path);
       }
       // A save is not an act that asks for the panel (#387, owner decision).
       await ctx.refreshSidebar('same-document');

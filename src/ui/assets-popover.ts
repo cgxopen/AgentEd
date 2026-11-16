@@ -62,7 +62,7 @@ export function setupAssetsPopover(callbacks: AssetsPopoverCallbacks): AssetsPop
 
   function render(sentence: string): void {
     const heading = document.createElement('div');
-    heading.className = 'cluster-popover-header';
+    heading.className = 'header-popover-heading';
     heading.textContent = ASSETS_POPOVER_HEADING;
 
     const body = document.createElement('p');

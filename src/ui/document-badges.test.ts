@@ -100,9 +100,9 @@ beforeEach(() => {
 });
 
 describe('what the shipped page declares', () => {
-  it('ships both badges withdrawn, so a plain document shows neither', () => {
+  it('ships the three badges withdrawn, so a plain document shows none', () => {
     mountShippedRow();
-    for (const id of ['badge-metadata', 'badge-images']) {
+    for (const id of ['badge-metadata', 'badge-images', 'badge-links']) {
       const badge = el(id);
       expect(badge.style.display).toBe('none');
       expect(badge.getAttribute('aria-hidden')).toBe('true');
@@ -110,21 +110,23 @@ describe('what the shipped page declares', () => {
     }
   });
 
-  it('puts «Metadata» before «Images», and both after the counts', () => {
+  it('puts «Metadata» before «Images» before «Links», all after the counts', () => {
     mountShippedRow();
     const order = Array.from(
       document.querySelectorAll<HTMLElement>('#header-indicators .indicator'),
     ).map((node) => node.id);
     expect(order.indexOf('badge-metadata')).toBeLessThan(order.indexOf('badge-images'));
-    // They were the last two before the context indicator until #401 and are
-    // the last two now, so the row still runs from the counts to the document.
+    // They were the last two before the context indicator until #401, and
+    // «Links» follows them since #729, so the row still runs from the counts
+    // to the document and then to the files it names.
     expect(order.indexOf('token-number')).toBeLessThan(order.indexOf('badge-metadata'));
-    expect(order.at(-1)).toBe('badge-images');
+    expect(order.at(-2)).toBe('badge-images');
+    expect(order.at(-1)).toBe('badge-links');
   });
 
-  it('gives both badges the same breakpoint', () => {
+  it('gives the three badges the same breakpoint', () => {
     mountShippedRow();
-    for (const id of ['badge-metadata', 'badge-images']) {
+    for (const id of ['badge-metadata', 'badge-images', 'badge-links']) {
       expect(el(id).classList.contains('indicator-collapse-600')).toBe(true);
     }
   });
@@ -137,6 +139,8 @@ describe('what the shipped page declares', () => {
     expect(el('badge-metadata').tagName).toBe('SPAN');
     expect(el('badge-images').tagName).toBe('BUTTON');
     expect(el('badge-images').getAttribute('aria-controls')).toBe('assets-popover');
+    expect(el('badge-links').tagName).toBe('BUTTON');
+    expect(el('badge-links').getAttribute('aria-controls')).toBe('links-popover');
   });
 });
 
