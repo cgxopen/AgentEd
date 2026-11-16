@@ -111,6 +111,12 @@ export interface Sidebar {
    */
   setOnFileClick: (handler: (absPath: string, rootPath: string) => void) => void;
   /**
+   * The root the panel lists while it shows a tree, or null while it is
+   * hidden or shows a note or the access offer (#727): a relative link keeps
+   * it exactly as a click in the panel would.
+   */
+  listedRoot: () => string | null;
+  /**
    * Replace the handler run when the user accepts the offer above. It is
    * called from a click, so whatever it does still holds the transient
    * user activation `showDirectoryPicker` requires.
@@ -420,6 +426,7 @@ export function setupSidebar(): Sidebar {
       visibleListeners.push(listener);
     },
     setOnFileClick,
+    listedRoot: () => shownRoot,
     setOnRequestAccess,
   };
 }

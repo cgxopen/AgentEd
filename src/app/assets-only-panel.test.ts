@@ -78,6 +78,7 @@ function recorder(): Seen {
     isVisible: () => last !== 'hidden',
     toggle: () => {},
     setOnFileClick: () => {},
+    listedRoot: () => null,
     onVisibleChange: () => {},
     setOnRequestAccess: () => {},
     isCurrent: () => true,

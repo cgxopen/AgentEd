@@ -26,7 +26,11 @@ export interface Shortcut {
 export const SHORTCUTS: readonly Shortcut[] = [
   { win: '`Ctrl+B` / `Ctrl+I` / `Ctrl+U`', action: 'Bold / Italic / Underline' },
   { win: '`Ctrl+K`', action: 'Insert link, or edit/remove the link at the caret' },
-  { win: '`Ctrl` + click', mac: '`Cmd` + click', action: 'Open a link in the system browser' },
+  {
+    win: '`Ctrl` + click',
+    mac: '`Cmd` + click',
+    action: 'Open a web link in the browser, or a linked markdown file in AgentEd',
+  },
   { win: '`Ctrl+E`', action: 'Inline code' },
   { win: '`Ctrl+Shift+K`', action: 'Code block' },
   { win: '`Ctrl+Alt+1` … `Ctrl+Alt+6`', action: 'Heading level 1–6' },
