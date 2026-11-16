@@ -16,6 +16,7 @@ import { installLinkOpener } from './app/link-open';
 import { insertMedia } from './app/media-picker';
 import { setupPageColour } from './app/page-colour';
 import { exportWithMetadataOpen, printWithMetadataOpen } from './app/print-export';
+import { followRelativeLink } from './app/relative-link';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
 import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
@@ -154,6 +155,19 @@ installLinkOpener(editorEl, {
   openExternal: async (url) => {
     const io = await getPlatformIO();
     await io.openWithSystem(url);
+  },
+  // A relative link to a markdown file opens it here, by the route of a
+  // click in the files panel (#727).
+  openRelative: (address) => {
+    void followRelativeLink(
+      {
+        documentPath: () => ctx.state.filePath,
+        panelRoot: () => ctx.sidebar.listedRoot(),
+        io: getPlatformIO,
+        openFilePath: (path, root) => docActions.openFilePath(path, root),
+      },
+      address,
+    ).catch((e: unknown) => console.error('[link] a relative link was not followed:', e));
   },
 });
 

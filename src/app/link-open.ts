@@ -1,4 +1,4 @@
-import { webAddressFor } from '../editor/link-url';
+import { isRelativeLinkAddress, webAddressFor } from '../editor/link-url';
 import { isModHeld } from '../ui/chord-label';
 import { reportSystemOpenFailure } from './system-open-failure';
 
@@ -28,11 +28,16 @@ import { reportSystemOpenFailure } from './system-open-failure';
  *     handed to the OS: `http`, `https` and `mailto` are, and a relative path
  *     or whatever a converter left behind is not, because handing an arbitrary
  *     string to the shell is not a thing to do on a click. What is handed is
- *     the address as the URL parser read it (#448).
+ *     the address as the URL parser read it (#448). **A relative address is
+ *     followed inside AgentEd instead** (#727): `openRelative` opens a
+ *     markdown file in this window or says why it does not, and hands
+ *     nothing to the OS.
  */
 export interface LinkOpenerOptions {
   /** Hand the URL to the OS, or to a new tab on the web build. */
   openExternal: (url: string) => Promise<void>;
+  /** Follow a relative address inside AgentEd (#727); absent, it does nothing. */
+  openRelative?: (address: string) => void;
 }
 
 /** The href under the pointer, or null when the click missed every link. */
@@ -75,7 +80,10 @@ export function installLinkOpener(root: HTMLElement, options: LinkOpenerOptions)
     // The address as the URL parser read it, which is what the allow-list
     // judged, rather than the spelling the document holds (#448).
     const address = webAddressFor(href);
-    if (address === null) return;
+    if (address === null) {
+      if (isRelativeLinkAddress(href)) options.openRelative?.(href);
+      return;
+    }
 
     // A failure is told to the person rather than to the console alone
     // (#448). On the web the platform opens a new tab itself, so a rejection

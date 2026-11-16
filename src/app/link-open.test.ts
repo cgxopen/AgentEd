@@ -297,3 +297,57 @@ describe('the editor renders links without a target', () => {
     instance.destroy();
   });
 });
+
+describe('a relative link is followed inside AgentEd, never by the system (#727)', () => {
+  let ownRoot: HTMLElement;
+  let external: Mock<(url: string) => Promise<void>>;
+  let relative: Mock<(address: string) => void>;
+  let stop: () => void;
+
+  beforeEach(() => {
+    ownRoot = document.createElement('div');
+    document.body.appendChild(ownRoot);
+    external = vi.fn<(url: string) => Promise<void>>().mockResolvedValue(undefined);
+    relative = vi.fn<(address: string) => void>();
+    stop = installLinkOpener(ownRoot, { openExternal: external, openRelative: relative });
+  });
+
+  afterEach(() => stop());
+
+  function link(href: string): HTMLAnchorElement {
+    const a = document.createElement('a');
+    a.setAttribute('href', href);
+    a.textContent = href;
+    ownRoot.appendChild(a);
+    return a;
+  }
+
+  it.each(['docs/setup.md', './a.md', '../b.md', '#h', '/a.md', 'x.pdf'])(
+    'Ctrl+click on %s goes to the relative route, with the address as the document holds it',
+    (href) => {
+      click(link(href), { ctrlKey: true });
+      expect(relative).toHaveBeenCalledWith(href);
+      expect(external).not.toHaveBeenCalled();
+    },
+  );
+
+  it('a web link keeps its route', () => {
+    click(link('https://example.com'), { ctrlKey: true });
+    expect(external).toHaveBeenCalledWith('https://example.com/');
+    expect(relative).not.toHaveBeenCalled();
+  });
+
+  it.each(['file:///x.pdf', String.raw`\\host\x.pdf`, '//host/x.pdf', 'C:/x.pdf'])(
+    '%s goes to neither route',
+    (href) => {
+      click(link(href), { ctrlKey: true });
+      expect(relative).not.toHaveBeenCalled();
+      expect(external).not.toHaveBeenCalled();
+    },
+  );
+
+  it('a plain click follows nothing', () => {
+    click(link('docs/setup.md'));
+    expect(relative).not.toHaveBeenCalled();
+  });
+});

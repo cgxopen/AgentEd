@@ -60,7 +60,7 @@ The menu at the top left has an **Insert** section for things that are not plain
 
 - **Table**: a table with the number of rows and columns you choose. Press **Tab** to move to the next cell. The **Table** section of the menu adds and removes rows and columns.
 - **Image**: an image from your computer. See Images below.
-- **Link**: a link to a web page or another file. **Ctrl+K** does the same. To follow a link, hold **Ctrl** and click it.
+- **Link**: a link to a web page or another file. **Ctrl+K** does the same. To follow a link, hold **Ctrl** and click it: a link to a web page opens in your browser, and a link to another markdown file, such as `docs/setup.md`, opens that file in AgentEd, after asking about unsaved changes. A link to a heading, a folder or another kind of file is not followed yet; AgentEd says why.
 - **Code Block**: a block for code. Choose its language from the label at its corner, and copy its content with its **Copy** button.
 - **Checklist**: a list of items with boxes you can tick.
 - **Footnote**: a numbered reference in the text, with its note at the end of the document. Point at the reference to read the note.
