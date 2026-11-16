@@ -212,6 +212,13 @@ describe('what the check says of each link (#729)', () => {
     expect(result.good).toBe(3);
   });
 
+  it('asks once of a folder that many missing targets share, and lists it once', async () => {
+    const { asked, listed, result } = await check(['m1.md', 'm2.md', 'm3.md'], {});
+    expect(result.broken).toHaveLength(3);
+    expect(asked.filter((p) => p === 'C:/notes/docs')).toHaveLength(1);
+    expect(listed).toEqual(['C:/notes/docs']);
+  });
+
   it('lists the links not checked in document order', async () => {
     const links = [
       { ...link('#h'), from: 30 },

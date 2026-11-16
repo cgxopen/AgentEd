@@ -19,13 +19,24 @@ import type { EntryPresence, PlatformIO } from '../platform/types';
  * folder above that is there, is **unknown**. A present or unknown answer is
  * returned as `entryPresence` gave it.
  *
- * `listings` keeps each folder listed once for a whole check: a document with
- * many links into one missing folder lists its parent once.
+ * `memo` keeps what was learnt of each folder for a whole check: a document
+ * with many links into one folder asks of that folder once and lists it once.
+ * Measured on #729: a thousand links, half of them to files not there, took
+ * 2964 ms on a Linux runner when the folder was asked of for each of them.
  */
+export interface FolderMemo {
+  readonly presence: Map<string, Promise<EntryPresence>>;
+  readonly listings: Map<string, Promise<ReadonlySet<string> | null>>;
+}
+
+export function createFolderMemo(): FolderMemo {
+  return { presence: new Map(), listings: new Map() };
+}
+
 export async function establishedPresence(
   io: PlatformIO,
   path: string,
-  listings: Map<string, Promise<ReadonlySet<string> | null>> = new Map(),
+  memo: FolderMemo = createFolderMemo(),
 ): Promise<EntryPresence> {
   const first = await io.entryPresence(path);
   if (first !== 'absent') return first;
@@ -36,16 +47,24 @@ export async function establishedPresence(
     if (folder === child || isRoot(folder)) return 'unknown';
     // A path with no root is a place in the folder the web build was granted,
     // and its top is that folder, there by the grant: it is listed as it is.
-    const presence = folder === '' ? 'present' : await io.entryPresence(folder);
+    const presence = folder === '' ? 'present' : await folderPresence(io, folder, memo);
     if (presence === 'unknown') return 'unknown';
     if (presence === 'present') {
-      const names = await listingOf(io, folder, listings);
+      const names = await listingOf(io, folder, memo.listings);
       if (names === null || names.has(basename(child))) return 'unknown';
       return 'absent';
     }
     child = folder;
   }
   return 'unknown';
+}
+
+function folderPresence(io: PlatformIO, folder: string, memo: FolderMemo): Promise<EntryPresence> {
+  const known = memo.presence.get(folder);
+  if (known) return known;
+  const asked = io.entryPresence(folder);
+  memo.presence.set(folder, asked);
+  return asked;
 }
 
 /** More folders up than any path of the disk holds is taken as unknown. */

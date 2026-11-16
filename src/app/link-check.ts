@@ -2,7 +2,7 @@ import type { Mark, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { isRelativeLinkAddress } from '../editor/link-url';
 import { type LinkRefusal, resolveLinkTarget } from '../platform/link-target';
 import type { EntryPresence, PlatformIO } from '../platform/types';
-import { establishedPresence } from './entry-absence';
+import { createFolderMemo, establishedPresence } from './entry-absence';
 
 /**
  * The broken link check of the open document (#729): which of its relative
@@ -148,13 +148,13 @@ async function presenceOfEach(
 ): Promise<Map<string, EntryPresence>> {
   const distinct = [...new Set(paths)];
   const answers = new Map<string, EntryPresence>();
-  const listings = new Map<string, Promise<ReadonlySet<string> | null>>();
+  const memo = createFolderMemo();
   // Bounded by the distinct targets, taken PRESENCE_AT_ONCE at a time.
   for (let start = 0; start < distinct.length; start += PRESENCE_AT_ONCE) {
     const batch = distinct.slice(start, start + PRESENCE_AT_ONCE);
     const results = await Promise.all(
       batch.map((path) =>
-        establishedPresence(io, path, listings).catch((e: unknown) => {
+        establishedPresence(io, path, memo).catch((e: unknown) => {
           // `entryPresence` never rejects (#126); a listing that does is
           // already answered unknown. Anything else is told and stays unknown.
           console.warn('[agented] could not check a link target:', path, e);
