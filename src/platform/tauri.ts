@@ -29,6 +29,7 @@ import { reportCloseCancelled } from './window-coordination';
 
 export class TauriIO implements PlatformIO {
   readonly pathsOutliveSession = true;
+  readonly opensFilesWithSystem = true;
 
   /**
    * Always, for any document whose path carries a directory — which on

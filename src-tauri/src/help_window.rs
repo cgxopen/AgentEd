@@ -126,18 +126,27 @@ pub fn open_help_window(app: AppHandle, name: String) -> Result<(), String> {
     open(&app, help)
 }
 
-/// A second AgentEd process, started with the argument. Its exit is waited
-/// for on a thread of its own, so a Linux child that ends first is reaped.
+/// A second AgentEd process, started with the argument.
 #[cfg(not(target_os = "macos"))]
 fn open(_app: &AppHandle, help: Help) -> Result<(), String> {
+    start_second_process(std::ffi::OsStr::new(&help.argument()))
+        .map_err(|e| format!("the help window did not start: {e}"))
+}
+
+/// A second AgentEd process with `argument` as its one argument, through the
+/// path of the running executable and no shell (#701; a document path since
+/// #731, `document_window.rs`). Its exit is waited for on a thread of its own,
+/// so a Linux child that ends first is reaped.
+#[cfg(not(target_os = "macos"))]
+pub fn start_second_process(argument: &std::ffi::OsStr) -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| format!("AgentEd not found: {e}"))?;
     let mut child = std::process::Command::new(exe)
-        .arg(help.argument())
+        .arg(argument)
         .spawn()
-        .map_err(|e| format!("the help window did not start: {e}"))?;
+        .map_err(|e| e.to_string())?;
     std::thread::spawn(move || {
         if let Err(e) = child.wait() {
-            eprintln!("help_window: the help process was not waited for: {e}");
+            eprintln!("help_window: the second process was not waited for: {e}");
         }
     });
     Ok(())

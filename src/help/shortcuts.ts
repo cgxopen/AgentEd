@@ -29,7 +29,13 @@ export const SHORTCUTS: readonly Shortcut[] = [
   {
     win: '`Ctrl` + click',
     mac: '`Cmd` + click',
-    action: 'Open a web link in the browser, or a linked markdown file in AgentEd',
+    action:
+      'Open a web link in the browser, a linked markdown file in AgentEd, or a linked file of another kind in the application of the system',
+  },
+  {
+    win: '`Ctrl+Shift` + click',
+    mac: '`Cmd+Shift` + click',
+    action: 'Open a linked markdown file in a window of its own',
   },
   { win: '`Ctrl+E`', action: 'Inline code' },
   { win: '`Ctrl+Shift+K`', action: 'Code block' },

@@ -3,6 +3,7 @@ import { basename, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { showToast } from '../ui/toast';
 import { establishedPresence } from './entry-absence';
+import { handOverToSystem, notLookedAtMessage } from './system-hand-over';
 
 /**
  * What the person reads when a relative link is not followed (#727), one
@@ -25,8 +26,10 @@ export function missingTargetMessage(path: string): string {
   return `${basename(path)} was not found.`;
 }
 
-export function notMarkdownMessage(path: string): string {
-  return `${basename(path)} is not a markdown file; opening other files is not supported yet.`;
+export { notOpenedHereMessage as notMarkdownMessage } from './system-hand-over';
+
+export function windowFailedMessage(path: string): string {
+  return `${basename(path)} could not be opened in a window of its own.`;
 }
 
 export const NO_FOLDER_ACCESS_MESSAGE =
@@ -40,6 +43,12 @@ export interface RelativeLinkDeps {
   readonly io: () => Promise<PlatformIO>;
   /** `docActions.openFilePath`: through the question about unsaved changes. */
   readonly openFilePath: (path: string, sidebarRoot?: string) => Promise<void>;
+  /**
+   * Open the file in a window of its own (#731), answering whether one was
+   * asked for: `platform/index.ts` `openDocumentWindow`. No on the web build,
+   * and absent where none is wired, and the file then opens in this window.
+   */
+  readonly openWindow?: (path: string) => Promise<boolean>;
   /** What a refusal is told through; the toast in the application. */
   readonly tell?: (message: string) => void;
 }
@@ -49,10 +58,20 @@ export interface RelativeLinkDeps {
  * by the route of a click in the files panel, `openFilePath`, through the
  * question about unsaved changes, and with the root of the panel kept exactly
  * when the panel would keep it, the file being inside the root it lists.
- * Everything else is told in one sentence. Nothing is handed to the operating
- * system: a file that is not markdown is not opened in this round.
+ *
+ * **With Shift, a window of its own** (#731): the file, found present, opens
+ * in a new window and this document is left as it is, with no question, since
+ * nothing closes. The web build has no such window, and opens it here.
+ *
+ * **A file that is not markdown goes to the system** (#731), on either
+ * gesture, through `handOverToSystem`. Everything else is told in one
+ * sentence.
  */
-export async function followRelativeLink(deps: RelativeLinkDeps, address: string): Promise<void> {
+export async function followRelativeLink(
+  deps: RelativeLinkDeps,
+  address: string,
+  inNewWindow = false,
+): Promise<void> {
   const tell = deps.tell ?? ((message: string) => showToast(message, 'info'));
   const target = resolveLinkTarget(deps.documentPath(), address);
   if (target.kind === 'refused') {
@@ -60,11 +79,11 @@ export async function followRelativeLink(deps: RelativeLinkDeps, address: string
     if (message !== '') tell(message);
     return;
   }
+  const io = await deps.io();
   if (!target.markdown) {
-    tell(notMarkdownMessage(target.path));
+    await handOverToSystem(io, target.path, tell);
     return;
   }
-  const io = await deps.io();
   // The answer the broken link check gives for the same link (#729): absent
   // only where the disk was seen not to hold it, so a file in a folder that
   // could not be looked at is tried, never called missing.
@@ -87,7 +106,33 @@ export async function followRelativeLink(deps: RelativeLinkDeps, address: string
     tell(NO_FOLDER_ACCESS_MESSAGE);
     return;
   }
+  if (inNewWindow && (await openedInItsOwnWindow(deps, target.path, presence, tell))) return;
   const root = deps.panelRoot();
   const keep = root !== null && isPathInsideRoot(target.path, root) ? root : undefined;
   await deps.openFilePath(target.path, keep);
+}
+
+/**
+ * The window of its own, or `false` for this window to open the file instead:
+ * the web build, or nothing wired. A file AgentEd could not look in is not
+ * given a window, which would only say it could not read it: it is said here.
+ */
+async function openedInItsOwnWindow(
+  deps: RelativeLinkDeps,
+  path: string,
+  presence: 'present' | 'unknown',
+  tell: (message: string) => void,
+): Promise<boolean> {
+  if (!deps.openWindow) return false;
+  if (presence === 'unknown') {
+    tell(notLookedAtMessage(path));
+    return true;
+  }
+  try {
+    return await deps.openWindow(path);
+  } catch (e) {
+    console.error('[link] the window of its own did not open:', path, e);
+    tell(windowFailedMessage(path));
+    return true;
+  }
 }

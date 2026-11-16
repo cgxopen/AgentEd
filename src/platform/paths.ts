@@ -188,6 +188,32 @@ export function isMarkdownPath(path: string): boolean {
 export const MARKDOWN_EXTENSIONS: readonly string[] = ['md', 'markdown', 'mkd'];
 
 /**
+ * The ten kinds of file AgentEd hands to the application of the system, the
+ * extension group of the `shell.open` scope in `src-tauri/tauri.conf.json`
+ * (#731, owner decision: not widened). The scope is what stands in the way;
+ * this list lets a link say so before anything is handed over, and a test
+ * reads the scope so the two cannot differ.
+ */
+export const SYSTEM_OPEN_EXTENSIONS: readonly string[] = [
+  'txt',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'pdf',
+  'json',
+  'yaml',
+  'yml',
+];
+
+/** Whether `path` names a file of one of the ten kinds, by its extension, any case. */
+export function isSystemOpenPath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return SYSTEM_OPEN_EXTENSIONS.some((extension) => lower.endsWith(`.${extension}`));
+}
+
+/**
  * True iff `target` resolves strictly inside `root` after collapsing
  * `..` segments. Both inputs are treated as forward-slash paths.
  *

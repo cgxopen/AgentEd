@@ -30,14 +30,20 @@ import { reportSystemOpenFailure } from './system-open-failure';
  *     string to the shell is not a thing to do on a click. What is handed is
  *     the address as the URL parser read it (#448). **A relative address is
  *     followed inside AgentEd instead** (#727): `openRelative` opens a
- *     markdown file in this window or says why it does not, and hands
- *     nothing to the OS.
+ *     markdown file in this window, or with Shift in a window of its own
+ *     (#731), or says why it does not. The one relative target it hands to
+ *     the OS is a file of the ten kinds of the `shell.open` scope, found on
+ *     the disk first (#731, `system-hand-over.ts`).
  */
 export interface LinkOpenerOptions {
   /** Hand the URL to the OS, or to a new tab on the web build. */
   openExternal: (url: string) => Promise<void>;
-  /** Follow a relative address inside AgentEd (#727); absent, it does nothing. */
-  openRelative?: (address: string) => void;
+  /**
+   * Follow a relative address inside AgentEd (#727); absent, it does nothing.
+   * `inNewWindow` is the gesture with Shift (#731): Ctrl+Shift+click,
+   * Cmd+Shift+click on a Mac, asks for a window of its own.
+   */
+  openRelative?: (address: string, inNewWindow: boolean) => void;
 }
 
 /** The href under the pointer, or null when the click missed every link. */
@@ -81,7 +87,7 @@ export function installLinkOpener(root: HTMLElement, options: LinkOpenerOptions)
     // judged, rather than the spelling the document holds (#448).
     const address = webAddressFor(href);
     if (address === null) {
-      if (isRelativeLinkAddress(href)) options.openRelative?.(href);
+      if (isRelativeLinkAddress(href)) options.openRelative?.(href, event.shiftKey);
       return;
     }
 
