@@ -181,7 +181,13 @@ describe('the badge, only when a link is broken (#729)', () => {
     expect(badge().style.display).toBe('');
     expect(badge().hasAttribute('aria-hidden')).toBe(false);
     expect(badge().textContent).toBe(linksBadgeLabel(2));
-    expect(badge().title).toBe(linksBadgeTooltip(2));
+    // The form of the Images tooltip: one clause, a dash, no full stop.
+    expect(badge().title).toBe(
+      '2 links in this document point to files that are not there — click for the list',
+    );
+    expect(linksBadgeTooltip(1)).toBe(
+      '1 link in this document points to a file that is not there — click for the list',
+    );
   });
 
   it('opening a document with none broken after one with some withdraws it', async () => {

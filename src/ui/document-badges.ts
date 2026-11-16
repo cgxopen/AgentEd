@@ -45,8 +45,8 @@ export function linksBadgeLabel(broken: number): string {
 }
 export function linksBadgeTooltip(broken: number): string {
   return broken === 1
-    ? '1 link in this document points to a file that is not there. Click for the list.'
-    : `${broken} links in this document point to files that are not there. Click for the list.`;
+    ? '1 link in this document points to a file that is not there — click for the list'
+    : `${broken} links in this document point to files that are not there — click for the list`;
 }
 
 export interface DocumentBadges {
