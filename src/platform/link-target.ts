@@ -11,8 +11,9 @@ import { decodePercentEscapes, isMarkdownPath, normalize } from './paths';
  * **It never yields a path on another machine from a document on a local
  * disk.** On Windows a path to a network share is a network connection (Q3),
  * and opening one can hand the credentials of the person to that machine. So
- * the path is built from the root of the document - a drive, `/`, or the
- * `//host/share` of a document opened from a share - and the clean segments of
+ * the path is built from the root of the document - a drive, `/`, the
+ * `//host/share` of a document opened from a share, or the share or drive a
+ * Windows device path names - and the clean segments of
  * the address, never from a root the address spells: an address that starts
  * with `/` or a backslash is refused before anything else, `..` stops at the
  * root of the document instead of climbing past it, and empty segments are
@@ -53,6 +54,14 @@ function splitDocumentFolder(documentPath: string): Rooted {
   const path = normalize(documentPath);
   const parts = path.split('/');
   parts.pop();
+  if (/^\/\/[?.]\//.test(path)) {
+    // A Windows device path, `\\?\` or `\\.\`: its root takes the share of
+    // `\\?\UNC\host\share`, and the drive or volume otherwise, so `..` can no
+    // more climb to another host from it than from `\\host\share`.
+    const segments = parts.filter((s) => s.length > 0);
+    const take = segments[1]?.toUpperCase() === 'UNC' ? 4 : 2;
+    return { root: `//${segments.slice(0, take).join('/')}`, folders: segments.slice(take) };
+  }
   if (/^\/\/[^/]/.test(path)) {
     const segments = parts.filter((s) => s.length > 0);
     return { root: `//${segments.slice(0, 2).join('/')}`, folders: segments.slice(2) };
