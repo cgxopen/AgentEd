@@ -168,6 +168,7 @@ describe('the header after opening a document with context files around it (#401
       'indicator-search',
       'badge-metadata',
       'badge-images',
+      'badge-links',
     ]);
   });
 

@@ -1,15 +1,17 @@
 import type { Editor } from '@tiptap/core';
 
 /**
- * The two document-kind badges of R-C12: «Metadata» when the document
- * carries a frontmatter block, «Images» when it references images.
+ * The three document badges of R-C12: «Metadata» when the document
+ * carries a frontmatter block, «Images» when it references images, and
+ * «Links» when a relative link of it names a file that is not there (#729).
  *
- * **Purely descriptive.** Neither badge validates anything, blocks
- * anything or warns about anything — R-C12 says so and CLAUDE.md
- * repeats it. «Metadata» is hover-only; only «Images» takes a click,
- * because only «Images» has something more to say than its own tooltip.
+ * **Purely descriptive.** No badge blocks anything, and none repairs
+ * anything — R-C12 says so and CLAUDE.md repeats it. «Links» is the one
+ * that reports a problem, and it says only what the last check found.
+ * «Metadata» is hover-only; «Images» and «Links» take a click, because
+ * each has more to say than its own tooltip.
  *
- * **A plain document shows neither**, which is the common case and the
+ * **A plain document shows none**, which is the common case and the
  * reason the statusbar stays quiet: the badges are declared withdrawn in
  * `index.html` and only a document that warrants one brings it back.
  *
@@ -17,15 +19,16 @@ import type { Editor } from '@tiptap/core';
  *
  * «Metadata» then «Images», reading the document top to bottom: the
  * metadata block is the first thing in the file and the images are in
- * its body. They are the last two indicators in the bar, and the row
- * runs from the counts to what this document *is*.
+ * its body. «Links» comes last, since it is about other files rather than
+ * this one. They are the last indicators in the bar, and the row runs from
+ * the counts to what this document *is*.
  *
  * ── The breakpoint ──
  *
- * Both take `indicator-collapse-600`. They are the same kind of control
- * — derived from the document, silent when it does not warrant them, and
- * reachable from the overflow menu once the bar drops them — so a user
- * who has learnt one has learnt the other. They cost a plain document
+ * All three take `indicator-collapse-600`. They are the same kind of
+ * control — derived from the document, silent when it does not warrant
+ * them, and reachable from the overflow menu once the bar drops them — so a
+ * user who has learnt one has learnt the others. They cost a plain document
  * nothing at any width, because a plain document never shows them.
  */
 
@@ -36,16 +39,30 @@ export const METADATA_BADGE_TOOLTIP =
 export const IMAGES_BADGE_LABEL = 'Images';
 export const IMAGES_BADGE_TOOLTIP = 'This document references images — click for details';
 
+/** The third badge (#729): only when a relative link of the document names a file not there. */
+export function linksBadgeLabel(broken: number): string {
+  return `Links: ${broken} broken`;
+}
+export function linksBadgeTooltip(broken: number): string {
+  return broken === 1
+    ? '1 link in this document points to a file that is not there — click for the list'
+    : `${broken} links in this document point to files that are not there — click for the list`;
+}
+
 export interface DocumentBadges {
   /** Redraw «Metadata» from the document's current metadata block. */
   refreshMetadata: (frontmatter: string | null) => void;
   /** Redraw «Images» from the document currently in the editor. */
   refreshImages: () => void;
+  /** Redraw «Links» from the last check: shown only when `broken` is above 0. */
+  refreshLinks: (broken: number) => void;
 }
 
 export interface DocumentBadgesCallbacks {
   /** Fired when the user clicks «Images». Toggles the popover. */
   onImagesToggle: () => void;
+  /** Fired when the user clicks «Links». Toggles its list. */
+  onLinksToggle?: () => void;
 }
 
 /**
@@ -164,9 +181,11 @@ export function anyImageIn(root: WalkableNode): boolean {
  * reached a popover with nothing to show. Below 600px that clone is the
  * only route there is. `aria-hidden="true"` is the word the menu reads to
  * tell *this module has withdrawn it* from *the breakpoint took it out of
- * the bar* — see `isOfferedInOverflow`. These two badges are the only
+ * the bar* — see `isOfferedInOverflow`. These three badges are the only
  * indicators that use the convention, the context indicator it was first
- * written for having left on #401.
+ * written for having left on #401. **An indicator that withdraws itself
+ * calls this**, wherever it is written: `header-wiring.ts` reads the
+ * attribute, and this is where the convention is written for the writer.
  */
 function withdraw(el: HTMLElement): void {
   el.style.display = 'none';
@@ -191,10 +210,11 @@ export function setupDocumentBadges(
   if (!metadataEl || !imagesEl) {
     // Defensive: tests and partial mounts get a handle that does nothing
     // rather than a throw.
-    return { refreshMetadata: () => {}, refreshImages: () => {} };
+    return { refreshMetadata: () => {}, refreshImages: () => {}, refreshLinks: () => {} };
   }
   const metadata = metadataEl;
   const images = imagesEl;
+  const links = document.getElementById('badge-links');
 
   // **No `stopPropagation`, deliberately**, the same choice the appearance
   // trigger makes and for the same reason: letting the click reach the
@@ -203,6 +223,9 @@ export function setupDocumentBadges(
   // overlapping, since the two use the same positioning rule.
   images.addEventListener('click', () => {
     callbacks.onImagesToggle();
+  });
+  links?.addEventListener('click', () => {
+    callbacks.onLinksToggle?.();
   });
 
   function refreshMetadata(frontmatter: string | null): void {
@@ -223,5 +246,20 @@ export function setupDocumentBadges(
     present(images, IMAGES_BADGE_LABEL, IMAGES_BADGE_TOOLTIP);
   }
 
-  return { refreshMetadata, refreshImages };
+  /**
+   * «Links» follows the check of #729, which runs at open and at save, not the
+   * edit: the count is what the last check found, and withdrawing on 0 is the
+   * convention of the two badges above, so the overflow menu never offers it
+   * with nothing to show.
+   */
+  function refreshLinks(broken: number): void {
+    if (!links) return;
+    if (broken <= 0) {
+      withdraw(links);
+      return;
+    }
+    present(links, linksBadgeLabel(broken), linksBadgeTooltip(broken));
+  }
+
+  return { refreshMetadata, refreshImages, refreshLinks };
 }

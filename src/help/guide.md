@@ -35,7 +35,7 @@ To add a metadata block to a document, choose **Insert → Metadata**, then **Do
 
 The header at the top of the window shows counts for the document: an estimated token count to help gauge LLM context budget, and its words and characters. They change as you type. Point at the token count for details.
 
-Badges appear beside them when they apply: **Metadata** when the document has a metadata block, and **Images** when it uses images. Click **Images** for a summary of the images the document uses. In a narrow window, some of these move into the list behind the three dots.
+Badges appear beside them when they apply: **Metadata** when the document has a metadata block, **Images** when it uses images, and **Links** when a link of the document to another file points to a file that is not there. Click **Images** for a summary of the images the document uses. Click **Links** for the list of those links; click a link in the list to go to it in the document. The list also shows, apart, the links AgentEd did not check and why, such as a link to a heading. Links to web pages are never checked. AgentEd checks the links when the document opens and when you save it, so a file moved or renamed since then is not shown until the next save. In a narrow window, some of these move into the list behind the three dots.
 
 ## Formatting text
 

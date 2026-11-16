@@ -18,7 +18,7 @@ import { setupDocumentBadges } from './document-badges';
 function mount(): void {
   document.body.innerHTML = `
     <button id="badge-images" type="button" class="indicator" aria-expanded="false"></button>
-    <aside id="assets-popover" class="cluster-popover hidden" role="dialog"></aside>`;
+    <aside id="assets-popover" class="header-popover hidden" role="dialog"></aside>`;
 }
 
 const COUNTED: AssetsSummary = {
@@ -185,7 +185,7 @@ describe('mutual exclusion with the appearance popover', () => {
     const close = shippedPage.indexOf('</header>');
     if (open < 0 || close < 0) throw new Error('index.html no longer has a #menubar header');
     document.body.innerHTML = `${shippedPage.slice(open, close + '</header>'.length)}
-      <aside id="assets-popover" class="cluster-popover hidden"></aside>
+      <aside id="assets-popover" class="header-popover hidden"></aside>
       <aside id="appearance-popover" class="appearance-popover hidden"></aside>`;
   }
 

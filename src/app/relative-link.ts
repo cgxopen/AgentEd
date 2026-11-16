@@ -2,6 +2,7 @@ import { type LinkRefusal, resolveLinkTarget } from '../platform/link-target';
 import { basename, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import { showToast } from '../ui/toast';
+import { establishedPresence } from './entry-absence';
 
 /**
  * What the person reads when a relative link is not followed (#727), one
@@ -64,7 +65,10 @@ export async function followRelativeLink(deps: RelativeLinkDeps, address: string
     return;
   }
   const io = await deps.io();
-  const presence = await io.entryPresence(target.path);
+  // The answer the broken link check gives for the same link (#729): absent
+  // only where the disk was seen not to hold it, so a file in a folder that
+  // could not be looked at is tried, never called missing.
+  const presence = await establishedPresence(io, target.path);
   if (presence === 'absent') {
     tell(missingTargetMessage(target.path));
     return;

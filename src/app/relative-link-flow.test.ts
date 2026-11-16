@@ -64,7 +64,11 @@ const io: PlatformIO = {
     if (documentUnknown) return 'unknown';
     return disk.has(path) || folders.has(path) ? 'present' : 'absent';
   },
-  listDir: async (): Promise<FileEntry[]> => [],
+  listDir: async (path: string): Promise<FileEntry[]> => {
+    // A folder shut to the person: it is there, and it cannot be listed.
+    if (path === '/notes/docs/shut') throw new Error('permission denied');
+    return [];
+  },
   mkdir: async () => {},
   openWithSystem: vi.fn(async () => {}),
 } as unknown as PlatformIO;
@@ -106,7 +110,7 @@ beforeEach(async () => {
     [C, '# Gamma\n'],
     ['/notes/docs/x.pdf', '%PDF'],
   ]);
-  folders = new Set([ROOT, '/notes/docs', '/notes/docs/sub']);
+  folders = new Set([ROOT, '/notes/docs', '/notes/docs/sub', '/notes/docs/shut']);
   documentUnknown = false;
   panelRoot = ROOT;
   opened = [];
@@ -242,6 +246,14 @@ describe('a relative link to a markdown file opens it, as a click in the panel d
     panelRoot = '/notes/docs/sub';
     await ctrlClick('b');
     expect(opened).toEqual([{ path: B, root: undefined }]);
+  });
+});
+
+describe('a link into a folder that cannot be looked at (#729)', () => {
+  it('is tried, as the broken link check lists it as not checked, never called missing', async () => {
+    await followRelativeLink(deps(), 'shut/x.md');
+    expect(toasts).not.toContain(missingTargetMessage('/notes/docs/shut/x.md'));
+    expect(opened).toEqual([{ path: '/notes/docs/shut/x.md', root: ROOT }]);
   });
 });
 
