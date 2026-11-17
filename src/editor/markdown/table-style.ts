@@ -79,6 +79,26 @@ export interface ColumnStyle {
   readonly width: number;
   /** The separator cell for this column, exactly as the file spelled it. */
   readonly separator: string;
+  /**
+   * Where a `fixed` column puts its padding (#734). Absent means after the
+   * text, the only side there was before, so a style written by an earlier
+   * version reads the same. `start` puts it before the text, as a formatter
+   * aligns a right column; `centre` splits it, and an odd space goes after
+   * the text, which is how every centred column of the corpus that splits
+   * unevenly was written. Only a `fixed` column carries it.
+   */
+  readonly side?: 'start' | 'centre';
+}
+
+/** Where the padding of a `fixed` column sits, as `ColumnStyle.side` says. */
+export function padCell(content: string, width: number, side: ColumnStyle['side']): string {
+  if (side === 'start') return content.padStart(width);
+  if (side === 'centre') {
+    const room = Math.max(0, width - content.length);
+    const before = Math.floor(room / 2);
+    return `${' '.repeat(before)}${content}${' '.repeat(room - before)}`;
+  }
+  return content.padEnd(width);
 }
 
 export interface TableStyle {
@@ -165,11 +185,13 @@ function findTableBlocks(markdown: string): string[][] {
  * Read one table block's spelling.
  *
  * A column is `fixed` when every one of its cells is the same width and each
- * is the content padded on the right — that is what a hand-aligned table
- * looks like. Anything else is `hug`, which is also the answer for a column
- * whose rows disagree with each other: such a table is written in the
- * spelling most of it uses and then holds still, rather than being preserved
- * character for character (recorded in R-C2).
+ * is the content padded on one side the whole column shares — after the text,
+ * before it, or split around it (#734) — which is what a hand-aligned or
+ * formatted table looks like. Anything else is `hug`, which is also the
+ * answer for a column whose rows disagree with each other, in width or in
+ * the side of their padding: such a table is written in the spelling most of
+ * it uses and then holds still, rather than being preserved character for
+ * character (recorded in R-C2).
  */
 function readStyle(block: string[]): TableStyle {
   const rows = block.map(splitRow);
@@ -181,26 +203,43 @@ function readStyle(block: string[]): TableStyle {
 
   for (let k = 0; k < columnCount; k++) {
     const cells = data.map((row) => row[k]).filter((cell) => cell !== undefined);
-    // Uniform: every cell the same width, content left, spaces right — the
-    // shape of a hand-aligned column. Padded: at least one cell has more
-    // than the single space hugging would give it, which is what tells the
-    // two apart when a column's contents happen to be equally long.
-    const uniform = cells.every(
-      (cell) =>
-        cell.length === cells[0].length && cell === ` ${cell.trim().padEnd(cell.length - 2)} `,
-    );
+    // Padded: at least one cell has more than the single space hugging would
+    // give it, which is what tells a fixed column from a hugged one when its
+    // contents happen to be equally long.
     const padded = cells.some((cell) => cell.trim().length + 2 < cell.length);
-    const fixed = uniform && padded;
+    const side = padded ? sharedSide(cells) : null;
     // `|  |` is what hugging an empty cell produces by itself; only the
     // shorter spelling has to be remembered.
     if (cells.some((cell) => cell === ' ')) emptyCell = ' ';
-    columns.push({
-      kind: fixed ? 'fixed' : 'hug',
+    const column: ColumnStyle = {
+      kind: side === null ? 'hug' : 'fixed',
       width: header[k]?.length ?? 0,
       separator: separator[k] ?? ' --- ',
-    });
+    };
+    columns.push(side === null || side === 'end' ? column : { ...column, side });
   }
   return { columns, emptyCell };
+}
+
+/** The sides a padded column is tried with, after the text first. */
+const SIDES = ['end', 'start', 'centre'] as const;
+
+/**
+ * The one side every cell of a column puts its padding on, or null when the
+ * cells differ in width or in side.
+ *
+ * After the text is tried first, so a column read as `fixed` before #734 is
+ * read the same now. A column whose cells all fit more than one side has no
+ * padding a side would move, so which one wins writes the same bytes.
+ */
+function sharedSide(cells: string[]): 'end' | 'start' | 'centre' | null {
+  const width = cells[0]?.length ?? 0;
+  if (width < 2 || cells.some((cell) => cell.length !== width)) return null;
+  for (const side of SIDES) {
+    const kept = side === 'end' ? undefined : side;
+    if (cells.every((cell) => cell === ` ${padCell(cell.trim(), width - 2, kept)} `)) return side;
+  }
+  return null;
 }
 
 /** The spelling of every table in `markdown`, in document order. */
@@ -316,7 +355,7 @@ export function decodeTableStyle(value: string | null): TableStyle | null {
     if (typeof column !== 'object' || column === null) {
       return refuse('a column that is not an object');
     }
-    const { kind, width, separator } = column as Record<string, unknown>;
+    const { kind, width, separator, side } = column as Record<string, unknown>;
     if (kind !== 'hug' && kind !== 'fixed') return refuse('a column of an unknown kind');
     if (
       typeof width !== 'number' ||
@@ -329,7 +368,11 @@ export function decodeTableStyle(value: string | null): TableStyle | null {
     if (typeof separator !== 'string' || !isSafeSeparatorCell(separator)) {
       return refuse('a separator cell holding something other than dashes, colons and spaces');
     }
-    safe.push({ kind, width, separator });
+    // Absent is after the text, as every style before #734 was written.
+    if (side !== undefined && side !== 'start' && side !== 'centre') {
+      return refuse('a padding side this cannot write');
+    }
+    safe.push(side === undefined ? { kind, width, separator } : { kind, width, separator, side });
   }
   if (emptyCell !== null && emptyCell !== undefined && emptyCell !== ' ') {
     return refuse('an empty-cell spelling this cannot write');
@@ -345,8 +388,8 @@ function encodeTableStyle(style: TableStyle): string {
  * The characters that would end the attribute or open an element.
  *
  * The encoded style holds only the first of them today — a separator cell is
- * dashes, colons and spaces, a kind is one of two words, a width is a number
- * — and the escape covers all four rather than that one, because the
+ * dashes, colons and spaces, a kind and a side are each one of two words, a
+ * width is a number — and the escape covers all four rather than that one, because the
  * question is not which characters appear today but which ones can be
  * written into an HTML attribute. Same argument as the alt escape in
  * `parse.ts`, one file over.

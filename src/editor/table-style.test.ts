@@ -163,6 +163,20 @@ describe('the spelling survives the document model, not just the text', () => {
     expect(separators[1]).toBe('|---|---|');
   });
 
+  it('gives a new table the side of the first table, as it gives it the widths (#734)', () => {
+    // R-C2: a table the user creates takes the spelling of the first table
+    // in the document. Before #734 a column padded before its text was read
+    // as hugged, so a new table under it was hugged; it now takes the side
+    // with the width, as a column padded after its text always did.
+    const editor = editorWith('| a | Count |\n| - | ----: |\n| x |     1 |');
+    const styled = editor.editor.getHTML();
+    editor.editor.commands.setContent(
+      `${styled}<p>text</p><table><tbody><tr><th>c</th><th>d</th></tr><tr><td>e</td><td>f</td></tr></tbody></table>`,
+    );
+    const lines = editor.getMarkdown().trim().split('\n');
+    expect(lines.slice(-3)).toEqual(['| c |     d |', '| - | ----: |', '| e |     f |']);
+  });
+
   it('writes a table created in an empty document with hugged cells', () => {
     // The default, and the only case it decides. Owner decision, 2026-08-24.
     const editor = editorWith('');
