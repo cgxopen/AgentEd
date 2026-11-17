@@ -100,7 +100,7 @@ A document you open from your file manager gets a window of its own, with its ow
 
 ## When a file changes outside AgentEd
 
-If another program changes a file while you have it open, AgentEd notices when you save and asks what to do: reload the file from disk, overwrite it with your version, or save your version somewhere else. It never overwrites a changed file without asking.
+If another program changes a file while you have it open, AgentEd notices when you save and asks what to do: reload the file from disk, overwrite it with your version, or save your version somewhere else. **Cancel** writes nothing and leaves your changes in the editor, still unsaved. It never overwrites a changed file without asking.
 
 ## Printing and exporting to PDF
 
