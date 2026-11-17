@@ -31,8 +31,8 @@
  *    written there either, since it would move the content of the item.
  *  - **A document with no metadata block** whose first line would open one is
  *    answered after the whole body is written, by `splitFrontmatter` alone
- *    (`formats/frontmatter.ts`, #304). `---` is never carried, so a carried
- *    spelling cannot make that line; where `---` is written, it still decides.
+ *    (`formats/frontmatter.ts`, #304). The carried spellings are written by
+ *    then, so it decides on the body as written, whatever each rule carries.
  *
  * A rule under a block with no blank line between, where the file wrote it
  * so, is read again as a pair by `adjacency-save.ts`, which sees the spelling
