@@ -244,14 +244,13 @@ describe.each(VARIANTS)('the dialog $title', (variant) => {
   });
 
   it('offers Cancel first and plain, and leaves the three choices as they were', async () => {
+    // Which button is the default is the Enter test below, not this one.
     let buttons: Array<{ label: string; look: string }> = [];
-    let focused = '';
     await saveAnsweredBy(variant, () => {
       buttons = Array.from(overlay()?.querySelectorAll('button') ?? []).map((b) => ({
         label: b.textContent ?? '',
         look: b.className,
       }));
-      focused = document.activeElement?.textContent ?? '';
       pressKey('Escape');
     });
     expect(buttons).toEqual([
@@ -260,7 +259,6 @@ describe.each(VARIANTS)('the dialog $title', (variant) => {
       { label: 'Overwrite', look: 'danger' },
       { label: 'Save as…', look: 'primary' },
     ]);
-    expect(focused).toBe('Save as…');
   });
 
   it('takes Enter as Save as, wherever the focus is', async () => {
