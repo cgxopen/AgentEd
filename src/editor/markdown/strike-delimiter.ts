@@ -21,12 +21,13 @@
  *
  * ── Checked at save ──
  *
- * One tilde closes at the first tilde after it, so it holds less than two do:
- * `~a~b~` is a strike over `a` and then text, where `~~a~b~~` is one strike.
- * An edit can type a tilde into the struck text, or white space at its edge.
- * So one tilde is written only where the struck text holds no tilde and has
- * the shape `marked` admits for one, and two are written otherwise, the
- * spelling of before.
+ * One tilde closes at the first tilde after it that follows a character
+ * other than white space, so it holds less than two do: `~a~b~` is a strike
+ * over `a` and then text, where `~~a~b~~` is one strike. An edit can type a
+ * tilde into the struck text, or white space at its edge. So one tilde is
+ * written only where the expression `marked` reads one with reads the strike,
+ * written with one, as one strike over the whole text, and two are written
+ * otherwise, the spelling of before.
  *
  * What stands beside the strike is not asked. Measured on `marked` 15 for a
  * tilde, a strike, a strong emphasis, an image and a link on either side, one
@@ -59,15 +60,14 @@ export function strikeDelimiterMarkAttribute() {
   };
 }
 
-/** The `del` of `marked` 15 for one tilde, anchored on the whole strike. */
-const ONE_TILDE_STRIKE = /^~(?=[^\s~])(?:\\.|[^\\])*?(?:\\.|[^\s~\\])~$/;
+/** The `del` of `marked` 15, for one tilde: it closes where `marked` would. */
+const ONE_TILDE_STRIKE = /^~(?=[^\s~])(?:\\.|[^\\])*?(?:\\.|[^\s~\\])~(?=[^~]|$)/;
 
 /** The delimiter to write `node` with, around `content`, its markdown already written. */
 export function strikeDelimiter(node: Node, content: string): string {
   const element = node as HTMLElement;
   if (element.getAttribute?.(STRIKE_DELIMITER_ATTRIBUTE) !== ONE_TILDE) return TWO_TILDES;
-  if (content.includes(ONE_TILDE) || !ONE_TILDE_STRIKE.test(`${ONE_TILDE}${content}${ONE_TILDE}`)) {
-    return TWO_TILDES;
-  }
-  return ONE_TILDE;
+  const written = `${ONE_TILDE}${content}${ONE_TILDE}`;
+  // The strike must close at its own last tilde, not at one inside it.
+  return ONE_TILDE_STRIKE.exec(written)?.[0].length === written.length ? ONE_TILDE : TWO_TILDES;
 }

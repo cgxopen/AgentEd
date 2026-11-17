@@ -162,6 +162,7 @@ describe('an unedited save keeps the spelling of the file (#744)', () => {
     ['a single-tilde strike', 'A ~gone~ word.\n'],
     ['single-tilde strikes inside a word and beside a two-tilde one', 'x~a~y and ~b~ and ~~c~~\n'],
     ['two tildes read as one strike, as GitHub reads them', 'About ~57 MB), cache (~2 s).\n'],
+    ['a strike holding a tilde after a space', 'Reads ~50k and ~10k writes~ a second.\n'],
     ['a single-tilde strike in a cell', '| a |\n| - |\n| ~b~ |\n'],
     ['a rule of three stars', 'Before\n\n***\n\nAfter\n'],
     ['a rule of three underscores', 'Before\n\n___\n\nAfter\n'],
