@@ -101,7 +101,8 @@ const CASES = {
   right: '| Item | Count |\n| ---- | ----: |\n| a    |     1 |\n| b    |    23 |\n',
   none: '| Item | Count |\n| ---- | ----- |\n| a    |     1 |\n| b    |    23 |\n',
   left: '| Item |  Note |\n| ---- | :---- |\n| a    |     x |\n| b    |    yy |\n',
-  centre: '| Item |  Mid  |\n| ---- | :---: |\n| a    |   x   |\n| b    |  yy   |\n',
+  // The separator dashes fill the column, the shape #734 measured respelled.
+  centre: '| Item |   Mid   |\n| ---- | :-----: |\n| a    |    x    |\n| b    |   yy    |\n',
   after: '| Item | Count |\n| ---- | ----: |\n| a    | 1     |\n| b    | 23    |\n',
 } as const;
 
