@@ -53,11 +53,11 @@ describe('strikethrough survives the editor (R-C2)', () => {
     expect(editor.getMarkdown().trim()).toBe('`~~a~~`');
   });
 
-  it('KNOWN EXCEPTION: single-tilde strikethrough is written with two', () => {
-    // Recorded in REQUIREMENTS under R-C2, and pinned at the pair level too:
-    // the mark does not carry the delimiter the file used.
+  it('a single-tilde strikethrough is written with one (#744)', () => {
+    // Until #744 the mark did not carry the delimiter the file used, and this
+    // was an R-C2 exception; see `markdown/strike-delimiter.ts`.
     const editor = editorWith('a ~b~ c');
-    expect(editor.getMarkdown().trim()).toBe('a ~~b~~ c');
+    expect(editor.getMarkdown().trim()).toBe('a ~b~ c');
   });
 });
 

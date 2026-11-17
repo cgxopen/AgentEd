@@ -89,6 +89,8 @@ import {
 } from './markdown/list-marker';
 import { LIST_SPACING_ATTRIBUTE } from './markdown/list-spacing';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceMarkAttribute } from './markdown/reference';
+import { ruleSpellingNodeAttribute } from './markdown/rule-spelling';
+import { strikeDelimiterMarkAttribute } from './markdown/strike-delimiter';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './markdown/table-html-source';
 import { TABLE_STYLE_ATTRIBUTE } from './markdown/table-style';
 import { HTML_BLOCK_SOURCE_ATTRIBUTE } from './markdown/tag-filter';
@@ -579,6 +581,22 @@ function starterKitWithLocalSchemaRules() {
           return extension.extend({
             addAttributes() {
               return { ...this.parent?.(), ...emphasisDelimiterMarkAttribute() };
+            },
+          });
+        }
+        // The one tilde a file wrote a strikethrough with (#744).
+        if (extension.name === 'strike') {
+          return extension.extend({
+            addAttributes() {
+              return { ...this.parent?.(), ...strikeDelimiterMarkAttribute() };
+            },
+          });
+        }
+        // The spelling a file gave a rule, where not `---` (#744).
+        if (extension.name === 'horizontalRule') {
+          return extension.extend({
+            addAttributes() {
+              return { ...this.parent?.(), ...ruleSpellingNodeAttribute() };
             },
           });
         }

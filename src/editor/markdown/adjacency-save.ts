@@ -22,8 +22,8 @@
  * container prefix of their lines, and read by the block lexer twice, a
  * blank line apart and adjacent. The blank line goes only where both read
  * as the same blocks. This is the trap of the issue: `Text.` over `***` is
- * two blocks, but the rule is written `---`, and `Text.` over `---` is a
- * heading. Each pair is read once, so the cost grows with the document and
+ * two blocks, but the rule was written `---` until #744, and `Text.` over
+ * `---` is a heading; a rule the editor makes is still written `---`. Each pair is read once, so the cost grows with the document and
  * not with its square, which the step zero measured at 136 s for one save.
  * One pair is refused by kind rather than by reading: a reference definition
  * over a rule, which GitHub reads otherwise than the lexer does.
@@ -219,8 +219,9 @@ function readsTheSame(
 
 /**
  * Whether the pair is a reference definition over a rule, which is refused
- * whatever the rule's spelling (AMP review of #592). The rule is always
- * written `---`, and cmark-gfm, which GitHub uses, reads `---` directly
+ * whatever the rule's spelling (AMP review of #592). A rule the editor
+ * makes, or one its file spelled so, is written `---` (#744 keeps every other
+ * spelling), and cmark-gfm, which GitHub uses, reads `---` directly
  * under a definition as the text `---`, where `marked` reads a rule: so the
  * lexer cannot see this loss, and it is refused by kind. A footnote
  * definition over a rule needs no refusal: cmark-gfm reads a rule there.

@@ -37,10 +37,12 @@ export function assembleMarkdown(document: MarkdownDocument): string {
  * function's own answer, and in a body the editor wrote it is a rule: a
  * paragraph holding three hyphens is written escaped.
  *
- * It rests on a recorded R-C2 exception — a rule is written with three
- * hyphens whatever the file used — which is why every rule after the first
- * still reads `---`. A file already on disk spelled `---` … `---` is read as
- * metadata before this runs, and is not reached by it.
+ * A rule is written `---` where the editor made it or its file spelled it so,
+ * and in the spelling of its file otherwise (#744). Whatever spelling it
+ * carries, the question is asked of the body once it is written, so a carried
+ * spelling cannot open a block this does not see. A file already on disk
+ * spelled `---` … `---` is read as metadata before this runs, and is not
+ * reached by it.
  */
 function bodyThatOpensNoBlock(body: string): string {
   if (splitFrontmatter(body).raw === null) return body;
