@@ -150,6 +150,27 @@ export async function openHelpWindow(id: HelpId): Promise<void> {
 }
 
 /**
+ * Open the markdown file at `path` in a window of its own (#731, owner
+ * decision): the document in front of the person is not touched and no
+ * question is asked, since nothing closes. Answers whether a window was asked
+ * for.
+ *
+ * **The window is the help window of #701 with a path**, so `isTauri` answers
+ * the question it owns, which window there is: `open_document_window` in
+ * `src-tauri/src/document_window.rs` starts a second AgentEd process with the
+ * path as its one argument on Windows and Linux, and opens a window of this
+ * process on macOS. **The web build answers no**: a new tab would hold no
+ * folder grant and could not read the file, so the caller opens it in this
+ * tab instead (owner decision on #731).
+ */
+export async function openDocumentWindow(path: string): Promise<boolean> {
+  if (!isTauri) return false;
+  const { invoke } = await import('@tauri-apps/api/core');
+  await invoke('open_document_window', { path });
+  return true;
+}
+
+/**
  * The help this window was opened for, or `null` for any other window. Asked
  * once, at start: the process hands it over once, and a web tab reads its
  * query. A word that names no help is `null`, so a hand-made query opens an

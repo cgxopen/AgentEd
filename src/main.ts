@@ -39,6 +39,7 @@ import type { HelpId } from './help/ids';
 import { isTauri } from './platform/detect';
 import {
   getPlatformIO,
+  openDocumentWindow,
   openHelpWindow,
   ownWindowFrame,
   requestFolderAccess,
@@ -160,15 +161,19 @@ installLinkOpener(editorEl, {
   },
   // A relative link to a markdown file opens it here, by the route of a
   // click in the files panel (#727).
-  openRelative: (address) => {
+  // With Shift, in a window of its own (#731); a file that is not markdown
+  // goes to the system.
+  openRelative: (address, inNewWindow) => {
     void followRelativeLink(
       {
         documentPath: () => ctx.state.filePath,
         panelRoot: () => ctx.sidebar.listedRoot(),
         io: getPlatformIO,
         openFilePath: (path, root) => docActions.openFilePath(path, root),
+        openWindow: openDocumentWindow,
       },
       address,
+      inNewWindow,
     ).catch((e: unknown) => console.error('[link] a relative link was not followed:', e));
   },
 });

@@ -36,10 +36,22 @@ function chordsOf(cell: string): string[] {
 
 /**
  * Chords no keymap of ours answers, by their nature: the system clipboard
- * chords, which the web view runs, and the click that follows a link, which
- * is a pointer gesture (`app/link-open.ts`).
+ * chords, which the web view runs, and the clicks that follow a link, with
+ * Shift for a window of its own (#731), which are pointer gestures
+ * (`app/link-open.ts`).
  */
-const NATIVE = new Set(['Ctrl', 'Cmd', 'Ctrl+C', 'Ctrl+X', 'Ctrl+V', 'Cmd+C', 'Cmd+X', 'Cmd+V']);
+const NATIVE = new Set([
+  'Ctrl',
+  'Cmd',
+  'Ctrl+Shift',
+  'Cmd+Shift',
+  'Ctrl+C',
+  'Ctrl+X',
+  'Ctrl+V',
+  'Cmd+C',
+  'Cmd+X',
+  'Cmd+V',
+]);
 
 /**
  * A chord as a set of keys, so `Ctrl+Shift+Z`, `Mod-Shift-z` and

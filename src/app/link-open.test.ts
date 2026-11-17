@@ -298,17 +298,17 @@ describe('the editor renders links without a target', () => {
   });
 });
 
-describe('a relative link is followed inside AgentEd, never by the system (#727)', () => {
+describe('a relative link goes to the relative route (#727), with Shift for a window of its own (#731)', () => {
   let ownRoot: HTMLElement;
   let external: Mock<(url: string) => Promise<void>>;
-  let relative: Mock<(address: string) => void>;
+  let relative: Mock<(address: string, inNewWindow: boolean) => void>;
   let stop: () => void;
 
   beforeEach(() => {
     ownRoot = document.createElement('div');
     document.body.appendChild(ownRoot);
     external = vi.fn<(url: string) => Promise<void>>().mockResolvedValue(undefined);
-    relative = vi.fn<(address: string) => void>();
+    relative = vi.fn<(address: string, inNewWindow: boolean) => void>();
     stop = installLinkOpener(ownRoot, { openExternal: external, openRelative: relative });
   });
 
@@ -326,10 +326,31 @@ describe('a relative link is followed inside AgentEd, never by the system (#727)
     'Ctrl+click on %s goes to the relative route, with the address as the document holds it',
     (href) => {
       click(link(href), { ctrlKey: true });
-      expect(relative).toHaveBeenCalledWith(href);
+      expect(relative).toHaveBeenCalledWith(href, false);
       expect(external).not.toHaveBeenCalled();
     },
   );
+
+  it.each(['docs/setup.md', '../b.md', 'x.pdf'])(
+    'Ctrl+Shift+click on %s asks for a window of its own (#731)',
+    (href) => {
+      click(link(href), { ctrlKey: true, shiftKey: true });
+      expect(relative).toHaveBeenCalledWith(href, true);
+      expect(external).not.toHaveBeenCalled();
+    },
+  );
+
+  it('Ctrl+Shift on the mousedown is claimed before ProseMirror, as Ctrl is (#731)', () => {
+    const { event, reachedEditor } = mouseDown(link('a.md'), { ctrlKey: true, shiftKey: true });
+    expect(reachedEditor).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('a web link with Shift keeps its route, the browser (#731)', () => {
+    click(link('https://example.com'), { ctrlKey: true, shiftKey: true });
+    expect(external).toHaveBeenCalledWith('https://example.com/');
+    expect(relative).not.toHaveBeenCalled();
+  });
 
   it('a web link keeps its route', () => {
     click(link('https://example.com'), { ctrlKey: true });

@@ -197,7 +197,8 @@ You can remove those folders separately if you also want to delete the applicati
 |---------|-------|--------|
 | `Ctrl+B` / `Ctrl+I` / `Ctrl+U` | `Cmd+B` / `Cmd+I` / `Cmd+U` | Bold / Italic / Underline |
 | `Ctrl+K` | `Cmd+K` | Insert link, or edit/remove the link at the caret |
-| `Ctrl` + click | `Cmd` + click | Open a web link in the browser, or a linked markdown file in AgentEd |
+| `Ctrl` + click | `Cmd` + click | Open a web link in the browser, a linked markdown file in AgentEd, or a linked file of another kind in the application of the system |
+| `Ctrl+Shift` + click | `Cmd+Shift` + click | Open a linked markdown file in a window of its own |
 | `Ctrl+E` | `Cmd+E` | Inline code |
 | `Ctrl+Shift+K` | `Cmd+Shift+K` | Code block |
 | `Ctrl+Alt+1` … `Ctrl+Alt+6` | `Cmd+Option+1` … `Cmd+Option+6` | Heading level 1–6 |

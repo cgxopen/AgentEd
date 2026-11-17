@@ -4,6 +4,8 @@ AgentEd is a local desktop application that makes no network calls of its own: n
 
 The desktop build may read and write any path the account running it can reach: its file-system scope is `**`, on purpose. What stands in front of the webview is DOMPurify on the HTML the editor is given, the Content Security Policy of the desktop build with no `unsafe-inline`, an inert container for the HTML that is parsed before the sanitizer, and no remote content; narrowing the scope would protect only the folders AgentEd is never asked to open, since every document, its `assets/` folder and every recent file has to stay reachable.
 
+A link in a document can hand a file to the application the system gives its kind (#731): Ctrl+click on a relative link to a file of one of ten kinds - txt, png, jpg, jpeg, gif, webp, pdf, json, yaml, yml - opens it there, as a click in the files panel does. What bounds it: the ten kinds are fixed in the shell open scope and hold nothing executable, no svg and no html; the file must be on the disk first; the path is built by one resolver from the folder of the document, which from a document on a local disk never yields a path on another machine. On Linux the hand-over runs xdg-open, a shell script given the path as one argument, as the files panel does. A link can reach any file of those kinds that the account can read, not only one beside the document: that is the widening, accepted by the owner.
+
 ## Supported versions
 
 Only the latest release receives security fixes.
@@ -19,4 +21,4 @@ You can expect an initial response within 7 days.
 
 ## What counts as a vulnerability here
 
-Examples we want to hear about: any code execution triggered by opening or rendering a markdown file (HTML/script injection through the editor surface); path traversal via links, images or `assets/` handling; any write to disk that happens without an explicit user save decision; corruption of a file on the open→save round-trip.
+Examples we want to hear about: any code execution triggered by opening or rendering a markdown file (HTML/script injection through the editor surface); path traversal via links, images or `assets/` handling; any write to disk that happens without an explicit user save decision; corruption of a file on the open→save round-trip; a link that hands the system a file outside the ten kinds, or a path on another machine from a document on a local disk.

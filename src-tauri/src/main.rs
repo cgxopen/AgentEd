@@ -3,6 +3,7 @@
 
 #[cfg(any(windows, test))]
 mod browser_args;
+mod document_window;
 #[cfg(any(target_os = "macos", test))]
 mod document_windows;
 mod file_open;
@@ -42,6 +43,7 @@ fn main() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
         help_window::open_help_window,
+        document_window::open_document_window,
         help_window::take_launch_help,
         print_export::export_pdf,
         title_bar::title_bar_overlay,
@@ -53,6 +55,7 @@ fn main() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         file_open::take_pending_file_open,
         help_window::open_help_window,
+        document_window::open_document_window,
         help_window::take_launch_help,
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,

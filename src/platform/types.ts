@@ -142,6 +142,14 @@ export interface PlatformIO {
    */
   readonly pathsOutliveSession?: boolean;
   /**
+   * Whether this build can hand a file on the disk to the application of the
+   * system (#731), through `openWithSystem`. A declaration about the build:
+   * the desktop can, through the `shell.open` scope; the web build opens web
+   * addresses only. **Absent reads as no**, so a platform that does not say it
+   * can hands nothing over.
+   */
+  readonly opensFilesWithSystem?: boolean;
+  /**
    * Whether a companion file — `assets/` next to `documentPath` — can be
    * written **right now** (#46).
    *
