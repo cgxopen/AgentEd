@@ -71,11 +71,6 @@ const CAUSES: Readonly<Record<string, Cause>> = {
   },
   'soft-break': { recorded: 'soft line breaks become spaces' },
   'lazy-line': { recorded: 'a lazy continuation line is written with the marker of its container' },
-  'rule-hyphens': { recorded: 'a horizontal rule is written with three hyphens' },
-  'rule-under-text': {
-    recorded:
-      'a paragraph directly over a rule spelled with stars, underscores or spaced hyphens, and a reference definition directly over any rule, are written a blank line apart',
-  },
   'span-width': {
     recorded: "a code span's delimiter run is written at the shortest width that still closes it",
   },

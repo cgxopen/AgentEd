@@ -425,8 +425,8 @@ function resize(tag: string, name: string, value: string | null): string {
  * CommonMark admits three — `"…"`, `'…'` and `(…)` — and measured on this
  * pipeline all three parse to the same `title` attribute, so by the time the
  * serializer is handed a document there is nothing left to say which one the
- * file used. That is the same shape as the single-tilde strikethrough already
- * recorded in R-C2, and it is recorded there for this too: a title the file
+ * file used. That is the shape the single-tilde strikethrough had in R-C2
+ * until #744, and it is recorded there for this too: a title the file
  * wrote in single quotes or parentheses comes back double-quoted. The route
  * that would remove it is the one #229 built — reading the spelling off the
  * `image` token raw source — and it is named in the requirement rather than

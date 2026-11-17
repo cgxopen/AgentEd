@@ -134,7 +134,6 @@ const BACKTICK_RUNS = 'R-C2: backtick runs are escaped even when nothing can clo
 const REDUNDANT_ESCAPE = 'R-C2: a redundant escape the file already had is not preserved';
 const INLINE_ELEMENT_NUMBER =
   'R-C2: a number opening an inline element in a heading or a cell keeps its backslash';
-const SINGLE_TILDE = 'R-C2: single-tilde strikethrough is written with two';
 const TABLE_SPELLINGS = 'R-C2: five table spellings AgentEd cannot hold';
 const MARK_NESTING = 'R-C2: two overlapping marks have one nesting (#84)';
 const ORDERED_TASK_MARKER = 'R-C2: a task marker in an ordered list is written escaped';
@@ -613,12 +612,9 @@ const TABLE: ReadonlyArray<readonly [string, string, Expectation]> = [
   ['strike over a code span', '~~a `code` b~~', 'identical'],
   ['strike inside a link', '[~~t~~](https://example.com)', 'identical'],
   ['tildes inside inline code', '`~~a~~`', 'identical'],
-  ['a single-tilde strike', '~gone~', { writes: '~~gone~~', because: SINGLE_TILDE }],
-  [
-    'a single-tilde strike in a sentence',
-    'a ~b~ c',
-    { writes: 'a ~~b~~ c', because: SINGLE_TILDE },
-  ],
+  // An R-C2 exception until #744, which carries the one tilde on the mark.
+  ['a single-tilde strike', '~gone~', 'identical'],
+  ['a single-tilde strike in a sentence', 'a ~b~ c', 'identical'],
 
   // ── Tables (#93, #101) ──
   ['hugged cells', '| a | b |\n| --- | --- |\n| 1 | 2 |', 'identical'],

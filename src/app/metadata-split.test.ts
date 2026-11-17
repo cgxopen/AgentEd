@@ -239,8 +239,9 @@ describe('a document that opens with a rule is read back as that document (#304,
     'a file whose rules are spelled %j is not turned into a metadata block',
     async (rule) => {
       // On `e566993` an unedited save wrote both rules `---` and the next open
-      // took the words out of the document.
-      const cycles = await threeCycles(`${rule}\n\nWords\n\n${rule}\n\nAfter\n`);
+      // took the words out of the document. Since #744 both keep their spelling.
+      const source = `${rule}\n\nWords\n\n${rule}\n\nAfter\n`;
+      const cycles = await threeCycles(source);
       const [first] = cycles;
       expect(first.nodes).toEqual([
         'horizontalRule',
@@ -248,7 +249,7 @@ describe('a document that opens with a rule is read back as that document (#304,
         'horizontalRule',
         'paragraph:After',
       ]);
-      expect(first.written).toBe('***\n\nWords\n\n---\n\nAfter\n');
+      expect(first.written).toBe(source);
       expect(cycles[1].metadata).toBeNull();
       expectSettled(cycles);
     },
@@ -396,23 +397,19 @@ describe('what #304 does not reach, pinned so that a change to it is announced',
   });
 });
 
-describe('R-C2 exception: a horizontal rule is written with three hyphens', () => {
+// An R-C2 exception until #744, which carries the spelling on the node.
+describe('a horizontal rule keeps the spelling of its file (#744)', () => {
   it.each(['***', '___', '* * *', '- - -', '_ _ _', '-----', '*****', '   ***'])(
-    'a rule spelled %j is written back as ---, and then holds still',
+    'a rule spelled %j is written back as it was, and then holds still',
     async (rule) => {
-      const cycles = await threeCycles(`Before\n\n${rule}\n\nAfter\n`);
+      const source = `Before\n\n${rule}\n\nAfter\n`;
+      const cycles = await threeCycles(source);
       const [first] = cycles;
       expect(first.nodes).toEqual(['paragraph:Before', 'horizontalRule', 'paragraph:After']);
-      expect(first.written).toBe('Before\n\n---\n\nAfter\n');
+      expect(first.written).toBe(source);
       expectSettled(cycles);
     },
   );
-
-  it('is recorded in REQUIREMENTS', () => {
-    expect(requirementsMd).toContain(
-      '**Known exception — a horizontal rule is written with three hyphens.**',
-    );
-  });
 });
 
 /** The same text with its line endings as `\r\n`. */

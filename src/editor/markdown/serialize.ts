@@ -64,10 +64,12 @@ import { markupOpenings } from './markup-openers';
 import { markdownToHtml } from './parse';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceSpelling, setDefinedLabels } from './reference';
 import { definedLabels, readsAs, referenceIndentOf } from './reference-save';
-import { opensADashItem, RULE_IN_A_DASH_ITEM } from './rule-in-item';
+import { bulletOpenedBy } from './rule-in-item';
+import { ruleLine } from './rule-spelling';
 import { withSecondSaveRepairs } from './second-save-repairs';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
 import { keepingSpacerParagraphs } from './spacer-paragraph';
+import { strikeDelimiter } from './strike-delimiter';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
 import {
   type ColumnStyle,
@@ -785,7 +787,8 @@ turndown.addRule('underline', {
   replacement: (content) => `<u>${content}</u>`,
 });
 
-// Strikethrough (#85). Turndown ships no rule for it, and its default for an
+// Strikethrough (#85), with one tilde where the file wrote one and it still
+// reads back as the same strike (#744, `strike-delimiter.ts`). Turndown ships no rule for it, and its default for an
 // element it does not recognise is to keep the text and drop the element — so
 // `~~gone~~` was saved as `gone`, the only R-C2 exception that lost something
 // the reader can see, and reachable from the floating toolbar's own S button.
@@ -796,7 +799,10 @@ turndown.addRule('underline', {
 // (last one added wins) is not in play here.
 turndown.addRule('strikethrough', {
   filter: ['s', 'del', 'strike'],
-  replacement: (content) => `~~${content}~~`,
+  replacement: (content, node) => {
+    const delimiter = strikeDelimiter(node, content);
+    return `${delimiter}${content}${delimiter}`;
+  },
 });
 
 // Relativize image src via the registry at Turndown time.
@@ -1084,17 +1090,18 @@ if (!builtinHorizontalRule) {
   );
 }
 
-// A rule that opens an item of a `-` list is written `***` (#606).
+// A rule that opens an item of a `-` list is written `***` (#606), and a
+// rule the file spelled otherwise than `---` keeps that spelling where it can
+// stand (#744, `rule-spelling.ts`).
 turndown.addRule('horizontalRuleInACell', {
   filter: 'hr',
   replacement: (content, node, options) =>
     cellDepth > 0
       ? '<hr>'
-      : builtinHorizontalRule.replacement(
-          content,
-          node,
-          opensADashItem(node) ? { ...options, hr: RULE_IN_A_DASH_ITEM } : options,
-        ),
+      : builtinHorizontalRule.replacement(content, node, {
+          ...options,
+          hr: ruleLine(node, options.hr ?? '---', bulletOpenedBy(node)),
+        }),
 });
 
 // ── A hard break inside a table cell (#300) ──

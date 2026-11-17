@@ -14,14 +14,19 @@ import { LIST_MARKER_ATTRIBUTE, markerFor } from './list-marker';
  */
 export const RULE_IN_A_DASH_ITEM = '***';
 
-/** Whether `rule` is the first thing in an item of a list written with `-`. */
-export function opensADashItem(rule: Node): boolean {
+/**
+ * The marker of the bullet list whose item `rule` is the first thing in, or
+ * null where it opens no item of a bullet list. A carried spelling (#744,
+ * `rule-spelling.ts`) is read against it, since a rule of the marker
+ * character is read with the marker as one rule.
+ */
+export function bulletOpenedBy(rule: Node): string | null {
   const item = rule.parentElement;
-  if (item?.nodeName !== 'LI') return false;
+  if (item?.nodeName !== 'LI') return null;
   for (let before = rule.previousSibling; before !== null; before = before.previousSibling) {
-    if (before.nodeType !== 3 || (before.textContent ?? '').trim() !== '') return false;
+    if (before.nodeType !== 3 || (before.textContent ?? '').trim() !== '') return null;
   }
   const list = item.parentElement;
-  if (list?.nodeName !== 'UL') return false;
-  return markerFor(list.getAttribute(LIST_MARKER_ATTRIBUTE), false) === '-';
+  if (list?.nodeName !== 'UL') return null;
+  return markerFor(list.getAttribute(LIST_MARKER_ATTRIBUTE), false);
 }

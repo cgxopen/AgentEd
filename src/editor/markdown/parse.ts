@@ -45,9 +45,11 @@ import { paragraphsOfALinkAlone } from './loose-item-link';
 import { mediaBlock } from './media-block';
 import { stampRawBlock } from './raw-block-stamp';
 import { REFERENCE_DEFINITION_ATTRIBUTE, referenceAttribute } from './reference';
+import { ruleSpellingAttribute } from './rule-spelling';
 import { withoutEdgeBreaks, withSoftBreaks } from './soft-break';
 import { spacerAttribute } from './spacer-paragraph';
 import { stampedFromTheFile } from './stamped-attributes';
+import { strikeDelimiterAttribute } from './strike-delimiter';
 import { gfmTableExtension } from './table-cells';
 import { isWholeHtmlTable, stampTableSource } from './table-html-source';
 import { tableStyleAttribute } from './table-style';
@@ -229,6 +231,22 @@ marked.use({
     },
     strong(token) {
       return `<strong${emphasisDelimiterAttribute(token.raw)}>${this.parser.parseInline(token.tokens)}</strong>`;
+    },
+  },
+});
+
+// A strikethrough the file wrote with one tilde, and a rule it spelled
+// otherwise than `---`, carry that on the element, from a file (#744). The
+// rest is `marked`'s own `del` and `hr`, restated.
+marked.use({
+  renderer: {
+    del(token) {
+      const delimiter = strikeDelimiterAttribute(token.raw, keepingRawHtml);
+      return `<del${delimiter}>${this.parser.parseInline(token.tokens)}</del>`;
+    },
+    hr(token) {
+      return `<hr${ruleSpellingAttribute(token.raw, keepingRawHtml)}>
+`;
     },
   },
 });

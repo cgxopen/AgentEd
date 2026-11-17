@@ -150,16 +150,19 @@ describe('two blocks the file wrote adjacent stay adjacent (R-C2, #568)', () => 
 });
 
 describe('a pair written adjacent only where it reads back (#568)', () => {
+  // Since #744 the rule keeps its spelling, so the pair reads back as it was
+  // and stays adjacent. A rule written `---` under a paragraph is the trap,
+  // pinned in `strike-rule-spelling.test.ts`.
   it.each([
-    ['`***`', 'Text.\n***\nAfter.\n', 'Text.\n\n---\nAfter.\n'],
-    ['`* * *`, example 105', 'Foo\nbar\n* * *\nbaz\n', 'Foo\nbar\n\n---\nbaz\n'],
-    ['`___`', 'Text.\n___\n', 'Text.\n\n---\n'],
-    ['`--- -`, example 88', 'Foo\n--- -\n', 'Foo\n\n---\n'],
+    ['`***`', 'Text.\n***\nAfter.\n'],
+    ['`* * *`, example 105', 'Foo\nbar\n* * *\nbaz\n'],
+    ['`___`', 'Text.\n___\n'],
+    ['`--- -`, example 88', 'Foo\n--- -\n'],
   ])(
-    'a paragraph over a rule spelled %s keeps its blank line, and stays a paragraph',
-    async (_label, file, written) => {
+    'a paragraph over a rule spelled %s stays adjacent, and stays a paragraph',
+    async (_label, file) => {
       const once = await openAndSaveUnedited(file);
-      expect(once).toBe(written);
+      expect(once).toBe(file);
       expect(await openAndSaveUnedited(once)).toBe(once);
       expect(markdownToHtml(once)).toContain('<p>');
       expect(markdownToHtml(once)).not.toMatch(/<h[12]/);
@@ -176,7 +179,8 @@ describe('a pair written adjacent only where it reads back (#568)', () => {
     'a reference definition over a rule spelled %s keeps a blank line, and holds still',
     async (_label, file) => {
       const once = await openAndSaveUnedited(file);
-      expect(once).toMatch(/https:\/\/example\.com\n(?:> ?)?\n(?:> )?---\n$/);
+      // The rule keeps its own spelling (#744); the blank line is what is pinned.
+      expect(once).toMatch(/https:\/\/example\.com\n(?:> ?)?\n(?:> )?(?:\*\*\*|---|___)\n$/);
       expect(await openAndSaveUnedited(once)).toBe(once);
     },
   );
@@ -192,7 +196,8 @@ describe('a pair written adjacent only where it reads back (#568)', () => {
       }
     });
     instance.editor.chain().deleteRange({ from, to }).run();
-    expect(instance.getMarkdown()).toBe('[a]: https://example.com\n\n---');
+    // The rule keeps the spelling of its file (#744).
+    expect(instance.getMarkdown()).toBe('[a]: https://example.com\n\n***');
   });
 
   it('a footnote definition over a rule stays adjacent', async () => {

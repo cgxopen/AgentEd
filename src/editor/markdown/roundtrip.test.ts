@@ -378,15 +378,12 @@ describe('markdown roundtrip', () => {
       expect(roundtrip('`~~a~~`')).toBe('`~~a~~`');
     });
 
-    it('KNOWN EXCEPTION: single-tilde strikethrough is written with two', () => {
-      // `marked` (gfm) parses `~gone~` into the same <del> as `~~gone~~`, and
-      // the mark carries no memory of which delimiter the file used — so the
-      // serializer has nothing to write it back with but the two-tilde
-      // spelling. Same rendering everywhere, different bytes. Recorded in
-      // REQUIREMENTS under R-C2; keeping the single tilde would mean carrying
-      // the delimiter on the mark, which is a larger change than #85.
-      expect(roundtrip('~gone~')).toBe('~~gone~~');
-      expect(roundtrip('a ~b~ c')).toBe('a ~~b~~ c');
+    it('keeps a single-tilde strikethrough single (#744)', () => {
+      // `marked` (gfm) parses `~gone~` into the same <del> as `~~gone~~`; the
+      // delimiter rides on the element from the token raw, an R-C2 exception
+      // until #744 (`strike-delimiter.ts`).
+      expect(roundtrip('~gone~')).toBe('~gone~');
+      expect(roundtrip('a ~b~ c')).toBe('a ~b~ c');
     });
 
     it('never writes an empty pair of delimiters', () => {
