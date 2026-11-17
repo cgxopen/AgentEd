@@ -91,10 +91,14 @@ pub enum Kind {
     Other,
 }
 
-/// The panel asks for the tree of `root`, for the document at `document`.
-/// Refused unless the document lies inside `root`: the root is the folder of
-/// the open document, or a folder of the panel the person clicked down from,
-/// which holds the document opened from it (#178).
+/// The tree of `root`, for the document at `document`, refused unless that
+/// path lies inside `root` (`check_root`).
+///
+/// **The command cannot know that `document` is the open document**: it holds
+/// only that the root contains the path it is given. That the path is the open
+/// one is the caller's part: `src/app/sidebar-sync.ts` passes `state.filePath`
+/// through `TauriIO.markdownTree`, with the folder of that document or a root a
+/// click in the panel kept, which holds the document opened from it (#178).
 #[tauri::command]
 pub async fn markdown_tree(document: String, root: String) -> Result<MarkdownTree, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -120,10 +124,16 @@ pub async fn markdown_tree(document: String, root: String) -> Result<MarkdownTre
 ///   that scope, so it states the same refusal itself. Windows matches without
 ///   it, and so does this.
 ///
-/// **A share stays the share of the document.** The root holds the document,
-/// so a root on another machine is reached only from a document opened from
-/// it, the rule of `link-target.ts`; and the walk never follows a link (see
-/// `list_folder`), so nothing below the root leaves it.
+/// **What it grants is names, and what `listDir` already reaches.** The root
+/// holds the path given, and the walk never follows a link (see
+/// `list_folder`), so nothing below the root leaves it; a root on a share is
+/// a share only because that path is on it, and the caller passes the open
+/// document. Under the scope of `capabilities/default.json` the fs plugin
+/// lists the same folders through `listDir`: everything on Windows, and
+/// everything outside dot folders on unix, which the refusal above and the
+/// walk keep to. **One exception, measured on #746**: on an SSHFS-Win drive
+/// letter the scope refuses every path, since Windows cannot canonicalize it,
+/// where this command lists the names. No file is read either way.
 pub fn check_root(document: &Path, root: &Path) -> Result<(), String> {
     if !document.is_absolute() || !root.is_absolute() {
         return Err("not an absolute path".into());
