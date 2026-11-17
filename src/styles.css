@@ -2431,10 +2431,24 @@ button.indicator-search:hover {
   opacity: 0.9;
 }
 
+/*
+ * `overflow-wrap: anywhere` (#741): a filename or a path with no space, comma
+ * or hyphen in it is one word, and with nothing allowed to break it a long one
+ * ran past the right edge of the dialog and of the window, hidden there. Every
+ * dialog built by `showConfirmDialog` shows its message here, among them the
+ * ones that name a file or a path. Measured in Chromium at 600 by 400, scale 1 and
+ * 1.5, with an 80-character name: before, the text reached 633 px for a name
+ * and 788 px for a path; after, every glyph is inside the dialog. A word breaks
+ * only where nothing else would let the line fit, so a message that fits today
+ * keeps its lines and the dialog its width, the same to the tenth of a pixel
+ * in the same measurement. `pre-wrap` still keeps the line breaks a message
+ * already has.
+ */
 .dialog-message {
   font-size: 13px;
   color: var(--text);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   margin-bottom: 16px;
   line-height: 1.5;
 }
