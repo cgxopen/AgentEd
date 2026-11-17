@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileEntry, MarkdownTree, PlatformIO } from '../platform/types';
+import stylesCss from '../styles.css?raw';
+import { stylesheetRules, valuesReaching } from '../test-support/stylesheet-rules';
 import {
   BOUND_LINE_CLASS,
   BOUND_REACHED_TEXT,
@@ -154,6 +156,19 @@ describe('opened by hand, with no assets/ tree', () => {
     await openByHand(whole.io);
     expect(rows()).toEqual(['a/', '  a.md', 'plan.md']);
     expect(boundLine()).toBeNull();
+  });
+
+  it('the line is styled as the line of hidden folders, by the selector the stylesheet ships', async () => {
+    // How it looks is not observable here; what is: the rules of the shipped
+    // sheet that reach the element the panel drew. The look itself is checked
+    // by hand on the artifact.
+    const { io } = desktopIO(tree(['plan.md', 'a/a.md'], true));
+    await openByHand(io);
+    const line = boundLine() as Element;
+    const rules = stylesheetRules(stylesCss).filter((rule) => rule.conditions.length === 0);
+    expect(valuesReaching(rules, line, 'font-size').at(-1)).toBe('12px');
+    expect(valuesReaching(rules, line, 'color').at(-1)).toBe('var(--muted)');
+    expect(valuesReaching(rules, line, 'padding').at(-1)).toBe('8px 12px 2px');
   });
 
   it('draws the tree and the line even when a stopped read found the document alone', async () => {
