@@ -233,6 +233,15 @@ describe('the two rules R-C2 writes as *** on purpose still decide', () => {
   });
 });
 
+describe('a file that spells the attribute in its own HTML is not believed (#447)', () => {
+  it.each([
+    ['a strike', 'a <s data-strike-delimiter="~">x</s> b\n', 'a ~~x~~ b\n'],
+    ['a rule', 'a\n\n<hr data-rule-spelling="%2A%2A%2A">\n\nb\n', 'a\n\n---\n\nb\n'],
+  ])('%s', async (_label, text, expected) => {
+    expect(await saved(text)).toBe(expected);
+  });
+});
+
 describe('what the person writes keeps the spellings of before', () => {
   it('typing inside a single-tilde strike keeps the one tilde', async () => {
     const written = await saved('A ~gone~ word.\n', (instance) => {
