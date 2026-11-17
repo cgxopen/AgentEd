@@ -249,7 +249,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
     const state = new AppState();
     state.filePath = '/proj/one.md';
     state.referencesImage = true;
-    state.sidebarRootFromClick = '/proj';
+    state.sidebarRootFromClick = { path: '/proj', markdown: false };
     const { sidebar, shown } = capture();
 
     await refreshSidebar(state, sidebar, mockIO({ existing: ['/proj'], entries: tree }));
@@ -265,7 +265,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
     const state = new AppState();
     state.filePath = '/proj/sub/two.md';
     state.referencesImage = true;
-    state.sidebarRootFromClick = '/proj';
+    state.sidebarRootFromClick = { path: '/proj', markdown: false };
     const { sidebar, shown } = capture();
 
     await refreshSidebar(
@@ -293,7 +293,7 @@ describe('the root a sidebar click asked to keep (#178)', () => {
   it('resetDocument clears it, so New and Close cannot leak a folder forward', async () => {
     const state = new AppState();
     state.filePath = '/proj/one.md';
-    state.sidebarRootFromClick = '/proj';
+    state.sidebarRootFromClick = { path: '/proj', markdown: false };
 
     state.resetDocument();
 
@@ -430,7 +430,7 @@ describe('#184 — which kind of nothing the panel is showing', () => {
     // A kept root is a folder that was granted, so there is nothing to
     // offer even when this document's own lookups answer `unknown`.
     const { state, sidebar, seen } = panelFor();
-    state.sidebarRootFromClick = '/proj';
+    state.sidebarRootFromClick = { path: '/proj', markdown: false };
     await refreshSidebar(state, sidebar, nothingGranted());
     expect(seen).toEqual(['tree:/proj']);
   });

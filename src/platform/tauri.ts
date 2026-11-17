@@ -20,6 +20,7 @@ import type {
   FileEntry,
   FileResult,
   FileSnapshot,
+  MarkdownTree,
   PickedFile,
   PlatformIO,
   TitleBarOverlay,
@@ -199,6 +200,15 @@ export class TauriIO implements PlatformIO {
         isDirectory: e.isDirectory ?? false,
       };
     });
+  }
+
+  /**
+   * One native call, `markdown_tree` in `src-tauri/src/markdown_tree.rs`
+   * (#746): through `listDir` the tree cost one round trip per folder, 4.4 to
+   * 5.1 ms each on Windows, measured on the step zero.
+   */
+  async markdownTree(documentPath: string, root: string): Promise<MarkdownTree> {
+    return invoke<MarkdownTree>('markdown_tree', { document: documentPath, root });
   }
 
   async mkdir(path: string): Promise<void> {

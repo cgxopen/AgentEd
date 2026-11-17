@@ -2820,7 +2820,10 @@ button.indicator-search:hover {
    (#717), drawn only when there are some: the count in the muted colour of the
    note above, and Show or Hide as a text button in the link colour of the
    editor, the one thing on the line that takes a click. */
-.sidebar-hidden-line {
+/* The line under a markdown tree whose read stopped at its bound (#746) is
+   drawn as the line of hidden folders is, without a button. */
+.sidebar-hidden-line,
+.sidebar-bound-line {
   padding: 8px 12px 2px;
   font-size: 12px;
   color: var(--muted);

@@ -16,6 +16,7 @@ mod macos_quit;
 mod macos_windows;
 #[cfg(windows)]
 mod main_window;
+mod markdown_tree;
 mod print_export;
 #[cfg(test)]
 mod shell_scope;
@@ -45,6 +46,7 @@ fn main() {
         help_window::open_help_window,
         document_window::open_document_window,
         help_window::take_launch_help,
+        markdown_tree::markdown_tree,
         print_export::export_pdf,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
@@ -57,6 +59,7 @@ fn main() {
         help_window::open_help_window,
         document_window::open_document_window,
         help_window::take_launch_help,
+        markdown_tree::markdown_tree,
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
         print_export::export_pdf,

@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { PlatformIO } from '../platform/types';
+import type { TreeRoot } from '../ui/sidebar';
 import { showToast } from '../ui/toast';
 import type { DocumentActions } from './document-actions';
 import { createSidebarClickHandler } from './sidebar-click';
+
+/** A root kept from a listing tree, as a click in one hands it on (#746). */
+const listing = (path: string): TreeRoot => ({ path, markdown: false });
 
 vi.mock('../ui/toast', () => ({ showToast: vi.fn() }));
 
@@ -51,12 +55,15 @@ describe('createSidebarClickHandler', () => {
     const docActions = makeDocActions();
     const io = makeIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/notes/sub/other.md', '/proj/notes');
+    handle('/proj/notes/sub/other.md', listing('/proj/notes'));
     await flush();
     // The second argument is the whole of this handler's part in #178:
     // it used to receive `rootPath`, use it for the check above and drop
     // it. `refreshSidebar` decides what is done with it.
-    expect(docActions.openFilePath).toHaveBeenCalledWith('/proj/notes/sub/other.md', '/proj/notes');
+    expect(docActions.openFilePath).toHaveBeenCalledWith(
+      '/proj/notes/sub/other.md',
+      listing('/proj/notes'),
+    );
     expect(io.openWithSystem).not.toHaveBeenCalled();
   });
 
@@ -67,11 +74,11 @@ describe('createSidebarClickHandler', () => {
     const docActions = makeDocActions();
     const io = makeIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/notes/sub/deep/chapter.md', '/proj/notes');
+    handle('/proj/notes/sub/deep/chapter.md', listing('/proj/notes'));
     await flush();
     expect(docActions.openFilePath).toHaveBeenCalledWith(
       '/proj/notes/sub/deep/chapter.md',
-      '/proj/notes',
+      listing('/proj/notes'),
     );
   });
 
@@ -79,7 +86,7 @@ describe('createSidebarClickHandler', () => {
     const docActions = makeDocActions();
     const io = makeIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/notes/assets/img.png', '/proj/notes');
+    handle('/proj/notes/assets/img.png', listing('/proj/notes'));
     await flush();
     expect(io.openWithSystem).toHaveBeenCalledWith('/proj/notes/assets/img.png');
     expect(docActions.openFilePath).not.toHaveBeenCalled();
@@ -89,7 +96,7 @@ describe('createSidebarClickHandler', () => {
     const docActions = makeDocActions();
     const io = makeIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/notes/../etc/passwd', '/proj/notes');
+    handle('/proj/notes/../etc/passwd', listing('/proj/notes'));
     await flush();
     expect(io.openWithSystem).not.toHaveBeenCalled();
     expect(docActions.openFilePath).not.toHaveBeenCalled();
@@ -99,7 +106,7 @@ describe('createSidebarClickHandler', () => {
     const docActions = makeDocActions();
     const io = makeIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/notes-other/leaked.md', '/proj/notes');
+    handle('/proj/notes-other/leaked.md', listing('/proj/notes'));
     await flush();
     expect(io.openWithSystem).not.toHaveBeenCalled();
     expect(docActions.openFilePath).not.toHaveBeenCalled();
@@ -116,7 +123,7 @@ describe('createSidebarClickHandler', () => {
     const handle = createSidebarClickHandler(docActions, async () => io);
     handle(
       'C:/Users/vasil/Documents/New folder/assets/diagram.png',
-      'C:/Users/vasil/Documents/New folder',
+      listing('C:/Users/vasil/Documents/New folder'),
     );
     await flush();
     expect(showToast).toHaveBeenCalledWith(expect.stringContaining('diagram.png'), 'error');

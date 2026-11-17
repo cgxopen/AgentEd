@@ -18,6 +18,17 @@ export interface TreeNode {
 export type OnFileClick = (absPath: string, rootPath: string) => void;
 
 /**
+ * The root a tree lists, and whether that tree is a markdown tree (#746): the
+ * markdown files below the folder and the folders that hold them, rather than
+ * everything in it. A click keeps both, so the tree a document is opened from
+ * is drawn again as the same kind of tree (#178).
+ */
+export interface TreeRoot {
+  readonly path: string;
+  readonly markdown: boolean;
+}
+
+/**
  * The second line of an inert entry's tooltip (#146).
  *
  * **It states the limit and names no step**, which is the #173 rule: a

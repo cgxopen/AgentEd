@@ -16,6 +16,7 @@ import type { PlatformIO } from '../platform/types';
 import { forgetRecentFile, recordRecentFile, saveLastOpenedFolder } from '../preferences';
 import { getTemplate, type TemplateId } from '../templates/index';
 import { shouldShowFrontmatterPanel } from '../ui/frontmatter-panel';
+import type { TreeRoot } from '../ui/sidebar';
 import { showToast } from '../ui/toast';
 import type { AppContext } from './context';
 import { createDiscardGate } from './discard-gate';
@@ -38,14 +39,15 @@ export interface DocumentActions {
   /**
    * Open the document at `path`, through the unsaved-changes gate.
    *
-   * `sidebarRoot` is the listing root the click came from, and only the
+   * `sidebarRoot` is the listing root the click came from, with the kind of
+   * tree it was (#746), and only the
    * sidebar passes it (#178): given, the panel keeps that root when the
    * new document has no `assets/` folder of its own; omitted, the root
    * is re-derived from the document exactly as before. The file
    * association omits it deliberately — a document opened from the shell
    * was never in a panel at all.
    */
-  openFilePath(path: string, sidebarRoot?: string): Promise<void>;
+  openFilePath(path: string, sidebarRoot?: TreeRoot): Promise<void>;
   /**
    * Open a file chosen from the recent files list (#381): `openFilePath`,
    * after one question the other routes do not ask. A file whose folder is
@@ -91,7 +93,7 @@ interface LoadOptions {
   /** The document's text, already read. See `openDocumentAtPath`. */
   readonly preloaded?: LoadResult;
   /** The sidebar listing root this open came from (#178). */
-  readonly sidebarRoot?: string;
+  readonly sidebarRoot?: TreeRoot;
   /**
    * `same-document` for a reload of the document already on screen, which
    * does not ask for the panel (#387); every open is a document arriving.
@@ -513,7 +515,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     );
   }
 
-  async function openFilePath(path: string, sidebarRoot?: string): Promise<void> {
+  async function openFilePath(path: string, sidebarRoot?: TreeRoot): Promise<void> {
     if (!(await discardCurrentDocument('open'))) return;
     // The route the sidebar and the file association both take, and the
     // one #127 was about: a file listed a

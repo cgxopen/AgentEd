@@ -4,6 +4,16 @@ export interface FileEntry {
   isDirectory: boolean;
 }
 
+/**
+ * The markdown tree of a folder (#746): the markdown files below it, relative
+ * to it with `/` between segments, and whether the folder bound stopped the
+ * read before it was done.
+ */
+export interface MarkdownTree {
+  readonly files: readonly string[];
+  readonly reachedBound: boolean;
+}
+
 export interface FileResult {
   content: string;
   path: string;
@@ -253,6 +263,15 @@ export interface PlatformIO {
    */
   entryPresence(path: string): Promise<EntryPresence>;
   listDir(path: string): Promise<FileEntry[]>;
+  /**
+   * The markdown tree of `root` for the document at `documentPath`, read in one
+   * native call (#746): only the desktop has it, so it is optional, and a
+   * build without it is a build whose panel lists no markdown tree. Its
+   * presence is the answer to whether this build can read one, rather than the
+   * name of the platform. Rejects when the root cannot be read, or does not
+   * hold the document.
+   */
+  markdownTree?(documentPath: string, root: string): Promise<MarkdownTree>;
   mkdir(path: string): Promise<void>;
   /**
    * Open `path` with the host OS's default application for that

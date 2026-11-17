@@ -1,5 +1,6 @@
 import { basename, isMarkdownPath, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
+import type { TreeRoot } from '../ui/sidebar';
 import { showToast } from '../ui/toast';
 import type { DocumentActions } from './document-actions';
 import { reportSystemOpenFailure } from './system-open-failure';
@@ -31,26 +32,28 @@ import { reportSystemOpenFailure } from './system-open-failure';
 export function createSidebarClickHandler(
   docActions: DocumentActions,
   ioGetter: () => Promise<PlatformIO>,
-): (absPath: string, rootPath: string) => void {
-  return (absPath, rootPath) => {
-    if (!isPathInsideRoot(absPath, rootPath)) {
+): (absPath: string, root: TreeRoot) => void {
+  return (absPath, root) => {
+    if (!isPathInsideRoot(absPath, root.path)) {
       console.warn('[sidebar] click rejected — target outside listing root', {
         target: absPath,
-        root: rootPath,
+        root: root.path,
       });
       return;
     }
 
     if (isMarkdownPath(absPath)) {
-      // `rootPath` is passed on rather than dropped here (#178). The
+      // The root is passed on rather than dropped here (#178), with the kind
+      // of tree it was (#746), so a click in a markdown tree keeps a markdown
+      // tree rather than turning it into a listing of the whole folder. The
       // panel keeps it only when the new document has no adjacent
       // structure of its own; one that does still moves the panel into
       // it, which is a capability rather than an accident. The check
       // above is what makes keeping it safe to state: a click that got
-      // this far is inside `rootPath`, so the root that is kept always
+      // this far is inside the root, so the root that is kept always
       // contains the document that was opened — including the case of a
       // file clicked in a subfolder of the root.
-      void docActions.openFilePath(absPath, rootPath).catch((e) => {
+      void docActions.openFilePath(absPath, root).catch((e) => {
         console.error('[sidebar] openFilePath failed:', e);
       });
       return;
