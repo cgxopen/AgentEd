@@ -194,6 +194,12 @@ export const HIDDEN_LINE_CLASS = 'sidebar-hidden-line';
  */
 export interface MarkdownTreeMark {
   readonly reachedBound: boolean;
+  /**
+   * The folder drawn open, as a path relative to the root (#748): the `assets`
+   * folder of the document on screen, with the folders above it. Absent, every
+   * folder is drawn closed, as in every other tree.
+   */
+  readonly open?: string;
 }
 
 /**
@@ -306,6 +312,26 @@ export function setupSidebar(): Sidebar {
     treeEl.appendChild(line);
   }
 
+  /**
+   * Draw open the folder at `path`, relative to the root, and every folder
+   * above it (#748). A folder that is not in the tree opens nothing. Each row
+   * carries its path in its title, which is what is matched.
+   */
+  function openFolder(path: string): void {
+    const parts = path.split('/');
+    for (let i = 1; i <= parts.length; i++) {
+      const prefix = parts.slice(0, i).join('/');
+      const toggle = Array.from(
+        treeEl.querySelectorAll<HTMLElement>('.sidebar-folder-toggle'),
+      ).find((row) => row.title === prefix);
+      if (!toggle) return;
+      toggle.classList.add('expanded');
+      toggle.parentElement
+        ?.querySelector(':scope > .sidebar-tree-children')
+        ?.classList.remove('collapsed');
+    }
+  }
+
   /** The line under a markdown tree whose read stopped at its bound (#746). */
   function appendBoundLine(): void {
     const line = document.createElement('div');
@@ -339,6 +365,7 @@ export function setupSidebar(): Sidebar {
     shownRoot = root;
     applyHidden();
     appendHiddenLine(countHidden(nodes));
+    if (markdown?.open) openFolder(markdown.open);
     if (markdown?.reachedBound) appendBoundLine();
     setVisible(true);
   }

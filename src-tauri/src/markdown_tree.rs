@@ -13,6 +13,12 @@
 //! are read before the deep ones (owner decision of 2026-11-17 on #746).
 //! Reaching either of the last two is returned with the tree, and the panel
 //! draws a line saying so: R-C6 shows no silent cut (#172).
+//!
+//! **And the `assets` folders, with what they hold** (#748, owner decision A of
+//! 2026-11-17): a folder named `assets`, in any case, is where image paste
+//! writes (R-C5), so its files are returned whatever their kind, and the files
+//! of the folders inside it, as the `assets/` tree draws them. The walk read
+//! those folders already, so this adds names to the answer and no folder read.
 
 use serde::Serialize;
 use std::collections::VecDeque;
@@ -52,8 +58,9 @@ const LEFT_OUT: [&str; 7] = [
 /// held 42 per cent of the entries of a home folder in the step zero.
 const LEFT_OUT_FOLDERS: [&str; 1] = ["appdata"];
 
-/// What the walk found: the markdown files, as paths relative to the root
-/// with `/` between segments, and whether a bound of folders or time stopped it.
+/// What the walk found: the markdown files and the files of the `assets`
+/// folders, as paths relative to the root with `/` between segments, and
+/// whether a bound of folders or time stopped it.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkdownTree {
@@ -184,11 +191,13 @@ pub fn list_folder(path: &Path) -> io::Result<Vec<Entry>> {
 }
 
 /// One folder waiting to be read: where it is, its path relative to the root,
-/// and its level, 0 for the root.
+/// its level, 0 for the root, and whether it is an `assets` folder or lies
+/// inside one.
 struct Pending {
     path: PathBuf,
     relative: String,
     depth: usize,
+    in_assets: bool,
 }
 
 /// Walk `root` breadth first within `bounds`, listing each folder with `list`
@@ -210,6 +219,7 @@ pub fn walk(
         path: root.to_path_buf(),
         relative: String::new(),
         depth: 0,
+        in_assets: false,
     }]);
     let mut folders_read = 0;
     let mut reached_bound = false;
@@ -235,8 +245,9 @@ pub fn walk(
     })
 }
 
-/// Judge the entries of one folder: a markdown file is kept, a folder is
-/// queued while the depth bound allows, everything else is passed over.
+/// Judge the entries of one folder: a markdown file is kept, and any file of an
+/// `assets` folder or a folder inside one; a folder is queued while the depth
+/// bound allows; everything else is passed over.
 fn read_level(
     entries: Vec<Entry>,
     folder: &Pending,
@@ -263,10 +274,11 @@ fn read_level(
                         path: folder.path.join(&entry.name),
                         relative,
                         depth: folder.depth + 1,
+                        in_assets: folder.in_assets || lower == "assets",
                     });
                 }
             }
-            Kind::File if is_markdown(&lower) => files.push(relative),
+            Kind::File if folder.in_assets || is_markdown(&lower) => files.push(relative),
             _ => {}
         }
     }
@@ -391,6 +403,60 @@ mod tests {
         ]);
         let tree = disk(&f.0, BOUNDS).unwrap();
         assert_eq!(sorted(&tree), ["doc.md", "vendor/README.md"]);
+    }
+
+    #[test]
+    fn an_assets_folder_is_returned_with_every_file_it_holds_in_any_case() {
+        let f = Fixture::new(&[
+            "doc.md",
+            "assets/photo.png",
+            "assets/notes.txt",
+            "assets/diagrams/flow.svg",
+            "sub/Assets/scan.jpg",
+            "pictures/holiday.png",
+        ]);
+        let tree = disk(&f.0, BOUNDS).unwrap();
+        assert_eq!(
+            sorted(&tree),
+            [
+                "assets/diagrams/flow.svg",
+                "assets/notes.txt",
+                "assets/photo.png",
+                "doc.md",
+                "sub/Assets/scan.jpg"
+            ]
+        );
+    }
+
+    #[test]
+    fn inside_an_assets_folder_dot_files_and_left_out_names_stay_out() {
+        let f = Fixture::new(&[
+            "doc.md",
+            "assets/photo.png",
+            "assets/.DS_Store",
+            "assets/Thumbs.db",
+            "assets/.cache/old.png",
+            "assets/node_modules/pkg/x.png",
+        ]);
+        let tree = disk(&f.0, BOUNDS).unwrap();
+        assert_eq!(sorted(&tree), ["assets/photo.png", "doc.md"]);
+    }
+
+    #[test]
+    fn an_assets_folder_counts_as_any_folder_against_the_bounds() {
+        // The folder bound: the root and `a` are read; `assets`, queued after
+        // `a`, is not.
+        let f = Fixture::new(&["doc.md", "a/a.md", "assets/photo.png"]);
+        let tree = disk(
+            &f.0,
+            Bounds {
+                folders: 2,
+                ..BOUNDS
+            },
+        )
+        .unwrap();
+        assert_eq!(sorted(&tree), ["a/a.md", "doc.md"]);
+        assert!(tree.reached_bound);
     }
 
     #[test]

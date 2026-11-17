@@ -5,9 +5,9 @@ export interface FileEntry {
 }
 
 /**
- * The markdown tree of a folder (#746): the markdown files below it, relative
- * to it with `/` between segments, and whether the folder bound stopped the
- * read before it was done.
+ * The markdown tree of a folder (#746): the markdown files below it, and the
+ * files of its `assets` folders (#748), relative to it with `/` between
+ * segments, and whether a bound stopped the read before it was done.
  */
 export interface MarkdownTree {
   readonly files: readonly string[];

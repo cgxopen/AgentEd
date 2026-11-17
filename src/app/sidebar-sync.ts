@@ -1,5 +1,5 @@
 import { isTauri } from '../platform/detect';
-import { basename, dirname, joinPath, samePath } from '../platform/paths';
+import { basename, dirname, joinPath, normalize, samePath } from '../platform/paths';
 import type { MarkdownTree, PlatformIO } from '../platform/types';
 import type { MarkdownTreeMark, Sidebar } from '../ui/sidebar';
 import { buildTree, type TreeNode } from '../ui/sidebar';
@@ -302,8 +302,17 @@ export async function resolveSidebarView(
   // **A kept root carries the kind of tree it was** (#746): a click in a
   // markdown tree keeps a markdown tree, read again from the same root, rather
   // than a listing of everything that folder holds.
+  //
+  // **And it comes before the `assets/` folder of the document** (#748, owner
+  // decision C of 2026-11-17): a document opened from the markdown tree that
+  // has an `assets/` folder of its own keeps the tree, with that folder drawn
+  // open in it, where it used to move the panel into the folder alone. A
+  // relative link followed while the tree is shown keeps the root as a click
+  // does (#727), so it keeps the tree too. File, Open, a recent file and the
+  // file association keep no root, and still raise the panel on `assets/`
+  // alone (#402 F1).
   const kept = state.sidebarRootFromClick;
-  if (used.kind !== 'tree' && kept?.markdown) return markdownView(state, io, kept.path);
+  if (kept?.markdown) return markdownView(state, io, kept.path);
   const root = used.kind === 'tree' ? used.root : kept?.path;
   if (!root) {
     if (used.kind === 'no-folder-access') return { kind: isTauri ? 'unreadable' : 'offer' };
@@ -375,14 +384,39 @@ async function markdownView(state: AppState, io: PlatformIO, root: string): Prom
   }
   const others = tree.files.filter((file) => !samePath(joinPath(root, file), documentPath));
   if (others.length === 0 && !tree.reachedBound) return { kind: 'nothing' };
+  const open = state.referencesImage ? ownAssetsFolder(tree.files, root, documentPath) : undefined;
   return {
     kind: 'tree',
     nodes: buildTree(tree.files.map((path) => ({ path, kind: 'file' as const }))),
     rootName: basename(root),
     rootPath: root,
     opensNonMarkdown: isTauri,
-    markdown: { reachedBound: tree.reachedBound },
+    markdown: { reachedBound: tree.reachedBound, open },
   };
+}
+
+/**
+ * The `assets` folder beside the document, as a path relative to `root`, when
+ * the tree holds it (#748): the folder drawn open for a document with images.
+ * Spelled as the disk spells it, in any case, from the files the walk returned.
+ *
+ * **A folder the tree does not hold opens nothing** (owner decision of
+ * 2026-11-17): past the depth or the bound of the walk, the tree is drawn as
+ * it is, and the panel does not move to `assets/`.
+ */
+function ownAssetsFolder(
+  files: readonly string[],
+  root: string,
+  documentPath: string,
+): string | undefined {
+  const base = normalize(root).replace(/\/+$/, '');
+  const folder = normalize(dirname(documentPath));
+  if (folder !== base && !folder.startsWith(`${base}/`)) return undefined;
+  const prefix = folder === base ? '' : `${folder.slice(base.length + 1)}/`;
+  const wanted = `${prefix}assets/`.toLowerCase();
+  // Bounded by the files the walk returned, one pass.
+  const found = files.find((file) => file.toLowerCase().startsWith(wanted));
+  return found === undefined ? undefined : found.slice(0, wanted.length - 1);
 }
 
 /**
