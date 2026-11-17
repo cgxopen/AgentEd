@@ -28,7 +28,7 @@ alloc-stdlib 0.3.0
   Copyright (c) 2016 Dropbox, Inc.
   Licence text: 7
 
-anyhow 1.0.102
+anyhow 1.0.104
   Licence: MIT OR Apache-2.0
   The anyhow authors: David Tolnay <dtolnay@gmail.com>
   Licence texts: 8, 3
@@ -1168,7 +1168,7 @@ tinystr 0.8.2
   Copyright © 2020-2024 Unicode, Inc.
   Licence text: 37
 
-tokio 1.50.0
+tokio 1.54.1
   Licence: MIT
   Copyright (c) Tokio Contributors
   Licence text: 14
