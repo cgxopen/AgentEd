@@ -56,6 +56,22 @@ describe('reading a table s spelling', () => {
     expect(style.columns[0]).toEqual({ kind: 'fixed', width: 8, separator: ' ------ ' });
   });
 
+  it('reads the side a fixed column puts its padding on (#734)', () => {
+    const [style] = detectTableStyles(
+      '| a   |   b |  c  |\n| --- | --: | :-: |\n| xx  |  yy |  z  |\n| x   |   y | zz  |',
+    );
+    expect(style.columns).toEqual([
+      { kind: 'fixed', width: 5, separator: ' --- ' },
+      { kind: 'fixed', width: 5, separator: ' --: ', side: 'start' },
+      { kind: 'fixed', width: 5, separator: ' :-: ', side: 'centre' },
+    ]);
+  });
+
+  it('reads a column whose rows put their padding on different sides as hugged', () => {
+    const [style] = detectTableStyles('| a |  b |\n| - | -- |\n| x | y  |');
+    expect(style.columns[1]).toEqual({ kind: 'hug', width: 4, separator: ' -- ' });
+  });
+
   it('reads the shorter spelling of an empty cell', () => {
     // WORKFLOW.md's header started with `| |` (the file left with #474);
     // hugging an empty cell on its own would give `|  |`, so only the
@@ -180,6 +196,11 @@ describe('the detector and the validator agree — a property, not a case', () =
     ],
     ['rows that disagree', '| Name    | Age |\n| ---     | --- |\n| Ada | 36 |'],
     ['a pipe escaped in a cell', '| a \\| b | c |\n| --- | --- |\n| 1 | 2 |'],
+    // #734: a column padded before its text, or split around it.
+    ['padded before the text, right-aligned', '| a | Count |\n| - | ----: |\n| x |     1 |'],
+    ['padded before the text, left-aligned', '| a |  Note |\n| - | :---- |\n| x |     y |'],
+    ['centred, an odd space after', '| a |  Mid  |\n| - | :---: |\n| x |  yy   |'],
+    ['rows on different sides', '| a | Rate |\n| - | ---- |\n| x |   12 |\n| y | 3    |'],
     [
       'two tables in one document',
       '| a | b |\n| --- | --- |\n| 1 | 2 |\n\ntext\n\n| c      | d |\n| ------ | --- |\n| 3      | 4 |',
@@ -193,6 +214,18 @@ describe('the detector and the validator agree — a property, not a case', () =
       expect(decodeTableStyle(JSON.stringify(style))).not.toBeNull();
     }
   });
+
+  it.each(shapes)(
+    'gives back every field it read from %s, the side included',
+    (_label, markdown) => {
+      // Accepting is not enough once a column carries more than its kind: a
+      // validator that accepted the style and dropped the side (#734) would pad
+      // the column after its text again, and the test above would stay green.
+      for (const style of detectTableStyles(markdown)) {
+        expect(decodeTableStyle(JSON.stringify(style))).toEqual(style);
+      }
+    },
+  );
 
   // The repository's own documents, as the corpus nobody hand-picked.
   it.each([
@@ -220,6 +253,19 @@ describe('the detector and the validator agree — a property, not a case', () =
         JSON.stringify({ columns: [{ kind: 'fixed', width, separator }], emptyCell: null }),
       ),
     ).not.toBeNull();
+  });
+
+  it('refuses a padding side it cannot write, and reads an absent one as after the text', () => {
+    const column = { kind: 'fixed', width: 5, separator: ' --- ' };
+    for (const side of ['end', 'left', 'right', 1, null, '']) {
+      expect(
+        decodeTableStyle(JSON.stringify({ columns: [{ ...column, side }], emptyCell: null })),
+      ).toBeNull();
+    }
+    expect(decodeTableStyle(JSON.stringify({ columns: [column], emptyCell: null }))).toEqual({
+      columns: [column],
+      emptyCell: null,
+    });
   });
 
   it('still refuses a separator cell holding anything else', () => {

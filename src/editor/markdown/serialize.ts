@@ -73,6 +73,7 @@ import {
   type ColumnStyle,
   DEFAULT_TABLE_STYLE,
   decodeTableStyle,
+  padCell,
   TABLE_STYLE_ATTRIBUTE,
   type TableStyle,
 } from './table-style';
@@ -1238,7 +1239,8 @@ function renderCell(
   // Hugging an empty cell gives `|  |` on its own; a file that wrote `| |`
   // gets `| |` back. A padded column pads its empty cells like any other.
   if (content.length === 0 && column?.kind !== 'fixed' && emptyCell === ' ') return ' ';
-  const padded = column?.kind === 'fixed' ? content.padEnd(width) : content;
+  // A padded column pads on the side the file put its padding (#734).
+  const padded = column?.kind === 'fixed' ? padCell(content, width, column.side) : content;
   return ` ${padded} `;
 }
 
