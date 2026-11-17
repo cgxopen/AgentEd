@@ -248,7 +248,7 @@ describe('D — an assets/ folder the document does not use (#402)', () => {
     // A folder a click entered is a place rather than a claim about this
     // document, so #178 is untouched by the content rule.
     const state = stateAt(DOC, false);
-    state.sidebarRootFromClick = '/proj/assets';
+    state.sidebarRootFromClick = { path: '/proj/assets', markdown: false };
     const seen = recorder();
     await refreshSidebar(state, seen.sidebar, io(['/proj/assets'], listing));
     expect(seen.showing()).toBe('tree:/proj/assets');

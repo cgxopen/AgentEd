@@ -1,6 +1,7 @@
 import { type LinkRefusal, resolveLinkTarget } from '../platform/link-target';
 import { basename, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
+import type { TreeRoot } from '../ui/sidebar';
 import { showToast } from '../ui/toast';
 import { establishedPresence } from './entry-absence';
 import { handOverToSystem, notLookedAtMessage } from './system-hand-over';
@@ -39,10 +40,10 @@ export interface RelativeLinkDeps {
   /** The path of the open document, or null for a document with no file. */
   readonly documentPath: () => string | null;
   /** The root the files panel lists while it shows a tree, or null. */
-  readonly panelRoot: () => string | null;
+  readonly panelRoot: () => TreeRoot | null;
   readonly io: () => Promise<PlatformIO>;
   /** `docActions.openFilePath`: through the question about unsaved changes. */
-  readonly openFilePath: (path: string, sidebarRoot?: string) => Promise<void>;
+  readonly openFilePath: (path: string, sidebarRoot?: TreeRoot) => Promise<void>;
   /**
    * Open the file in a window of its own (#731), answering whether one was
    * asked for: `platform/index.ts` `openDocumentWindow`. No on the web build,
@@ -108,7 +109,7 @@ export async function followRelativeLink(
   }
   if (inNewWindow && (await openedInItsOwnWindow(deps, target.path, presence, tell))) return;
   const root = deps.panelRoot();
-  const keep = root !== null && isPathInsideRoot(target.path, root) ? root : undefined;
+  const keep = root !== null && isPathInsideRoot(target.path, root.path) ? root : undefined;
   await deps.openFilePath(target.path, keep);
 }
 

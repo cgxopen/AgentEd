@@ -86,6 +86,8 @@ Press **Ctrl+F** to find text in the document, and **Ctrl+H** to find and replac
 
 When your document uses images from an `assets` folder beside it, the files panel can show that folder. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**. Files that your system leaves in a folder, such as `.DS_Store` or `Thumbs.db`, and other files whose names start with a dot are not listed. Folders whose names start with a dot are hidden; when there are some, a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**.
 
+On a document with no such folder, opening the panel lists the markdown files beside the document and in the folders under it, up to ten levels down, showing only the folders that hold one. Click a file to open it. Folders such as `node_modules`, `target` and `AppData`, and folders whose names start with a dot, are not looked into. In a very large folder the panel stops after 2000 folders or 2 seconds, whichever comes first, and says so under the list.
+
 ## Appearance
 
 Click the theme icon (half-filled circle) on the right of the header to open **Appearance**. Choose a light or dark mode, or Auto to follow your system, and a colour palette.

@@ -227,8 +227,8 @@ describe('#146 — an entry nothing can act on', () => {
       '<div id="sidebar"><div id="sidebar-tree"></div><button id="sidebar-close"></button></div>';
     const clicks: string[][] = [];
     const sidebar = setupSidebar();
-    sidebar.setOnFileClick((absPath, rootPath) => {
-      clicks.push([absPath, rootPath]);
+    sidebar.setOnFileClick((absPath, root) => {
+      clicks.push([absPath, root.path]);
     });
     sidebar.showTree(
       buildTree([

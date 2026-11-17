@@ -9,6 +9,7 @@ import { clearImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import { SYSTEM_OPEN_EXTENSIONS } from '../platform/paths';
 import type { EntryPresence, FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
+import type { TreeRoot } from '../ui/sidebar';
 import type { AppContext } from './context';
 import { createDocumentActions, type DocumentActions } from './document-actions';
 import type { ErrorReporter } from './error-reporter';
@@ -90,7 +91,7 @@ function deps() {
     documentPath: () => state.filePath,
     panelRoot: () => null,
     io: async () => io,
-    openFilePath: (path: string, root?: string) => actions.openFilePath(path, root),
+    openFilePath: (path: string, root?: TreeRoot) => actions.openFilePath(path, root),
     openWindow:
       windowAnswer === 'absent'
         ? undefined

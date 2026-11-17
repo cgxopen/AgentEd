@@ -13,6 +13,7 @@ import { clearImages } from '../editor/image-registry';
 import { createEditor, type EditorInstance } from '../editor/setup';
 import type { EntryPresence, FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
 import { loadRecentFiles } from '../preferences';
+import type { TreeRoot } from '../ui/sidebar';
 import type { AppContext } from './context';
 import { createDocumentActions, type DocumentActions } from './document-actions';
 import type { ErrorReporter } from './error-reporter';
@@ -26,6 +27,9 @@ import {
 } from './relative-link';
 import { createSidebarClickHandler } from './sidebar-click';
 import { AppState } from './state';
+
+/** A root kept from a listing tree, as a click in one hands it on (#746). */
+const listing = (path: string): TreeRoot => ({ path, markdown: false });
 
 const ROOT = '/notes';
 const A = '/notes/docs/a.md';
@@ -81,8 +85,8 @@ let state: AppState;
 let instance: EditorInstance;
 let host: HTMLElement;
 let actions: DocumentActions;
-let panelRoot: string | null;
-let opened: Array<{ path: string; root: string | undefined }>;
+let panelRoot: TreeRoot | null;
+let opened: Array<{ path: string; root: TreeRoot | undefined }>;
 let uninstall: () => void;
 
 /** The deps the application passes, with `openFilePath` recorded on its way to the real one. */
@@ -91,7 +95,7 @@ function deps() {
     documentPath: () => state.filePath,
     panelRoot: () => panelRoot,
     io: async () => io,
-    openFilePath: (path: string, root?: string) => {
+    openFilePath: (path: string, root?: TreeRoot) => {
       opened.push({ path, root });
       return actions.openFilePath(path, root);
     },
@@ -112,7 +116,7 @@ beforeEach(async () => {
   ]);
   folders = new Set([ROOT, '/notes/docs', '/notes/docs/sub', '/notes/docs/shut']);
   documentUnknown = false;
-  panelRoot = ROOT;
+  panelRoot = listing(ROOT);
   opened = [];
   clearImages();
   state = new AppState();
@@ -212,18 +216,18 @@ describe('a relative link to a markdown file opens it, as a click in the panel d
 
     localStorage.clear();
     await actions.openFilePath(A);
-    const panelOpened: Array<string | undefined> = [];
+    const panelOpened: Array<TreeRoot | undefined> = [];
     const click = createSidebarClickHandler(
       {
         ...actions,
-        openFilePath: (path: string, root?: string) => {
+        openFilePath: (path: string, root?: TreeRoot) => {
           panelOpened.push(root);
           return actions.openFilePath(path, root);
         },
       },
       async () => io,
     );
-    click(C, ROOT);
+    click(C, listing(ROOT));
     await vi.waitFor(() => expect(state.filePath).toBe(C));
     const byPanel = {
       path: state.filePath,
@@ -233,7 +237,7 @@ describe('a relative link to a markdown file opens it, as a click in the panel d
     };
 
     expect(byLink).toEqual(byPanel);
-    expect(byLink.root).toBe(ROOT);
+    expect(byLink.root).toEqual(listing(ROOT));
   });
 
   it('with the panel showing no tree, no root is kept, as no click in the panel could be made', async () => {
@@ -243,7 +247,7 @@ describe('a relative link to a markdown file opens it, as a click in the panel d
   });
 
   it('a target outside the root the panel lists is opened with no root kept', async () => {
-    panelRoot = '/notes/docs/sub';
+    panelRoot = listing('/notes/docs/sub');
     await ctrlClick('b');
     expect(opened).toEqual([{ path: B, root: undefined }]);
   });
@@ -253,7 +257,7 @@ describe('a link into a folder that cannot be looked at (#729)', () => {
   it('is tried, as the broken link check lists it as not checked, never called missing', async () => {
     await followRelativeLink(deps(), 'shut/x.md');
     expect(toasts).not.toContain(missingTargetMessage('/notes/docs/shut/x.md'));
-    expect(opened).toEqual([{ path: '/notes/docs/shut/x.md', root: ROOT }]);
+    expect(opened).toEqual([{ path: '/notes/docs/shut/x.md', root: listing(ROOT) }]);
   });
 });
 

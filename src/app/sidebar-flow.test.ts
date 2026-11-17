@@ -16,13 +16,16 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileEntry, FileSnapshot, PlatformIO } from '../platform/types';
-import type { Sidebar, TreeNode } from '../ui/sidebar';
+import type { Sidebar, TreeNode, TreeRoot } from '../ui/sidebar';
 import type { AppContext } from './context';
 import { createDocumentActions, type DocumentActions } from './document-actions';
 import type { ErrorReporter } from './error-reporter';
 import { createSidebarClickHandler } from './sidebar-click';
 import { refreshSidebar } from './sidebar-sync';
 import { AppState } from './state';
+
+/** A root kept from a listing tree, as a click in one hands it on (#746). */
+const listing = (path: string): TreeRoot => ({ path, markdown: false });
 
 function buildIO(): PlatformIO {
   const tree: Record<string, FileEntry[]> = {
@@ -148,11 +151,11 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
     const docActions = makeDocActions();
     const io = buildIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/doc/references/notes.md', '/proj/doc');
+    handle('/proj/doc/references/notes.md', listing('/proj/doc'));
     await flush();
     expect(docActions.openFilePath).toHaveBeenCalledWith(
       '/proj/doc/references/notes.md',
-      '/proj/doc',
+      listing('/proj/doc'),
     );
     expect(io.openWithSystem).not.toHaveBeenCalled();
   });
@@ -161,7 +164,7 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
     const docActions = makeDocActions();
     const io = buildIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/doc/scripts/helper.py', '/proj/doc');
+    handle('/proj/doc/scripts/helper.py', listing('/proj/doc'));
     await flush();
     expect(io.openWithSystem).toHaveBeenCalledWith('/proj/doc/scripts/helper.py');
     expect(docActions.openFilePath).not.toHaveBeenCalled();
@@ -171,7 +174,7 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
     const docActions = makeDocActions();
     const io = buildIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/doc/assets/image.png', '/proj/doc');
+    handle('/proj/doc/assets/image.png', listing('/proj/doc'));
     await flush();
     expect(io.openWithSystem).toHaveBeenCalledWith('/proj/doc/assets/image.png');
   });
@@ -180,7 +183,7 @@ describe('Sidebar integration — adjacent folder, 3 levels', () => {
     const docActions = makeDocActions();
     const io = buildIO();
     const handle = createSidebarClickHandler(docActions, async () => io);
-    handle('/proj/doc/../doc.md', '/proj/doc');
+    handle('/proj/doc/../doc.md', listing('/proj/doc'));
     await flush();
     expect(docActions.openFilePath).not.toHaveBeenCalled();
     expect(io.openWithSystem).not.toHaveBeenCalled();
@@ -288,7 +291,7 @@ describe('#178 — a document opened from the tree, and the tree afterwards', ()
   function click(absPath: string): void {
     const root = panelRoot();
     expect(root).not.toBeNull();
-    createSidebarClickHandler(actions, async () => flowIO)(absPath, root!);
+    createSidebarClickHandler(actions, async () => flowIO)(absPath, listing(root!));
   }
 
   function settle(): Promise<void> {

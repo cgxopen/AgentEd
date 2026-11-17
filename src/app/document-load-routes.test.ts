@@ -196,7 +196,7 @@ describe('every route that replaces the document (R-C16)', () => {
     await openAndEditA();
     const stop = answerDialogsInTurn('Discard');
     // The sidebar is the one caller that passes a listing root (#178).
-    await actions.openFilePath(B, '/doc');
+    await actions.openFilePath(B, { path: '/doc', markdown: false });
     stop();
 
     const asLoaded = instance.getMarkdown();

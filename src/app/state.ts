@@ -1,5 +1,6 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { DEFAULT_LINE_CONVENTIONS, type LineConventions } from '../formats/line-conventions';
+import type { TreeRoot } from '../ui/sidebar';
 import { differsFromSaved, type SavedState } from './saved-state';
 
 /**
@@ -147,7 +148,7 @@ export class AppState {
    * the no-vault, no-account promise, and a folder being browsed is
    * exactly that kind of state.
    */
-  sidebarRootFromClick: string | null = null;
+  sidebarRootFromClick: TreeRoot | null = null;
 
   /**
    * Whether the document on screen references an image (#402).

@@ -323,6 +323,6 @@ describe('the tree is the tree, on whichever side the panel sits', () => {
       true,
     );
     (document.querySelector('.sidebar-file-entry') as HTMLElement).click();
-    expect(opened).toHaveBeenCalledWith('/project/notes.md', '/project');
+    expect(opened).toHaveBeenCalledWith('/project/notes.md', { path: '/project', markdown: false });
   });
 });

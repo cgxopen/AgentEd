@@ -4,12 +4,12 @@ import {
   HIDDEN_ENTRY_CLASS,
   markUnused,
   NON_MARKDOWN_REASON,
-  type OnFileClick,
   renderTreeRecursive,
   type TreeNode,
+  type TreeRoot,
 } from './sidebar-tree';
 
-export { buildTree, NON_MARKDOWN_REASON, type TreeNode };
+export { buildTree, NON_MARKDOWN_REASON, type TreeNode, type TreeRoot };
 
 export interface Sidebar {
   /**
@@ -29,6 +29,7 @@ export interface Sidebar {
     rootName: string,
     rootPath: string,
     opensNonMarkdown: boolean,
+    markdown?: MarkdownTreeMark,
   ) => void;
   /**
    * Show the panel holding the offer of folder access instead of a tree
@@ -106,16 +107,17 @@ export interface Sidebar {
   /**
    * Replace the click handler called when the user activates a file
    * entry in the tree. Receives the absolute disk path (joinPath of
-   * rootPath + the node's relative path) and the rootPath itself, so
-   * the consumer can run path-traversal validation.
+   * rootPath + the node's relative path) and the root itself, so the
+   * consumer can run path-traversal validation and keep the root with the
+   * kind of tree it was (#746).
    */
-  setOnFileClick: (handler: (absPath: string, rootPath: string) => void) => void;
+  setOnFileClick: (handler: (absPath: string, root: TreeRoot) => void) => void;
   /**
    * The root the panel lists while it shows a tree, or null while it is
    * hidden or shows a note or the access offer (#727): a relative link keeps
    * it exactly as a click in the panel would.
    */
-  listedRoot: () => string | null;
+  listedRoot: () => TreeRoot | null;
   /**
    * Replace the handler run when the user accepts the offer above. It is
    * called from a click, so whatever it does still holds the transient
@@ -185,13 +187,32 @@ export const HIDE_HIDDEN = 'Hide';
 /** The class of that line, drawn only when the tree hides something. */
 export const HIDDEN_LINE_CLASS = 'sidebar-hidden-line';
 
+/**
+ * A tree drawn as a markdown tree (#746), and whether the read stopped at its
+ * bound of folders or of time before it was done. Absent, the tree is the
+ * listing of an `assets/` folder or a folder clicked into, as before.
+ */
+export interface MarkdownTreeMark {
+  readonly reachedBound: boolean;
+}
+
+/**
+ * The words of the line under a markdown tree whose read stopped at its bound,
+ * 2000 folders or 2 seconds (#746): R-C6 shows no silent cut (#172). Proposed
+ * on the pull request for AMP and the owner to fix.
+ */
+export const BOUND_REACHED_TEXT = 'Some folders were not read';
+
+/** The class of that line. */
+export const BOUND_LINE_CLASS = 'sidebar-bound-line';
+
 export function setupSidebar(): Sidebar {
   const panel = document.getElementById('sidebar')!;
   const treeEl = document.getElementById('sidebar-tree')!;
 
   // No-op default — replaced by main.ts via setOnFileClick once
   // the document actions are wired.
-  let onFileClick: OnFileClick = () => {};
+  let onFileClick: (absPath: string, root: TreeRoot) => void = () => {};
   let onRequestAccess: () => void = () => {};
   let onOpenByHand: (ticket: number) => void = () => {};
   const visibleListeners: Array<(visible: boolean) => void> = [];
@@ -210,7 +231,7 @@ export function setupSidebar(): Sidebar {
    * across launches.
    */
   let showHidden = false;
-  let shownRoot: string | null = null;
+  let shownRoot: TreeRoot | null = null;
 
   /** Empty the panel for the next thing drawn in it, and count that. */
   function clear(): void {
@@ -285,29 +306,40 @@ export function setupSidebar(): Sidebar {
     treeEl.appendChild(line);
   }
 
+  /** The line under a markdown tree whose read stopped at its bound (#746). */
+  function appendBoundLine(): void {
+    const line = document.createElement('div');
+    line.className = BOUND_LINE_CLASS;
+    line.textContent = BOUND_REACHED_TEXT;
+    treeEl.appendChild(line);
+  }
+
   function showTree(
     nodes: TreeNode[],
     rootName: string,
     rootPath: string,
     opensNonMarkdown: boolean,
+    markdown?: MarkdownTreeMark,
   ): void {
     clear();
     const header = document.createElement('div');
     header.className = 'sidebar-root';
     header.textContent = `\u{1F4C4} ${rootName}`;
     treeEl.appendChild(header);
+    const root: TreeRoot = { path: rootPath, markdown: markdown !== undefined };
     renderTreeRecursive(
       nodes,
       treeEl,
-      (absPath, rootPathArg) => onFileClick(absPath, rootPathArg),
+      (absPath) => onFileClick(absPath, root),
       rootPath,
       0,
       opensNonMarkdown,
     );
-    if (rootPath !== shownRoot) showHidden = false;
-    shownRoot = rootPath;
+    if (rootPath !== shownRoot?.path) showHidden = false;
+    shownRoot = root;
     applyHidden();
     appendHiddenLine(countHidden(nodes));
+    if (markdown?.reachedBound) appendBoundLine();
     setVisible(true);
   }
 
@@ -345,7 +377,7 @@ export function setupSidebar(): Sidebar {
     return ticket === generation && !panel.classList.contains('hidden');
   }
 
-  function setOnFileClick(handler: OnFileClick): void {
+  function setOnFileClick(handler: (absPath: string, root: TreeRoot) => void): void {
     onFileClick = handler;
   }
 

@@ -1,7 +1,7 @@
 import { isTauri } from '../platform/detect';
-import { basename, dirname, joinPath } from '../platform/paths';
-import type { PlatformIO } from '../platform/types';
-import type { Sidebar } from '../ui/sidebar';
+import { basename, dirname, joinPath, samePath } from '../platform/paths';
+import type { MarkdownTree, PlatformIO } from '../platform/types';
+import type { MarkdownTreeMark, Sidebar } from '../ui/sidebar';
 import { buildTree, type TreeNode } from '../ui/sidebar';
 import type { AppState } from './state';
 
@@ -196,6 +196,8 @@ export type SidebarView =
       readonly rootName: string;
       readonly rootPath: string;
       readonly opensNonMarkdown: boolean;
+      /** Present for a markdown tree (#746), absent for a listing. */
+      readonly markdown?: MarkdownTreeMark;
     }
   | { readonly kind: 'offer' }
   | { readonly kind: 'nothing' }
@@ -218,7 +220,11 @@ export type SidebarView =
  * own now falls through to this line instead, so the route below is
  * reached more often rather than less.
  */
-export async function resolveSidebarView(state: AppState, io: PlatformIO): Promise<SidebarView> {
+export async function resolveSidebarView(
+  state: AppState,
+  io: PlatformIO,
+  asked = false,
+): Promise<SidebarView> {
   const decision = await shouldShowSidebar(state.filePath, io);
 
   // **An `assets/` folder the document does not use is somebody else's
@@ -292,9 +298,22 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
   //
   // Below a kept root, because a root a click asked to hold is a folder
   // that was granted: there is nothing to offer.
-  const root = used.kind === 'tree' ? used.root : state.sidebarRootFromClick;
+  //
+  // **A kept root carries the kind of tree it was** (#746): a click in a
+  // markdown tree keeps a markdown tree, read again from the same root, rather
+  // than a listing of everything that folder holds.
+  const kept = state.sidebarRootFromClick;
+  if (used.kind !== 'tree' && kept?.markdown) return markdownView(state, io, kept.path);
+  const root = used.kind === 'tree' ? used.root : kept?.path;
   if (!root) {
     if (used.kind === 'no-folder-access') return { kind: isTauri ? 'unreadable' : 'offer' };
+    // **An open by hand on a document with no `assets/` tree lists the
+    // markdown around it** (#746). Only an act that asks reaches it: a
+    // document arriving still raises the panel for an `assets/` folder and
+    // for nothing else (#402, owner decision F1).
+    if (asked && used.kind === 'nothing-adjacent' && state.filePath !== null) {
+      return markdownView(state, io, dirname(state.filePath));
+    }
     return { kind: 'nothing' };
   }
 
@@ -331,6 +350,68 @@ export async function resolveSidebarView(state: AppState, io: PlatformIO): Promi
 }
 
 /**
+ * The markdown tree of `root` for the document on screen (#746), read in one
+ * native call where this build has it. A build without it answers as before,
+ * **No related files or folders**.
+ *
+ * **The document alone is not an answer.** It is a markdown file in its own
+ * folder, so every saved document would otherwise draw a tree of one entry,
+ * itself; that is nothing related, and is answered so. A read that stopped at
+ * its bound draws its tree and its line whatever it found, since what it did
+ * not read is not known to hold nothing.
+ *
+ * A root that cannot be read, or one the command refuses, is a folder that
+ * could not be read.
+ */
+async function markdownView(state: AppState, io: PlatformIO, root: string): Promise<SidebarView> {
+  const documentPath = state.filePath;
+  if (!io.markdownTree || documentPath === null) return { kind: 'nothing' };
+  let tree: MarkdownTree;
+  try {
+    tree = await readMarkdownTree(io, documentPath, root);
+  } catch (e) {
+    console.warn('[agented] the markdown tree could not be read:', root, e);
+    return { kind: 'unreadable' };
+  }
+  const others = tree.files.filter((file) => !samePath(joinPath(root, file), documentPath));
+  if (others.length === 0 && !tree.reachedBound) return { kind: 'nothing' };
+  return {
+    kind: 'tree',
+    nodes: buildTree(tree.files.map((path) => ({ path, kind: 'file' as const }))),
+    rootName: basename(root),
+    rootPath: root,
+    opensNonMarkdown: isTauri,
+    markdown: { reachedBound: tree.reachedBound },
+  };
+}
+
+/**
+ * The read of a markdown tree in flight, by document and root (#746). **An
+ * open by hand while a read runs joins it rather than starting a second**: one
+ * native call cannot be stopped once begun, so a second press would otherwise
+ * set a second walk of the same folder running beside the first. Bounded by
+ * the walk, 2000 folders or 2 seconds, so a read is never held for long.
+ */
+let readInFlight: { readonly key: string; readonly read: Promise<MarkdownTree> } | null = null;
+
+function readMarkdownTree(
+  io: PlatformIO,
+  documentPath: string,
+  root: string,
+): Promise<MarkdownTree> {
+  const key = `${documentPath}\n${root}`;
+  if (readInFlight?.key === key) return readInFlight.read;
+  const read = (io.markdownTree as NonNullable<PlatformIO['markdownTree']>)(documentPath, root);
+  const entry = { key, read };
+  readInFlight = entry;
+  const forget = () => {
+    if (readInFlight === entry) readInFlight = null;
+  };
+  read.then(forget, forget);
+  return read;
+}
+
+/**
  * Why the panel is drawn again (#387): a document arrived on screen, or the
  * document already there was written or read again.
  */
@@ -338,7 +419,7 @@ export type SidebarRedraw = 'document-arrived' | 'same-document';
 
 /** Draw a tree answer; the one draw both routes share. */
 function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>): void {
-  sidebar.showTree(view.nodes, view.rootName, view.rootPath, view.opensNonMarkdown);
+  sidebar.showTree(view.nodes, view.rootName, view.rootPath, view.opensNonMarkdown, view.markdown);
 }
 
 /**
@@ -372,8 +453,13 @@ export async function refreshSidebar(
 ): Promise<void> {
   if (redraw === 'document-arrived') sidebar.forgetClosedByHand();
   else if (sidebar.isClosedByHand()) return;
+  // A redraw of the same document while the panel is open is the answer to a
+  // question already put, so a markdown tree opened by hand is drawn again
+  // rather than hidden by a save (#387, #746). A document arriving asked
+  // nothing.
+  const asked = redraw === 'same-document' && sidebar.isVisible();
   const ticket = sidebar.beginSwitch();
-  const view = await resolveSidebarView(state, io);
+  const view = await resolveSidebarView(state, io, asked);
   if (!sidebar.isLatest(ticket)) return;
   if (view.kind === 'tree') drawTree(sidebar, view);
   else if (view.kind === 'offer') sidebar.showAccessOffer();
@@ -401,7 +487,7 @@ export async function openSidebarByHand(
 ): Promise<void> {
   let view: SidebarView;
   try {
-    view = await resolveSidebarView(state, io);
+    view = await resolveSidebarView(state, io, true);
   } catch (e) {
     console.error('[agented] the files panel could not be read:', e);
     view = { kind: 'unreadable' };
