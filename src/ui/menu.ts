@@ -12,6 +12,8 @@ export interface MenuCallbacks {
   onClearRecentFiles: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** File, Rename: the open document renamed in its folder (#752). */
+  onRename: () => void;
   /** File, Export to PDF: a save dialog of ours, then the PDF written directly (#725). */
   onExportPdf: () => void;
   /** File, Print: the print dialog of the system, also Ctrl+P (#725). */
@@ -85,6 +87,7 @@ export type EntryAvailability = Readonly<Record<string, boolean>>;
  * that would do nothing.
  */
 const GREYABLE_ENTRIES: ReadonlyArray<readonly [id: string, key: string]> = [
+  ['menu-rename', 'rename'],
   ['menu-image-description', 'imageDescription'],
   ['menu-insert-footnote', 'insertFootnote'],
   ['menu-insert-link', 'insertLink'],
@@ -307,6 +310,7 @@ export function setupMenu(
   bind('menu-open', callbacks.onOpen);
   bind('menu-save', callbacks.onSave);
   bind('menu-save-as', callbacks.onSaveAs);
+  bind('menu-rename', callbacks.onRename);
   bind('menu-export-pdf', callbacks.onExportPdf);
   bind('menu-print', callbacks.onPrint);
   bind('menu-close', callbacks.onClose);

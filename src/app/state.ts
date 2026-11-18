@@ -61,7 +61,9 @@ export class AppState {
    *
    * It travels with the path, and every place that moves the document
    * to a different file must clear it, or the next save compares one
-   * file against another file's text. Set on open and after every
+   * file against another file's text. **A rename keeps it** (#752): the file
+   * is the same file under a new name, with the same bytes, so the next save
+   * compares it against exactly what it holds. Set on open and after every
    * successful write (**including** a save whose images failed, since
    * the `.md` did reach the disk — otherwise the retry that failure
    * invites would accuse AgentEd of its own write). Cleared on New /

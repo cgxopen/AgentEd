@@ -17,6 +17,7 @@ function makeDocActions(confirmWindowClose: () => Promise<boolean>): DocumentAct
     handleClose: vi.fn(async () => {}),
     openFilePath: vi.fn(async () => {}),
     openRecentFile: vi.fn(async () => {}),
+    readyToRename: vi.fn(async () => true),
     requestSaveAs: vi.fn(async () => null),
     confirmWindowClose: vi.fn(confirmWindowClose),
   };

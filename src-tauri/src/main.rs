@@ -18,6 +18,7 @@ mod macos_windows;
 mod main_window;
 mod markdown_tree;
 mod print_export;
+mod rename_document;
 #[cfg(test)]
 mod shell_scope;
 mod title_bar;
@@ -48,6 +49,7 @@ fn main() {
         help_window::take_launch_help,
         markdown_tree::markdown_tree,
         print_export::export_pdf,
+        rename_document::rename_document,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour
@@ -63,6 +65,7 @@ fn main() {
         macos_windows::report_window_state,
         macos_windows::window_close_cancelled,
         print_export::export_pdf,
+        rename_document::rename_document,
         title_bar::title_bar_overlay,
         window_shown::show_window_themed,
         window_shown::keep_page_colour

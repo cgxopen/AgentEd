@@ -147,6 +147,19 @@ export function recordRecentFile(path: string): void {
   saveRecentFiles([path, ...others].slice(0, RECENT_FILES_BOUND));
 }
 
+/**
+ * A file renamed (#752): the old name leaves the list and the new one takes the
+ * top, so the list holds the file once, under the name it has now. A change of
+ * letter case alone is one file to `samePath` on Windows, and the new spelling
+ * replaces the old.
+ */
+export function replaceRecentFile(oldPath: string, newPath: string): void {
+  const others = loadRecentFiles().filter(
+    (entry) => !samePath(entry, oldPath) && !samePath(entry, newPath),
+  );
+  saveRecentFiles([newPath, ...others].slice(0, RECENT_FILES_BOUND));
+}
+
 /** Take `path` off the list, for a file that is no longer there. */
 export function forgetRecentFile(path: string): void {
   saveRecentFiles(loadRecentFiles().filter((entry) => !samePath(entry, path)));

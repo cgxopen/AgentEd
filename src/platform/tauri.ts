@@ -211,6 +211,15 @@ export class TauriIO implements PlatformIO {
     return invoke<MarkdownTree>('markdown_tree', { document: documentPath, root });
   }
 
+  /**
+   * One native call, `rename_document` in `src-tauri/src/rename_document.rs`
+   * (#752), and not the `rename` of the fs plugin: that one reaches every path
+   * the scope of `default.json` reaches and replaces a file at the new name.
+   */
+  async renameDocument(documentPath: string, name: string): Promise<string> {
+    return invoke<string>('rename_document', { document: documentPath, name });
+  }
+
   async mkdir(path: string): Promise<void> {
     await fsMkdir(path, { recursive: true });
   }

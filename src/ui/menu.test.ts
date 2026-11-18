@@ -42,6 +42,9 @@ const everyEntryOffered = () => ({
   // The eleventh (#450), greyed in a fenced block and on a selected rule;
   // asserted over a real editor in `app/insert-link-entry.test.ts`.
   insertLink: true,
+  // The twelfth (#752), greyed for a document never saved and where the
+  // platform cannot rename; asserted in `app/rename-flow.test.ts`.
+  rename: true,
   addRowAbove: true,
   addRowBelow: true,
   deleteRow: true,
@@ -60,6 +63,7 @@ function callbacks(): MenuCallbacks {
     onClearRecentFiles: vi.fn(),
     onSave: vi.fn(),
     onSaveAs: vi.fn(),
+    onRename: vi.fn(),
     onExportPdf: vi.fn(),
     onPrint: vi.fn(),
     onClose: vi.fn(),
@@ -188,6 +192,7 @@ const ENTRIES: ReadonlyArray<
   ['menu-panel-file', 'Open Recent', 'menu-open-recent', null],
   ['menu-panel-file', 'Save', 'menu-save', 'onSave'],
   ['menu-panel-file', 'Save As', 'menu-save-as', 'onSaveAs'],
+  ['menu-panel-file', 'Rename…', 'menu-rename', 'onRename'],
   ['menu-panel-file', 'Export to PDF', 'menu-export-pdf', 'onExportPdf'],
   ['menu-panel-file', 'Print', 'menu-print', 'onPrint'],
   ['menu-panel-file', 'Close file', 'menu-close', 'onClose'],
