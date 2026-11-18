@@ -34,7 +34,7 @@ Read REQUIREMENTS.md before changing anything — it is the single source of pro
 
 ## Module map (post-conversion)
 
-`src/app` (bootstrap/state) · `src/editor` (TipTap setup, input rules) · `src/formats` (markdown serialization — round-trip critical, test any change) · `src/platform` (all Tauri/file access) · `src/templates` (2 plain seeds) · `src/ui` (header, statusbar, sidebar, dialogs) · `index.html` (the application shell: the visible words of the menus, the header, the sidebar and the dialog markup; `src/ui` binds them by id) · `src/types` · `src-tauri` (Rust shell — keep minimal; `panic = "abort"`, full LTO on release).
+`src/app` (bootstrap/state) · `src/editor` (TipTap setup, input rules) · `src/formats` (markdown serialization — round-trip critical, test any change) · `src/platform` (all Tauri/file access) · `src/templates` (3 plain seeds) · `src/ui` (header, statusbar, sidebar, dialogs) · `index.html` (the application shell: the visible words of the menus, the header, the sidebar and the dialog markup; `src/ui` binds them by id) · `src/types` · `src-tauri` (Rust shell — keep minimal; `panic = "abort"`, full LTO on release).
 
 ## Coding standards (NASA-derived, compact)
 

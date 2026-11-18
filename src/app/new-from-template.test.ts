@@ -111,4 +111,14 @@ describe('Blank Document against File then New (#403)', () => {
     expect(editor.getMarkdown()).toContain('# Untitled');
     expect(state.frontmatter).toContain('title: Untitled');
   });
+
+  it('Agent Instructions marks the document, though both its fields are empty (#754)', async () => {
+    // R-C18: a seed with content marks the document, and the empty name and
+    // description are content: the block differs from the empty snapshot.
+    const state = new AppState();
+    await makeActions(state).handleNewFromTemplate('agent-instructions');
+    expect(state.modified).toBe(true);
+    expect(state.frontmatter).toBe('name:\ndescription:');
+    expect(editor.getMarkdown()).toBe('');
+  });
 });

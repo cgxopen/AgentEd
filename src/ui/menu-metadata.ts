@@ -1,6 +1,6 @@
 /**
  * Insert → Metadata: one entry that opens a card beside the menu with the two
- * blocks it offers (#715), **Document** and **Agent instructions**, the way
+ * blocks it offers (#715), **Agent instructions** and **Document**, the way
  * Open Recent opens its list.
  *
  * A card rather than two entries, measured on the #715 step zero: with nine
@@ -15,10 +15,14 @@ import { installSideCard, type SideCard } from './menu-side-card';
 /** The id of the card, which the entry names in `aria-controls`. */
 export const METADATA_MENU_ID = 'menu-metadata';
 
-/** The rows of the card, in order: the label and the block each one writes. */
+/**
+ * The rows of the card, in order: the label and the block each one writes.
+ * The order is the order of New from Template since #754, Agent Instructions
+ * before Document with Metadata, so the menu and the gallery agree.
+ */
 export const METADATA_CHOICES: readonly (readonly [string, MetadataBlockKind])[] = [
-  ['Document', 'document'],
   ['Agent instructions', 'agent'],
+  ['Document', 'document'],
 ];
 
 export interface MetadataMenuOptions {

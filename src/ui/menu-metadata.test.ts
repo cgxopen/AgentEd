@@ -73,11 +73,15 @@ describe('Insert → Metadata opens a card of two blocks (#715)', () => {
     expect(byId('menu-panel-insert').querySelectorAll(':scope > button')).toHaveLength(9);
   });
 
-  it('offers Document, then Agent instructions, and runs nothing until one is chosen', () => {
+  it('offers Agent instructions, then Document, the order of the gallery (#754), and runs nothing until one is chosen', () => {
     openCard();
     expect(card()?.classList.contains(SIDE_CARD_CLASS)).toBe(true);
     expect(card()?.getAttribute('role')).toBe('group');
-    expect(rows().map((row) => row.textContent)).toEqual(['Document', 'Agent instructions']);
+    expect(rows().map((row) => row.textContent)).toEqual(['Agent instructions', 'Document']);
+    expect(rows().map((row) => row.id)).toEqual([
+      'menu-insert-metadata-agent',
+      'menu-insert-metadata-document',
+    ]);
     expect(trigger().getAttribute('aria-expanded')).toBe('true');
     expect(handlers.onInsertMetadata).not.toHaveBeenCalled();
     expect(menuOpen()).toBe(true);
