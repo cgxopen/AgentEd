@@ -203,15 +203,19 @@ describe('the mark follows the saved state (#441)', () => {
     expect(r.state.modified).toBe(false);
   });
 
-  it('a seed with content stays marked, through an edit and its undo', async () => {
-    const r = rig();
-    await r.actions.handleNewFromTemplate('blank-frontmatter');
-    expect(r.state.modified).toBe(true);
+  it.each([['blank-frontmatter'], ['agent-instructions']] as const)(
+    'a seed with content stays marked, through an edit and its undo: %s',
+    async (id) => {
+      // agent-instructions since #754: a block whose two fields are empty is content.
+      const r = rig();
+      await r.actions.handleNewFromTemplate(id);
+      expect(r.state.modified).toBe(true);
 
-    type(r, ' word');
-    undo(r);
-    expect(r.state.modified).toBe(true);
-  });
+      type(r, ' word');
+      undo(r);
+      expect(r.state.modified).toBe(true);
+    },
+  );
 
   it('a never-saved empty document typed in and undone is unmarked again, as New is', async () => {
     const r = rig();

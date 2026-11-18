@@ -19,7 +19,7 @@ Markdown files have become a common language for AI workflows — powering agent
 1. AgentEd opens with an empty document. Start typing.
 2. To save it, press **Ctrl+S**. The first time, AgentEd asks where to put the file and what to call it.
 3. To open a file you already have, press **Ctrl+O**, or open the menu at the top left and choose **File → Open**. Files you opened recently are under **File → Open Recent**.
-4. To start again with an empty document, choose **File → New**. **File → New from Template** offers a blank document, or one that starts with a metadata block.
+4. To start again with an empty document, choose **File → New**. **File → New from Template** offers a blank document, a file of agent instructions that starts with a `name` and `description` block, or a document that starts with a metadata block.
 5. To give a saved document another name, choose **File → Rename**. The file stays in its folder, and any unsaved changes stay unsaved. Type a name without an extension to keep the one it has; only `.md`, `.markdown` and `.mkd` are accepted, and a name another file already has is refused. Links to the file in other documents keep the old name.
 
 AgentEd never saves on its own. If you try to close a document with unsaved changes, it asks whether to save them, discard them, or go back.
@@ -30,7 +30,7 @@ Some Markdown files start with a structured block of fields at the top, commonly
 
 AgentEd shows this block in a dedicated Metadata panel above the document, where you can inspect and edit it apart from the body. The block is edited as raw YAML text, without validation, so make sure it stays valid YAML in the format your project expects.
 
-To add a metadata block to a document, choose **Insert → Metadata**, then **Document** for the usual fields (title, description, author, date and tags), or **Agent instructions** for `name` and `description` alone, the two fields that agent instruction files and skills require. For a skill, `name` must be the name of the folder the file is in, and the file must be named `SKILL.md`; AgentEd checks neither.
+To add a metadata block to a document, choose **Insert → Metadata**, then **Agent instructions** for `name` and `description` alone, the two fields that agent instruction files and skills require, or **Document** for the usual fields (title, description, author, date and tags). For a skill, `name` must be the name of the folder the file is in, and the file must be named `SKILL.md`; AgentEd checks neither.
 
 ## Counts and badges in the header
 

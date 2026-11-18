@@ -93,6 +93,9 @@ function templateBlock(): string {
 
 const PATH = '/doc/notes.md';
 
+/** The Agent instructions block as it stands between the fences, quoted from #715. */
+const AGENT_BLOCK_754 = 'name:\ndescription:';
+
 let editor: EditorInstance | null = null;
 
 beforeEach(() => {
@@ -517,6 +520,42 @@ describe('what the route leaves as it was', () => {
     });
     expect(nodes).toEqual(['horizontalRule:', 'paragraph:title: x']);
     expect(editor.getMarkdown()).toBe('---\n\ntitle: x');
+  });
+
+  it('leaves the Agent Instructions card and Agent instructions on a new document the same document, the same mark and the same bytes (#754)', async () => {
+    // The card and the menu read one seed. Driven end to end on both routes:
+    // the card from the gallery, and File, New then Insert, Metadata, Agent
+    // instructions; each saved as a new file. Same state, same 27 bytes.
+    const viaCard = new AppState();
+    const cardActions = makeActions(viaCard, panelStub());
+    savePathAnswer = '/doc/card.md';
+    await cardActions.handleNewFromTemplate('agent-instructions');
+    const fromCard = {
+      frontmatter: viaCard.frontmatter,
+      markdown: editor?.getMarkdown(),
+      modified: viaCard.modified,
+    };
+    await cardActions.handleSaveAs();
+    editor?.destroy();
+
+    const viaInsert = new AppState();
+    const panel = panelStub();
+    const insertActions = makeActions(viaInsert, panel);
+    savePathAnswer = '/doc/insert.md';
+    await insertActions.handleNew();
+    metadataMenuCallbacks(viaInsert, panel).onInsertMetadata('agent');
+    const fromInsert = {
+      frontmatter: viaInsert.frontmatter,
+      markdown: editor?.getMarkdown(),
+      modified: viaInsert.modified,
+    };
+    await insertActions.handleSaveAs();
+
+    expect(fromCard).toEqual({ frontmatter: AGENT_BLOCK_754, markdown: '', modified: true });
+    expect(fromInsert).toEqual(fromCard);
+    expect(disk.get('/doc/card.md')).toBe('---\nname:\ndescription:\n---\n');
+    expect(disk.get('/doc/insert.md')).toBe(disk.get('/doc/card.md'));
+    expect(new TextEncoder().encode(disk.get('/doc/card.md')).length).toBe(27);
   });
 
   it('leaves New from Template writing the block the route writes for a document with no file', async () => {

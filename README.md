@@ -86,7 +86,7 @@ AgentEd is free and open source. If it makes your work easier, [support its deve
 - **Images:** paste, drop, or insert images into a local `assets/` folder beside your document; add image descriptions for accessibility.
 - **Code blocks:** select a language, copy a block with its Copy button, or use a plain-text block with soft wrapping.
 - **Footnotes:** insert a reference and its note together, then hover over the reference to read it.
-- **YAML frontmatter and templates:** edit document metadata in the **Metadata** panel; start with a blank document or one with metadata.
+- **YAML frontmatter and templates:** edit document metadata in the **Metadata** panel; start with a blank document, a file of agent instructions with a name and a description, or a document with metadata.
 - **Live estimates and counts:** see a token estimate alongside word and character counts. Token counting runs offline using `gpt-tokenizer` with `cl100k_base`; other models, chat formatting, and attachments can produce different totals.
 - **Find and replace:** match case, whole words, or regular expressions.
 - **Files panel:** browse the document’s adjacent file structure in a side panel.

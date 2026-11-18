@@ -8,10 +8,11 @@ import { getTemplate, TEMPLATES, type TemplateId } from './index';
  * **Said at the head: how the gallery reads is layout, and no row here sees
  * it.** happy-dom performs no layout, so whether a card text wraps, is cut, or
  * pushes the gallery into a scroll is the owner pass on the artifact. The
- * figures that decided it were measured in Chromium against the built page and
- * are on the pull requests: at the 600x400 minimum the two cards of #403 did
- * not scroll where the four had by 80 px; the three of #754 are measured on
- * its pull request.
+ * figures that decided it were measured in Chromium against the built page:
+ * at the 600x400 minimum the two cards of #403 did not scroll where the four
+ * had by 80 px, and the three of #754 stand in one row with 1.42 px to spare,
+ * the figures in R-C18. The column rule itself is joined to the rendered grid
+ * in `ui/template-gallery.test.ts`.
  *
  * What these rows assert is what the gallery is handed: which seeds exist, what
  * each card says, and what each seed writes into the document.

@@ -3273,9 +3273,18 @@ button.document-badge:active {
   background: var(--hover-overlay);
   color: var(--text);
 }
+/*
+ * One row of three cards at every window size (#754, owner decision of
+ * 2026-11-18). A fixed count rather than auto-fill: auto-fill wraps the third
+ * card under the first wherever three 220 px tracks do not fit, which was every
+ * size up to the 720 px cap. minmax(0, 1fr) rather than 1fr, so that no word
+ * can widen a track past its third of the row. At the 600x400 minimum this
+ * leaves 1.42 px of room in Chromium before the grid scrolls; the figures are
+ * in R-C18.
+ */
 .template-gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   padding: 8px 20px 20px;
   overflow-y: auto;
