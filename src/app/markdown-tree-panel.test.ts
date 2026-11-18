@@ -239,21 +239,16 @@ describe('what does not change', () => {
     expect(sidebar.isVisible()).toBe(false);
   });
 
-  it('with assets/ present and used, opened by hand, the panel lists assets/ as before', async () => {
+  it('with assets/ present and used, opened by hand, the markdown tree is drawn (#750)', async () => {
     state.referencesImage = true;
-    const { io, calls } = desktopIO(tree(['plan.md', 'ideas.md']), {
+    const { io, calls } = desktopIO(tree(['plan.md', 'ideas.md', 'assets/photo.png']), {
       existing: ['/notes/assets'],
-      entries: {
-        '/notes/assets': [
-          { name: 'photo.png', path: '/notes/assets/photo.png', isDirectory: false },
-        ],
-      },
     });
     await openByHand(io);
-    expect(calls.markdownTree).toEqual([]);
-    expect(calls.listDir).toEqual(['/notes/assets']);
-    expect(rows()).toEqual(['photo.png']);
-    expect(sidebar.listedRoot()).toEqual({ path: '/notes/assets', markdown: false });
+    expect(calls.markdownTree).toEqual([{ document: DOC, root: '/notes' }]);
+    expect(calls.listDir).toEqual([]);
+    expect(rows()).toEqual(['assets/', '  photo.png', 'ideas.md', 'plan.md']);
+    expect(sidebar.listedRoot()).toEqual({ path: '/notes', markdown: true });
   });
 
   it('with assets/ present and not used, opened by hand, the markdown tree is drawn', async () => {

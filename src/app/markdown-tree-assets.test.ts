@@ -256,24 +256,76 @@ describe('C: a document opened from the markdown tree keeps it', () => {
   });
 });
 
-describe('the routes that keep no root: as today (#402 F1)', () => {
-  it('File, Open, a recent file or the file association: the panel raises itself on assets/ alone', async () => {
-    const { io, calls } = desktopIO(
-      { files: FILES, reachedBound: false },
-      {
-        existing: ['/notes/chapters/assets'],
-        entries: {
-          '/notes/chapters/assets': [
-            { name: 'scan.jpg', path: '/notes/chapters/assets/scan.jpg', isDirectory: false },
-          ],
-        },
-      },
-    );
+describe('the routes that keep no root: one view everywhere (#750)', () => {
+  /** The tree read from the folder of `chapters/one.md`. */
+  const CHAPTER = { files: ['one.md', 'assets/scan.jpg', 'drafts/two.md'], reachedBound: false };
+  const ASSETS_LISTING = {
+    '/notes/chapters/assets': [
+      { name: 'scan.jpg', path: '/notes/chapters/assets/scan.jpg', isDirectory: false },
+    ],
+  };
+
+  it('File, Open and the others raise the panel on the markdown tree, its assets folder open', async () => {
+    const { io, calls } = desktopIO(CHAPTER, {
+      existing: ['/notes/chapters/assets'],
+      entries: ASSETS_LISTING,
+    });
     state.referencesImage = true;
     await arriveKeeping(SUB, null, io);
+    expect(sidebar.isVisible()).toBe(true);
+    expect(calls.markdownTree).toEqual([{ document: SUB, root: '/notes/chapters' }]);
+    expect(calls.listDir).toEqual([]);
+    expect(rows()).toEqual(['assets/*', '  scan.jpg', 'drafts/', '  two.md', 'one.md']);
+    expect(sidebar.listedRoot()).toEqual({ path: '/notes/chapters', markdown: true });
+  });
+
+  it('what raises the panel does not change: a document without images raises nothing', async () => {
+    const { io, calls } = desktopIO(CHAPTER, { existing: ['/notes/chapters/assets'] });
+    state.referencesImage = false;
+    await arriveKeeping(SUB, null, io);
+    expect(sidebar.isVisible()).toBe(false);
     expect(calls.markdownTree).toEqual([]);
+  });
+
+  it('a read that fails draws the assets/ tree as before rather than an empty panel', async () => {
+    const { io, calls } = desktopIO(CHAPTER, {
+      existing: ['/notes/chapters/assets'],
+      entries: ASSETS_LISTING,
+    });
+    io.markdownTree = async () => {
+      throw new Error('the document is not inside the root');
+    };
+    const quiet = console.warn;
+    console.warn = () => {};
+    try {
+      state.referencesImage = true;
+      await arriveKeeping(SUB, null, io);
+    } finally {
+      console.warn = quiet;
+    }
     expect(calls.listDir).toEqual(['/notes/chapters/assets']);
     expect(rows()).toEqual(['scan.jpg']);
     expect(sidebar.listedRoot()).toEqual({ path: '/notes/chapters/assets', markdown: false });
+  });
+
+  it('a build without the native read, the web build, draws the assets/ tree as before', async () => {
+    const { io, calls } = desktopIO(CHAPTER, {
+      existing: ['/notes/chapters/assets'],
+      entries: ASSETS_LISTING,
+    });
+    delete io.markdownTree;
+    state.referencesImage = true;
+    await arriveKeeping(SUB, null, io);
+    expect(calls.listDir).toEqual(['/notes/chapters/assets']);
+    expect(rows()).toEqual(['scan.jpg']);
+  });
+
+  it('a save of a document with images draws the same markdown tree again', async () => {
+    const { io } = desktopIO(CHAPTER, { existing: ['/notes/chapters/assets'] });
+    state.referencesImage = true;
+    await arriveKeeping(SUB, null, io);
+    const drawn = rows();
+    await refreshSidebar(state, sidebar, io, 'same-document');
+    expect(rows()).toEqual(drawn);
   });
 });
