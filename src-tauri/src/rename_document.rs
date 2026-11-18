@@ -20,7 +20,8 @@
 //!
 //! **What it cannot promise**: the check of a taken name is made just before
 //! the rename, and a file appearing under the new name in that instant would
-//! still be replaced (owner decision of 2026-11-18, said in R-C3).
+//! still be replaced (owner decision of 2026-11-18, said in the File, Rename
+//! part at the end of R-C14 in REQUIREMENTS.md).
 
 use serde::Serialize;
 use std::fs;
