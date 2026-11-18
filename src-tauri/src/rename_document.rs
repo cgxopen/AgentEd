@@ -259,15 +259,21 @@ mod tests {
         assert_eq!(fs::read_to_string(f.path("b.md")).unwrap(), "B");
     }
 
+    /// `B.md` for `a.md` while `b.md` exists. On a folder that ignores case
+    /// (NTFS, the default macOS volume, Google Drive) the two names are one
+    /// file, and it is not the document, so the name is taken. On a folder that
+    /// keeps case (ext4, measured on CI) `B.md` is another name, free, and the
+    /// rename is made beside `b.md`. Either way `b.md` keeps its text.
     #[test]
-    fn a_name_taken_in_other_letter_case_by_another_file_is_refused() {
-        // `B.md` for `a.md` while `b.md` exists: on a folder that ignores case
-        // the two names are one file, and it is not the document.
+    fn a_name_in_other_letter_case_than_another_file_follows_the_folder() {
         let f = Fixture::new(&[("a.md", "A"), ("b.md", "B")]);
-        assert_eq!(
-            rename(&f.path("a.md"), "B.md"),
-            Err(Refusal::Taken("B.md".into()))
-        );
+        let answer = rename(&f.path("a.md"), "B.md");
+        if cfg!(target_os = "linux") {
+            assert!(answer.is_ok());
+            assert_eq!(f.names(), ["B.md", "b.md"]);
+        } else {
+            assert_eq!(answer, Err(Refusal::Taken("B.md".into())));
+        }
         assert_eq!(fs::read_to_string(f.path("b.md")).unwrap(), "B");
     }
 
