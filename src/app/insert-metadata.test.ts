@@ -441,9 +441,13 @@ describe('the Agent instructions block (#715)', () => {
     expect(metadataBlockFor(path, 'agent')).toBe(AGENT_BLOCK);
   });
 
-  it('is not a card: New from Template keeps its two', () => {
-    expect(TEMPLATES.map((template) => template.id)).toEqual(['blank', 'blank-frontmatter']);
-    expect(TEMPLATES.some((template) => template.body.includes('name:'))).toBe(false);
+  it('is also a card since #754, and the card writes the block this route writes', () => {
+    // One seed for both routes: the card body is the seed, and what the card
+    // puts in the document is the block Insert puts in an empty one.
+    const card = TEMPLATES.find((template) => template.id === 'agent-instructions');
+    expect(card?.body).toBe(AGENT_INSTRUCTIONS_SEED);
+    expect(splitFrontmatter(card?.body ?? '')).toEqual({ raw: AGENT_BLOCK, body: '' });
+    expect(metadataBlockFor(null, 'agent')).toBe(AGENT_BLOCK);
   });
 
   it('chosen from the menu, gives a document with no block the block, marks it modified, and opens the panel on it', () => {
