@@ -21,7 +21,7 @@ import { showToast } from '../ui/toast';
 import type { AppContext } from './context';
 import { createDiscardGate } from './discard-gate';
 import { applyLoadedDocument, buildDocument } from './editor-document';
-import { askAboutExternalChange } from './external-change-prompt';
+import { askAboutExternalChange, type ExternalChangeChoice } from './external-change-prompt';
 import { OPEN_FAILED_TITLE, openFailedMessage, recentFileGoneMessage } from './open-failure';
 import { createRequestSaveAs } from './save-as-flow';
 import { SAVE_FAILED_TITLE, saveFailedMessage, saveFailureCause } from './save-failure';
@@ -58,6 +58,14 @@ export interface DocumentActions {
    * the ordinary open, which reports its own failure.
    */
   openRecentFile(path: string): Promise<void>;
+  /**
+   * The R-C14 gate before a rename (#752): whether the file on disk is still
+   * the one AgentEd last read or wrote, the dialog of a save when it is not.
+   * Answers whether the rename may go on: after Reload or Overwrite it does,
+   * after Save As it does not, since the document has moved, and after Cancel
+   * it does not. Nothing is written for the rename itself.
+   */
+  readyToRename(): Promise<boolean>;
   requestSaveAs(): Promise<string | null>;
   /**
    * Run the unsaved-changes gate for a window close / app quit. Resolves
@@ -228,26 +236,50 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
    * stays modified, which is the accurate statement (R-C3).
    */
   async function resolveExternalChange(io: PlatformIO, path: string): Promise<'write' | 'stop'> {
-    const change = await detectExternalChange(path, ctx.state.knownDiskText, io);
-    if (change.kind === 'none') return 'write';
-
-    switch (await askAboutExternalChange(basename(path), change)) {
+    switch (await askOnExternalChange(io, path)) {
+      case 'none':
       case 'overwrite':
         return 'write';
       case 'save-as':
         // The picker moves the document to a new path and clears the
         // baseline with it, so the write below lands there instead.
         return (await requestSaveAs()) ? 'write' : 'stop';
-      case 'reload':
-        await openDocumentAtPath(
-          path,
-          { label: `Failed to reload document: ${path}` },
-          { redraw: 'same-document' },
-        );
-        return 'stop';
-      case 'cancel':
+      default:
         return 'stop';
     }
+  }
+
+  /**
+   * The half both gates share (R-C14): compare the file with the baseline, ask
+   * when it differs, and carry out a reload, which ends the act either way.
+   */
+  async function askOnExternalChange(
+    io: PlatformIO,
+    path: string,
+  ): Promise<'none' | ExternalChangeChoice> {
+    const change = await detectExternalChange(path, ctx.state.knownDiskText, io);
+    if (change.kind === 'none') return 'none';
+    const choice = await askAboutExternalChange(basename(path), change);
+    if (choice === 'reload') {
+      await openDocumentAtPath(
+        path,
+        { label: `Failed to reload document: ${path}` },
+        { redraw: 'same-document' },
+      );
+    }
+    return choice;
+  }
+
+  async function readyToRename(): Promise<boolean> {
+    const path = ctx.state.filePath;
+    if (!path) return false;
+    const choice = await askOnExternalChange(await getPlatformIO(), path);
+    // After Save As the document has moved, and the rename is not made. After
+    // Overwrite nothing is written: a rename writes no content (R-C3), so the
+    // change on disk stays and the next save asks about it again.
+    if (choice === 'save-as') await handleSaveAs();
+    if (choice === 'save-as' || choice === 'cancel') return false;
+    return ctx.state.filePath === path;
   }
 
   /**
@@ -569,6 +601,7 @@ export function createDocumentActions(ctx: AppContext): DocumentActions {
     handleClose,
     openFilePath,
     openRecentFile,
+    readyToRename,
     requestSaveAs,
     confirmWindowClose,
   };

@@ -72,6 +72,7 @@
             <button id="menu-open-recent" aria-haspopup="true" aria-expanded="false" aria-controls="menu-recent" hidden>Open Recent<svg class="menu-chevron menu-recent-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" /></svg></button>
             <button id="menu-save" title="Ctrl+S" aria-keyshortcuts="Control+S">Save</button>
             <button id="menu-save-as">Save As</button>
+            <button id="menu-rename">Rename…</button>
             <button id="menu-export-pdf">Export to PDF</button>
             <button id="menu-print" title="Ctrl+P" aria-keyshortcuts="Control+P">Print</button>
             <button id="menu-close">Close file</button>
@@ -206,6 +207,19 @@
         <div class="dialog-actions">
           <button id="image-description-cancel">Cancel</button>
           <button id="image-description-confirm" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
+    <div id="rename-dialog" class="dialog-overlay hidden">
+      <div class="dialog">
+        <div class="dialog-title">Rename</div>
+        <div class="dialog-note">The file keeps its folder. Links to it in other documents are not changed.</div>
+        <div class="dialog-fields">
+          <label>Name <input id="rename-name" type="text" autocomplete="off" spellcheck="false" /></label>
+        </div>
+        <div class="dialog-actions">
+          <button id="rename-cancel">Cancel</button>
+          <button id="rename-confirm" class="primary">Rename</button>
         </div>
       </div>
     </div>

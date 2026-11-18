@@ -18,6 +18,12 @@ import { insertMedia } from './app/media-picker';
 import { setupPageColour } from './app/page-colour';
 import { exportWithMetadataOpen, printWithMetadataOpen } from './app/print-export';
 import { followRelativeLink } from './app/relative-link';
+import {
+  RENAME_FAILED_TITLE,
+  renameAvailability,
+  renameDocument,
+  setupRenameDialog,
+} from './app/rename-flow';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
 import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
@@ -48,7 +54,12 @@ import {
   titleBarOverlay,
 } from './platform/index';
 import { listenForPlainPasteRequest } from './platform/plain-paste';
-import { clearRecentFiles, loadRecentFiles, purgeLegacyPreferences } from './preferences';
+import {
+  clearRecentFiles,
+  loadRecentFiles,
+  purgeLegacyPreferences,
+  replaceRecentFile,
+} from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
 import { setupAssetsPopover } from './ui/assets-popover';
@@ -354,11 +365,31 @@ imageDescription = imageDescriptionRoutes(editor);
 const codeBlock = codeBlockRoutes(editor);
 
 let keepsRecentFiles = false;
+// File, Rename is offered where the platform can rename (#752): its presence on
+// the platform answers, not the name of the platform. The web build cannot.
+let canRename = false;
 void getPlatformIO()
   .then((io) => {
     keepsRecentFiles = io.pathsOutliveSession === true;
+    canRename = io.renameDocument !== undefined;
   })
   .catch(console.error);
+
+// File, Rename (#752).
+const askRename = setupRenameDialog(() => editor.chain().focus().run());
+const renameDeps = {
+  state: ctx.state,
+  io: getPlatformIO,
+  askName: askRename,
+  readyToRename: () => docActions.readyToRename(),
+  setFilename: (name: string, path: string) => ctx.setFilename(name, path),
+  redrawPanel: () => ctx.refreshSidebar('same-document'),
+  checkLinks: () => ctx.checkLinks?.(),
+  replaceRecent: replaceRecentFile,
+  tell: async (message: string) => {
+    await ctx.reporter.dialog(message, null, RENAME_FAILED_TITLE, 'omit');
+  },
+};
 
 /** Help, Keyboard Shortcuts and Help, User Guide: a window of its own (#701). */
 function openHelp(id: HelpId): void {
@@ -398,6 +429,9 @@ setupMenu(
     },
     onSaveAs: () => {
       void docActions.handleSaveAs().catch(console.error);
+    },
+    onRename: () => {
+      void renameDocument(renameDeps).catch(console.error);
     },
     onExportPdf: () => {
       void exportWithMetadataOpen(printDeps).catch(console.error);
@@ -442,6 +476,7 @@ setupMenu(
   () => historyAvailability(editor),
   // One reading, answered by the module that owns each entry.
   () => ({
+    ...renameAvailability(ctx.state.filePath, canRename),
     ...tableShapeAvailability(editor),
     ...imageDescriptionAvailability(editor),
     ...footnoteAvailability(editor),

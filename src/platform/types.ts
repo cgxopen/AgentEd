@@ -14,6 +14,20 @@ export interface MarkdownTree {
   readonly reachedBound: boolean;
 }
 
+/**
+ * Why a rename was not made (#752), as `rename_document` in
+ * `src-tauri/src/rename_document.rs` answers it: the kind, and for some kinds
+ * the extension or the name concerned, or what the system said.
+ */
+export type RenameRefusal =
+  | { readonly kind: 'invalidName' }
+  | { readonly kind: 'extension'; readonly detail: string }
+  | { readonly kind: 'taken'; readonly detail: string }
+  | { readonly kind: 'gone' }
+  | { readonly kind: 'locked' }
+  | { readonly kind: 'denied' }
+  | { readonly kind: 'other'; readonly detail: string };
+
 export interface FileResult {
   content: string;
   path: string;
@@ -272,6 +286,14 @@ export interface PlatformIO {
    * hold the document.
    */
   markdownTree?(documentPath: string, root: string): Promise<MarkdownTree>;
+  /**
+   * Rename the document at `documentPath` to `name`, in its own folder, and
+   * answer the new path (#752). One native call that writes no content and
+   * reaches no other folder. Only the desktop has it: its presence is the
+   * answer to whether this build can rename, rather than the name of the
+   * platform. Rejects with a `RenameRefusal`.
+   */
+  renameDocument?(documentPath: string, name: string): Promise<string>;
   mkdir(path: string): Promise<void>;
   /**
    * Open `path` with the host OS's default application for that
