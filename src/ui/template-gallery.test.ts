@@ -11,8 +11,9 @@ import { showTemplateGallery } from './template-gallery';
  * **Said at the head: one row is layout, and happy-dom performs none.** Whether
  * the three cards fit, scroll or cut a text was measured in Chromium against
  * the built page, at 600x400, 800x600 and 1200x800, and the figures are in
- * R-C18; at the minimum the gallery has 1.42 px to spare there, which only the
- * owner pass in WebView2 settles, since WebView2 draws a classic scrollbar.
+ * R-C18; at the minimum the gallery has 1.42 px to spare there. WebView2 draws a
+ * classic scrollbar, and on the owner pass of #755 it scrolled a little at the
+ * minimum window with the row kept, which the owner accepted.
  *
  * What these rows join are the two halves that are observable: the column rule,
  * read out of the shipped stylesheet rather than restated, and the grid the
