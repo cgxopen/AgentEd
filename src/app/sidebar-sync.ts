@@ -308,11 +308,25 @@ export async function resolveSidebarView(
   // has an `assets/` folder of its own keeps the tree, with that folder drawn
   // open in it, where it used to move the panel into the folder alone. A
   // relative link followed while the tree is shown keeps the root as a click
-  // does (#727), so it keeps the tree too. File, Open, a recent file and the
-  // file association keep no root, and still raise the panel on `assets/`
-  // alone (#402 F1).
+  // does (#727), so it keeps the tree too.
   const kept = state.sidebarRootFromClick;
   if (kept?.markdown) return markdownView(state, io, kept.path);
+
+  // **One view everywhere** (#750, owner decision of 2026-11-18): when the
+  // `assets/` folder of the document raises the panel (#402 F1), or the panel
+  // is opened by hand on such a document, it draws the markdown tree of the
+  // folder of the document with that `assets` folder open, as a click from the
+  // tree does. What raises the panel does not change, only what it draws.
+  // Measured on the step zero: 7 to 8 ms for a document beside its own
+  // `assets/`, against 8 to 17 ms for the `assets/` tree it replaces.
+  //
+  // **A build without the native read, or a read that fails, draws the
+  // `assets/` tree as before**, rather than leaving a panel F1 raised with
+  // nothing in it: the web build, and a root the command refuses.
+  if (used.kind === 'tree' && state.filePath !== null) {
+    const view = await markdownView(state, io, dirname(state.filePath));
+    if (view.kind === 'tree') return view;
+  }
   const root = used.kind === 'tree' ? used.root : kept?.path;
   if (!root) {
     if (used.kind === 'no-folder-access') return { kind: isTauri ? 'unreadable' : 'offer' };
