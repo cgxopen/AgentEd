@@ -50,6 +50,7 @@ import {
 } from './image-spelling';
 import { blankLineAbove } from './item-spacing';
 import { addKeptLinkRules } from './kept-link';
+import { addHtmlBlockParagraphRule } from './html-block-paragraph';
 import { addKeptRawHtmlRules } from './kept-raw-html';
 import { answerLinkStarts, LINK_START, linkStart, setMarkingLinkStarts } from './link-start';
 import { linkTitle } from './link-title';
@@ -855,6 +856,7 @@ turndown.addRule('strikethrough', {
 // file verbatim.
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
+addHtmlBlockParagraphRule(turndown);
 // A link the editor does not make live, kept as the file wrote it (#564).
 addKeptLinkRules(turndown, (content) => writesAsLabel(content));
 addEmphasisBesideStrongRule(turndown);
