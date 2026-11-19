@@ -2028,6 +2028,92 @@ describe('emphasis split at a link it goes on past is claimed (#573)', () => {
   });
 });
 
+/**
+ * Three shapes that move once more at the second save, pinned as they behave
+ * today (#759). Each was reduced from a public file outside the corpus, and
+ * each is saved three times through the save path above, asserting the exact
+ * bytes of every save: the second differs from the first, and the third equals
+ * the second. These rows pin the behaviour as it is, not as it should be; R-C2
+ * records each of the three under the exception it belongs to, and a repair
+ * that moves one of them moves its row and its sentence in the same pull
+ * request.
+ */
+describe('three shapes move once more at the second save, then hold (#759)', () => {
+  const ROWS: ReadonlyArray<readonly [string, string, string, string]> = [
+    // Pins the behaviour of today (#759), under the exception on a link inside
+    // a link (#565). The first save writes the raw `a` as a link holding the
+    // inner link escaped, which the next read splits in two. This is tracked in
+    // #756: a repair of #756 that holds this case turns this row red by design,
+    // and this row and the sentence of R-C2 on the second save change in that
+    // pull request. Source 169 bytes, saves 112, 110 and 110.
+    [
+      'a link in the credit of a pull quote',
+      '<aside markdown="1" class="pquote">\n' +
+        '  Quote text.\n' +
+        '  <p markdown="1" class="pquote-credit">\n' +
+        '<a href="https://x.org/">— [@g](https://x.org/)</a>, credit\n' +
+        '  </p>\n' +
+        '</aside>\n',
+      '<aside markdown="1" class="pquote"> Quote text.\n\n' +
+        '[— \\[@g\\](https://x.org/)](https://x.org/), credit\n\n' +
+        '</aside>\n',
+      '<aside markdown="1" class="pquote"> Quote text.\n\n' +
+        '[—](https://x.org/) [@g](https://x.org/), credit\n\n' +
+        '</aside>\n',
+    ],
+    // Pins the behaviour of today (#759), under the exception on raw HTML that
+    // is not one whole table at the top level (#283). The third line of the
+    // source holds two spaces and nothing else; the first save leaves a line of
+    // spaces where a dropped tag stood, and the second writes it empty. Source
+    // 123 bytes, saves 76, 71 and 71.
+    [
+      'a pull quote holding a line of spaces',
+      '<aside markdown="1" class="pquote">\n' +
+        '  One.\n' +
+        '  \n' +
+        '  _Two._\n' +
+        '  <p markdown="1" class="pquote-credit">\n' +
+        '— credit\n' +
+        '  </p>\n' +
+        '</aside>\n',
+      '<aside markdown="1" class="pquote"> One.\n\n_Two._\n  \n\n— credit\n  \n</aside>\n',
+      '<aside markdown="1" class="pquote"> One.\n\n_Two._\n\n— credit\n\n</aside>\n',
+    ],
+    // Pins the behaviour of today (#759), under the exception on a run of
+    // spaces inside a line of prose (#573). The first save writes a markdown
+    // table whose second cell keeps the four spaces before Sorry, and the
+    // second folds them to one. Source 128 bytes, saves 96, 92 and 92.
+    [
+      'a raw table split by blank lines, a video in each cell',
+      '<table><tr><td>\n' +
+        '<video src="a.mp4">\n' +
+        '    Sorry.\n' +
+        '</video>\n' +
+        '\n' +
+        '</td><td>\n' +
+        '\n' +
+        '<video src="b.mp4">\n' +
+        '    Sorry.\n' +
+        '</video>\n' +
+        '\n' +
+        '</td></tr></table>\n',
+      '| <video src="a.mp4"> Sorry. </video> | <video src="b.mp4">     Sorry. </video> |\n' +
+        '| --- | --- |\n',
+      '| <video src="a.mp4"> Sorry. </video> | <video src="b.mp4"> Sorry. </video> |\n' +
+        '| --- | --- |\n',
+    ],
+  ];
+
+  it.each(ROWS)('%s', async (_name, source, firstSave, secondSave) => {
+    const first = await openAndSaveUnedited(source);
+    expect(first).toBe(firstSave);
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(secondSave);
+    expect(second).not.toBe(first);
+    expect(await openAndSaveUnedited(second)).toBe(second);
+  });
+});
+
 describe('the repository, opened and saved unedited (R-C2)', () => {
   it.each(DOCUMENTS)(
     '%s — the second save moves nothing',
