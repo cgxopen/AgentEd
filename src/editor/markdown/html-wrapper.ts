@@ -28,7 +28,7 @@ import { HTML_BLOCK_SOURCE_ATTRIBUTE, holdsFilteredTag } from './tag-filter';
  */
 
 /** Wrappers drawn as the paragraph their content becomes; the tag itself is not drawn. */
-const BLOCK_WRAPPERS = new Set(['p', 'div', 'center', 'details']);
+const BLOCK_WRAPPERS = new Set(['p', 'div', 'center', 'details', 'aside', 'section']);
 
 /** Wrappers that are content themselves, kept whole inside the paragraph: a link keeps its mark. */
 const INLINE_WRAPPERS = new Set(['a', 'picture']);
@@ -37,7 +37,7 @@ const INLINE_WRAPPERS = new Set(['a', 'picture']);
 const ONE_ELEMENT = /^<([A-Za-z][A-Za-z0-9-]*)(?=[\s/>])[^>]*>([\s\S]*)<\/\1\s*>$/;
 
 /** A start tag alone, the opening of shape 5 of #468. */
-const START_TAG_ALONE = /^<(p|div|center|details|a)(?=[\s>])[^>]*>$/i;
+const START_TAG_ALONE = /^<(p|div|center|details|aside|section|a)(?=[\s>])[^>]*>$/i;
 
 function encode(raw: string): string {
   return encodeURIComponent(raw.replace(/\n+$/, ''));
