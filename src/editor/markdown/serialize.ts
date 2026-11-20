@@ -41,6 +41,12 @@ import {
   joinDefinition,
 } from './footnote';
 import { withHeadingSpelling } from './heading-spelling';
+import {
+  addHtmlBlockParagraphRule,
+  beginHtmlBlockText,
+  endHtmlBlockText,
+  unlessHtmlBlockText,
+} from './html-block-paragraph';
 import { decodeKeptBlockSource } from './html-wrapper';
 import {
   decodeHtmlSource,
@@ -190,8 +196,10 @@ const turndown = new TurndownService({
 //
 // A backslash in or beside a bare URL is held and answered on the assembled
 // document, since GitHub reads it into the address (#605).
-turndown.escape = withAutolinkLiterals(
-  createNarrowedEscape(TurndownService.prototype.escape.bind(turndown), markupOpenings),
+turndown.escape = unlessHtmlBlockText(
+  withAutolinkLiterals(
+    createNarrowedEscape(TurndownService.prototype.escape.bind(turndown), markupOpenings),
+  ),
 );
 
 // ── A number that begins a heading or a table cell (#97) ──
@@ -644,9 +652,13 @@ turndown.addRule('listItem', {
 turndown.addRule('listItemParagraph', {
   filter: (node) => {
     const parent = node.parentElement;
-    return node.nodeName === 'P' && parent?.nodeName === 'LI' && !isTaskListItem(parent);
+    const taken = node.nodeName === 'P' && parent?.nodeName === 'LI' && !isTaskListItem(parent);
+    // Its text is written unescaped when it opens with a kept tag of an HTML block (#756).
+    if (taken) beginHtmlBlockText(node);
+    return taken;
   },
   replacement: (content, node) => {
+    endHtmlBlockText();
     const next = (node as HTMLElement).nextElementSibling;
     const nestedListFollows = next?.nodeName === 'UL' || next?.nodeName === 'OL';
     // An empty first item is written a line apart, or it would be read as a
@@ -855,6 +867,7 @@ turndown.addRule('strikethrough', {
 // file verbatim.
 // Raw HTML kept as bytes, and `sup`, `sub` and `kbd` (#563).
 addKeptRawHtmlRules(turndown);
+addHtmlBlockParagraphRule(turndown);
 // A link the editor does not make live, kept as the file wrote it (#564).
 addKeptLinkRules(turndown, (content) => writesAsLabel(content));
 addEmphasisBesideStrongRule(turndown);
@@ -1539,6 +1552,7 @@ export function htmlToMarkdown(html: string, options: SerializeOptions = {}): st
     const markdown = spacers.restore(spans.restore(answerAdjacency(written, finish)));
     return EMPTY_TASK_ITEM_AT_THE_END.test(markdown) ? `${markdown} ` : markdown;
   } finally {
+    endHtmlBlockText();
     endAdjacency();
     setWithholding(outerWithholding);
     setMarkingLinkStarts(outerMarking);

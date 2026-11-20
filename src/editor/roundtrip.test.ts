@@ -1570,6 +1570,42 @@ async function openAndSaveUnedited(text: string): Promise<string> {
   return result.writtenText;
 }
 
+/**
+ * `openAndSaveUnedited` with one edit: open `text`, type `x` right after the
+ * first text node that holds `after`, save, and return the bytes written.
+ * A separate function, so the unedited one stays as the corpus recipe copies it.
+ */
+async function openTypeAndSave(text: string, after: string): Promise<string> {
+  const disk = new Map<string, string>([[DOCUMENT_PATH, text]]);
+  const io = recordingIO(disk);
+  const loaded = await loadMarkdown(DOCUMENT_PATH, io);
+
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = createEditor(host);
+  editor.setMarkdown(loaded.document.markdownBody);
+  const { state: view } = editor.editor;
+  let at = -1;
+  view.doc.descendants((node, pos) => {
+    if (at >= 0) return false;
+    const found = node.isText ? (node.text ?? '').indexOf(after) : -1;
+    if (found >= 0) at = pos + found + after.length;
+    return at < 0;
+  });
+  if (at < 0) throw new Error(`no text node holds ${after}`);
+  editor.editor.view.dispatch(view.tr.insertText('x', at));
+
+  const state = new AppState();
+  state.filePath = DOCUMENT_PATH;
+  state.frontmatter = loaded.document.frontmatterRaw;
+  state.lineConventions = loaded.document.lineConventions;
+
+  const result = await saveMarkdown(buildDocument(state, editor.getMarkdown), io);
+  editor.destroy();
+  host.remove();
+  return result.writtenText;
+}
+
 const DOCUMENTS: ReadonlyArray<readonly [string, string]> = [
   ['CLAUDE.md', claudeMd],
   ['CONTRIBUTING.md', contributingMd],
@@ -2111,6 +2147,90 @@ describe('three shapes move once more at the second save, then hold (#759)', () 
     expect(second).toBe(secondSave);
     expect(second).not.toBe(first);
     expect(await openAndSaveUnedited(second)).toBe(second);
+  });
+});
+
+/**
+ * A raw block of an element the schema has no node for, written as markdown
+ * on the line of its start tag, holds from the first save (#756). CommonMark
+ * reads that line as raw HTML, so every backslash in it is text; the save
+ * writes the text of such a paragraph with no escape, where it used to add a
+ * backslash before each bracket at every save, without end: 37, 39, 43 and 51
+ * bytes for the first row over three saves. Each row is saved three times and
+ * every save is asserted. The `div` is the control: it is kept as its bytes by
+ * the wrapper route of #468, which this does not touch.
+ */
+describe('a raw block read as HTML is written with its text unescaped, and holds (#756)', () => {
+  const ROWS: ReadonlyArray<readonly [string, string, string]> = [
+    [
+      'an aside holding a plain bracket',
+      '<aside>\nI said [this] once.\n</aside>\n',
+      '<aside> I said [this] once. </aside>\n',
+    ],
+    [
+      'an aside with markdown and a class, holding an escaped bracket',
+      '<aside markdown="1" class="pquote">\n  I said \\[this\\] once.\n</aside>\n',
+      '<aside markdown="1" class="pquote"> I said \\[this\\] once. </aside>\n',
+    ],
+    // The backslashes are text of the raw block, shown as the file shows them.
+    [
+      'an aside holding an escaped bracket',
+      '<aside>\nI said \\[this\\] once.\n</aside>\n',
+      '<aside> I said \\[this\\] once. </aside>\n',
+    ],
+    [
+      'a section holding an escaped bracket',
+      '<section>\nI said \\[this\\] once.\n</section>\n',
+      '<section> I said \\[this\\] once. </section>\n',
+    ],
+    // In a list item and in a quote the line opens with the tag after the marker,
+    // and is read as raw HTML the same way.
+    [
+      'an aside in a list item, holding a plain bracket',
+      '- <aside>\n  I said [this] once.\n  </aside>\n',
+      '- <aside> I said [this] once. </aside>\n',
+    ],
+    [
+      'an aside in a quote, holding a plain bracket',
+      '> <aside>\n> I said [this] once.\n> </aside>\n',
+      '> <aside> I said [this] once. </aside>\n',
+    ],
+    [
+      'a div holding a plain bracket, the control',
+      '<div>\nI said [this] once.\n</div>\n',
+      '<div>\nI said [this] once.\n</div>\n',
+    ],
+  ];
+
+  it.each(ROWS)('%s', async (_name, source, written) => {
+    const first = await openAndSaveUnedited(source);
+    expect(first).toBe(written);
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(written);
+    expect(await openAndSaveUnedited(second)).toBe(written);
+  });
+
+  // One character typed right after the text, then opened and saved twice
+  // more: the tags stay, and the file holds from the first save.
+  const EDITED: ReadonlyArray<readonly [string, string, string]> = [
+    [
+      'an aside holding a plain bracket, edited once',
+      '<aside>\nI said [this] once.\n</aside>\n',
+      '<aside> I said [this] once.x </aside>\n',
+    ],
+    [
+      'an aside holding an escaped bracket, edited once',
+      '<aside>\nI said \\[this\\] once.\n</aside>\n',
+      '<aside> I said \\[this\\] once.x </aside>\n',
+    ],
+  ];
+
+  it.each(EDITED)('%s', async (_name, source, written) => {
+    const first = await openTypeAndSave(source, 'once.');
+    expect(first).toBe(written);
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(written);
+    expect(await openAndSaveUnedited(second)).toBe(written);
   });
 });
 
