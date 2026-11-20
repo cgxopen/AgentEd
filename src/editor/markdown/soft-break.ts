@@ -36,6 +36,13 @@ export const SOFT_BREAK_SPACE_ATTRIBUTE = 'data-soft-break-space';
 /** The spaces or tabs after the newline, past the container. Absent when there were none. */
 export const SOFT_BREAK_INDENT_ATTRIBUTE = 'data-soft-break-indent';
 
+/**
+ * Set by the save, never by a file, on a soft break in a list item whose
+ * indentation `marked` reads back as written: it is written as held, with no
+ * four added (#757, `soft-break-reading.ts`).
+ */
+export const SOFT_BREAK_AS_READ_ATTRIBUTE = 'data-soft-break-as-read';
+
 /** A newline with the spaces and tabs on both sides of it. */
 const NEWLINE_IN_TEXT = /([ \t]*)\n([ \t]*)/g;
 
@@ -139,13 +146,18 @@ const ONE_LINE = `h1, h2, h3, h4, h5, h6, td, th, [${FOOTNOTE_DEFINITION_ATTRIBU
  * quote reports every space. So an indentation of four or more read inside an
  * item had four more in the file, and is written with them, or each save
  * would take four again; one of zero to three may have had four more or none,
- * and is written as read, which holds still.
+ * and is written as read, which holds still. After a nested list and a blank
+ * line `marked` takes none, measured on #757, and the save marks those breaks
+ * by reading the text back (`soft-break-reading.ts`).
  */
 const ITEM_INDENT_TAKEN = '    ';
 
 function indentToWrite(node: HTMLElement, indent: string): string {
   const inItem = node.closest('li, blockquote')?.nodeName === 'LI';
-  return inItem && indent.length >= ITEM_INDENT_TAKEN.length ? ITEM_INDENT_TAKEN + indent : indent;
+  const asRead = node.hasAttribute(SOFT_BREAK_AS_READ_ATTRIBUTE);
+  return inItem && !asRead && indent.length >= ITEM_INDENT_TAKEN.length
+    ? ITEM_INDENT_TAKEN + indent
+    : indent;
 }
 
 function softBreakReplacement(node: HTMLElement, inCell: boolean): string {

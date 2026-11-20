@@ -2234,6 +2234,112 @@ describe('a raw block read as HTML is written with its text unescaped, and holds
   });
 });
 
+/**
+ * A soft break in a list item is written with the indentation `marked` reads
+ * back (#757). Four or more past the item content used to be written with
+ * four more on the reading that `marked` takes four from such a line, which
+ * it does everywhere but after a nested list and a blank line, where it reads
+ * every space: there each save added four, 27, 31, 35 and 39 bytes for the
+ * row of a continuation 4 past. The save now reads the text back and writes
+ * such a break as held where `marked` keeps every space. Each row is saved
+ * three times and every save is asserted.
+ *
+ * The first row also pins the escaped fence of R-C2: three backticks alone on
+ * the last line of the item are read by `marked` 15 as text of the paragraph
+ * above, where CommonMark reads an empty code block, and are written escaped,
+ * holding from the first save (the exception of #605).
+ */
+describe('a soft break in a list item is written as marked reads it back, and holds (#757)', () => {
+  const HOLDING: ReadonlyArray<readonly [string, string, string]> = [
+    [
+      'three backticks alone on the last line of a list item after a nested list',
+      '- one\n  - two:\n\n    ```\n  {\n      "a": 1\n  }\n    ```\n',
+      '- one\n  - two:\n\n    ```\n    ```\n  {\n      "a": 1\n  }\n    \\`\\`\\`\n',
+    ],
+    [
+      'the same with no closing fence',
+      '- one\n  - two:\n\n    ```\n  {\n      "a": 1\n  }\n',
+      '- one\n  - two:\n\n    ```\n    ```\n  {\n      "a": 1\n  }\n',
+    ],
+    [
+      'the same with a heading in place of the fence',
+      '- one\n  - two:\n\n    # h\n  {\n      "a": 1\n  }\n',
+      '- one\n  - two:\n\n    # h\n  {\n      "a": 1\n  }\n',
+    ],
+    [
+      'the same with a closed fence holding a line',
+      '- one\n  - two:\n\n    ```\n    x\n    ```\n  {\n      "a": 1\n  }\n',
+      '- one\n  - two:\n\n    ```\n    x\n    ```\n  {\n      "a": 1\n  }\n',
+    ],
+    [
+      'the same with an indented code block in place of the fence',
+      '- one\n  - two:\n\n        code\n  {\n      "a": 1\n  }\n',
+      '- one\n  - two:\n\n    ```\n    code\n    ```\n  {\n      "a": 1\n  }\n',
+    ],
+    [
+      'a continuation 4 past the item content, after a nested list',
+      '- one\n  - two\n\n  p\n      q\n',
+      '- one\n  - two\n\n  p\n      q\n',
+    ],
+    [
+      'a continuation 5 past the item content, after a nested list',
+      '- one\n  - two\n\n  p\n       q\n',
+      '- one\n  - two\n\n  p\n       q\n',
+    ],
+    [
+      'a continuation 4 past the content of an ordered item, after a nested list',
+      '1. one\n   - two\n\n   p\n       q\n',
+      '1. one\n   - two\n\n   p\n       q\n',
+    ],
+  ];
+
+  it.each(HOLDING)('%s', async (_name, source, written) => {
+    const first = await openAndSaveUnedited(source);
+    expect(first).toBe(written);
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(written);
+    expect(await openAndSaveUnedited(second)).toBe(written);
+  });
+
+  // Written as before the repair: below four past the item content, with no
+  // nested list above, and a fence whose lines stand at the fence.
+  const AS_BEFORE: ReadonlyArray<readonly [string, string, string]> = [
+    [
+      'a well formed fence in the nested item, its lines at the fence',
+      '- one\n  - two:\n\n    ```\n    {\n        "a": 1\n    }\n    ```\n',
+      '- one\n  - two:\n\n    ```\n    {\n        "a": 1\n    }\n    ```\n',
+    ],
+    [
+      'a continuation 1 past the item content, after a nested list',
+      '- one\n  - two\n\n  p\n   q\n',
+      '- one\n  - two\n\n  p\n   q\n',
+    ],
+    [
+      'a continuation 2 past the item content, after a nested list',
+      '- one\n  - two\n\n  p\n    q\n',
+      '- one\n  - two\n\n  p\n    q\n',
+    ],
+    [
+      'a continuation 3 past the item content, after a nested list',
+      '- one\n  - two\n\n  p\n     q\n',
+      '- one\n  - two\n\n  p\n     q\n',
+    ],
+    [
+      'a continuation 4 past the item content, with no nested list above',
+      '- one\n\n  p\n      q\n',
+      '- one\n\n  p\n  q\n',
+    ],
+  ];
+
+  it.each(AS_BEFORE)('%s', async (_name, source, written) => {
+    const first = await openAndSaveUnedited(source);
+    expect(first).toBe(written);
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(written);
+    expect(await openAndSaveUnedited(second)).toBe(written);
+  });
+});
+
 describe('the repository, opened and saved unedited (R-C2)', () => {
   it.each(DOCUMENTS)(
     '%s — the second save moves nothing',
