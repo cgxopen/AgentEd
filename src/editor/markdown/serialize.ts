@@ -74,6 +74,7 @@ import { bulletOpenedBy } from './rule-in-item';
 import { ruleLine } from './rule-spelling';
 import { withSecondSaveRepairs } from './second-save-repairs';
 import { addSoftBreakRules, softBreaksAsVoid } from './soft-break';
+import { withItemIndentsAsRead } from './soft-break-reading';
 import { keepingSpacerParagraphs } from './spacer-paragraph';
 import { strikeDelimiter } from './strike-delimiter';
 import { decodeTableSource, TABLE_HTML_SOURCE_ATTRIBUTE } from './table-html-source';
@@ -1500,6 +1501,11 @@ export interface SerializeOptions {
 }
 
 export function htmlToMarkdown(html: string, options: SerializeOptions = {}): string {
+  // A soft break in a list item is written as `marked` reads it back (#757).
+  return withItemIndentsAsRead(html, (written) => writeMarkdown(written, options));
+}
+
+function writeMarkdown(html: string, options: SerializeOptions): string {
   // Restored rather than cleared when this call ends, so a call made while
   // another is writing does not switch the kept tables off under it (#288).
   const outerWritingKeptTables = writingKeptTables;
