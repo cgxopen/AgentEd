@@ -2065,38 +2065,18 @@ describe('emphasis split at a link it goes on past is claimed (#573)', () => {
 });
 
 /**
- * Three shapes that move once more at the second save, pinned as they behave
+ * Two shapes that move once more at the second save, pinned as they behave
  * today (#759). Each was reduced from a public file outside the corpus, and
  * each is saved three times through the save path above, asserting the exact
  * bytes of every save: the second differs from the first, and the third equals
  * the second. These rows pin the behaviour as it is, not as it should be; R-C2
- * records each of the three under the exception it belongs to, and a repair
+ * records each of the two under the exception it belongs to, and a repair
  * that moves one of them moves its row and its sentence in the same pull
- * request.
+ * request. A third row, the credit of a pull quote, holds from the first save
+ * since #762 and is pinned with the rows of #762 below.
  */
-describe('three shapes move once more at the second save, then hold (#759)', () => {
+describe('two shapes move once more at the second save, then hold (#759)', () => {
   const ROWS: ReadonlyArray<readonly [string, string, string, string]> = [
-    // Pins the behaviour of today (#759), under the exception on a link inside
-    // a link (#565). The first save writes the raw `a` as a link holding the
-    // inner link escaped, which the next read splits in two. This is tracked in
-    // #756: a repair of #756 that holds this case turns this row red by design,
-    // and this row and the sentence of R-C2 on the second save change in that
-    // pull request. Source 169 bytes, saves 112, 110 and 110.
-    [
-      'a link in the credit of a pull quote',
-      '<aside markdown="1" class="pquote">\n' +
-        '  Quote text.\n' +
-        '  <p markdown="1" class="pquote-credit">\n' +
-        '<a href="https://x.org/">— [@g](https://x.org/)</a>, credit\n' +
-        '  </p>\n' +
-        '</aside>\n',
-      '<aside markdown="1" class="pquote"> Quote text.\n\n' +
-        '[— \\[@g\\](https://x.org/)](https://x.org/), credit\n\n' +
-        '</aside>\n',
-      '<aside markdown="1" class="pquote"> Quote text.\n\n' +
-        '[—](https://x.org/) [@g](https://x.org/), credit\n\n' +
-        '</aside>\n',
-    ],
     // Pins the behaviour of today (#759), under the exception on raw HTML that
     // is not one whole table at the top level (#283). The third line of the
     // source holds two spaces and nothing else; the first save leaves a line of
@@ -2147,6 +2127,236 @@ describe('three shapes move once more at the second save, then hold (#759)', () 
     expect(second).toBe(secondSave);
     expect(second).not.toBe(first);
     expect(await openAndSaveUnedited(second)).toBe(second);
+  });
+});
+
+/**
+ * Open `text`, replace the first `X`, which stands in the text of a link, with
+ * `pieces`, each a run of text and the marks it carries beside the link, save,
+ * and return the bytes written: a person typing over the text of a link.
+ */
+async function openRetypeLinkAndSave(
+  text: string,
+  pieces: ReadonlyArray<readonly [string, string | null]>,
+): Promise<string> {
+  const disk = new Map<string, string>([[DOCUMENT_PATH, text]]);
+  const io = recordingIO(disk);
+  const loaded = await loadMarkdown(DOCUMENT_PATH, io);
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = createEditor(host);
+  editor.setMarkdown(loaded.document.markdownBody);
+  const { state } = editor.editor;
+  let at = -1;
+  let link: ReturnType<typeof state.schema.marks.link.create> | undefined;
+  state.doc.descendants((node, pos) => {
+    const found = node.isText ? (node.text ?? '').indexOf('X') : -1;
+    if (at < 0 && found >= 0) {
+      at = pos + found;
+      link = node.marks.find((mark) => mark.type.name === 'link');
+    }
+    return at < 0;
+  });
+  if (at < 0 || link === undefined) throw new Error('no link holds the text X');
+  const linkMark = link;
+  const nodes = pieces.map(([run, name]) =>
+    state.schema.text(
+      run,
+      name === null ? [linkMark] : state.schema.marks[name].create().addToSet([linkMark]),
+    ),
+  );
+  editor.editor.view.dispatch(state.tr.replaceWith(at, at + 1, nodes));
+  const app = new AppState();
+  app.filePath = DOCUMENT_PATH;
+  app.frontmatter = loaded.document.frontmatterRaw;
+  app.lineConventions = loaded.document.lineConventions;
+  const result = await saveMarkdown(buildDocument(app, editor.getMarkdown), io);
+  editor.destroy();
+  host.remove();
+  return result.writtenText;
+}
+
+/** The links and the images `marked`, as `parse.ts` configures it, reads in `markdown`. */
+function linksRead(markdown: string): string {
+  const html = markdownToHtml(markdown, { keepRawHtml: false });
+  return `${(html.match(/<a\b/g) ?? []).length}/${(html.match(/<img\b/g) ?? []).length}`;
+}
+
+/**
+ * A link whose text shows a link is written with the parenthesis that opens
+ * the inner destination escaped, so `marked` reads one link where CommonMark
+ * does, and the file holds from the first save (#762). Each row is saved three
+ * times and every save is asserted.
+ */
+describe('a link whose text shows a link with a destination holds from the first save (#762)', () => {
+  const ROWS: ReadonlyArray<readonly [string, string, string]> = [
+    // Under the exception on a link inside a link (#565), moved from the rows
+    // of #759: source 169 bytes, saves 113, 113 and 113, where they were 112,
+    // 110 and 110, the second save writing two links.
+    [
+      'a link in the credit of a pull quote',
+      '<aside markdown="1" class="pquote">\n' +
+        '  Quote text.\n' +
+        '  <p markdown="1" class="pquote-credit">\n' +
+        '<a href="https://x.org/">— [@g](https://x.org/)</a>, credit\n' +
+        '  </p>\n' +
+        '</aside>\n',
+      '<aside markdown="1" class="pquote"> Quote text.\n\n' +
+        '[— \\[@g\\]\\(https://x.org/)](https://x.org/), credit\n\n' +
+        '</aside>\n',
+    ],
+    // The one line the first save writes, read back: 52 bytes, held.
+    [
+      'the credit line as the first save writes it',
+      '[— \\[@g\\]\\(https://x.org/)](https://x.org/), text\n',
+      '[— \\[@g\\]\\(https://x.org/)](https://x.org/), text\n',
+    ],
+  ];
+
+  it.each(ROWS)('%s', async (_name, source, firstSave) => {
+    const first = await openAndSaveUnedited(source);
+    expect(first).toBe(firstSave);
+    expect(linksRead(first)).toBe('1/0');
+    expect(await openAndSaveUnedited(first)).toBe(first);
+    expect(await openAndSaveUnedited(first)).toBe(first);
+  });
+
+  it('a link made in the editor over the text a [b](c)', async () => {
+    const first = await openRetypeLinkAndSave('[X](https://x.org/)\n', [['a [b](c)', null]]);
+    expect(first).toBe('[a \\[b\\]\\(c)](https://x.org/)\n');
+    expect(linksRead(first)).toBe('1/0');
+    expect(await openAndSaveUnedited(first)).toBe(first);
+  });
+
+  it('a link holding an image and the text of a link keeps the image', async () => {
+    const first = await openRetypeLinkAndSave('[X ![i](i.png)](https://x.org/)\n', [
+      ['a [b](c)', null],
+    ]);
+    expect(first).toBe('[a \\[b\\]\\(c) ![i](i.png)](https://x.org/)\n');
+    expect(linksRead(first)).toBe('1/1');
+    expect(await openAndSaveUnedited(first)).toBe(first);
+  });
+});
+
+/**
+ * The regression half of #762: each written byte for byte as on main.
+ */
+describe('what #762 leaves as it was', () => {
+  it.each([
+    ['escaped brackets with no destination after them', '[— \\[@g\\] x](https://x.org/)\n'],
+    ['bracket and parenthesis text outside any link', 'a \\[b\\](c) d\n'],
+  ])('%s is written byte for byte', async (_name, source) => {
+    expect(await openAndSaveUnedited(source)).toBe(source);
+  });
+
+  // A file that holds the escaped shape of today in its source is read as two
+  // links on open, under the exception on a link inside a link (#565), and is
+  // written as two links from the first save: 51 bytes, then 49, 49 and 49.
+  it('a file holding the escaped shape of today is written as two links, and holds', async () => {
+    const first = await openAndSaveUnedited('[— \\[@g\\](https://x.org/)](https://x.org/), text\n');
+    expect(first).toBe('[—](https://x.org/) [@g](https://x.org/), text\n');
+    expect(await openAndSaveUnedited(first)).toBe(first);
+  });
+});
+
+/**
+ * The sweep of #762: what follows the escaped brackets in the text of a link,
+ * a mark around or inside, the container, and the kind of outer link. 8 x 7 x
+ * 5 x 3 = 840 shapes, each made by typing over the text of a link and saved
+ * three times. A shape with a destination, an image among them, holds from the
+ * first save, read as one link by `marked`. A reference whose label the
+ * document defines has no parenthesis to escape: `marked` takes the backslash
+ * off the brackets of the text of a link and reads it as a link of its own,
+ * so where it stays bare it moves once more at the second save and holds from
+ * the third, as R-C2 records under the exception on a link inside a link.
+ */
+describe('the sweep of a link whose text shows a link (#762)', () => {
+  const OUTER: Record<string, (text: string) => string> = {
+    inline: (text) => `[${text}](https://x.org/)`,
+    'a kept reference (#570)': (text) => `[${text}][r]`,
+    'a carried destination (#573)': (text) => `[${text}](<https://x.org/>)`,
+  };
+  const CONTAINER: Record<string, (line: string) => string> = {
+    paragraph: (line) => `pre ${line} post\n`,
+    heading: (line) => `# pre ${line} post\n`,
+    'list item': (line) => `- pre ${line} post\n`,
+    quote: (line) => `> pre ${line} post\n`,
+    'table cell': (line) => `| h |\n| --- |\n| pre ${line} post |\n`,
+  };
+  // What stands before and after the `b` the mark goes on, and whether the
+  // reader takes it for a reference.
+  const INNER: Record<string, readonly [string, string, boolean]> = {
+    'an inline destination': ['[', '](c)', false],
+    'a destination with a title': ['[', '](c "t")', false],
+    'a destination in angle brackets': ['[', '](<c>)', false],
+    'an empty destination': ['[', ']()', false],
+    'an image': ['![', '](c)', false],
+    'a full reference, label defined': ['[', '][l]', true],
+    'a collapsed reference, label defined': ['[', '][]', true],
+    'a shortcut reference, label defined': ['[', ']', true],
+  };
+  const MARKS: Record<string, readonly [string | null, 'around' | 'inside' | null]> = {
+    'no mark': [null, null],
+    'emphasis around': ['italic', 'around'],
+    'strong around': ['bold', 'around'],
+    'a code span around': ['code', 'around'],
+    'emphasis inside': ['italic', 'inside'],
+    'strong inside': ['bold', 'inside'],
+    'a code span inside': ['code', 'inside'],
+  };
+  const definitions = (inner: string): string =>
+    `\n[r]: https://x.org/\n${inner.startsWith('a full') ? '[l]: /v\n' : ''}${
+      inner.startsWith('a collapsed') || inner.startsWith('a shortcut') ? '[b]: /v\n' : ''
+    }`;
+  const shapes = Object.entries(OUTER).flatMap(([outer, wrapOuter]) =>
+    Object.entries(CONTAINER).flatMap(([container, wrap]) =>
+      Object.entries(INNER).flatMap(([inner, [head, tail, reference]]) =>
+        Object.entries(MARKS).map(([mark, [name, where]]) => {
+          const pieces: Array<readonly [string, string | null]> =
+            where === 'around'
+              ? [
+                  ['a ', null],
+                  [`${head}b${tail}`, name],
+                ]
+              : where === 'inside'
+                ? [
+                    [`a ${head}`, null],
+                    ['b', name],
+                    [tail, null],
+                  ]
+                : [[`a ${head}b${tail}`, null]];
+          // The reader finds a reference where its label still resolves once
+          // the backslashes are gone: always for the full one, whose label `l`
+          // no mark reaches, unless a code span holds the whole of it; for the
+          // other two only where no mark inside changes the label `b`.
+          const codeAround = name === 'code' && where === 'around';
+          const full = inner.startsWith('a full');
+          const moves = reference && !codeAround && (full || where !== 'inside');
+          return {
+            name: `${inner}, ${mark}, in a ${container}, ${outer}`,
+            source: `${wrap(wrapOuter('X'))}${definitions(inner)}`,
+            pieces,
+            moves,
+          };
+        }),
+      ),
+    ),
+  );
+
+  it('counts 840 shapes', () => {
+    expect(shapes).toHaveLength(840);
+  });
+
+  it.each(shapes)('$name', { timeout: 20000 }, async ({ source, pieces, moves }) => {
+    const first = await openRetypeLinkAndSave(source, pieces);
+    const second = await openAndSaveUnedited(first);
+    expect(await openAndSaveUnedited(second)).toBe(second);
+    if (moves) {
+      expect(second).not.toBe(first);
+      return;
+    }
+    expect(second).toBe(first);
+    expect(linksRead(first).split('/')[0]).toBe('1');
   });
 });
 
