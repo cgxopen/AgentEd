@@ -2340,6 +2340,38 @@ describe('a soft break in a list item is written as marked reads it back, and ho
   });
 });
 
+/**
+ * Three backticks alone on the last line of a quote are read by `marked` 15 as
+ * text of the paragraph above, where CommonMark reads an empty code block, as
+ * after a nested list in a list item (#757). The text of a quote, like the text
+ * of a list item, ends with no newline, and `marked` 15 lets a fence interrupt
+ * a paragraph only where a newline follows it. The escape writes the backticks
+ * as text and the file holds from the first save: the exception of #605 in
+ * R-C2. Each row is saved three times and every save is asserted.
+ */
+describe('three backticks alone on the last line of a quote are written escaped, and hold (#757)', () => {
+  const ROWS: ReadonlyArray<readonly [string, string, string]> = [
+    [
+      'three backticks alone on the last line of a quote',
+      '> {\n>     "a": 1\n> }\n>   ```\n',
+      '> {\n>     "a": 1\n> }\n>   \\`\\`\\`\n',
+    ],
+    [
+      'the same after a paragraph and a blank line in the quote',
+      '> one\n>\n> {\n>     "a": 1\n> }\n>   ```\n',
+      '> one\n>\n> {\n>     "a": 1\n> }\n>   \\`\\`\\`\n',
+    ],
+  ];
+
+  it.each(ROWS)('%s', async (_name, source, written) => {
+    const first = await openAndSaveUnedited(source);
+    expect(first).toBe(written);
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(written);
+    expect(await openAndSaveUnedited(second)).toBe(written);
+  });
+});
+
 describe('the repository, opened and saved unedited (R-C2)', () => {
   it.each(DOCUMENTS)(
     '%s — the second save moves nothing',
