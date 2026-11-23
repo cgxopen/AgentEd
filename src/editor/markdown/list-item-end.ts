@@ -1,4 +1,5 @@
-import { type MarkedExtension, Tokenizer } from 'marked';
+import { type MarkedExtension, Tokenizer, type Tokens } from 'marked';
+import { type ListTokenizing, withLazyLines } from './lazy-line';
 
 /**
  * A list item ends at a line that opens an HTML block with an end tag (#604,
@@ -39,7 +40,12 @@ const BLOCK_ELEMENTS =
 
 /** What the list tokenizer reads its rules from: the shared `other` rules of `marked`. */
 interface ListTokenizer {
-  readonly rules: { readonly other: { htmlBeginRegex: (indent: number) => RegExp } };
+  readonly rules: {
+    readonly other: { htmlBeginRegex: (indent: number) => RegExp } & Record<
+      (typeof ITEM_ENDS)[number],
+      (indent: number) => RegExp
+    >;
+  };
 }
 
 /** The rule of `marked`, `<(?:[a-z].*>|!--)` at up to three spaces, and the end tags beside it. */
@@ -48,18 +54,43 @@ function withEndTags(indent: number): RegExp {
   return new RegExp(`^ {0,${Math.min(3, indent - 1)}}(?:<(?:[a-z].*>|!--)|${end})`, 'i');
 }
 
-/** The extension `parse.ts` registers: the list tokenizer of `marked`, with end tags ending an item. */
+/** The list tokenizer of `marked`, called as it is with end tags ending an item. */
+function callList(tokenizer: unknown, src: string): Tokens.List | undefined {
+  const other = (tokenizer as ListTokenizer).rules.other;
+  const own = other.htmlBeginRegex;
+  other.htmlBeginRegex = withEndTags;
+  try {
+    return Tokenizer.prototype.list.call(tokenizer as Tokenizer, src) as Tokens.List | undefined;
+  } finally {
+    other.htmlBeginRegex = own;
+  }
+}
+
+/** The rules the tokenizer ends an item at, whatever stands above the line (#758). */
+const ITEM_ENDS = ['nextBulletRegex', 'hrRegex', 'fencesBeginRegex', 'headingBeginRegex'] as const;
+
+function endsTheItem(tokenizer: unknown, line: string, indent: number): boolean {
+  const other = (tokenizer as ListTokenizer).rules.other;
+  return ITEM_ENDS.some((rule) => other[rule](indent).test(line)) || withEndTags(indent).test(line);
+}
+
+/**
+ * The extension `parse.ts` registers: the list tokenizer of `marked`, with end
+ * tags ending an item, and a lazy line after a blank line read into its item
+ * (`lazy-line.ts`, #758).
+ */
 export const listItemEndExtension: MarkedExtension = {
   tokenizer: {
     list(src) {
-      const other = (this as unknown as ListTokenizer).rules.other;
-      const own = other.htmlBeginRegex;
-      other.htmlBeginRegex = withEndTags;
-      try {
-        return Tokenizer.prototype.list.call(this, src);
-      } finally {
-        other.htmlBeginRegex = own;
-      }
+      const token = callList(this, src);
+      if (token === undefined) return token;
+      return withLazyLines(
+        this as unknown as ListTokenizing,
+        src,
+        token,
+        (indented) => callList(this, indented),
+        (line, indent) => endsTheItem(this, line, indent),
+      );
     },
   },
 };
