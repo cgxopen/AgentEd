@@ -2184,11 +2184,12 @@ function linksRead(markdown: string): string {
 
 /**
  * A link whose text shows a link is written with the parenthesis that opens
- * the inner destination escaped, so `marked` reads one link where CommonMark
- * does, and the file holds from the first save (#762). Each row is saved three
- * times and every save is asserted.
+ * the inner destination escaped, or for a reference the bracket that closes
+ * it as a character reference, so `marked` reads one link where CommonMark
+ * does, and the file holds from the first save (#762). Each row is saved
+ * three times and every save is asserted.
  */
-describe('a link whose text shows a link with a destination holds from the first save (#762)', () => {
+describe('a link whose text shows a link holds from the first save (#762)', () => {
   const ROWS: ReadonlyArray<readonly [string, string, string]> = [
     // Under the exception on a link inside a link (#565), moved from the rows
     // of #759: source 169 bytes, saves 113, 113 and 113, where they were 112,
@@ -2228,6 +2229,24 @@ describe('a link whose text shows a link with a destination holds from the first
     expect(await openAndSaveUnedited(first)).toBe(first);
   });
 
+  // A reference has no parenthesis: the bracket that closes each one the
+  // reader finds is written as a character reference, which it reads as text.
+  it.each([
+    ['a full reference', '[r]: /v\n', 'a [b][r]', '[a \\[b\\]\\[r&#93;](https://x.org/)'],
+    ['a collapsed reference', '[r]: /v\n', 'a [r][]', '[a \\[r&#93;\\[&#93;](https://x.org/)'],
+    ['a shortcut reference', '[r]: /v\n', 'a [r]', '[a \\[r&#93;](https://x.org/)'],
+  ])(
+    'a link made in the editor over text that shows %s, label defined',
+    async (_name, definition, text, link) => {
+      const source = `[X](https://x.org/)\n\n${definition}`;
+      const first = await openRetypeLinkAndSave(source, [[text, null]]);
+      expect(first).toBe(`${link}\n\n${definition}`);
+      expect(linksRead(first)).toBe('1/0');
+      expect(await openAndSaveUnedited(first)).toBe(first);
+      expect(await openAndSaveUnedited(first)).toBe(first);
+    },
+  );
+
   it('a link holding an image and the text of a link keeps the image', async () => {
     const first = await openRetypeLinkAndSave('[X ![i](i.png)](https://x.org/)\n', [
       ['a [b](c)', null],
@@ -2245,6 +2264,13 @@ describe('what #762 leaves as it was', () => {
   it.each([
     ['escaped brackets with no destination after them', '[— \\[@g\\] x](https://x.org/)\n'],
     ['bracket and parenthesis text outside any link', 'a \\[b\\](c) d\n'],
+    ['a full reference in the text, no such label', '[a \\[b\\]\\[r\\]](https://x.org/)\n'],
+    ['a collapsed reference in the text, no such label', '[a \\[r\\]\\[\\]](https://x.org/)\n'],
+    ['a shortcut reference in the text, no such label', '[a \\[r\\]](https://x.org/)\n'],
+    [
+      'reference text outside any link, label defined',
+      'a \\[r\\] and \\[b\\]\\[r\\] d\n\n[r]: /v\n',
+    ],
   ])('%s is written byte for byte', async (_name, source) => {
     expect(await openAndSaveUnedited(source)).toBe(source);
   });
@@ -2252,6 +2278,14 @@ describe('what #762 leaves as it was', () => {
   // A file that holds the escaped shape of today in its source is read as two
   // links on open, under the exception on a link inside a link (#565), and is
   // written as two links from the first save: 51 bytes, then 49, 49 and 49.
+  // A character reference for a bracket outside a link is read as the bracket
+  // and written as an escape, as on main: 24 bytes in, 24 out.
+  it('a character reference for a bracket outside a link is written as an escape', async () => {
+    const first = await openAndSaveUnedited('see &#91;r&#93; here\n\n[r]: /v\n');
+    expect(first).toBe('see \\[r\\] here\n\n[r]: /v\n');
+    expect(await openAndSaveUnedited(first)).toBe(first);
+  });
+
   it('a file holding the escaped shape of today is written as two links, and holds', async () => {
     const first = await openAndSaveUnedited('[— \\[@g\\](https://x.org/)](https://x.org/), text\n');
     expect(first).toBe('[—](https://x.org/) [@g](https://x.org/), text\n');
@@ -2263,12 +2297,10 @@ describe('what #762 leaves as it was', () => {
  * The sweep of #762: what follows the escaped brackets in the text of a link,
  * a mark around or inside, the container, and the kind of outer link. 8 x 7 x
  * 5 x 3 = 840 shapes, each made by typing over the text of a link and saved
- * three times. A shape with a destination, an image among them, holds from the
- * first save, read as one link by `marked`. A reference whose label the
- * document defines has no parenthesis to escape: `marked` takes the backslash
- * off the brackets of the text of a link and reads it as a link of its own,
- * so where it stays bare it moves once more at the second save and holds from
- * the third, as R-C2 records under the exception on a link inside a link.
+ * three times. Every shape holds from the first save, read as one link by
+ * `marked`: one with a destination, an image among them, by the parenthesis
+ * escaped; a reference whose label the document defines, which has no
+ * parenthesis, by the bracket that closes it written as `&#93;`.
  */
 describe('the sweep of a link whose text shows a link (#762)', () => {
   const OUTER: Record<string, (text: string) => string> = {
@@ -2283,17 +2315,16 @@ describe('the sweep of a link whose text shows a link (#762)', () => {
     quote: (line) => `> pre ${line} post\n`,
     'table cell': (line) => `| h |\n| --- |\n| pre ${line} post |\n`,
   };
-  // What stands before and after the `b` the mark goes on, and whether the
-  // reader takes it for a reference.
-  const INNER: Record<string, readonly [string, string, boolean]> = {
-    'an inline destination': ['[', '](c)', false],
-    'a destination with a title': ['[', '](c "t")', false],
-    'a destination in angle brackets': ['[', '](<c>)', false],
-    'an empty destination': ['[', ']()', false],
-    'an image': ['![', '](c)', false],
-    'a full reference, label defined': ['[', '][l]', true],
-    'a collapsed reference, label defined': ['[', '][]', true],
-    'a shortcut reference, label defined': ['[', ']', true],
+  // What stands before and after the `b` the mark goes on.
+  const INNER: Record<string, readonly [string, string]> = {
+    'an inline destination': ['[', '](c)'],
+    'a destination with a title': ['[', '](c "t")'],
+    'a destination in angle brackets': ['[', '](<c>)'],
+    'an empty destination': ['[', ']()'],
+    'an image': ['![', '](c)'],
+    'a full reference, label defined': ['[', '][l]'],
+    'a collapsed reference, label defined': ['[', '][]'],
+    'a shortcut reference, label defined': ['[', ']'],
   };
   const MARKS: Record<string, readonly [string | null, 'around' | 'inside' | null]> = {
     'no mark': [null, null],
@@ -2310,7 +2341,7 @@ describe('the sweep of a link whose text shows a link (#762)', () => {
     }`;
   const shapes = Object.entries(OUTER).flatMap(([outer, wrapOuter]) =>
     Object.entries(CONTAINER).flatMap(([container, wrap]) =>
-      Object.entries(INNER).flatMap(([inner, [head, tail, reference]]) =>
+      Object.entries(INNER).flatMap(([inner, [head, tail]]) =>
         Object.entries(MARKS).map(([mark, [name, where]]) => {
           const pieces: Array<readonly [string, string | null]> =
             where === 'around'
@@ -2325,18 +2356,10 @@ describe('the sweep of a link whose text shows a link (#762)', () => {
                     [tail, null],
                   ]
                 : [[`a ${head}b${tail}`, null]];
-          // The reader finds a reference where its label still resolves once
-          // the backslashes are gone: always for the full one, whose label `l`
-          // no mark reaches, unless a code span holds the whole of it; for the
-          // other two only where no mark inside changes the label `b`.
-          const codeAround = name === 'code' && where === 'around';
-          const full = inner.startsWith('a full');
-          const moves = reference && !codeAround && (full || where !== 'inside');
           return {
             name: `${inner}, ${mark}, in a ${container}, ${outer}`,
             source: `${wrap(wrapOuter('X'))}${definitions(inner)}`,
             pieces,
-            moves,
           };
         }),
       ),
@@ -2347,16 +2370,12 @@ describe('the sweep of a link whose text shows a link (#762)', () => {
     expect(shapes).toHaveLength(840);
   });
 
-  it.each(shapes)('$name', { timeout: 20000 }, async ({ source, pieces, moves }) => {
+  it.each(shapes)('$name', { timeout: 20000 }, async ({ source, pieces }) => {
     const first = await openRetypeLinkAndSave(source, pieces);
-    const second = await openAndSaveUnedited(first);
-    expect(await openAndSaveUnedited(second)).toBe(second);
-    if (moves) {
-      expect(second).not.toBe(first);
-      return;
-    }
-    expect(second).toBe(first);
     expect(linksRead(first).split('/')[0]).toBe('1');
+    const second = await openAndSaveUnedited(first);
+    expect(second).toBe(first);
+    expect(await openAndSaveUnedited(second)).toBe(second);
   });
 });
 
