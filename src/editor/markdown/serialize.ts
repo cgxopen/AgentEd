@@ -21,6 +21,7 @@ import { cellBlocks, needsCellBlockSpelling } from './cell-blocks';
 import { keepingSpansOfSpaces } from './code-span-spaces';
 import { COMMENT_TAG, decodeComment, MARKDOWN_COMMENT_ATTRIBUTE } from './comment-spelling';
 import { inlineDestination } from './destination';
+import { readingDestinationsBack } from './destination-form';
 import { keptDestination, type ReadLink } from './destination-spelling';
 import { addEmphasisBesideStrongRule } from './emphasis-beside-strong';
 import { addEmphasisDelimiterRules } from './emphasis-delimiter';
@@ -317,10 +318,13 @@ turndown.remove(['style', 'script', 'title', 'noscript']);
 // because a rule cannot be adjusted in place: parentheses escaped, and the
 // title with its newlines collapsed the way turndown collapses them, in the
 // delimiter the file used since #562 (`link-title.ts`).
+// A destination that reads back only between angle brackets is written there (#761),
+// and a link inside the text is written as text (#762).
+const writingLinksBack: typeof holdingLinkTextApart = (replacement) =>
+  holdingLinkTextApart(readingDestinationsBack(replacement));
 turndown.addRule('inlineLinkKeepingAmpersands', {
   filter: (node) => node.nodeName === 'A' && Boolean((node as HTMLElement).getAttribute('href')),
-  // A link inside its text is written as text, so it is read as one link (#762).
-  replacement: holdingLinkTextApart((content, node) => {
+  replacement: writingLinksBack((content, node) => {
     const element = node as HTMLElement;
     const href = inlineDestination(element.getAttribute('href') ?? '');
     // A link the file wrote as a reference, while its label resolves (#570).
