@@ -416,6 +416,23 @@ turndown.addRule('heading', {
 const TASK_ITEM_INDENT = 2;
 
 /**
+ * How many task items deep the writer is while it writes their blocks apart
+ * from the item, below; the soft break rule asks it, as it asks `cellDepth`,
+ * so a continuation line there takes the placement of any list item (#765).
+ */
+let taskItemDepth = 0;
+
+/** One block of a task item, written with the depth above counted. */
+function writtenInTaskItem(block: HTMLElement): string {
+  taskItemDepth += 1;
+  try {
+    return turndown.turndown(block.outerHTML);
+  } finally {
+    taskItemDepth -= 1;
+  }
+}
+
+/**
  * The elements that stand on their own line in the markdown this writes.
  *
  * Enumerated in this direction on purpose. An element missing from the list is
@@ -551,7 +568,7 @@ function taskListItemReplacement(node: Node): string {
   const holdsATable = blocks.some((block) => block.nodeName.toUpperCase() === 'TABLE');
   let body = '';
   blocks.forEach((block, i) => {
-    let written = trimBlock(turndown.turndown(block.outerHTML));
+    let written = trimBlock(writtenInTaskItem(block));
     // A block the file wrote a blank line under the one above keeps it (#601).
     const apart = holdsATable || blankLineAbove(block);
     // An empty first item directly under the paragraph would underline it (#564).
@@ -1150,7 +1167,11 @@ turndown.addRule('hardBreakInACell', {
 // A line break inside a paragraph, written as the newline the file had (#571).
 // After the rule above, which takes every `br`: turndown consults the rule
 // added last first, and this one takes only the soft break's.
-addSoftBreakRules(turndown, () => cellDepth > 0);
+addSoftBreakRules(
+  turndown,
+  () => cellDepth > 0,
+  () => taskItemDepth > 0,
+);
 // A `br` the file wrote in a line, written back as that tag (#577); a cell is
 // left to the rule above.
 addBrSpellingRules(turndown, () => cellDepth > 0);
