@@ -54,8 +54,18 @@ export function inlineDestination(href: string): string {
 
 /**
  * A destination written between angle brackets, the form a destination
- * holding white space or an angle bracket needs (#664): each backslash and
- * each angle bracket escaped with a backslash.
+ * holding white space or an angle bracket needs (#664): each ampersand as
+ * `literalAmpersands` writes it, then each backslash and each angle bracket
+ * escaped with a backslash.
+ *
+ * The ampersand is written as between the parentheses since #761, which sends
+ * every destination that reads back only here through this form: inside the
+ * brackets a reader decodes a character reference as it does between the
+ * parentheses. Measured on #761, `<javascript&colon;alert(1) x>` written bare
+ * was read by commonmark.js as a `javascript:` address, and `marked` wrote it
+ * into an href a browser decodes to one; cmark-gfm emptied the href and
+ * GitHub drew no link. Written `&amp;colon;`, it is the relative path it is in
+ * all four.
  *
  * Inside the brackets a reader still takes a backslash before punctuation as
  * an escape, so `x y\(z` written bare came back `x y(z`, the backslash gone,
@@ -64,5 +74,5 @@ export function inlineDestination(href: string): string {
  * reference link whose label stopped resolving.
  */
 export function angleDestination(href: string): string {
-  return `<${href.replace(/[\\<>]/g, '\\$&')}>`;
+  return `<${literalAmpersands(href).replace(/[\\<>]/g, '\\$&')}>`;
 }

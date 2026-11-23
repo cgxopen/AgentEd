@@ -29,9 +29,8 @@ import { linkTitle } from './link-title';
  *
  * **The ampersands are written as in the inline form** (#447): an ampersand
  * that would begin a character reference is written `&amp;` inside the angle
- * brackets too, so an href holding `javascript&colon;alert(1)` and a space
- * stays the inert text it is. `angleDestination` alone writes the ampersand
- * bare, the debt this pays for every href that reaches it from here.
+ * brackets too, by `angleDestination` since #761, so an href holding
+ * `javascript&colon;alert(1)` and a space stays the inert text it is.
  *
  * An href of ASCII letters, digits and the punctuation a plain destination
  * holds reads back between parentheses by construction, and is not asked:
@@ -67,7 +66,7 @@ export function readingBackItsDestination(written: string, element: HTMLElement)
   const start = written.startsWith(LINK_START) ? LINK_START.length : 0;
   const destination = literalAmpersands(href);
   if (readsAsOneLink(written.slice(start), destination)) return written;
-  const angled = `${written.slice(0, -inline.length)}(${angleDestination(destination)}${title})`;
+  const angled = `${written.slice(0, -inline.length)}(${angleDestination(href)}${title})`;
   return readsAsOneLink(angled.slice(start), destination) ? angled : written;
 }
 
