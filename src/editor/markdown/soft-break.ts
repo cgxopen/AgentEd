@@ -152,31 +152,42 @@ const ONE_LINE = `h1, h2, h3, h4, h5, h6, td, th, [${FOOTNOTE_DEFINITION_ATTRIBU
  */
 const ITEM_INDENT_TAKEN = '    ';
 
-function indentToWrite(node: HTMLElement, indent: string): string {
-  const inItem = node.closest('li, blockquote')?.nodeName === 'LI';
+function indentToWrite(node: HTMLElement, indent: string, inTaskItem: boolean): string {
+  // A task item writes its blocks apart from its `li` (`serialize.ts`), so a
+  // break there finds no container above it, and the writer says it is in an
+  // item (#765). Before, such a break was written as at the top level, with
+  // four fewer than a bullet item writes, and a deep line moved at each save.
+  const nearest = node.closest('li, blockquote');
+  const inItem = nearest === null ? inTaskItem : nearest.nodeName === 'LI';
   const asRead = node.hasAttribute(SOFT_BREAK_AS_READ_ATTRIBUTE);
   return inItem && !asRead && indent.length >= ITEM_INDENT_TAKEN.length
     ? ITEM_INDENT_TAKEN + indent
     : indent;
 }
 
-function softBreakReplacement(node: HTMLElement, inCell: boolean): string {
+function softBreakReplacement(node: HTMLElement, inCell: boolean, inTaskItem: boolean): string {
   if (inCell || node.closest(ONE_LINE) !== null) return ' ';
   const space = decodeWhitespace(node.getAttribute(SOFT_BREAK_SPACE_ATTRIBUTE));
   const indent = decodeWhitespace(node.getAttribute(SOFT_BREAK_INDENT_ATTRIBUTE));
-  return `${space}\n${indentToWrite(node, indent)}`;
+  return `${space}\n${indentToWrite(node, indent, inTaskItem)}`;
 }
 
 /**
  * Registered by `serialize.ts`, which is over the module size guideline.
  * `inCell` answers whether a table cell is being written: the serializer
  * writes a cell from its inner HTML alone, where the cell is no ancestor to
- * find, so it says so itself.
+ * find, so it says so itself. `inTaskItem` answers the same for the blocks of
+ * a task item, which the serializer writes apart from the item (#765).
  */
-export function addSoftBreakRules(turndown: TurndownService, inCell: () => boolean): void {
+export function addSoftBreakRules(
+  turndown: TurndownService,
+  inCell: () => boolean,
+  inTaskItem: () => boolean,
+): void {
   turndown.addRule('softBreak', {
     filter: (node) =>
       node.nodeName === 'BR' && (node as HTMLElement).hasAttribute(SOFT_BREAK_ATTRIBUTE),
-    replacement: (_content, node) => softBreakReplacement(node as HTMLElement, inCell()),
+    replacement: (_content, node) =>
+      softBreakReplacement(node as HTMLElement, inCell(), inTaskItem()),
   });
 }
