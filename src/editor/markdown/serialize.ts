@@ -58,6 +58,7 @@ import { blankLineAbove } from './item-spacing';
 import { addKeptLinkRules } from './kept-link';
 import { addKeptRawHtmlRules } from './kept-raw-html';
 import { answerLinkStarts, LINK_START, linkStart, setMarkingLinkStarts } from './link-start';
+import { holdingLinkTextApart } from './link-text-link';
 import { linkTitle } from './link-title';
 import {
   LIST_MARKER_ATTRIBUTE,
@@ -318,7 +319,8 @@ turndown.remove(['style', 'script', 'title', 'noscript']);
 // delimiter the file used since #562 (`link-title.ts`).
 turndown.addRule('inlineLinkKeepingAmpersands', {
   filter: (node) => node.nodeName === 'A' && Boolean((node as HTMLElement).getAttribute('href')),
-  replacement: (content, node) => {
+  // A link inside its text is written as text, so it is read as one link (#762).
+  replacement: holdingLinkTextApart((content, node) => {
     const element = node as HTMLElement;
     const href = inlineDestination(element.getAttribute('href') ?? '');
     // A link the file wrote as a reference, while its label resolves (#570).
@@ -330,7 +332,7 @@ turndown.addRule('inlineLinkKeepingAmpersands', {
     const kept = keptDestination(element, readOneLink, cell);
     if (kept !== null) return `${linkStart()}[${content}]${kept}`;
     return `${linkStart()}[${content}](${href}${linkTitle(element)})`;
-  },
+  }),
 });
 
 /** The one link `markdown` makes, read by the parse the editor uses, or null. */
