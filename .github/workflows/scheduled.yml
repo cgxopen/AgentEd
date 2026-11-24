@@ -221,7 +221,10 @@ jobs:
           fi
           mkdir -p "$RUNNER_TEMP/deb"
           dpkg-deb -x "${debs[0]}" "$RUNNER_TEMP/deb"
-          versions=$(objdump -T "$RUNNER_TEMP/deb/usr/bin/agented" | grep -o 'GLIBC_[0-9][0-9.]*' | sed 's/^GLIBC_//' | sort -uV)
+          # grep answers 1 when it reads no GLIBC_ symbol; || true lets the
+          # step reach the error below that says so, rather than end here
+          # through pipefail. A failing objdump still ends the step.
+          versions=$(objdump -T "$RUNNER_TEMP/deb/usr/bin/agented" | { grep -o 'GLIBC_[0-9][0-9.]*' || true; } | sed 's/^GLIBC_//' | sort -uV)
           highest=$(tail -n 1 <<< "$versions")
           echo "GLIBC_ versions needed: $(tr '\n' ' ' <<< "$versions")"
           echo "Highest: $highest; declared floor: $GLIBC_FLOOR"
