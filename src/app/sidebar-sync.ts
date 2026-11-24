@@ -1,7 +1,8 @@
 import { isTauri } from '../platform/detect';
 import { basename, dirname, joinPath, normalize, samePath } from '../platform/paths';
 import type { MarkdownTree, PlatformIO } from '../platform/types';
-import type { MarkdownTreeMark, Sidebar } from '../ui/sidebar';
+import type { SidebarGesture } from '../preferences';
+import type { MarkdownTreeMark, Sidebar, SidebarGestures } from '../ui/sidebar';
 import { buildTree, type TreeNode } from '../ui/sidebar';
 import type { AppState } from './state';
 
@@ -471,15 +472,78 @@ function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>
 }
 
 /**
- * Refresh the sidebar to reflect the current document, on a document switch.
- * Hides the panel when there is no root to list; otherwise lists the resolved
- * root and renders a recursive tree.
+ * What a window knows of the last gesture on the panel, for the rule of #790:
+ * the gesture remembered when the window started, then that of its own
+ * gestures, and how to open the panel as an open by hand opens it.
+ */
+export interface PanelKeptOpen {
+  readonly remembered: () => SidebarGesture | null;
+  readonly openAsIfPressed: () => void;
+}
+
+/**
+ * The last gesture as this window knows it (#790): **read from the store once,
+ * when the window starts**, then that of the gestures of this window, each
+ * written to the store as it is made. Open windows do not follow each other
+ * (#788): a panel shut in one window does not close the panel of another at
+ * its next arrival, and a window started afterwards reads the last gesture
+ * written.
+ */
+export function windowGesture(
+  load: () => SidebarGesture | null,
+  save: (gesture: SidebarGesture) => void,
+  panel: SidebarGestures,
+): PanelKeptOpen {
+  let gesture = load();
+  panel.onGesture((opened) => {
+    gesture = opened ? 'open' : 'shut';
+    save(gesture);
+  });
+  return { remembered: () => gesture, openAsIfPressed: panel.openAsIfPressed };
+}
+
+/**
+ * Whether the panel is kept open for the document on screen (#790, owner
+ * decision of 2026-11-24): **when the last gesture on it was an open by hand,
+ * it is open for any document that has a file**, however the document arrived,
+ * and it draws what an open by hand draws, the sentences included. A redraw of
+ * the same document keeps open only a panel that is open, so a save, a Save As
+ * and a reload never open it (#387).
  *
- * **When the panel first appears is not changed by any of this.** A
- * document that arrives with no `assets/` folder and no kept root hides
- * the panel — the trigger R-C6 has had since #402, and before it the
- * same sentence with two folders instead of one. **Nobody asked**,
- * so `nothing` and `unreadable` both hide, silently (#354).
+ * **The web build is kept out**, by owner decision on #790: it stays as it
+ * was, opening the panel only for an `assets/` folder. `isTauri` answers it
+ * because the question underneath, whether the folder beside a document can be
+ * read without asking for it, is answered on the web only by the folder grant,
+ * which nothing can query without opening the picker, the reason given for
+ * the offer in `resolveSidebarView` above. A query answering that without the
+ * act would replace it.
+ */
+function keepsOpen(
+  state: AppState,
+  sidebar: Sidebar,
+  redraw: SidebarRedraw,
+  kept: PanelKeptOpen | undefined,
+): boolean {
+  if (!isTauri || kept?.remembered() !== 'open' || state.filePath === null) return false;
+  return redraw === 'document-arrived' || sidebar.isVisible();
+}
+
+/**
+ * Refresh the sidebar to reflect the current document, on a document switch,
+ * and the one address of the rule of #790.
+ *
+ * **With the gesture remembered open, an arrival is an open by hand** (#790).
+ * A panel that is open is read and drawn again with the answer of an open by
+ * hand, the two sentences included, so it is never hidden in between: nothing
+ * here hides before it reads, and the previous view stays until the new one
+ * replaces it. A panel that is shut opens as an open by hand opens, holding the
+ * reading mark, and the handler of the open by hand draws it, so the folder is
+ * read once either way.
+ *
+ * **With nothing remembered, or the gesture shut, it is as before.** A document
+ * that arrives with no `assets/` folder and no kept root hides the panel - the
+ * trigger R-C6 has had since #402. **Nobody asked**, so `nothing` and
+ * `unreadable` both hide, silently (#354).
  *
  * **A read that lands after anything else was asked of the panel draws
  * nothing** (#380). Until then a switch took no ticket, so closing the panel
@@ -491,26 +555,37 @@ function drawTree(sidebar: Sidebar, view: Extract<SidebarView, { kind: 'tree' }>
  * acts that ask for the panel under R-C6, so they redraw it while it is open
  * and leave it closed once the person closed it. A document arriving is one,
  * so it forgets the close, and the panel appears for a document with
- * structure as it always did.
+ * structure as it always did. The close of the session and the remembered
+ * gesture answer different questions: the first whether a redraw may draw, the
+ * second whether an arrival opens the panel.
  */
 export async function refreshSidebar(
   state: AppState,
   sidebar: Sidebar,
   io: PlatformIO,
   redraw: SidebarRedraw = 'document-arrived',
+  kept?: PanelKeptOpen,
 ): Promise<void> {
   if (redraw === 'document-arrived') sidebar.forgetClosedByHand();
   else if (sidebar.isClosedByHand()) return;
+  const keptOpen = keepsOpen(state, sidebar, redraw, kept);
+  if (keptOpen && !sidebar.isVisible()) {
+    // Opened as by its control: the handler of the open by hand reads and
+    // draws, and a later arrival overtakes it by the ticket (#380).
+    kept?.openAsIfPressed();
+    return;
+  }
   // A redraw of the same document while the panel is open is the answer to a
   // question already put, so a markdown tree opened by hand is drawn again
-  // rather than hidden by a save (#387, #746). A document arriving asked
-  // nothing.
-  const asked = redraw === 'same-document' && sidebar.isVisible();
+  // rather than hidden by a save (#387, #746).
+  const asked = keptOpen || (redraw === 'same-document' && sidebar.isVisible());
   const ticket = sidebar.beginSwitch();
   const view = await resolveSidebarView(state, io, asked);
   if (!sidebar.isLatest(ticket)) return;
   if (view.kind === 'tree') drawTree(sidebar, view);
   else if (view.kind === 'offer') sidebar.showAccessOffer();
+  else if (keptOpen && view.kind === 'nothing') sidebar.showNothingRelated();
+  else if (keptOpen) sidebar.showUnreadable();
   else sidebar.hide();
 }
 
