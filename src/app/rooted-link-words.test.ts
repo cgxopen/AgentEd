@@ -88,7 +88,7 @@ describe('every other sentence is byte for byte as on main (#779)', () => {
   it('the six other reasons under Not checked', () => {
     const { rooted: _rooted, 'too-many': tooMany, ...others } = NOT_CHECKED_LINES;
     expect(others).toEqual({
-      'anchor-only': 'A link to a heading is not checked yet.',
+      'anchor-only': 'A link to a heading cannot be checked yet.', // #784, owner wording
       'no-document': 'Save this document first: links are checked from its folder.',
       folder: 'This link names a folder; only links to files are checked.',
       'above-root': 'This link goes above the top folder of the disk, so it is not checked.',

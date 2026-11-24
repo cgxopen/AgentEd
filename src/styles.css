@@ -2979,7 +2979,7 @@ button.indicator-search:hover {
 }
 
 /* The report: the counts and the two actions, then a row for each file that
-   holds a broken link, then Not checked. A row opens into the links, drawn
+   holds a broken link, then Could not be checked. A row opens into the links, drawn
    with the rows of the «Links» list (#729). */
 .links-folder-report {
   margin: 2px 8px 8px;

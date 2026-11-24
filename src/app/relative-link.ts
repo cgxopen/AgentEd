@@ -16,7 +16,7 @@ import { handOverToSystem, notLookedAtMessage } from './system-hand-over';
 export const RELATIVE_LINK_MESSAGES: Readonly<Record<LinkRefusal, string>> = {
   'not-relative': '',
   'anchor-only': 'Going to a heading of the document is not supported yet.',
-  // The second sentence, how to write it, is the one under Not checked (#779).
+  // The second sentence, how to write it, is the one under Could not be checked (#779, #781).
   rooted: `A link that starts with / is not followed, since AgentEd does not know the folder it starts from. ${ROOTED_LINK_HOW}`,
   'no-document':
     'Save this document first: a relative link is followed from the folder of the document.',

@@ -89,9 +89,11 @@ AgentEd is free and open source. If it makes your work easier, [support its deve
 - **YAML frontmatter and templates:** edit document metadata in the **Metadata** panel; start with a blank document, a file of agent instructions with a name and a description, or a document with metadata.
 - **Live estimates and counts:** see a token estimate alongside word and character counts. Token counting runs offline using `gpt-tokenizer` with `cl100k_base`; other models, chat formatting, and attachments can produce different totals.
 - **Find and replace:** match case, whole words, or regular expressions.
-- **Files panel:** browse the document’s adjacent file structure in a side panel.
+- **Links between documents:** `Ctrl`+click (`Cmd` on macOS) a relative link to open a Markdown file in AgentEd, or in a window of its own with `Shift` held too; a **Links** badge lists the links of the document that point to a file that is not there.
+- **Files panel:** browse the Markdown files around the document and its `assets/` folder in a side panel you can widen, which stays open once you open it; check the links of the whole folder for broken ones (desktop).
+- **Rename, print, and export to PDF:** rename a document in its folder from the File menu, print it, or save it as a PDF.
 - **Appearance:** light, dark, automatic mode, and curated palettes.
-- **Multiple windows:** work with one document in each independent window.
+- **Multiple windows:** work with one document in each independent window; AgentEd opens at the size you left it.
 - **Spell check:** optional and off by default.
 
 ## For AI instructions and everyday notes
