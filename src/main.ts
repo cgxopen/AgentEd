@@ -17,7 +17,6 @@ import { installLinkOpener } from './app/link-open';
 import { checkOnArrival, createLinksReport } from './app/links-report';
 import { insertMedia } from './app/media-picker';
 import { setupPageColour } from './app/page-colour';
-import { openPanelAtStart } from './app/panel-at-start';
 import { exportWithMetadataOpen, printWithMetadataOpen } from './app/print-export';
 import { followRelativeLink } from './app/relative-link';
 import {
@@ -28,7 +27,11 @@ import {
 } from './app/rename-flow';
 import { createSearchManager } from './app/search-manager';
 import { createSidebarClickHandler } from './app/sidebar-click';
-import { openSidebarByHand, refreshSidebar as refreshSidebarModule } from './app/sidebar-sync';
+import {
+  openSidebarByHand,
+  refreshSidebar as refreshSidebarModule,
+  windowGesture,
+} from './app/sidebar-sync';
 import { AppState } from './app/state';
 import { tableMenuCallbacks } from './app/table-dialog';
 import { ThemeManager } from './app/theme-manager';
@@ -207,8 +210,8 @@ installDropGuard();
 const sidebar = setupSidebar();
 ctx.sidebar = sidebar;
 // The last gesture on the panel, opened or shut by hand, remembered for the
-// next start (#788).
-sidebar.onGesture((opened) => saveSidebarGesture(opened ? 'open' : 'shut'));
+// machine (#788) and keeping the panel open for every arrival (#790).
+const panelKeptOpen = windowGesture(loadSidebarGesture, saveSidebarGesture, sidebar);
 // The width of the panel, dragged at its edge and remembered (#786).
 setupSidebarWidth(document.getElementById('sidebar') as HTMLElement, {
   load: loadSidebarWidth,
@@ -329,7 +332,7 @@ ctx.searchManager.installKeyboardListeners();
 // Phase 6 — helpers that themselves need ctx.
 ctx.refreshSidebar = async (redraw) => {
   const io = await getPlatformIO();
-  await refreshSidebarModule(ctx.state, ctx.sidebar, io, redraw);
+  await refreshSidebarModule(ctx.state, ctx.sidebar, io, redraw, panelKeptOpen);
   markUnusedAssets();
 };
 
@@ -583,17 +586,7 @@ setupWindowReports(ctx.state, header.onFilenameChange, (e) => {
     'Unsaved changes not reported',
   );
 });
-// The first document the system hands this window is its start, and the files
-// panel opens then when it was last opened by hand (#788).
-setupFileAssociation(
-  openPanelAtStart({
-    open: (path) => docActions.openFilePath(path),
-    remembered: loadSidebarGesture,
-    filePath: () => ctx.state.filePath,
-    panel: sidebar,
-  }),
-  ctx.reporter,
-);
+setupFileAssociation(docActions.openFilePath, ctx.reporter);
 // A window opened for a help puts it in, once, at start (#701).
 takeLaunchHelp()
   .then((id) => {

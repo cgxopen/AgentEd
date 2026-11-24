@@ -241,7 +241,8 @@ export function recordEmojiUse(char: string): void {
 // that ran an older build. This runs once per launch; after the first
 // one the keys are gone and it stays silent. Surviving preferences:
 // theme + palette + last opened folder + frequently used emoji + recent
-// files.
+// files + the width of the files panel (#786) + the last gesture on it
+// (#788).
 
 const LEGACY_KEYS = [
   'agented:default-mode',
