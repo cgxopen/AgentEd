@@ -47,7 +47,7 @@ jobs:
       - name: Read the npm advisories
         timeout-minutes: 5
         run: |
-          set -uo pipefail
+          set -euo pipefail
           npm audit --json > "$RUNNER_TEMP/npm-audit.json" || true
           node .github/workflows/npm-advisories.mjs "$RUNNER_TEMP/npm-audit.json" .github/npm-advisories-accepted.json
 
@@ -87,12 +87,20 @@ jobs:
         timeout-minutes: 10
         working-directory: src-tauri
         run: |
-          set -uo pipefail
+          # A run step that names no shell runs under bash -e, so errexit is
+          # on whether this line names it or not; it names it so as to say
+          # what the shell does. The exit of cargo-deny is read by the if,
+          # where errexit does not apply.
+          set -euo pipefail
           if cargo-deny --locked check advisories 2> "$RUNNER_TEMP/deny.log"; then
             cat "$RUNNER_TEMP/deny.log"
             # An accepted advisory no crate meets any more is a warning of
-            # cargo-deny, not a failure; it is raised here so it shows.
-            grep -E '^warning\[' "$RUNNER_TEMP/deny.log" | while read -r line; do
+            # cargo-deny, not a failure; it is raised here so it shows. A
+            # clean log holds no warning line, and grep then answers 1,
+            # which pipefail would carry to the pipeline and errexit turn
+            # into the end of the step (#776); || true keeps that answer
+            # inside the braces.
+            { grep -E '^warning\[' "$RUNNER_TEMP/deny.log" || true; } | while read -r line; do
               echo "::warning title=Rust advisories::${line}"
             done
             echo "Rust advisories: none reported."
