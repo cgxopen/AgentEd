@@ -7,6 +7,9 @@
   "permissions": [
     "core:default",
     "core:window:allow-destroy",
+    "core:window:allow-set-size",
+    "core:window:allow-maximize",
+    "core:window:allow-center",
     "core:webview:allow-print",
     "dialog:allow-open",
     "dialog:allow-save",

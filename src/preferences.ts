@@ -1,4 +1,5 @@
 import { samePath } from './platform/paths';
+import type { RememberedSize } from './platform/window-size';
 
 // ── Theme preference ──
 
@@ -242,7 +243,7 @@ export function recordEmojiUse(char: string): void {
 // one the keys are gone and it stays silent. Surviving preferences:
 // theme + palette + last opened folder + frequently used emoji + recent
 // files + the width of the files panel (#786) + the last gesture on it
-// (#788).
+// (#788) + the size of the window (#791).
 
 const LEGACY_KEYS = [
   'agented:default-mode',
@@ -336,5 +337,54 @@ export function saveSidebarGesture(gesture: SidebarGesture): void {
     localStorage.setItem(SIDEBAR_GESTURE_KEY, gesture);
   } catch (e) {
     console.warn('[preferences] save the last gesture on the files panel failed:', e);
+  }
+}
+
+// ── The size of the window (#791) ──
+
+/**
+ * The size of the window and whether it was maximized, one for the machine,
+ * kept beside the width of the files panel (owner decisions of 2026-11-24).
+ * Open windows do not follow each other: each reads it when it starts, and the
+ * last one to change writes it.
+ */
+const WINDOW_SIZE_KEY = 'agented:window-size';
+
+export { WINDOW_SIZE_KEY };
+
+/**
+ * The size stored, in CSS pixels, or null when nothing is stored, the value is
+ * not JSON, a field is missing or of another kind, or the storage cannot be
+ * read. Whether the window can take it is the window module's to say.
+ */
+export function loadWindowSize(): RememberedSize | null {
+  try {
+    const stored = localStorage.getItem(WINDOW_SIZE_KEY);
+    if (stored === null) return null;
+    const value: unknown = JSON.parse(stored);
+    if (value === null || typeof value !== 'object') return null;
+    const { width, height, maximized } = value as Record<string, unknown>;
+    if (typeof width !== 'number' || !Number.isFinite(width)) return null;
+    if (typeof height !== 'number' || !Number.isFinite(height)) return null;
+    if (typeof maximized !== 'boolean') return null;
+    return { width, height, maximized };
+  } catch (e) {
+    console.warn('[preferences] read the size of the window failed, using the window of today:', e);
+    return null;
+  }
+}
+
+export function saveWindowSize(size: RememberedSize): void {
+  try {
+    localStorage.setItem(
+      WINDOW_SIZE_KEY,
+      JSON.stringify({
+        width: Math.round(size.width),
+        height: Math.round(size.height),
+        maximized: size.maximized,
+      }),
+    );
+  } catch (e) {
+    console.warn('[preferences] save the size of the window failed:', e);
   }
 }

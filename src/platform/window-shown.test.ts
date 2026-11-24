@@ -45,7 +45,9 @@ describe('the signal is sent as soon as the theme is on the page (#639)', () => 
 
   it('right after the theme manager has set data-theme, before the file association', () => {
     const themed = at('const themeManager = new ThemeManager();');
-    const shown = at('showWindowOnceThemed().catch(console.error);');
+    // Since #791 the show is asked through the size given first: the same
+    // place, the same call left unawaited.
+    const shown = at('showWindowOnceSized(loadWindowSize, saveWindowSize).catch(console.error);');
     expect(themed).toBeGreaterThan(-1);
     expect(shown).toBeGreaterThan(themed);
     // The document a launch was asked for waits for the page (#541); the
@@ -55,5 +57,6 @@ describe('the signal is sent as soon as the theme is on the page (#639)', () => 
 
   it('is not awaited, so nothing of the start waits on it', () => {
     expect(mainSource).not.toContain('await showWindowOnceThemed');
+    expect(mainSource).not.toContain('await showWindowOnceSized');
   });
 });

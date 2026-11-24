@@ -54,7 +54,7 @@ import {
   openHelpWindow,
   ownWindowFrame,
   requestFolderAccess,
-  showWindowOnceThemed,
+  showWindowOnceSized,
   takeLaunchHelp,
   titleBarOverlay,
 } from './platform/index';
@@ -64,10 +64,12 @@ import {
   loadRecentFiles,
   loadSidebarGesture,
   loadSidebarWidth,
+  loadWindowSize,
   purgeLegacyPreferences,
   replaceRecentFile,
   saveSidebarGesture,
   saveSidebarWidth,
+  saveWindowSize,
 } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
@@ -107,9 +109,10 @@ const reportImageInsert = createImageInsertReporter(state);
 // palette before the menu binds. It doesn't participate in the phased
 // ctx because no other module consumes it — it owns its own DOM effect.
 const themeManager = new ThemeManager();
-// The theme is on `<html>` now, so the window may be seen (#639). A failure
-// leaves the fallback of the process to show it after 2 s.
-showWindowOnceThemed().catch(console.error);
+// The theme is on `<html>` now, so the window may be seen (#639), once it has
+// its remembered size (#791). A failure leaves the fallback of the process to
+// show it after 2 s.
+showWindowOnceSized(loadWindowSize, saveWindowSize).catch(console.error);
 // The colour of the page, for the next window the process draws (#648).
 setupPageColour();
 
