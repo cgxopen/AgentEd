@@ -263,3 +263,40 @@ export function purgeLegacyPreferences(): void {
     }
   }
 }
+
+// ── The width of the files panel (#786) ──
+
+/**
+ * The width a person chose for the files panel, one for the machine, kept
+ * beside the theme (owner decision of 2026-11-24). Open windows do not follow
+ * each other: each keeps the width it has until it is closed, and a window
+ * opened afterwards reads the last width written.
+ */
+const SIDEBAR_WIDTH_KEY = 'agented:sidebar-width';
+
+export { SIDEBAR_WIDTH_KEY };
+
+/**
+ * The width stored, in whole pixels, or null when nothing is stored, the value
+ * is not a number, or the storage cannot be read. Bounds are the panel's to
+ * apply, so a width stored for a wider window is kept as it is.
+ */
+export function loadSidebarWidth(): number | null {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+    if (stored === null) return null;
+    const width = Number.parseInt(stored, 10);
+    return Number.isFinite(width) && String(width) === stored.trim() ? width : null;
+  } catch (e) {
+    console.warn('[preferences] read the width of the files panel failed, using the least:', e);
+    return null;
+  }
+}
+
+export function saveSidebarWidth(width: number): void {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(Math.round(width)));
+  } catch (e) {
+    console.warn('[preferences] save the width of the files panel failed:', e);
+  }
+}

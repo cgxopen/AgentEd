@@ -2713,7 +2713,10 @@ button.indicator-search:hover {
  * which already keeps 40 px of padding of its own. Eight more pixels there
  * would come out of the 292 px text column at the minimum window. */
 #sidebar {
+  /* The least width, and the width with nothing stored; a width dragged at the
+     edge stands inline over it (#786, src/ui/sidebar-width.ts). */
   width: 220px;
+  position: relative;
   border: 1px solid var(--border);
   border-radius: 8px;
   margin: 8px 8px 8px 0;
@@ -2728,6 +2731,47 @@ button.indicator-search:hover {
 
 #sidebar.hidden {
   display: none;
+}
+
+/* The edge that widens the panel (#786, owner decision of 2026-11-24): a strip
+   of 6 px inside the panel along its border on the side of the document. At
+   rest nothing is drawn, so the panel is as before; under the pointer and
+   while dragged a line of 2 px in the accent stands over the border, and of
+   3 px with focus from the keyboard. */
+.sidebar-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: transparent;
+  transition: background-color 120ms ease-out;
+}
+
+.sidebar-resize:hover::after,
+.sidebar-resize.dragging::after {
+  background: var(--accent);
+}
+
+.sidebar-resize:focus-visible {
+  outline: none;
+}
+
+.sidebar-resize:focus-visible::after {
+  width: 3px;
+  background: var(--accent);
 }
 
 /* One child since #347, the close cross having gone: on the right it landed 26
@@ -3565,6 +3609,7 @@ button.document-badge:active {
   .tiptap pre .code-block-language-empty,
   .tiptap pre .code-block-copy,
   .sidebar-folder-toggle::before,
+  .sidebar-resize::after,
   .toast {
     transition: none;
   }

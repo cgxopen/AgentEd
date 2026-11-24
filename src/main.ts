@@ -58,8 +58,10 @@ import { listenForPlainPasteRequest } from './platform/plain-paste';
 import {
   clearRecentFiles,
   loadRecentFiles,
+  loadSidebarWidth,
   purgeLegacyPreferences,
   replaceRecentFile,
+  saveSidebarWidth,
 } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
 import { setupAppearanceMenu } from './ui/appearance-menu';
@@ -72,6 +74,7 @@ import { watchHeaderRoom } from './ui/header-room';
 import { setupLinksPopover } from './ui/links-popover';
 import { setupMenu } from './ui/menu';
 import { setupSidebar } from './ui/sidebar';
+import { setupSidebarWidth } from './ui/sidebar-width';
 import { setupSpellcheckToggle, setupStatusbar, spellcheckMenuCallbacks } from './ui/statusbar';
 import { showTemplateGallery } from './ui/template-gallery';
 import { setupToolbar } from './ui/toolbar';
@@ -160,7 +163,7 @@ let linkDialog!: LinkDialog;
 let imageDescription!: { readonly onImageDescription: () => void };
 ctx.statusbar = setupStatusbar(editor);
 setupSpellcheckToggle(state);
-setupToolbar(editor, {
+const floatingToolbar = setupToolbar(editor, {
   onLink: () => linkDialog.open(),
   onImageDescription: () => imageDescription.onImageDescription(),
 });
@@ -199,6 +202,12 @@ installLinkOpener(editorEl, {
 installDropGuard();
 
 ctx.sidebar = setupSidebar();
+// The width of the panel, dragged at its edge and remembered (#786).
+setupSidebarWidth(document.getElementById('sidebar') as HTMLElement, {
+  load: loadSidebarWidth,
+  save: saveSidebarWidth,
+  onApplied: () => floatingToolbar.reposition(),
+});
 ctx.frontmatterPanel = setupFrontmatterPanel(state);
 ctx.frontmatterPanel.setVisible(shouldShowFrontmatterPanel(state));
 
