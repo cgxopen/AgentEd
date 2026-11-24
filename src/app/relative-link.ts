@@ -1,7 +1,7 @@
-import { type LinkRefusal, resolveLinkTarget } from '../platform/link-target';
+import { hasWebAddressShape, type LinkRefusal, resolveLinkTarget } from '../platform/link-target';
 import { basename, isPathInsideRoot } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
-import { ROOTED_LINK_HOW } from '../ui/links-popover';
+import { ROOTED_LINK_HOW, WEB_ADDRESS_HOW, withWebAddressHow } from '../ui/links-popover';
 import type { TreeRoot } from '../ui/sidebar';
 import { showToast } from '../ui/toast';
 import { establishedPresence } from './entry-absence';
@@ -78,11 +78,13 @@ export async function followRelativeLink(
   const target = resolveLinkTarget(deps.documentPath(), address);
   if (target.kind === 'refused') {
     const message = RELATIVE_LINK_MESSAGES[target.reason];
-    if (message !== '') tell(message);
+    if (target.reason === 'folder') tell(withWebAddressHow(message, address));
+    else if (message !== '') tell(message);
     return;
   }
   const io = await deps.io();
   if (!target.markdown) {
+    if (hasWebAddressShape(address) && (await toldAsWebAddress(io, target.path, tell))) return;
     await handOverToSystem(io, target.path, tell);
     return;
   }
@@ -91,7 +93,7 @@ export async function followRelativeLink(
   // could not be looked at is tried, never called missing.
   const presence = await establishedPresence(io, target.path);
   if (presence === 'absent') {
-    tell(missingTargetMessage(target.path));
+    tell(withWebAddressHow(missingTargetMessage(target.path), address));
     return;
   }
   // `unknown` is nothing looked at. Where the document itself answers so too,
@@ -112,6 +114,24 @@ export async function followRelativeLink(
   const root = deps.panelRoot();
   const keep = root !== null && isPathInsideRoot(target.path, root.path) ? root : undefined;
   await deps.openFilePath(target.path, keep);
+}
+
+/**
+ * A link with the shape of a web address whose target is not a markdown file
+ * (#792): its presence is asked before the kind is refused, so what is said is
+ * true and says how. Absent, it was not found; unknown, AgentEd could not look;
+ * each followed by the sentence of how. Present, it answers false and the file
+ * goes to the system as any other, so nothing more is followed than before.
+ */
+async function toldAsWebAddress(
+  io: PlatformIO,
+  path: string,
+  tell: (message: string) => void,
+): Promise<boolean> {
+  const presence = await establishedPresence(io, path);
+  if (presence === 'absent') tell(`${missingTargetMessage(path)} ${WEB_ADDRESS_HOW}`);
+  else if (presence === 'unknown') tell(`${notLookedAtMessage(path)} ${WEB_ADDRESS_HOW}`);
+  return presence !== 'present';
 }
 
 /**

@@ -1,5 +1,6 @@
 import type { DocumentLink, LinkCheckResult, NotCheckedReason } from '../app/link-check';
 import { MAX_CHECKED_LINKS } from '../app/link-check';
+import { hasWebAddressShape } from '../platform/link-target';
 import { basename } from '../platform/paths';
 
 /**
@@ -20,9 +21,28 @@ export const LINKS_POPOVER_HEADING = 'Broken links in this document';
  */
 export const LINKS_NOT_CHECKED_HEADING = 'Could not be checked';
 
-/** The line under a broken link: its target by name. */
-export function brokenLinkLine(path: string): string {
-  return `${basename(path)} was not found.`;
+/**
+ * How a web address is written (#792, owner decision of 2026-11-24): the
+ * sentence after the one of today, for a link that has the shape of a web
+ * address written without its scheme and leads nowhere, under the link here,
+ * in the report of a folder, and at Ctrl and a click (`relative-link.ts`
+ * imports it), typed once. It begins with If because the shape is a guess
+ * (`hasWebAddressShape`).
+ */
+export const WEB_ADDRESS_HOW =
+  'If this is a web address, write it with https:// in front, such as https://www.example.com.';
+
+/** `line`, followed by the sentence of how when `address` has the shape of a web address. */
+export function withWebAddressHow(line: string, address: string | undefined): string {
+  return address !== undefined && hasWebAddressShape(address) ? `${line} ${WEB_ADDRESS_HOW}` : line;
+}
+
+/**
+ * The line under a broken link: its target by name, and, for an address with
+ * the shape of a web address, how a web address is written (#792).
+ */
+export function brokenLinkLine(path: string, address?: string): string {
+  return withWebAddressHow(`${basename(path)} was not found.`, address);
 }
 
 /**
@@ -44,6 +64,17 @@ export const NOT_CHECKED_LINES: Readonly<Record<NotCheckedReason, string>> = {
   unknown: 'AgentEd could not look in the folder of this link, so it is not checked.',
   'too-many': `Only the first ${MAX_CHECKED_LINKS} links of a document are checked.`,
 };
+
+/**
+ * The line under a link that was not checked, and, for one refused as naming
+ * a folder whose address has the shape of a web address, how a web address is
+ * written (#792): `www.gnu.org/software/bash/` ends with a slash, measured in
+ * the census on #792.
+ */
+export function notCheckedLine(reason: NotCheckedReason, address?: string): string {
+  const line = NOT_CHECKED_LINES[reason];
+  return reason === 'folder' ? withWebAddressHow(line, address) : line;
+}
 
 export interface LinksPopoverCallbacks {
   /** Put the caret on `link` in the document. */
@@ -107,7 +138,7 @@ export function setupLinksPopover(callbacks: LinksPopoverCallbacks): LinksPopove
     heading.textContent = LINKS_POPOVER_HEADING;
     const broken = document.createElement('ul');
     broken.className = 'links-list';
-    for (const b of result.broken) broken.append(row(b.link, brokenLinkLine(b.path)));
+    for (const b of result.broken) broken.append(row(b.link, brokenLinkLine(b.path, b.link.href)));
     const parts: HTMLElement[] = [heading, broken];
     if (result.notChecked.length > 0) {
       const apart = document.createElement('div');
@@ -115,7 +146,8 @@ export function setupLinksPopover(callbacks: LinksPopoverCallbacks): LinksPopove
       apart.textContent = LINKS_NOT_CHECKED_HEADING;
       const unchecked = document.createElement('ul');
       unchecked.className = 'links-list';
-      for (const u of result.notChecked) unchecked.append(row(u.link, NOT_CHECKED_LINES[u.reason]));
+      for (const u of result.notChecked)
+        unchecked.append(row(u.link, notCheckedLine(u.reason, u.link.href)));
       parts.push(apart, unchecked);
     }
     popover.replaceChildren(...parts);

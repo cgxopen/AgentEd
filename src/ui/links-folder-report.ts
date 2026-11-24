@@ -1,7 +1,7 @@
 import { type FileCheck, type FolderCheck, MAX_FILE_BYTES } from '../app/folder-link-check';
 import type { DocumentLink } from '../app/link-check';
 import { basename } from '../platform/paths';
-import { brokenLinkLine, LINKS_NOT_CHECKED_HEADING, NOT_CHECKED_LINES } from './links-popover';
+import { brokenLinkLine, LINKS_NOT_CHECKED_HEADING, notCheckedLine } from './links-popover';
 
 /**
  * What the check of the folder of the files panel draws (#766), under the
@@ -61,9 +61,30 @@ export function brokenCount(check: FolderCheck): { broken: number; inFiles: numb
   return { broken, inFiles };
 }
 
-/** The first line of the report: what was found, over the files read. */
+/**
+ * The relative links of the files read, each good, broken or not checked, and
+ * each file that could not be read, which may hold some (#792). The result of
+ * a file places every relative link in exactly one of its three lists, and the
+ * row of the open file kept current by #729 is a whole result, so the sum stays
+ * right. Web addresses are not among them: the check never looks at them.
+ */
+export function linksToCheck(check: FolderCheck): number {
+  return check.files.reduce(
+    (n, f) =>
+      n + (f.result ? f.result.good + f.result.broken.length + f.result.notChecked.length : 1),
+    0,
+  );
+}
+
+/**
+ * The first line of the report: what was found, over the files read. With no
+ * link to another file in any file read, it says there was nothing to check
+ * (#792, owner decision of 2026-11-24), where No broken links would claim a
+ * check of links that were not there.
+ */
 export function countsLine(check: FolderCheck): string {
   const { broken, inFiles } = brokenCount(check);
+  if (linksToCheck(check) === 0) return `No links to check in ${files(check.read)}`;
   if (broken === 0) return `No broken links in ${files(check.read)}`;
   return `${broken} broken link${broken === 1 ? '' : 's'} in ${inFiles} of ${files(check.read)}`;
 }
@@ -206,7 +227,7 @@ function brokenRows(
   if (view.expanded.has(file.path)) {
     const list = el('ul', 'links-folder-links');
     for (const b of broken)
-      list.append(linkRow(file.path, b.link, brokenLinkLine(b.path), actions));
+      list.append(linkRow(file.path, b.link, brokenLinkLine(b.path, b.link.href), actions));
     rows.push(list);
   }
   return rows;
@@ -236,7 +257,7 @@ function notCheckedRows(view: FolderReportView, actions: FolderReportActions): H
       continue;
     }
     for (const u of file.result.notChecked)
-      list.append(linkRow(file.path, u.link, NOT_CHECKED_LINES[u.reason], actions));
+      list.append(linkRow(file.path, u.link, notCheckedLine(u.reason, u.link.href), actions));
   }
   rows.push(list);
   return rows;

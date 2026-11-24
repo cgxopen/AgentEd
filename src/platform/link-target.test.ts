@@ -7,7 +7,7 @@
  * document.
  */
 import { describe, expect, it } from 'vitest';
-import { type LinkTarget, resolveLinkTarget } from './link-target';
+import { hasWebAddressShape, type LinkTarget, resolveLinkTarget } from './link-target';
 
 const WIN = 'C:/docs/index.md';
 const WIN_BACKSLASH = 'C:\\docs\\index.md';
@@ -137,5 +137,57 @@ describe('the rows the resolver adds (#727)', () => {
           expect(target.path.startsWith('//'), `${document} + ${address}`).toBe(false);
       }
     }
+  });
+});
+
+describe('the shape of a web address written without its scheme (#792)', () => {
+  it('takes an address starting with www., and a name, a dot and letters followed by a slash', () => {
+    for (const address of [
+      'www.example.com',
+      'WWW.Example.com',
+      'www.gnu.org/software/bash/',
+      'example.com/page',
+      'example.org/',
+      'docs.example.co.uk/a/b',
+      'github.com/sine-fdn',
+      'bugzil.la/1090768',
+      'example.com/page?x=1#top',
+      'node.js/readme.md',
+    ]) {
+      expect(hasWebAddressShape(address), address).toBe(true);
+    }
+  });
+
+  it('leaves a first part starting with a dot, one whose last piece is not letters, and a name with no slash after it', () => {
+    for (const address of [
+      './a.b/c',
+      '../a.b/c',
+      '.github/x',
+      'v1.2/notes.md',
+      '2024.11/x',
+      'a.b1/x',
+      'notes.com',
+      'readme.md',
+      'docs.old',
+      'example/page',
+      '/example.com/page',
+      'example.com\\page',
+      '#heading',
+      '',
+    ]) {
+      expect(hasWebAddressShape(address), address).toBe(false);
+    }
+  });
+
+  it('changes nothing the resolver answers: the same target for an address of the shape', () => {
+    expect(resolveLinkTarget('/notes/a.md', 'www.example.com')).toEqual({
+      kind: 'file',
+      path: '/notes/www.example.com',
+      markdown: false,
+    });
+    expect(resolveLinkTarget('/notes/a.md', 'example.org/')).toEqual({
+      kind: 'refused',
+      reason: 'folder',
+    });
   });
 });
