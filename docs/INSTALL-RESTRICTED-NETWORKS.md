@@ -131,7 +131,7 @@ Measured for 1.0.0: the Windows installer is 2756410 bytes with SHA-256 `5fe981d
 
 ### Settings, and what AgentEd writes on its own
 
-AgentEd writes your documents only where you save them. Its settings (theme, palette, last folder, recent files, frequent emoji) live in the local storage of the web runtime.
+AgentEd writes your documents only where you save them. Its settings (theme, palette, last folder, recent files, frequent emoji, the width of the files panel, whether the files panel was last opened or shut by hand, and the size of the window with whether it was maximized) live in the local storage of the web runtime.
 
 | platform | settings | how known |
 | --- | --- | --- |

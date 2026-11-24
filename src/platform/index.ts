@@ -1,6 +1,13 @@
 import { type HelpId, helpIdFrom } from '../help/ids';
 import { isTauri } from './detect';
 import type { PlatformIO, TitleBarOverlay, WindowControls } from './types';
+import {
+  applyRememberedSize,
+  keptSize,
+  type RememberedSize,
+  type SizedWindow,
+  watchWindowSize,
+} from './window-size';
 
 export type { FileEntry, FileResult, PlatformIO, TitleBarOverlay, WindowControls } from './types';
 
@@ -112,6 +119,62 @@ export async function showWindowOnceThemed(): Promise<void> {
   if (!isTauri) return;
   const { invoke } = await import('@tauri-apps/api/core');
   await invoke('show_window_themed');
+}
+
+/**
+ * Give the window its remembered size, then ask for the show, then watch the
+ * size as the person changes it (#791): `window-size.ts` says how. **The show
+ * is asked whatever happened before it**: a failure to read the store or to
+ * reach the window is told to the console and the window of today is shown.
+ * With nothing stored, nothing is asked of the window before the show, so a
+ * start is as before; the watch after the show is what writes a first size.
+ * `isTauri` answers only whether there is a window of its own; the web build
+ * has none, and nothing is read, set or written there.
+ */
+export async function showWindowOnceSized(
+  load: () => RememberedSize | null,
+  save: (size: RememberedSize) => void,
+): Promise<void> {
+  if (!isTauri) return;
+  let window: SizedWindow | null = null;
+  let stored: RememberedSize | null = null;
+  try {
+    stored = load();
+    window = await tauriWindow();
+    await applyRememberedSize(stored, window);
+  } catch (e) {
+    console.warn('[window] the remembered size was not applied, the window of today is shown:', e);
+  }
+  await showWindowOnceThemed();
+  if (window !== null) await watchWindowSize(window, save, keptSize(stored));
+}
+
+/** The window of this page, as `window-size.ts` asks for it, through `@tauri-apps/api/window`. */
+async function tauriWindow(): Promise<SizedWindow> {
+  const api = await import('@tauri-apps/api/window');
+  const own = api.getCurrentWindow();
+  return {
+    monitor: async () => {
+      const monitor = await api.currentMonitor();
+      if (monitor === null) return null;
+      const { position, size } = monitor.workArea;
+      return {
+        work: { x: position.x, y: position.y, width: size.width, height: size.height },
+        scale: monitor.scaleFactor,
+      };
+    },
+    setSize: (width, height) => own.setSize(new api.LogicalSize(width, height)),
+    outer: async () => {
+      const [position, size] = await Promise.all([own.outerPosition(), own.outerSize()]);
+      return { x: position.x, y: position.y, width: size.width, height: size.height };
+    },
+    center: () => own.center(),
+    maximize: () => own.maximize(),
+    isMaximized: () => own.isMaximized(),
+    isFullscreen: () => own.isFullscreen(),
+    innerSize: () => ({ width: globalThis.innerWidth, height: globalThis.innerHeight }),
+    onResized: (listener) => own.onResized(() => listener()),
+  };
 }
 
 /**
