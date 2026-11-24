@@ -729,8 +729,9 @@ function paintedOnOneLine(editorDom: Element): { left: number; right: number } |
 
 /**
  * The floating toolbar, and `reposition`, which places it again over the
- * selection that stands: asked when the room it is placed in changes without
- * the selection changing, the width of the files panel applied (#786).
+ * selection that stands while it is shown: asked when the room it is placed in
+ * changes without the selection changing, the width of the files panel applied
+ * (#786). A toolbar that is hidden stays hidden (#788).
  */
 export function setupToolbar(
   editor: Editor,
@@ -742,5 +743,14 @@ export function setupToolbar(
   document.body.appendChild(toolbar);
 
   const btnElements = createToolbarButtons(toolbar, editor, handlers);
-  return { reposition: bindToolbarEvents(toolbar, editor, btnElements) };
+  const position = bindToolbarEvents(toolbar, editor, btnElements);
+  // **Placed again only where it is shown** (#788). Placing it shows it for any
+  // selection that is not empty, focus or not, so a resize of the window with
+  // the focus in the search field, or a key on the edge of the panel, brought
+  // it back over the document: measured in Chromium on #788.
+  return {
+    reposition: () => {
+      if (!toolbar.classList.contains('hidden')) position();
+    },
+  };
 }

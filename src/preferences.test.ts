@@ -7,13 +7,16 @@ import {
   loadLastOpenedFolder,
   loadPalettePreference,
   loadRecentFiles,
+  loadSidebarGesture,
   loadThemePreference,
   purgeLegacyPreferences,
   RECENT_FILES_BOUND,
   recordEmojiUse,
   recordRecentFile,
+  SIDEBAR_GESTURE_KEY,
   saveLastOpenedFolder,
   savePalettePreference,
+  saveSidebarGesture,
   saveThemePreference,
 } from './preferences';
 
@@ -209,5 +212,30 @@ describe('recent files (#381)', () => {
     expect(loadRecentFiles()).toEqual([]);
     localStorage.setItem('agented:recent-files', 'not json');
     expect(loadRecentFiles()).toEqual([]);
+  });
+});
+
+describe('the last gesture on the files panel (#788)', () => {
+  it('row 7: holds the gesture written, under its key', () => {
+    expect(loadSidebarGesture()).toBeNull();
+    saveSidebarGesture('open');
+    expect(localStorage.getItem(SIDEBAR_GESTURE_KEY)).toBe('open');
+    expect(loadSidebarGesture()).toBe('open');
+    saveSidebarGesture('shut');
+    expect(loadSidebarGesture()).toBe('shut');
+  });
+
+  it('row 7: a value that is neither, or a storage that cannot be read, reads as nothing stored', () => {
+    for (const value of ['', 'true', 'Open', ' open', '1']) {
+      localStorage.setItem(SIDEBAR_GESTURE_KEY, value);
+      expect(loadSidebarGesture()).toBeNull();
+    }
+    const refused = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('denied');
+    });
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(loadSidebarGesture()).toBeNull();
+    refused.mockRestore();
+    warned.mockRestore();
   });
 });

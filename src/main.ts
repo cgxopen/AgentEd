@@ -17,6 +17,7 @@ import { installLinkOpener } from './app/link-open';
 import { checkOnArrival, createLinksReport } from './app/links-report';
 import { insertMedia } from './app/media-picker';
 import { setupPageColour } from './app/page-colour';
+import { openPanelAtStart } from './app/panel-at-start';
 import { exportWithMetadataOpen, printWithMetadataOpen } from './app/print-export';
 import { followRelativeLink } from './app/relative-link';
 import {
@@ -58,9 +59,11 @@ import { listenForPlainPasteRequest } from './platform/plain-paste';
 import {
   clearRecentFiles,
   loadRecentFiles,
+  loadSidebarGesture,
   loadSidebarWidth,
   purgeLegacyPreferences,
   replaceRecentFile,
+  saveSidebarGesture,
   saveSidebarWidth,
 } from './preferences';
 import { showAboutDialog } from './ui/about-dialog';
@@ -201,7 +204,11 @@ installLinkOpener(editorEl, {
 // statusbar are drop targets too.
 installDropGuard();
 
-ctx.sidebar = setupSidebar();
+const sidebar = setupSidebar();
+ctx.sidebar = sidebar;
+// The last gesture on the panel, opened or shut by hand, remembered for the
+// next start (#788).
+sidebar.onGesture((opened) => saveSidebarGesture(opened ? 'open' : 'shut'));
 // The width of the panel, dragged at its edge and remembered (#786).
 setupSidebarWidth(document.getElementById('sidebar') as HTMLElement, {
   load: loadSidebarWidth,
@@ -576,7 +583,17 @@ setupWindowReports(ctx.state, header.onFilenameChange, (e) => {
     'Unsaved changes not reported',
   );
 });
-setupFileAssociation(docActions.openFilePath, ctx.reporter);
+// The first document the system hands this window is its start, and the files
+// panel opens then when it was last opened by hand (#788).
+setupFileAssociation(
+  openPanelAtStart({
+    open: (path) => docActions.openFilePath(path),
+    remembered: loadSidebarGesture,
+    filePath: () => ctx.state.filePath,
+    panel: sidebar,
+  }),
+  ctx.reporter,
+);
 // A window opened for a help puts it in, once, at start (#701).
 takeLaunchHelp()
   .then((id) => {
