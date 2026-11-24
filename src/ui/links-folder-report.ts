@@ -61,21 +61,27 @@ export function brokenCount(check: FolderCheck): { broken: number; inFiles: numb
   return { broken, inFiles };
 }
 
-/**
- * The first line of the report: what was found, over the files read, and,
- * when there are any, how many were not checked (#779), the count the shut
- * row of Not checked shows, so a link moved from broken to not checked is not
- * read as repaired.
- */
+/** The first line of the report: what was found, over the files read. */
 export function countsLine(check: FolderCheck): string {
   const { broken, inFiles } = brokenCount(check);
-  const unchecked = notCheckedCount(check);
-  const tail = unchecked > 0 ? ` \u00b7 ${unchecked} not checked` : '';
-  if (broken === 0) return `No broken links in ${files(check.read)}${tail}`;
-  return `${broken} broken link${broken === 1 ? '' : 's'} in ${inFiles} of ${files(check.read)}${tail}`;
+  if (broken === 0) return `No broken links in ${files(check.read)}`;
+  return `${broken} broken link${broken === 1 ? '' : 's'} in ${inFiles} of ${files(check.read)}`;
 }
 
-/** How many entries Not checked holds: each link not checked, and each file not read. */
+/**
+ * The line under the first one, when there are any (#779, a line of its own
+ * since #781): how many links AgentEd could not answer for, the count of the
+ * shut row below, so a link moved from broken to that row is not read as
+ * repaired. Its own line, because with the count at the end of the first line
+ * that line took three lines of the 220 px of the panel whenever something was
+ * broken, measured on #781.
+ */
+export function couldNotBeCheckedLine(check: FolderCheck): string | null {
+  const unchecked = notCheckedCount(check);
+  return unchecked > 0 ? `${unchecked} could not be checked` : null;
+}
+
+/** How many entries the shut row holds: each link not checked, and each file not read. */
 export function notCheckedCount(check: FolderCheck): number {
   return check.files.reduce((n, f) => n + (f.result ? f.result.notChecked.length : 1), 0);
 }
@@ -242,6 +248,8 @@ export function drawReport(view: FolderReportView, actions: FolderReportActions)
   box.setAttribute('aria-label', FOLDER_REPORT_LABEL);
   const head = el('div', 'links-folder-head');
   head.append(el('div', 'links-folder-counts', countsLine(view.check)));
+  const couldNot = couldNotBeCheckedLine(view.check);
+  if (couldNot !== null) head.append(el('div', 'links-folder-note', couldNot));
   if (view.check.stopped)
     head.append(el('div', 'links-folder-note', stoppedLine(view.check.read, view.check.total)));
   if (view.check.bound !== null)

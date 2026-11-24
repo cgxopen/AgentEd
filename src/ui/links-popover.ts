@@ -13,7 +13,12 @@ import { basename } from '../platform/paths';
  */
 
 export const LINKS_POPOVER_HEADING = 'Broken links in this document';
-export const LINKS_NOT_CHECKED_HEADING = 'Not checked';
+/**
+ * The heading of the links AgentEd looked at and could not answer for, each
+ * with its reason below it: Could not be checked since #781 (owner decision of
+ * 2026-11-24), where Not checked read as a check that had not run yet.
+ */
+export const LINKS_NOT_CHECKED_HEADING = 'Could not be checked';
 
 /** The line under a broken link: its target by name. */
 export function brokenLinkLine(path: string): string {

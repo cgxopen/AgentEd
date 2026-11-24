@@ -2,6 +2,7 @@ import type { Schema } from '@tiptap/pm/model';
 import { samePath } from '../platform/paths';
 import type { PlatformIO } from '../platform/types';
 import {
+  couldNotBeCheckedLine,
   countsLine,
   drawDoor,
   drawReport,
@@ -143,10 +144,13 @@ export function createFolderLinkReport(deps: FolderLinkReportDeps): FolderLinkRe
     if (running) running.stop = true;
   }
 
+  /** What a screen reader is told at the end: the lines the head of the report draws. */
   function endLine(check: FolderCheck): string {
-    if (check.stopped) return `${stoppedLine(check.read, check.total)} ${countsLine(check)}`;
-    if (check.bound !== null) return `${countsLine(check)}. ${onlyFirstFilesLine(check.read)}`;
-    return countsLine(check);
+    const couldNot = couldNotBeCheckedLine(check);
+    const found = couldNot === null ? countsLine(check) : `${countsLine(check)}. ${couldNot}`;
+    if (check.stopped) return `${stoppedLine(check.read, check.total)} ${found}`;
+    if (check.bound !== null) return `${found}. ${onlyFirstFilesLine(check.read)}`;
+    return found;
   }
 
   function start(): void {
