@@ -315,7 +315,7 @@ describe('the report names the broken links of the folder (#766)', () => {
     disk.set(A, '[web](https://example.com/gone.md) [heading](#gone) [rooted](/gone.md)\n');
     drawTree();
     await check();
-    expect(counts()).toBe('No broken links in 3 files');
+    expect(counts()).toBe('No broken links in 3 files \u00b7 2 not checked');
     expect(fileRows()).toEqual([]);
     openRow(LINKS_NOT_CHECKED_HEADING);
     expect(linkRows()).toEqual([
@@ -611,6 +611,65 @@ describe('the jump (#766)', () => {
     (slot()?.querySelector('.links-row') as HTMLElement | null)?.click();
     await vi.waitFor(() => expect(toasts).toContain(LINK_GONE_MESSAGE));
     expect(state.filePath).toBe(B);
+  });
+});
+
+describe('the first line counts what was not checked (#779)', () => {
+  const shut = () =>
+    Array.from(slot()?.querySelectorAll('.links-folder-apart .links-folder-count') ?? []).map(
+      (c) => c.textContent,
+    );
+
+  it('row 5: nothing broken and three links not checked', async () => {
+    disk.set(A, '[one](/x.md) [two](/y.md) [three](#h)\n');
+    drawTree();
+    await check();
+    expect(counts()).toBe('No broken links in 3 files \u00b7 3 not checked');
+    expect(shut()).toEqual(['3']);
+  });
+
+  it('row 6: broken links and links not checked, both counted', async () => {
+    disk.set(A, '[gone](gone.md) [rooted](/x.md)\n');
+    drawTree();
+    await check();
+    expect(counts()).toBe('1 broken link in 1 of 3 files \u00b7 1 not checked');
+  });
+
+  it('row 7: with nothing not checked, the line of today', async () => {
+    drawTree();
+    await check();
+    expect(counts()).toBe('1 broken link in 1 of 3 files');
+    expect(shut()).toEqual([]);
+  });
+
+  it('row 8: a file skipped whole counts as one, as in the shut row', async () => {
+    disk.set(A, '# Alpha\n');
+    unreadable.add(B);
+    disk.set(C, 'a'.repeat(MAX_FILE_BYTES + 1));
+    drawTree();
+    await check();
+    expect(counts()).toBe('No broken links in 3 files \u00b7 2 not checked');
+    expect(shut()).toEqual(['2']);
+  });
+
+  it('row 9: the status line at the end of a check says the same first line', async () => {
+    disk.set(A, '[gone](gone.md) [rooted](/x.md)\n');
+    drawTree();
+    await check();
+    expect(status()).toBe(counts());
+    expect(status()).toBe('1 broken link in 1 of 3 files \u00b7 1 not checked');
+  });
+
+  it('row 10: after the row of the open file is refreshed by the check of #729, the line and the shut row agree', async () => {
+    disk.set(A, '# Alpha\n\n[rooted](/x.md)\n');
+    await open(A);
+    await check();
+    expect(counts()).toBe('No broken links in 3 files \u00b7 1 not checked');
+    writeLink('more ', '/y.md');
+    await actions.handleSave();
+    await Promise.all(runs);
+    expect(counts()).toBe('No broken links in 3 files \u00b7 2 not checked');
+    expect(shut()).toEqual(['2']);
   });
 });
 

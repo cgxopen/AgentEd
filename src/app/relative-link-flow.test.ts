@@ -293,12 +293,17 @@ describe('what a relative link that is not followed says (#727)', () => {
   it('the words name the file where there is one, one sentence each', () => {
     expect(missingTargetMessage('/notes/docs/gone.md')).toBe('gone.md was not found.');
     expect(notMarkdownMessage('/notes/docs/x.pdf')).toMatch(/^x\.pdf /);
+    // The message of a link starting with / says how to write it in a second
+    // sentence since #779 (owner decision of 2026-11-24); every other one
+    // stays one sentence.
+    const { rooted, ...others } = RELATIVE_LINK_MESSAGES;
     const all = [
-      ...Object.values(RELATIVE_LINK_MESSAGES).filter((m) => m !== ''),
+      ...Object.values(others).filter((m) => m !== ''),
       NO_FOLDER_ACCESS_MESSAGE,
       missingTargetMessage(B),
       notMarkdownMessage('/x.pdf'),
     ];
     for (const message of all) expect(message.match(/[.!?](\s|$)/g)?.length, message).toBe(1);
+    expect(rooted.match(/[.!?](\s|$)/g)?.length, rooted).toBe(2);
   });
 });

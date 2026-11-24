@@ -20,11 +20,19 @@ export function brokenLinkLine(path: string): string {
   return `${basename(path)} was not found.`;
 }
 
-/** The line under a link that was not checked: why. One sentence each. */
+/**
+ * How a link that starts with / is written instead (#779, owner decision of
+ * 2026-11-24): the second sentence after the one that says why, under Not
+ * checked here and at Ctrl and a click (`RELATIVE_LINK_MESSAGES` of
+ * `relative-link.ts`, which imports it), so the two places say it in one way.
+ */
+export const ROOTED_LINK_HOW =
+  'Write it from the folder of the file it is in, such as other.md, notes/other.md, or ../notes/other.md for a folder one level up.';
+
+/** The line under a link that was not checked: why, and for a link starting with /, how. */
 export const NOT_CHECKED_LINES: Readonly<Record<NotCheckedReason, string>> = {
   'anchor-only': 'A link to a heading is not checked yet.',
-  rooted:
-    'A link that starts with / is not checked, since AgentEd does not know the folder it starts from.',
+  rooted: `A link that starts with / is not checked, since AgentEd does not know the folder it starts from. ${ROOTED_LINK_HOW}`,
   'no-document': 'Save this document first: links are checked from its folder.',
   folder: 'This link names a folder; only links to files are checked.',
   'above-root': 'This link goes above the top folder of the disk, so it is not checked.',

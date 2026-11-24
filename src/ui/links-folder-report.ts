@@ -61,11 +61,18 @@ export function brokenCount(check: FolderCheck): { broken: number; inFiles: numb
   return { broken, inFiles };
 }
 
-/** The first line of the report: what was found, over the files read. */
+/**
+ * The first line of the report: what was found, over the files read, and,
+ * when there are any, how many were not checked (#779), the count the shut
+ * row of Not checked shows, so a link moved from broken to not checked is not
+ * read as repaired.
+ */
 export function countsLine(check: FolderCheck): string {
   const { broken, inFiles } = brokenCount(check);
-  if (broken === 0) return `No broken links in ${files(check.read)}`;
-  return `${broken} broken link${broken === 1 ? '' : 's'} in ${inFiles} of ${files(check.read)}`;
+  const unchecked = notCheckedCount(check);
+  const tail = unchecked > 0 ? ` \u00b7 ${unchecked} not checked` : '';
+  if (broken === 0) return `No broken links in ${files(check.read)}${tail}`;
+  return `${broken} broken link${broken === 1 ? '' : 's'} in ${inFiles} of ${files(check.read)}${tail}`;
 }
 
 /** How many entries Not checked holds: each link not checked, and each file not read. */
