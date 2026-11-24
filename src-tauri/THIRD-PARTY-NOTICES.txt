@@ -109,7 +109,7 @@ cfg-if 1.0.4
   Copyright (c) 2014 Alex Crichton
   Licence texts: 9, 3
 
-cookie 0.18.1
+cookie 0.18.3
   Licence: MIT OR Apache-2.0
   Copyright (c) 2017 Sergio Benitez
   Copyright (c) 2014 Alex Crichton
@@ -282,7 +282,7 @@ foldhash 0.2.0
   Copyright (c) 2024 Orson Peters
   Licence text: 31
 
-form_urlencoded 1.2.2
+form_urlencoded 1.2.3
   Licence: MIT OR Apache-2.0
   Copyright (c) 2013-2016 The rust-url developers
   Licence texts: 9, 3
@@ -930,7 +930,7 @@ unicode-segmentation 1.13.2
   Copyright (c) 2015 The Rust Project Developers
   Licence texts: 9, 3
 
-url 2.5.8
+url 2.5.9
   Licence: MIT OR Apache-2.0
   Copyright (c) 2013-2025 The rust-url developers
   Licence texts: 9, 3
