@@ -2879,6 +2879,190 @@ button.indicator-search:hover {
   }
 }
 
+/* The check of the links of the folder the panel shows (#766, owner decision
+   of 2026-11-24), under the name of the folder and above the tree. One line,
+   the door or the check running, drawn as the line of hidden folders is: the
+   muted colour of the note, and its buttons as text in the link colour. */
+.links-folder-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  padding: 2px 12px 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.links-folder-action {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+
+.links-folder-action:hover {
+  text-decoration: underline;
+}
+
+/* The turning mark of a check running: the ring of an open by hand (#354),
+   small, turning on its keyframes, and still with reduced motion. It turns
+   while one file is parsed, so a count standing still on a long file still
+   shows work going on: the turn runs on the compositor, measured on #766
+   through a parse of 2.2 s with the CPU slowed four times.
+
+   **Without the delay of 200 ms of that ring.** Its appearance is an
+   animation of no duration, which the compositor does not take, so it waits
+   for the main thread: a long file read in the first 200 ms kept the ring
+   unseen through the whole parse, measured on #766. The line carries words
+   and a count from its first frame anyway, so the ring comes with them. */
+.links-folder-ring {
+  flex: none;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: sidebar-reading-turn 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .links-folder-ring {
+    animation: none;
+  }
+}
+
+/* The report: the counts and the two actions, then a row for each file that
+   holds a broken link, then Not checked. A row opens into the links, drawn
+   with the rows of the «Links» list (#729). */
+.links-folder-report {
+  margin: 2px 8px 8px;
+  padding: 6px 0 4px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.links-folder-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 4px 4px;
+}
+
+.links-folder-counts {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.links-folder-note {
+  color: var(--muted);
+}
+
+.links-folder-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.links-folder-file {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.links-folder-file:hover,
+.links-folder-file:focus-visible {
+  background: var(--hover-overlay);
+}
+
+.links-folder-file::before {
+  content: "\25B6";
+  flex: none;
+  font-size: 8px;
+}
+
+.links-folder-file[aria-expanded="true"]::before {
+  content: "\25BC";
+}
+
+.links-folder-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.links-folder-count {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.links-folder-apart {
+  color: var(--muted);
+}
+
+.links-folder-links {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 2px 12px;
+}
+
+.links-folder-links .links-row {
+  padding: 4px 6px;
+}
+
+/* A long address is cut with an ellipsis and read whole in its title: the
+   panel is 220 px wide. */
+.links-folder-links .links-row-address {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+
+.links-folder-subhead {
+  overflow: hidden;
+  padding: 4px 6px 0;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.links-folder-file-line {
+  padding: 2px 6px 4px;
+}
+
+/* The status line of the panel, read by a screen reader and not drawn: told
+   once when a check starts and once when it ends (#766). */
+.links-folder-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* The offer drawn where the tree would be, when no folder has been
    granted and nothing could be looked at (#184). It is an action, so it
    carries the pointer an inert entry deliberately does not, and it wraps

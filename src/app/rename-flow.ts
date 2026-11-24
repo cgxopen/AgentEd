@@ -77,6 +77,8 @@ export interface RenameDeps {
   readonly setFilename: (name: string, path: string) => void;
   readonly redrawPanel: () => Promise<void>;
   readonly checkLinks?: () => void;
+  /** Told the old path and the new, so the report of the folder keeps the row (#766). */
+  readonly renamed?: (from: string, to: string) => void;
   /** The recent list: the old name out, the new one in. */
   readonly replaceRecent: (oldPath: string, newPath: string) => void;
   readonly tell: (message: string) => Promise<void>;
@@ -116,6 +118,7 @@ export async function renameDocument(deps: RenameDeps): Promise<void> {
   if (newPath === path) return;
 
   state.filePath = newPath;
+  deps.renamed?.(path, newPath);
   // `knownDiskText` is kept: the same bytes under a new name (R-C14).
   deps.setFilename(basename(newPath), newPath);
   if (io.pathsOutliveSession) deps.replaceRecent(path, newPath);

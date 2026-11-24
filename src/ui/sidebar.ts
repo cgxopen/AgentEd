@@ -37,6 +37,13 @@ export interface Sidebar {
    */
   showAccessOffer: () => void;
   /**
+   * Told after every draw (#766): the drawn markdown tree, or null when the
+   * panel drew anything else or hid, so the check of the folder draws only
+   * where a markdown tree is. Optional in the type so a stand-in panel of a
+   * test need not carry it; the panel of the application always has it.
+   */
+  setOnMarkdownTree?: (listener: (drawn: DrawnMarkdownTree | null) => void) => void;
+  /**
    * Show the panel holding the answer to a question that found nothing
    * (#184, #354): a folder request, or the panel opened by hand.
    */
@@ -200,7 +207,25 @@ export interface MarkdownTreeMark {
    * folder is drawn closed, as in every other tree.
    */
   readonly open?: string;
+  /**
+   * The files the walk returned, relative to the root (#766): what the check
+   * of the links of the folder reads. Absent, the tree offers no check.
+   */
+  readonly files?: readonly string[];
 }
+
+/**
+ * A markdown tree as drawn (#766): the place under the name of the folder
+ * where the check of its links draws, the root, and the files of the walk.
+ */
+export interface DrawnMarkdownTree {
+  readonly slot: HTMLElement;
+  readonly root: TreeRoot;
+  readonly files: readonly string[];
+}
+
+/** The class of that place. */
+export const LINKS_SLOT_CLASS = 'sidebar-links-slot';
 
 /**
  * The words of the line under a markdown tree whose read stopped at its bound,
@@ -221,6 +246,7 @@ export function setupSidebar(): Sidebar {
   let onFileClick: (absPath: string, root: TreeRoot) => void = () => {};
   let onRequestAccess: () => void = () => {};
   let onOpenByHand: (ticket: number) => void = () => {};
+  let onMarkdownTree: (drawn: DrawnMarkdownTree | null) => void = () => {};
   const visibleListeners: Array<(visible: boolean) => void> = [];
   /**
    * Counts what has been asked of the panel (#354). Every hide and every draw
@@ -279,6 +305,7 @@ export function setupSidebar(): Sidebar {
     setVisible(false);
     clear();
     shownRoot = null;
+    onMarkdownTree(null);
   }
 
   /** Show or hide every row drawn hidden, as the choice says. */
@@ -352,6 +379,11 @@ export function setupSidebar(): Sidebar {
     header.className = 'sidebar-root';
     header.textContent = `\u{1F4C4} ${rootName}`;
     treeEl.appendChild(header);
+    const slot = markdown?.files ? document.createElement('div') : null;
+    if (slot) {
+      slot.className = LINKS_SLOT_CLASS;
+      treeEl.appendChild(slot);
+    }
     const root: TreeRoot = { path: rootPath, markdown: markdown !== undefined };
     renderTreeRecursive(
       nodes,
@@ -368,6 +400,7 @@ export function setupSidebar(): Sidebar {
     if (markdown?.open) openFolder(markdown.open);
     if (markdown?.reachedBound) appendBoundLine();
     setVisible(true);
+    onMarkdownTree(slot && markdown?.files ? { slot, root, files: markdown.files } : null);
   }
 
   /**
@@ -387,6 +420,7 @@ export function setupSidebar(): Sidebar {
     treeEl.appendChild(mark);
     treeEl.setAttribute('aria-busy', 'true');
     setVisible(true);
+    onMarkdownTree(null);
     onOpenByHand(generation);
   }
 
@@ -432,6 +466,7 @@ export function setupSidebar(): Sidebar {
     note.textContent = text;
     treeEl.appendChild(note);
     setVisible(true);
+    onMarkdownTree(null);
   }
 
   function setOnRequestAccess(handler: () => void): void {
@@ -457,6 +492,7 @@ export function setupSidebar(): Sidebar {
     offer.addEventListener('click', () => onRequestAccess());
     treeEl.appendChild(offer);
     setVisible(true);
+    onMarkdownTree(null);
   }
 
   return {
@@ -487,5 +523,8 @@ export function setupSidebar(): Sidebar {
     setOnFileClick,
     listedRoot: () => shownRoot,
     setOnRequestAccess,
+    setOnMarkdownTree: (listener) => {
+      onMarkdownTree = listener;
+    },
   };
 }

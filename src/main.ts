@@ -6,6 +6,7 @@ import { createDocumentActions, type DocumentActions } from './app/document-acti
 import { installDropGuard } from './app/drop-guard';
 import { createErrorReporter } from './app/error-reporter';
 import { setupFileAssociation } from './app/file-association';
+import { createFolderLinkReport } from './app/folder-link-report';
 import { setupHeader, wireHeaderIndicators } from './app/header-wiring';
 import { imageDescriptionRoutes } from './app/image-description-dialog';
 import { createImageInsertReporter } from './app/image-insert-report';
@@ -230,6 +231,7 @@ const linksReport = createLinksReport({
   io: getPlatformIO,
   refreshBadge: (broken) => documentBadges.refreshLinks(broken),
   popover: linksPopover,
+  onChecked: (path, result) => folderLinks.openFileChecked(path, result),
 });
 ctx.checkLinks = () => {
   void linksReport.run().catch((e: unknown) => {
@@ -322,6 +324,20 @@ docActions = createDocumentActions(ctx);
 wireHeaderIndicators(ctx, docActions);
 
 ctx.sidebar.setOnFileClick(createSidebarClickHandler(docActions, getPlatformIO));
+// The check of the links of the folder the panel shows (#766), drawn where a
+// markdown tree is and nowhere else.
+const folderLinks = createFolderLinkReport({
+  io: getPlatformIO,
+  schema: editor.schema,
+  openDocument: () => {
+    const path = ctx.state.filePath;
+    return path === null ? null : { path, doc: editor.state.doc };
+  },
+  status: document.getElementById('sidebar-links-status'),
+  openFile: (path, root) => docActions.openFilePath(path, root),
+  jump: (link) => linksReport.jump(link),
+});
+ctx.sidebar.setOnMarkdownTree?.((drawn) => folderLinks.attach(drawn));
 
 // The offer the absent panel carries on the web (#184). The refresh is in
 // the same gesture on purpose: a grant that needed a reload to take effect
@@ -385,6 +401,7 @@ const renameDeps = {
   setFilename: (name: string, path: string) => ctx.setFilename(name, path),
   redrawPanel: () => ctx.refreshSidebar('same-document'),
   checkLinks: () => ctx.checkLinks?.(),
+  renamed: (from: string, to: string) => folderLinks.renamed(from, to),
   replaceRecent: replaceRecentFile,
   tell: async (message: string) => {
     await ctx.reporter.dialog(message, null, RENAME_FAILED_TITLE, 'omit');

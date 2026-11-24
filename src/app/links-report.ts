@@ -3,7 +3,7 @@ import { isReplacingDocument } from '../editor/document-load';
 import type { PlatformIO } from '../platform/types';
 import type { LinksPopover } from '../ui/links-popover';
 import { showToast } from '../ui/toast';
-import { checkLinks, collectLinks, type DocumentLink } from './link-check';
+import { checkLinks, collectLinks, type DocumentLink, type LinkCheckResult } from './link-check';
 
 /**
  * When the broken link check of #729 runs, and where its answer goes.
@@ -24,6 +24,12 @@ export interface LinksReportDeps {
   readonly io: () => Promise<PlatformIO>;
   readonly refreshBadge: (broken: number) => void;
   readonly popover: LinksPopover;
+  /**
+   * Told each answer drawn, with the path it was asked for: the row of the
+   * open file in the report of the folder takes it (#766), so the two give
+   * one answer.
+   */
+  readonly onChecked?: (documentPath: string | null, result: LinkCheckResult) => void;
 }
 
 export interface LinksReport {
@@ -43,10 +49,12 @@ export function createLinksReport(deps: LinksReportDeps): LinksReport {
     const mine = generation;
     const links = collectLinks(deps.editor.state.doc);
     const io = await deps.io();
-    const result = await checkLinks(deps.documentPath(), links, io);
+    const path = deps.documentPath();
+    const result = await checkLinks(path, links, io);
     if (mine !== generation) return;
     deps.refreshBadge(result.broken.length);
     deps.popover.show(result);
+    deps.onChecked?.(path, result);
   }
 
   /**
