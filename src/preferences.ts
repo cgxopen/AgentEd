@@ -300,3 +300,40 @@ export function saveSidebarWidth(width: number): void {
     console.warn('[preferences] save the width of the files panel failed:', e);
   }
 }
+
+// ── The last gesture on the files panel (#788) ──
+
+/**
+ * The last thing a person did to the files panel by hand: opened it, or shut
+ * it (owner decision of 2026-11-24). One answer for the machine, kept beside
+ * its width; open windows do not follow each other, and a window started
+ * afterwards reads the last gesture written. A panel that opened by itself,
+ * for an `assets/` folder, writes nothing here.
+ */
+const SIDEBAR_GESTURE_KEY = 'agented:sidebar-open';
+
+export { SIDEBAR_GESTURE_KEY };
+
+export type SidebarGesture = 'open' | 'shut';
+
+/**
+ * The gesture stored, or null when nothing is stored, the value is neither of
+ * the two, or the storage cannot be read.
+ */
+export function loadSidebarGesture(): SidebarGesture | null {
+  try {
+    const stored = localStorage.getItem(SIDEBAR_GESTURE_KEY);
+    return stored === 'open' || stored === 'shut' ? stored : null;
+  } catch (e) {
+    console.warn('[preferences] read the last gesture on the files panel failed, using none:', e);
+    return null;
+  }
+}
+
+export function saveSidebarGesture(gesture: SidebarGesture): void {
+  try {
+    localStorage.setItem(SIDEBAR_GESTURE_KEY, gesture);
+  } catch (e) {
+    console.warn('[preferences] save the last gesture on the files panel failed:', e);
+  }
+}

@@ -761,3 +761,51 @@ describe('the bar is centred on what the engine painted, not on a resolved posit
     expect(bar.style.left).toBe(`${Math.max(8, 730 - width / 2)}px`);
   });
 });
+
+describe('the toolbar is placed again only where it is shown (#788)', () => {
+  /**
+   * Whether the bar is shown is observable here; where it lands is not, since
+   * happy-dom lays nothing out. Measured in Chromium on #788 before this: with a
+   * selection standing and the focus in the search field, a resize of the
+   * window brought the bar back, and so did an arrow on the edge of the panel.
+   */
+  const hidden = () =>
+    (document.getElementById('floating-toolbar') as HTMLElement).classList.contains('hidden');
+
+  it('row 11: a toolbar the editor hid on losing focus stays hidden when it is asked to place itself again', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    instance = createEditor(host);
+    instance.setMarkdown('One two three.');
+    const { reposition } = setupToolbar(instance.editor, {
+      onLink: vi.fn(),
+      onImageDescription: vi.fn(),
+    });
+    instance.editor.commands.setTextSelection({ from: 1, to: 8 });
+    expect(hidden()).toBe(false);
+    // The editor lost the focus, to the search field or the edge of the panel,
+    // and its blur handler hid the bar while the selection stands. The state is
+    // set as that handler sets it, by its class: a loss of focus in happy-dom
+    // also collapses the selection, where Chromium keeps it, measured on #788.
+    const toolbar = document.getElementById('floating-toolbar') as HTMLElement;
+    toolbar.classList.add('hidden');
+    expect(instance.editor.state.selection.empty).toBe(false);
+    reposition();
+    expect(hidden()).toBe(true);
+  });
+
+  it('row 11: a toolbar that is shown is placed again, and stays shown', () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    instance = createEditor(host);
+    instance.setMarkdown('One two three.');
+    const { reposition } = setupToolbar(instance.editor, {
+      onLink: vi.fn(),
+      onImageDescription: vi.fn(),
+    });
+    instance.editor.commands.setTextSelection({ from: 1, to: 8 });
+    expect(hidden()).toBe(false);
+    reposition();
+    expect(hidden()).toBe(false);
+  });
+});

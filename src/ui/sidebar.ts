@@ -134,6 +134,29 @@ export interface Sidebar {
 }
 
 /**
+ * What the panel of the application adds for the start of #788, kept out of
+ * `Sidebar` so the stand-in panels of the tests, which never start, need not
+ * carry it. `setupSidebar` returns both.
+ */
+export interface SidebarGestures {
+  /**
+   * Open the panel as if its control had been pressed, without that being a
+   * gesture (#788): the open at a start, when the last gesture was an open by
+   * hand. It is the same question an open by hand puts (#354), and it forgets
+   * a close by hand as one does; it is not reported to `onGesture`, so it
+   * changes nothing in what is remembered. An open panel is left as it is.
+   */
+  openAsIfPressed: () => void;
+  /**
+   * Run `listener` at each gesture by hand on the panel (#788), with whether it
+   * opened: the control of the header and `Ctrl+Shift+E`, which both reach
+   * `toggle`, and nothing else. A panel a document raised or hid, and
+   * `openAsIfPressed`, are not gestures.
+   */
+  onGesture: (listener: (opened: boolean) => void) => void;
+}
+
+/**
  * The answer when the user asked and nothing is beside the document (#184,
  * #130, #354). Owner wording of 2026-08-30.
  *
@@ -237,7 +260,7 @@ export const BOUND_REACHED_TEXT = 'Some folders were not read';
 /** The class of that line. */
 export const BOUND_LINE_CLASS = 'sidebar-bound-line';
 
-export function setupSidebar(): Sidebar {
+export function setupSidebar(): Sidebar & SidebarGestures {
   const panel = document.getElementById('sidebar')!;
   const treeEl = document.getElementById('sidebar-tree')!;
 
@@ -248,6 +271,7 @@ export function setupSidebar(): Sidebar {
   let onOpenByHand: (ticket: number) => void = () => {};
   let onMarkdownTree: (drawn: DrawnMarkdownTree | null) => void = () => {};
   const visibleListeners: Array<(visible: boolean) => void> = [];
+  const gestureListeners: Array<(opened: boolean) => void> = [];
   /**
    * Counts what has been asked of the panel (#354). Every hide and every draw
    * moves it, so a ticket taken at an open by hand is current only while
@@ -424,14 +448,21 @@ export function setupSidebar(): Sidebar {
     onOpenByHand(generation);
   }
 
+  function openAsIfPressed(): void {
+    if (!panel.classList.contains('hidden')) return;
+    closedByHand = false;
+    openByHand();
+  }
+
   function toggle(): void {
-    if (panel.classList.contains('hidden')) {
-      closedByHand = false;
-      openByHand();
+    const opened = panel.classList.contains('hidden');
+    if (opened) {
+      openAsIfPressed();
     } else {
       closedByHand = true;
       hidePanel();
     }
+    for (const listener of gestureListeners) listener(opened);
   }
 
   function isCurrent(ticket: number): boolean {
@@ -503,6 +534,10 @@ export function setupSidebar(): Sidebar {
     hide: hidePanel,
     isVisible: () => !panel.classList.contains('hidden'),
     toggle,
+    openAsIfPressed,
+    onGesture: (listener) => {
+      gestureListeners.push(listener);
+    },
     isCurrent,
     beginSwitch: () => {
       generation += 1;
