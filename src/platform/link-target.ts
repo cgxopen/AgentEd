@@ -117,3 +117,29 @@ export function resolveLinkTarget(documentPath: string | null, address: string):
   const path = joinRooted(root, stack);
   return { kind: 'file', path, markdown: isMarkdownPath(path) };
 }
+
+/**
+ * Whether a relative address has the shape of a web address written without
+ * its scheme (#792, owner decision of 2026-11-24): it starts with `www.`, or
+ * its first part, up to the first slash, is a name, a dot and letters, and a
+ * slash follows, such as `example.com/page` or `example.org/`.
+ *
+ * **Not the shape**: a first part that starts with a dot, so `./` and `../`; a
+ * first part whose last piece holds anything but letters, such as `v1.2/` or
+ * `2024.11/`; and a name with a dot and no slash after it, such as
+ * `example.com` or `readme.md`, which may as well be a file.
+ *
+ * **It is a guess, and it changes nothing that is checked or followed**: a
+ * folder may carry a dot in its name, `node.js/readme.md`, so the sentence it
+ * adds begins with If, and is said only for a link that leads nowhere. The
+ * check and the click read this one function.
+ */
+export function hasWebAddressShape(address: string): boolean {
+  const spelled = pathPart(address);
+  if (/^www\./i.test(spelled)) return true;
+  const slash = spelled.indexOf('/');
+  if (slash <= 0) return false;
+  // A first part starting with a dot, `./`, `../` or `.github/`, does not match:
+  // the first piece of the name holds no dot.
+  return /^[^./\\\s]+(\.[^./\\\s]+)*\.[A-Za-z]+$/.test(spelled.slice(0, slash));
+}

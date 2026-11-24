@@ -38,6 +38,7 @@ import {
   LINKS_NOT_CHECKED_HEADING,
   NOT_CHECKED_LINES,
   setupLinksPopover,
+  WEB_ADDRESS_HOW,
 } from '../ui/links-popover';
 import { buildTree, type Sidebar, setupSidebar } from '../ui/sidebar';
 import type { AppContext } from './context';
@@ -52,6 +53,7 @@ import {
   LINK_GONE_MESSAGE,
   type LinksReport,
 } from './links-report';
+import { followRelativeLink } from './relative-link';
 import { openSidebarByHand } from './sidebar-sync';
 import { AppState } from './state';
 
@@ -402,7 +404,8 @@ describe('the four bounds, each with its sentence (#766)', () => {
     await check();
     expect(MAX_FOLDER_FILES).toBe(2000);
     expect(notes()).toEqual([onlyFirstFilesLine(2000)]);
-    expect(counts()).toBe('No broken links in 2000 files');
+    // Empty files hold no link to check (#792, owner decision of 2026-11-24).
+    expect(counts()).toBe('No links to check in 2000 files');
     expect(reads).not.toContain(`${ROOT}/f2000.md`);
   });
 
@@ -723,5 +726,278 @@ describe('the door, only where a markdown tree is drawn (#766)', () => {
     // the open file is read from the editor, empty here, and not from the disk.
     expect(reads).toEqual([B]);
     expect(counts()).toBe('No broken links in 2 files');
+  });
+});
+
+/**
+ * #792 - the report says when there was nothing to check, and a link with the
+ * shape of a web address that leads nowhere says how a web address is written
+ * (owner decisions of 2026-11-24). The routes are the real ones of this file:
+ * the folder check and its report, the list of the open document, and the
+ * Ctrl+click of `relative-link.ts`.
+ */
+describe('nothing to check, and a web address without its scheme (#792)', () => {
+  const HOW = WEB_ADDRESS_HOW;
+  const couldNot = () => notes().filter((n) => n?.endsWith('could not be checked'));
+
+  it('row 1: three files with no link to another file: No links to check in 3 files', async () => {
+    disk.set(A, '# Alpha\n\nNo link here.\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('No links to check in 3 files');
+  });
+
+  it('row 2: the same with one good link: No broken links in 3 files', async () => {
+    disk.set(A, '# Alpha\n\n[beta](b.md)\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('No broken links in 3 files');
+  });
+
+  it('row 3: with only links that could not be checked: No broken links, and their count under it', async () => {
+    disk.set(A, '# Alpha\n\n[rooted](/r.md) and [heading](#h)\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('No broken links in 3 files');
+    expect(couldNot()).toEqual(['2 could not be checked']);
+  });
+
+  it('row 3: a file that could not be read may hold links: No broken links, and its count under it', async () => {
+    disk.set(A, '# Alpha\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '# Gamma\n');
+    unreadable.add(C);
+    drawTree();
+    await check();
+    expect(counts()).toBe('No broken links in 3 files');
+    expect(couldNot()).toEqual(['1 could not be checked']);
+  });
+
+  it('a link of the shape not checked for another reason keeps the sentence of today', async () => {
+    state.filePath = null;
+    instance.setMarkdown('[w](www.example.com)');
+    await linksReport.run();
+    badge().click();
+    const lines = Array.from(document.querySelectorAll('#links-popover .links-row-line')).map(
+      (l) => l.textContent,
+    );
+    expect(lines).toEqual([NOT_CHECKED_LINES['no-document']]);
+  });
+
+  it('row 4: with web addresses alone, written with their scheme: No links to check', async () => {
+    disk.set(A, '# Alpha\n\n[site](https://www.example.com) and [mail](mailto:a@example.com)\n');
+    disk.set(B, '# Beta\n\n<https://example.org/page>\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('No links to check in 3 files');
+  });
+
+  it('row 5: the status line at the end of a check says the same first line', async () => {
+    disk.set(A, '# Alpha\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(status()).toBe('No links to check in 3 files');
+  });
+
+  it('rows 6, 7 and 11: www.example.com and example.com/page, not found: counted as broken, and the line ends with the sentence, by one constant', async () => {
+    disk.set(A, '# Alpha\n\n[w](www.example.com) and [p](example.com/page)\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('2 broken links in 1 of 3 files');
+    openRow('a.md');
+    expect(linkRows()).toEqual([
+      ['www.example.com', `www.example.com was not found. ${HOW}`],
+      ['example.com/page', `page was not found. ${HOW}`],
+    ]);
+    expect(HOW).toBe(
+      'If this is a web address, write it with https:// in front, such as https://www.example.com.',
+    );
+  });
+
+  it('rows 6 and 7: in the list of the open document, the same line', async () => {
+    disk.set(A, '# Alpha\n\n[w](www.example.com) and [p](example.com/page)\n');
+    await open(A);
+    expect(badge().textContent).toContain('2');
+    badge().click();
+    const rows = Array.from(document.querySelectorAll('#links-popover .links-row')).map((r) => [
+      r.querySelector('.links-row-address')?.textContent,
+      r.querySelector('.links-row-line')?.textContent,
+    ]);
+    expect(rows).toEqual([
+      ['www.example.com', `www.example.com was not found. ${HOW}`],
+      ['example.com/page', `page was not found. ${HOW}`],
+    ]);
+  });
+
+  it('row 7: example.org/ names a folder, so it is not checked and not counted as broken; its line says how too', async () => {
+    disk.set(A, '# Alpha\n\n[o](example.org/) and [g](www.gnu.org/software/bash/)\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('No broken links in 3 files');
+    expect(couldNot()).toEqual(['2 could not be checked']);
+    openRow(LINKS_NOT_CHECKED_HEADING);
+    expect(linkRows()).toEqual([
+      ['example.org/', `${NOT_CHECKED_LINES.folder} ${HOW}`],
+      ['www.gnu.org/software/bash/', `${NOT_CHECKED_LINES.folder} ${HOW}`],
+    ]);
+  });
+
+  it('row 8: each of these, not found, says only what it says today', async () => {
+    const addresses = [
+      './a.b/c',
+      '../docs/a.b/c',
+      '.github/x',
+      'v1.2/notes.md',
+      '2024.11/x',
+      'notes.com',
+      'readme.md',
+      'docs.old',
+    ];
+    disk.set(A, `# Alpha\n\n${addresses.map((a, i) => `[l${i}](${a})`).join(' ')}\n`);
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe(`${addresses.length} broken links in 1 of 3 files`);
+    openRow('a.md');
+    for (const [address, line] of linkRows()) {
+      expect(line, address).not.toContain(HOW);
+      expect(line, address).toMatch(/ was not found\.$/);
+    }
+  });
+
+  it('row 8: a folder named by an address with no web shape keeps the sentence of today', async () => {
+    disk.set(A, '# Alpha\n\n[f](v1.2/)\n');
+    disk.set(B, '# Beta\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    openRow(LINKS_NOT_CHECKED_HEADING);
+    expect(linkRows()).toEqual([['v1.2/', NOT_CHECKED_LINES.folder]]);
+  });
+
+  it('row 9: node.js/readme.md found says nothing; not found, the sentence is there, the cost the owner accepted', async () => {
+    folders.add(`${ROOT}/node.js`);
+    disk.set(`${ROOT}/node.js/readme.md`, '# Node\n');
+    disk.set(A, '# Alpha\n\n[n](node.js/readme.md)\n');
+    disk.set(B, '# Beta\n\n[m](node.js/missing.md)\n');
+    disk.set(C, '');
+    drawTree();
+    await check();
+    expect(counts()).toBe('1 broken link in 1 of 3 files');
+    expect(fileRows()).toEqual([['b.md', '1']]);
+    openRow('b.md');
+    expect(linkRows()).toEqual([['node.js/missing.md', `missing.md was not found. ${HOW}`]]);
+  });
+
+  it('row 12: no address is rewritten: the markdown of the document is byte for byte what it was', async () => {
+    const text =
+      '# Alpha\n\n[w](www.example.com) and [p](example.com/page) and [o](example.org/)\n';
+    disk.set(A, text);
+    await open(A);
+    const before = instance.getMarkdown();
+    expect(before).toContain(
+      '[w](www.example.com) and [p](example.com/page) and [o](example.org/)',
+    );
+    drawTree();
+    await check();
+    badge().click();
+    await followRelativeLink(
+      {
+        documentPath: () => A,
+        panelRoot: () => null,
+        io: async () => io,
+        openFilePath: async () => {},
+        tell: () => {},
+      },
+      'www.example.com',
+    );
+    const hrefs = collectLinks(instance.editor.state.doc).map((l) => l.href);
+    expect(hrefs).toEqual(['www.example.com', 'example.com/page', 'example.org/']);
+    expect(instance.getMarkdown()).toBe(before);
+  });
+});
+
+describe('Ctrl and a click on a web address without its scheme (#792)', () => {
+  const told: string[] = [];
+  const HOW = WEB_ADDRESS_HOW;
+
+  function deps(presence?: (path: string) => EntryPresence) {
+    told.length = 0;
+    const clickIO = {
+      ...io,
+      opensFilesWithSystem: true,
+      entryPresence: async (path: string): Promise<EntryPresence> =>
+        presence ? presence(path) : disk.has(path) || folders.has(path) ? 'present' : 'absent',
+    } as unknown as PlatformIO;
+    return {
+      documentPath: () => A,
+      panelRoot: () => null,
+      io: async () => clickIO,
+      openFilePath: vi.fn(async () => {}),
+      tell: (message: string) => told.push(message),
+    };
+  }
+
+  it('row 10: www.example.com and example.com/page, absent: was not found, followed by the sentence of how', async () => {
+    await followRelativeLink(deps(), 'www.example.com');
+    await followRelativeLink(deps(), 'example.com/page');
+    expect(told).toEqual([`page was not found. ${HOW}`]);
+    await followRelativeLink(deps(), 'www.example.com');
+    expect(told).toEqual([`www.example.com was not found. ${HOW}`]);
+  });
+
+  it('row 10: a folder AgentEd could not look in: the sentence of today for it, and the sentence of how', async () => {
+    await followRelativeLink(
+      deps(() => 'unknown'),
+      'www.example.com',
+    );
+    expect(told).toEqual([
+      `AgentEd could not look in the folder of www.example.com, so it is not opened. ${HOW}`,
+    ]);
+  });
+
+  it('row 10: example.org/ names a folder: the sentence of today, and the sentence of how', async () => {
+    await followRelativeLink(deps(), 'example.org/');
+    expect(told).toEqual([`This link names a folder; AgentEd opens markdown files. ${HOW}`]);
+  });
+
+  it('row 10: a markdown file of the shape, absent: was not found and how', async () => {
+    await followRelativeLink(deps(), 'example.com/page.md');
+    expect(told).toEqual([`page.md was not found. ${HOW}`]);
+  });
+
+  it('a file of the shape that is there goes to the system as before, and says only what it said', async () => {
+    disk.set(`${ROOT}/www.example.com`, '');
+    await followRelativeLink(deps(), 'www.example.com');
+    expect(told).toEqual(['Could not open www.example.com.']);
+  });
+
+  it('a link of another kind of file that is found opens with the system as today', async () => {
+    disk.set(`${ROOT}/picture.png`, '');
+    const d = deps();
+    await followRelativeLink(d, 'picture.png');
+    expect(io.openWithSystem).toHaveBeenCalled();
+    expect(told).toEqual(['Opening picture.png with the system viewer…']);
+  });
+
+  it('an address with no web shape says only what it said: missing.md, notes.com', async () => {
+    await followRelativeLink(deps(), 'missing.md');
+    expect(told).toEqual(['missing.md was not found.']);
+    await followRelativeLink(deps(), 'notes.com');
+    expect(told).toEqual(['Could not open notes.com.']);
   });
 });
