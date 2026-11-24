@@ -405,7 +405,7 @@ async function markdownView(state: AppState, io: PlatformIO, root: string): Prom
     rootName: basename(root),
     rootPath: root,
     opensNonMarkdown: isTauri,
-    markdown: { reachedBound: tree.reachedBound, open },
+    markdown: { reachedBound: tree.reachedBound, open, files: tree.files },
   };
 }
 
