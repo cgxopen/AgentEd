@@ -489,7 +489,7 @@ function bindToolbarEvents(
   toolbar: HTMLElement,
   editor: Editor,
   btnElements: HTMLButtonElement[],
-): void {
+): () => void {
   /**
    * Which controls this selection is offered (#291, #409, #427, #20). Eight of
    * the thirteen are offered for every selection and carry no rule; the other
@@ -687,6 +687,7 @@ function bindToolbarEvents(
     }, 150);
   });
   editor.on('focus', positionToolbar);
+  return positionToolbar;
 }
 
 /**
@@ -726,12 +727,20 @@ function paintedOnOneLine(editorDom: Element): { left: number; right: number } |
   };
 }
 
-export function setupToolbar(editor: Editor, handlers: ToolbarHandlers): void {
+/**
+ * The floating toolbar, and `reposition`, which places it again over the
+ * selection that stands: asked when the room it is placed in changes without
+ * the selection changing, the width of the files panel applied (#786).
+ */
+export function setupToolbar(
+  editor: Editor,
+  handlers: ToolbarHandlers,
+): { reposition: () => void } {
   const toolbar = document.createElement('div');
   toolbar.id = 'floating-toolbar';
   toolbar.className = 'floating-toolbar hidden';
   document.body.appendChild(toolbar);
 
   const btnElements = createToolbarButtons(toolbar, editor, handlers);
-  bindToolbarEvents(toolbar, editor, btnElements);
+  return { reposition: bindToolbarEvents(toolbar, editor, btnElements) };
 }

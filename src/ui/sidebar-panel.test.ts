@@ -224,8 +224,10 @@ describe('the panel sits on the right and is drawn as a card', () => {
     // `position: absolute` or `fixed` here. How narrow the editor becomes was
     // measured in Chromium — 372px at the 600x400 minimum — and is on the issue.
     const panel = element('sidebar');
+    // `relative` since #786, as the reference of the edge that widens it: it
+    // keeps the panel in the flow of the row, which is what this asks.
     const position = declared(panel, 'position');
-    expect(position === undefined || position === 'static').toBe(true);
+    expect(position === undefined || position === 'static' || position === 'relative').toBe(true);
     expect(declared(panel, 'flex-shrink')).toBe('0');
     expect(declared(panel, 'width')).toBe('220px');
   });
