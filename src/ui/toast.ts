@@ -46,9 +46,54 @@ function getContainer(): HTMLElement {
 }
 
 /**
+ * Each toast standing, with the timer that hides it at its time. A toast
+ * leaves this map when it begins to fade, by its timer or by a press, so a
+ * timer of a toast already ended is cleared and fires nothing afterwards.
+ */
+const standing = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+
+/** Fade `toast` out and remove it once, whichever way it was ended. */
+function endToast(toast: HTMLElement): void {
+  const timer = standing.get(toast);
+  if (timer === undefined) return;
+  clearTimeout(timer);
+  standing.delete(toast);
+  toast.classList.remove('toast-visible');
+  setTimeout(() => toast.remove(), TOAST_FADE_MS);
+}
+
+/**
+ * **A press of the pointer anywhere in the window ends every toast that
+ * stands** (#782, owner decision of 2026-11-24), with the fade it has at its
+ * time. Listened to as `pointerdown` on the window in the capture phase: the
+ * first event of any press, mouse, pen or touch, seen before any handler below
+ * it could stop it. The toast takes no pointer itself (`pointer-events: none`
+ * in the stylesheet), so the press goes on to what it was aimed at.
+ *
+ * **The press that raises a toast does not end it**, by the order of the
+ * events: every toast of the application is raised in a `click` handler or
+ * after something it awaited, never during a press, and `click` comes after
+ * `pointerdown`. So the press is over before its toast exists; the next one
+ * finds it standing.
+ */
+function endEveryToast(): void {
+  for (const toast of [...standing.keys()]) endToast(toast);
+}
+
+let listening = false;
+
+/** The one listener of the window, installed with the first toast. */
+function listenForPresses(): void {
+  if (listening) return;
+  listening = true;
+  window.addEventListener('pointerdown', endEveryToast, true);
+}
+
+/**
  * Show a transient toast message in the top-right corner. It hides after the
- * time `toastDuration` gives its words, from 3 s to 10 s, then fades in
- * `TOAST_FADE_MS`; several stand stacked, each leaving at its own time.
+ * time `toastDuration` gives its words, from 3 s to 10 s, or at the next press
+ * of the pointer anywhere in the window, then fades in `TOAST_FADE_MS`;
+ * several stand stacked, each leaving at its own time.
  */
 export function showToast(message: string, kind: ToastKind = 'info'): void {
   const c = getContainer();
@@ -56,12 +101,13 @@ export function showToast(message: string, kind: ToastKind = 'info'): void {
   toast.className = `toast toast-${kind}`;
   toast.textContent = message;
   c.appendChild(toast);
+  listenForPresses();
 
   // Trigger CSS transition
   requestAnimationFrame(() => toast.classList.add('toast-visible'));
 
-  setTimeout(() => {
-    toast.classList.remove('toast-visible');
-    setTimeout(() => toast.remove(), TOAST_FADE_MS);
-  }, toastDuration(message));
+  standing.set(
+    toast,
+    setTimeout(() => endToast(toast), toastDuration(message)),
+  );
 }

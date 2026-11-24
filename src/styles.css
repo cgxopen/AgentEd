@@ -3141,7 +3141,9 @@ button.indicator-search:hover {
   transition:
     opacity 0.2s,
     transform 0.2s;
-  pointer-events: auto;
+  /* A toast takes no press: the press goes to the control under it, and ends
+     the toast in the same gesture (#782, src/ui/toast.ts). */
+  pointer-events: none;
 }
 
 .toast-visible {
