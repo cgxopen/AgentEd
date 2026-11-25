@@ -8,6 +8,46 @@ Changes that have landed but are not yet in a release wait under **Unreleased**.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-25
+
+The rest of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674)): links between your documents, a files panel that shows the markdown around a document, printing and PDF, renaming, and repairs to how a file is written.
+
+### Added
+
+- File, Export to PDF saves the document as a PDF, and File, Print (`Ctrl+P`) prints it ([#726](https://github.com/cgxopen/AgentEd/pull/726)).
+- `Ctrl`+click on a relative link to a markdown file opens that file in AgentEd; with `Shift` held too, it opens in a window of its own. A link to a file of another kind, such as an image or a PDF, opens in the application the system gives it ([#728](https://github.com/cgxopen/AgentEd/pull/728), [#736](https://github.com/cgxopen/AgentEd/pull/736)).
+- A Links badge in the header lists the relative links of the open document that point to a file that is not there. AgentEd reports them and never repairs them; web addresses are not checked ([#730](https://github.com/cgxopen/AgentEd/pull/730)).
+- The files panel lists the markdown files around the document and the folders that hold them, as a tree, with the `assets` folders and what they hold ([#747](https://github.com/cgxopen/AgentEd/pull/747), [#749](https://github.com/cgxopen/AgentEd/pull/749), [#751](https://github.com/cgxopen/AgentEd/pull/751)).
+- Check links in this folder, in the files panel, checks the links of every markdown file of the folder, when you ask for it. Nothing is written and no web address is looked at ([#778](https://github.com/cgxopen/AgentEd/pull/778)).
+- Show links, in the files panel, lists the files the open document links to and the markdown files of the folder that link to it; a click opens one ([#798](https://github.com/cgxopen/AgentEd/pull/798)).
+- File, Rename gives the open document another name in its own folder, without closing it ([#753](https://github.com/cgxopen/AgentEd/pull/753)).
+- New from Template offers Agent Instructions, between Blank Document and Document with Metadata ([#755](https://github.com/cgxopen/AgentEd/pull/755)).
+- The File changed on disk dialog offers Cancel: nothing is written and the document stays as you left it ([#738](https://github.com/cgxopen/AgentEd/pull/738)).
+
+### Changed
+
+- The files panel can be made wider by dragging its edge, and keeps that width ([#787](https://github.com/cgxopen/AgentEd/pull/787)).
+- A files panel you opened by hand stays open: at the next start and for every document that has a file, until you shut it ([#789](https://github.com/cgxopen/AgentEd/pull/789), [#793](https://github.com/cgxopen/AgentEd/pull/793)).
+- AgentEd opens at the size you left its window, and maximized when it was. The position is not kept ([#794](https://github.com/cgxopen/AgentEd/pull/794)).
+- A short message at the bottom of the window stays longer when it has more words, and a press anywhere ends it ([#780](https://github.com/cgxopen/AgentEd/pull/780), [#785](https://github.com/cgxopen/AgentEd/pull/785)).
+- The lists of links say more plainly what they found: Could not be checked for a link AgentEd could not answer for, No links to check when a folder holds none, and how to write a link that starts with a slash or a web address written without `https://` ([#780](https://github.com/cgxopen/AgentEd/pull/780), [#783](https://github.com/cgxopen/AgentEd/pull/783), [#795](https://github.com/cgxopen/AgentEd/pull/795)).
+
+### Fixed
+
+Saving a file you did not edit:
+
+- A table column padded before its text keeps that padding ([#743](https://github.com/cgxopen/AgentEd/pull/743)).
+- A strikethrough written with one tilde and a horizontal rule spelled otherwise than `---` keep their spelling ([#745](https://github.com/cgxopen/AgentEd/pull/745)).
+- The text of an HTML block such as `aside` or `section` no longer gains a backslash before a bracket at each save ([#763](https://github.com/cgxopen/AgentEd/pull/763)).
+- A continuation line in a list item after a nested list no longer gains four spaces at each save, and one in a task item no longer loses four ([#764](https://github.com/cgxopen/AgentEd/pull/764), [#770](https://github.com/cgxopen/AgentEd/pull/770)).
+- A link shown inside the text of another link is no longer written as two links at the second save ([#768](https://github.com/cgxopen/AgentEd/pull/768)).
+- A link whose address holds a space is kept as a link, where the second save wrote it as text ([#769](https://github.com/cgxopen/AgentEd/pull/769)).
+- In a list item, a line at the margin after a blank line stays in the item, as CommonMark reads it; before, the rest of the list could leave the list ([#774](https://github.com/cgxopen/AgentEd/pull/774)).
+
+Elsewhere:
+
+- A long file name in a dialog wraps inside the dialog instead of running past its edge ([#742](https://github.com/cgxopen/AgentEd/pull/742)).
+
 ## [1.0.2] - 2026-11-14
 
 Four more candidates of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674)) that are done: a metadata block for agent instructions, the licence in About, and a files panel without the files a system leaves behind. 1.1.0 comes with the rest of that list.
