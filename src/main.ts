@@ -187,20 +187,23 @@ installLinkOpener(editorEl, {
   // click in the files panel (#727).
   // With Shift, in a window of its own (#731); a file that is not markdown
   // goes to the system.
-  openRelative: (address, inNewWindow) => {
-    void followRelativeLink(
-      {
-        documentPath: () => ctx.state.filePath,
-        panelRoot: () => ctx.sidebar.listedRoot(),
-        io: getPlatformIO,
-        openFilePath: (path, root) => docActions.openFilePath(path, root),
-        openWindow: openDocumentWindow,
-      },
-      address,
-      inNewWindow,
-    ).catch((e: unknown) => console.error('[link] a relative link was not followed:', e));
-  },
+  openRelative: (address, inNewWindow) => followLink(address, inNewWindow),
 });
+
+/** A relative link followed, from the editor or from a row of Links to (#797). */
+function followLink(address: string, inNewWindow: boolean): void {
+  void followRelativeLink(
+    {
+      documentPath: () => ctx.state.filePath,
+      panelRoot: () => ctx.sidebar.listedRoot(),
+      io: getPlatformIO,
+      openFilePath: (path, root) => docActions.openFilePath(path, root),
+      openWindow: openDocumentWindow,
+    },
+    address,
+    inNewWindow,
+  ).catch((e: unknown) => console.error('[link] a relative link was not followed:', e));
+}
 
 // The other half of "this window never navigates away from the document"
 // (#65). A drop the editor did not take would otherwise be handled by the
@@ -358,6 +361,9 @@ const folderLinks = createFolderLinkReport({
   status: document.getElementById('sidebar-links-status'),
   openFile: (path, root) => docActions.openFilePath(path, root),
   jump: (link) => linksReport.jump(link),
+  // The section of the links of the open document, held at the foot (#797).
+  section: document.getElementById('sidebar-links-section'),
+  followLink: (link) => followLink(link.href, false),
 });
 ctx.sidebar.setOnMarkdownTree?.((drawn) => folderLinks.attach(drawn));
 

@@ -96,7 +96,7 @@ export function setupLinksPopover(callbacks: LinksPopoverCallbacks): LinksPopove
     return { toggle: () => {}, close: () => {}, isOpen: () => false, show: () => {} };
   }
   const popover = popoverEl;
-  let result: LinkCheckResult = { broken: [], notChecked: [], good: 0 };
+  let result: LinkCheckResult = { broken: [], notChecked: [], good: 0, found: [] };
 
   function isOpen(): boolean {
     return !popover.classList.contains('hidden');

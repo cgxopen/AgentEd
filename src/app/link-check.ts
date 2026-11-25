@@ -63,6 +63,12 @@ export interface LinkCheckResult {
   readonly notChecked: readonly UncheckedLink[];
   /** Relative links whose target is there. */
   readonly good: number;
+  /**
+   * Those links, each with the path it leads to (#797): what Links to lists for
+   * the open document, and what Linked from scans in the read of a folder.
+   * Held only while the result is: the read of a folder frees them with it.
+   */
+  readonly found: readonly BrokenLink[];
 }
 
 /**
@@ -131,15 +137,15 @@ export async function checkLinks(
     files.map((f) => f.path),
   );
   const broken: BrokenLink[] = [];
-  let good = 0;
+  const found: BrokenLink[] = [];
   for (const file of files) {
     const answer = presence.get(file.path);
-    if (answer === 'present') good += 1;
+    if (answer === 'present') found.push(file);
     else if (answer === 'absent') broken.push(file);
     else notChecked.push({ link: file.link, reason: 'unknown' });
   }
   notChecked.sort((a, b) => a.link.from - b.link.from);
-  return { broken, notChecked, good };
+  return { broken, notChecked, good: found.length, found };
 }
 
 async function presenceOfEach(

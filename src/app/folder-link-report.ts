@@ -14,6 +14,7 @@ import {
   startedText,
   stoppedLine,
 } from '../ui/links-folder-report';
+import { drawLinksSection, drawShowLinks } from '../ui/links-section';
 import type { DrawnMarkdownTree, TreeRoot } from '../ui/sidebar';
 import {
   checkFolder,
@@ -50,6 +51,13 @@ export interface FolderLinkReportDeps {
   readonly openFile: (path: string, root: TreeRoot) => Promise<void>;
   /** Select `link` in the document on screen and bring it into view, or say it is gone. */
   readonly jump: (link: DocumentLink) => void;
+  /**
+   * Where the section of #797 is drawn, held at the foot of the panel, and how
+   * a row of Links to is followed: as Ctrl and a click on that link. Without
+   * them neither the line Show links nor the section is drawn.
+   */
+  readonly section?: HTMLElement | null;
+  readonly followLink?: (link: DocumentLink) => void;
 }
 
 export interface FolderLinkReport {
@@ -76,6 +84,13 @@ export function createFolderLinkReport(deps: FolderLinkReportDeps): FolderLinkRe
   let running: Running | null = null;
   let expanded = new Set<string>();
   let renamedSince = false;
+  /** The section of #797 is shown: by its line alone, never remembered. */
+  let sectionShown = false;
+  /**
+   * The last answer of #729 for the open file, kept with or without a read, so
+   * Links to is drawn at the press. Dropped when the panel hides (#184).
+   */
+  let openResult: { readonly path: string; readonly result: LinkCheckResult } | null = null;
   /** Counts the checks started, so a check stopped and left behind draws nothing. */
   let generation = 0;
 
@@ -99,12 +114,80 @@ export function createFolderLinkReport(deps: FolderLinkReportDeps): FolderLinkRe
     target?.focus();
   }
 
+  /** The line Show links, beside `into`, where the application gives the section a place. */
+  function withLine(into: Element | null): void {
+    // No line for a document with no file (owner decision 7 of 2026-11-25).
+    if (!deps.section || !into || deps.openDocument() === null) return;
+    into.append(
+      dot(),
+      drawShowLinks(sectionShown, () => toggleSection()),
+    );
+  }
+
+  function dot(): HTMLElement {
+    const span = document.createElement('span');
+    span.className = 'links-folder-dot';
+    span.textContent = '·';
+    return span;
+  }
+
+  function toggleSection(): void {
+    sectionShown = !sectionShown;
+    if (sectionShown && !report && !running) start();
+    else draw();
+    focusToggle();
+  }
+
+  function focusToggle(): void {
+    drawn?.slot.querySelector<HTMLElement>('.links-section-toggle')?.focus();
+  }
+
+  /** The section, for the open document, or nothing where it is not shown. */
+  function drawSectionOf(): void {
+    const host = deps.section;
+    if (!host) return;
+    const open = deps.openDocument();
+    if (!sectionShown || !drawn || open === null) {
+      host.classList.add('hidden');
+      host.replaceChildren();
+      return;
+    }
+    const root = drawn.root;
+    host.replaceChildren(
+      ...drawLinksSection(
+        {
+          root: root.path,
+          documentPath: open.path,
+          open: openResult && samePath(openResult.path, open.path) ? openResult.result : null,
+          read: report,
+          running: running ? { read: running.read, total: running.total } : null,
+          renamed: renamedSince,
+        },
+        {
+          onFollow: (link) => deps.followLink?.(link),
+          onOpen: (path) => void deps.openFile(path, root),
+          onStop: () => stop(),
+        },
+      ),
+    );
+    host.classList.remove('hidden');
+  }
+
   function draw(): void {
+    const focused = document.activeElement?.classList.contains('links-section-toggle') ?? false;
+    drawSlot();
+    drawSectionOf();
+    if (focused) focusToggle();
+  }
+
+  function drawSlot(): void {
     if (!drawn) return;
     const { slot } = drawn;
     if (running) {
       const r = running;
-      slot.replaceChildren(drawRunning(r.read, r.total, () => stop()));
+      const line = drawRunning(r.read, r.total, () => stop());
+      withLine(line);
+      slot.replaceChildren(line);
       return;
     }
     if (report) {
@@ -115,6 +198,7 @@ export function createFolderLinkReport(deps: FolderLinkReportDeps): FolderLinkRe
             onAgain: () => start(),
             onClear: () => {
               reset();
+              sectionShown = false;
               tell('');
               draw();
               focusButton(FOLDER_CHECK_DOOR);
@@ -129,9 +213,12 @@ export function createFolderLinkReport(deps: FolderLinkReportDeps): FolderLinkRe
           },
         ),
       );
+      withLine(slot.querySelector('.links-folder-actions'));
       return;
     }
-    slot.replaceChildren(drawDoor(() => start()));
+    const door = drawDoor(() => start());
+    withLine(door);
+    slot.replaceChildren(door);
   }
 
   function focusRow(key: string): void {
@@ -228,13 +315,21 @@ export function createFolderLinkReport(deps: FolderLinkReportDeps): FolderLinkRe
     if (next === null || (drawn !== null && !samePath(drawn.root.path, next.root.path))) {
       if (running || report) tell('');
       reset();
+      sectionShown = false;
     }
+    // A hidden panel holds nothing (#184), the answer of the open file included.
+    if (next === null) openResult = null;
     drawn = next;
     draw();
   }
 
   function openFileChecked(path: string | null, result: LinkCheckResult): void {
-    if (path === null || report === null) return;
+    if (path !== null && drawn !== null) openResult = { path, result };
+    if (report === null) {
+      if (sectionShown) drawSectionOf();
+      return;
+    }
+    if (path === null) return;
     const files = report.files.map((f) => (samePath(f.path, path) ? { path: f.path, result } : f));
     report = { ...report, files };
     draw();

@@ -36,6 +36,7 @@ const check: FolderCheck = {
           { link: link('#h', 3), reason: 'anchor-only' },
         ],
         good: 0,
+        found: [],
       },
     },
     { path: '/notes/big.md', result: null, skipped: 'too-large' },
@@ -65,6 +66,7 @@ function drawnList(): HTMLElement {
     broken: check.files[0].result?.broken ?? [],
     notChecked: check.files[0].result?.notChecked ?? [],
     good: 0,
+    found: [],
   });
   popover.toggle();
   return document.getElementById('links-popover') as HTMLElement;

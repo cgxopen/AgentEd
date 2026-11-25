@@ -13,6 +13,7 @@ import {
   FOLDER_CHECK_STOP,
 } from '../ui/links-folder-report';
 import { LINKS_NOT_CHECKED_HEADING } from '../ui/links-popover';
+import { LINKED_FROM_HEADING, LINKS_TO_HEADING, SHOW_LINKS } from '../ui/links-section';
 import { NO_RELATED_ITEMS } from '../ui/sidebar';
 import guide from './guide.md?raw';
 
@@ -25,6 +26,9 @@ describe('the words the User Guide names (#784)', () => {
       FOLDER_CHECK_CLEAR,
       LINKS_NOT_CHECKED_HEADING,
       NO_RELATED_ITEMS,
+      SHOW_LINKS,
+      LINKS_TO_HEADING,
+      LINKED_FROM_HEADING,
     ]) {
       expect(guide, words).toContain(`**${words}**`);
     }

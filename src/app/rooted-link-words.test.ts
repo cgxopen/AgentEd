@@ -26,7 +26,12 @@ describe('the second sentence, how to write it (#779, owner decision of 2026-11-
   it('row 1: the line under a rooted link in the list of the open document holds it', () => {
     document.body.innerHTML = `${shippedElement(shippedPage, '<div id="header-indicators">')}${shippedElement(shippedPage, '<aside id="links-popover"')}`;
     const popover = setupLinksPopover({ onJump: () => {} });
-    popover.show({ broken: [], notChecked: [{ link: rooted, reason: 'rooted' }], good: 0 });
+    popover.show({
+      broken: [],
+      notChecked: [{ link: rooted, reason: 'rooted' }],
+      good: 0,
+      found: [],
+    });
     popover.toggle();
     const line = document.querySelector('#links-popover .links-row-line')?.textContent;
     expect(line).toBe(`${WHY_NOT_CHECKED} ${HOW}`);
@@ -40,7 +45,12 @@ describe('the second sentence, how to write it (#779, owner decision of 2026-11-
           files: [
             {
               path: '/notes/a.md',
-              result: { broken: [], notChecked: [{ link: rooted, reason: 'rooted' }], good: 0 },
+              result: {
+                broken: [],
+                notChecked: [{ link: rooted, reason: 'rooted' }],
+                good: 0,
+                found: [],
+              },
             },
           ],
           read: 1,

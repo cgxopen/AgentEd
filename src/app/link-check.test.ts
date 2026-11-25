@@ -155,7 +155,12 @@ describe('what the check says of each link (#729)', () => {
       files: ['C:/notes/docs/a.md', 'C:/notes/docs/sub/b.pdf'],
       folders: ['C:/notes/docs/sub'],
     });
-    expect(result).toEqual({ broken: [], notChecked: [], good: 2 });
+    expect(result).toMatchObject({ broken: [], notChecked: [], good: 2 });
+    // Since #797 the result keeps each found link with its path, what Links to lists.
+    expect(result.found.map((f) => [f.link.href, f.path])).toEqual([
+      ['a.md', 'C:/notes/docs/a.md'],
+      ['./sub/b.pdf', 'C:/notes/docs/sub/b.pdf'],
+    ]);
   });
 
   it('a link with a heading is checked by its file', async () => {
@@ -236,7 +241,7 @@ describe('web addresses are never looked at (#729, Q3)', () => {
 
   it('asks nothing of the disk, never asks the resolver, and lists them nowhere', async () => {
     const { result, asked, listed } = await check(WEB, {});
-    expect(result).toEqual({ broken: [], notChecked: [], good: 0 });
+    expect(result).toEqual({ broken: [], notChecked: [], good: 0, found: [] });
     expect(asked).toEqual([]);
     expect(listed).toEqual([]);
     expect(linkTarget.resolveLinkTarget).not.toHaveBeenCalled();
