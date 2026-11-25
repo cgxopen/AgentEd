@@ -111,7 +111,7 @@ export interface FolderReportView {
   readonly check: FolderCheck;
   /** The root of the folder, so a row names its file from there. */
   readonly root: string;
-  /** Which rows are open: a file by its path, Not checked by `NOT_CHECKED_KEY`. */
+  /** Which rows are open: a file by its path, Could not be checked by `NOT_CHECKED_KEY`. */
   readonly expanded: ReadonlySet<string>;
   readonly renamed: boolean;
 }

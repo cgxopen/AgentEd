@@ -90,7 +90,7 @@ AgentEd is free and open source. If it makes your work easier, [support its deve
 - **Live estimates and counts:** see a token estimate alongside word and character counts. Token counting runs offline using `gpt-tokenizer` with `cl100k_base`; other models, chat formatting, and attachments can produce different totals.
 - **Find and replace:** match case, whole words, or regular expressions.
 - **Links between documents:** `Ctrl`+click (`Cmd` on macOS) a relative link to open a Markdown file in AgentEd, or in a window of its own with `Shift` held too; a **Links** badge lists the links of the document that point to a file that is not there.
-- **Files panel:** browse the Markdown files around the document and its `assets/` folder in a side panel you can widen, which stays open once you open it; check the links of the whole folder for broken ones (desktop).
+- **Files panel:** browse the Markdown files around the document and its `assets/` folder in a side panel you can widen, which stays open once you open it; check the links of the whole folder for broken ones, and see which files the open document links to and which link to it (desktop).
 - **Rename, print, and export to PDF:** rename a document in its folder from the File menu, print it, or save it as a PDF.
 - **Appearance:** light, dark, automatic mode, and curated palettes.
 - **Multiple windows:** work with one document in each independent window; AgentEd opens at the size you left it.

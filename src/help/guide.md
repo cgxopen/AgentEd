@@ -101,7 +101,9 @@ Drag the edge of the panel on the side of the document to make it wider, or move
 
 **Check links in this folder**, under the name of the folder, reads every markdown file in the list and shows the links that point to a file that is not there, file by file, with **Stop** while it runs and **Check again** and **Clear** after. Click a link in the report to open its file at that link. The links AgentEd could not answer for stand apart under **Could not be checked**, with their count on a line of their own; when no file holds a link to another file, the report says **No links to check**. It repairs nothing and changes no file, web addresses are never looked at, and a file larger than 512 KB is not checked. The report goes when the panel is closed or shows another folder.
 
-In the web version, the panel shows the `assets` folder of the document alone, once you have given AgentEd access to the folder, and opens only by itself. Folders whose names start with a dot are hidden there; a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**. The check of the links of a folder is in the desktop application only.
+**Show links**, beside it, shows under the list of files, for the open document, **Links to**, the files it links to, and **Linked from**, the files of the folder that link to it; click one to open it. **Linked from** is what the last check of the folder found, and **Show links** runs that check when none has run.
+
+In the web version, the panel shows the `assets` folder of the document alone, once you have given AgentEd access to the folder, and opens only by itself. Folders whose names start with a dot are hidden there; a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**. The check of the links of a folder, and **Show links**, are in the desktop application only.
 
 ## Appearance
 
