@@ -29,7 +29,7 @@ The rest of the 1.1 list ([#674](https://github.com/cgxopen/AgentEd/issues/674))
 - The files panel can be made wider by dragging its edge, and keeps that width ([#787](https://github.com/cgxopen/AgentEd/pull/787)).
 - A files panel you opened by hand stays open: at the next start and for every document that has a file, until you shut it ([#789](https://github.com/cgxopen/AgentEd/pull/789), [#793](https://github.com/cgxopen/AgentEd/pull/793)).
 - AgentEd opens at the size you left its window, and maximized when it was. The position is not kept ([#794](https://github.com/cgxopen/AgentEd/pull/794)).
-- A short message at the bottom of the window stays longer when it has more words, and a press anywhere ends it ([#780](https://github.com/cgxopen/AgentEd/pull/780), [#785](https://github.com/cgxopen/AgentEd/pull/785)).
+- A short message at the top right of the window stays longer when it has more words, and a press anywhere ends it ([#780](https://github.com/cgxopen/AgentEd/pull/780), [#785](https://github.com/cgxopen/AgentEd/pull/785)).
 - The lists of links say more plainly what they found: Could not be checked for a link AgentEd could not answer for, No links to check when a folder holds none, and how to write a link that starts with a slash or a web address written without `https://` ([#780](https://github.com/cgxopen/AgentEd/pull/780), [#783](https://github.com/cgxopen/AgentEd/pull/783), [#795](https://github.com/cgxopen/AgentEd/pull/795)).
 
 ### Fixed
@@ -42,7 +42,7 @@ Saving a file you did not edit:
 - A continuation line in a list item after a nested list no longer gains four spaces at each save, and one in a task item no longer loses four ([#764](https://github.com/cgxopen/AgentEd/pull/764), [#770](https://github.com/cgxopen/AgentEd/pull/770)).
 - A link shown inside the text of another link is no longer written as two links at the second save ([#768](https://github.com/cgxopen/AgentEd/pull/768)).
 - A link whose address holds a space is kept as a link, where the second save wrote it as text ([#769](https://github.com/cgxopen/AgentEd/pull/769)).
-- In a list item, a line at the margin after a blank line stays in the item, as CommonMark reads it; before, the rest of the list could leave the list ([#774](https://github.com/cgxopen/AgentEd/pull/774)).
+- In a list item, a paragraph after a blank line keeps a line that is indented less than the item, as CommonMark reads it; before, that line and the rest of the item could leave the list ([#774](https://github.com/cgxopen/AgentEd/pull/774)).
 
 Elsewhere:
 
