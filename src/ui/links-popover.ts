@@ -56,7 +56,7 @@ export const ROOTED_LINK_HOW =
 
 /** The line under a link that was not checked: why, and for a link starting with /, how. */
 export const NOT_CHECKED_LINES: Readonly<Record<NotCheckedReason, string>> = {
-  'anchor-only': 'A link to a heading is not checked yet.',
+  'anchor-only': 'A link to a heading cannot be checked yet.',
   rooted: `A link that starts with / is not checked, since AgentEd does not know the folder it starts from. ${ROOTED_LINK_HOW}`,
   'no-document': 'Save this document first: links are checked from its folder.',
   folder: 'This link names a folder; only links to files are checked.',

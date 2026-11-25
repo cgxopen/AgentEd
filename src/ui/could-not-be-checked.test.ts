@@ -104,7 +104,8 @@ describe('the heading reads Could not be checked (#781, owner decision of 2026-1
 
 describe('the sentences under each link are byte for byte as on main (#781)', () => {
   it('the reasons of a link and of a whole file', () => {
-    expect(NOT_CHECKED_LINES['anchor-only']).toBe('A link to a heading is not checked yet.');
+    // Since #784, by the owner wording proposed on #783.
+    expect(NOT_CHECKED_LINES['anchor-only']).toBe('A link to a heading cannot be checked yet.');
     expect(NOT_CHECKED_LINES.unknown).toBe(
       'AgentEd could not look in the folder of this link, so it is not checked.',
     );

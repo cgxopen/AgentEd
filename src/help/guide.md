@@ -20,7 +20,7 @@ Markdown files have become a common language for AI workflows — powering agent
 2. To save it, press **Ctrl+S**. The first time, AgentEd asks where to put the file and what to call it.
 3. To open a file you already have, press **Ctrl+O**, or open the menu at the top left and choose **File → Open**. Files you opened recently are under **File → Open Recent**.
 4. To start again with an empty document, choose **File → New**. **File → New from Template** offers a blank document, a file of agent instructions that starts with a `name` and `description` block, or a document that starts with a metadata block.
-5. To give a saved document another name, choose **File → Rename**. The file stays in its folder, and any unsaved changes stay unsaved. Type a name without an extension to keep the one it has; only `.md`, `.markdown` and `.mkd` are accepted, and a name another file already has is refused. Links to the file in other documents keep the old name.
+5. To give a saved document another name, choose **File → Rename**. The file stays in its folder, and any unsaved changes stay unsaved. Type a name without an extension to keep the one it has; only `.md`, `.markdown` and `.mkd` are accepted, and a name another file already has is refused. Links to the file in other documents keep the old name; to find them, check the links of the folder in the files panel.
 
 AgentEd never saves on its own. If you try to close a document with unsaved changes, it asks whether to save them, discard them, or go back.
 
@@ -36,7 +36,7 @@ To add a metadata block to a document, choose **Insert → Metadata**, then **Ag
 
 The header at the top of the window shows counts for the document: an estimated token count to help gauge LLM context budget, and its words and characters. They change as you type. Point at the token count for details.
 
-Badges appear beside them when they apply: **Metadata** when the document has a metadata block, **Images** when it uses images, and **Links** when a link of the document to another file points to a file that is not there. Click **Images** for a summary of the images the document uses. Click **Links** for the list of those links; click a link in the list to go to it in the document. The list also shows, apart, the links AgentEd did not check and why, such as a link to a heading. Links to web pages are never checked. AgentEd checks the links when the document opens and when you save it, so a file moved or renamed since then is not shown until the next save. In a narrow window, some of these move into the list behind the three dots.
+Badges appear beside them when they apply: **Metadata** when the document has a metadata block, **Images** when it uses images, and **Links** when a link of the document to another file points to a file that is not there. Click **Images** for a summary of the images the document uses. Click **Links** for the list of those links; click a link in the list to go to it in the document. Under **Could not be checked**, the list also shows the links AgentEd could not answer for, and why, such as a link to a heading. Links to web pages are never checked. AgentEd checks the links when the document opens and when you save it, so a file moved or renamed since then is not shown until the next save. In a narrow window, some of these move into the list behind the three dots.
 
 ## Formatting text
 
@@ -55,6 +55,8 @@ Press **Tab** in a list to move an item in, and **Shift+Tab** to move it back ou
 
 To break a line without starting a new paragraph, press **Shift+Enter**.
 
+When you copy text from AgentEd, it reaches other programs as markdown too: pasted where only plain text is accepted, a heading, a list or a bold word keeps its marks.
+
 ## The Insert menu
 
 The menu at the top left has an **Insert** section for things that are not plain text:
@@ -68,6 +70,12 @@ The menu at the top left has an **Insert** section for things that are not plain
 - **Horizontal Rule**: a line across the page, to separate parts of a document.
 - **Metadata**: a block of fields at the top of the document. See Metadata above.
 - **Emoji**: a palette of emoji to insert.
+
+## Links to other files
+
+A link to another file is written from the folder of the document it is in: `other.md` is a file beside the document, `notes/other.md` a file in the folder `notes` beside it, and `../other.md` a file in the folder one level up, since two dots mean the folder above. A link that starts with `/` is neither followed nor checked, since AgentEd does not know the folder it starts from; write it from the folder of the document instead.
+
+A web address needs `https://` in front. Written without it, such as `www.example.com`, it is read as a file beside the document and leads nowhere; AgentEd says so under the link, and how to write it.
 
 ## Images
 
@@ -85,9 +93,15 @@ Press **Ctrl+F** to find text in the document, and **Ctrl+H** to find and replac
 
 ## The files panel
 
-When your document uses images from an `assets` folder beside it, the files panel opens by itself and shows the files around the document, with that `assets` folder open. Open and close the panel with the button in the header, or with **Ctrl+Shift+E**. Files that your system leaves in a folder, such as `.DS_Store` or `Thumbs.db`, and other files whose names start with a dot are not listed. Folders whose names start with a dot are hidden; when there are some, a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**.
+Open and close the files panel with the button in the header, or with **Ctrl+Shift+E**. It lists the markdown files beside the document and in the folders under it, up to ten levels down, showing only the folders that hold one, and every `assets` folder with the files in it. If the document uses images, its `assets` folder is open in the list; a document alone in its folder shows **No related files or folders**. Click a file to open it: the list stays. Files that your system leaves in a folder, such as `.DS_Store` or `Thumbs.db`, files whose names start with a dot, and folders such as `node_modules`, `target` and `AppData` or whose names start with a dot, are not listed. In a very large folder the panel stops after 2000 folders or 2 seconds, whichever comes first, and says so under the list.
 
-On a document with no such folder, opening the panel lists the markdown files beside the document and in the folders under it, up to ten levels down, showing only the folders that hold one, and every `assets` folder with the files in it. Click a file to open it: the list stays, and if the document has images, its `assets` folder opens in the list. Folders such as `node_modules`, `target` and `AppData`, and folders whose names start with a dot, are not looked into. In a very large folder the panel stops after 2000 folders or 2 seconds, whichever comes first, and says so under the list.
+The panel opens by itself for a document that uses images from an `assets` folder beside it. Once you open it with its button, it stays open for every saved document you open, and is open again the next time you start AgentEd, until you close it with its button.
+
+Drag the edge of the panel on the side of the document to make it wider, or move the edge with the arrow keys once it has the focus; double click it to bring the panel back to its least width. AgentEd remembers the width. In a small window the panel cannot be made wider.
+
+**Check links in this folder**, under the name of the folder, reads every markdown file in the list and shows the links that point to a file that is not there, file by file, with **Stop** while it runs and **Check again** and **Clear** after. Click a link in the report to open its file at that link. The links AgentEd could not answer for stand apart under **Could not be checked**, with their count on a line of their own; when no file holds a link to another file, the report says **No links to check**. It repairs nothing and changes no file, web addresses are never looked at, and a file larger than 512 KB is not checked. The report goes when the panel is closed or shows another folder.
+
+In the web version, the panel shows the `assets` folder of the document alone, once you have given AgentEd access to the folder, and opens only by itself. Folders whose names start with a dot are hidden there; a line at the bottom of the panel says how many, and **Show** lists them until you choose **Hide**. The check of the links of a folder is in the desktop application only.
 
 ## Appearance
 
@@ -100,6 +114,8 @@ Spell check is off at first. Turn it on with **Edit → Spell check**.
 ## More than one document
 
 A document you open from your file manager gets a window of its own, with its own history of changes. **File → Open** opens a document in the window you are in, after asking about any unsaved changes.
+
+AgentEd opens at the size you left its window, and maximized if it was; where the window stands is left to your system.
 
 ## When a file changes outside AgentEd
 
